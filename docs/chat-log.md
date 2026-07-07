@@ -8,6 +8,55 @@ Whenever ChatGPT updates files in this repository, it should also update this ch
 
 This is not automatic background logging. It is part of each requested GitHub update workflow.
 
+## 2026-07-06 — Great Imports 0.4.54 ZIP verification
+
+### User request
+
+The user uploaded `great-imports-v0.4.54-unified-evidence-layer.zip`, described it as the last download ChatGPT had provided, and asked ChatGPT to verify it and update GitHub.
+
+### Verification performed
+
+The uploaded ZIP was inspected directly from the sandbox path. Results:
+
+- ZIP SHA-256: `47e3b4092d03ef790f9cf42abd3b66c3c3d19af7c5918fa8ac941dbd86a33682`
+- ZIP size: `138934` bytes
+- Top-level plugin folder: `great-imports/`
+- PHP files: `17`
+- Path traversal check: passed; no absolute paths or `..` path components.
+- Plugin header version: `0.4.54`.
+- Runtime constant `GREAT_IMPORTS_VERSION`: `0.4.54`.
+- Class constant `GI_Great_Imports::VERSION`: `0.4.54`.
+- `readme.txt` stable tag: `0.4.54`.
+- PHP syntax lint: passed for all 17 PHP files using `php -l`.
+- Forbidden string scan: no matches for `OpenStreetMap`, `Open Street Map`, `Nominatim`, `OSM`, `Source collector`, or `source collector`.
+- Evidence-string scan found references across the extracted source: `location_decision_state` 20, `event_location_relation_state` 9, `event_location_needs_review` 8, `location_evidence` 28.
+
+### GitHub update performed
+
+Added a verification report to `stanfieldjd/Great-importer`:
+
+- `docs/verification-great-imports-v0.4.54-unified-evidence-layer.md`
+
+Commit:
+
+- `deb2403d6a13899b798e19d93d17932fc8f143d0`
+
+### Source sync status
+
+The ZIP verifies as a valid `0.4.54` plugin build and should be treated as the authoritative source set for the next safe repository source sync. The report records the exact file hashes and intended root layout.
+
+The full extracted source files were not destructively written over the current GitHub source in this pass because the active GitHub connector does not provide a safe local ZIP-to-repository directory sync action. A partial manual text update would risk corrupting the modular plugin layout.
+
+### Files changed
+
+- `stanfieldjd/Great-importer`: `docs/verification-great-imports-v0.4.54-unified-evidence-layer.md`
+- `stanfieldjd/chattanooga-music-scene`: `docs/chat-log.md`
+- `stanfieldjd/chattanooga-music-scene`: `docs/rolling-context.md`
+
+### Current next step
+
+Use the verified ZIP contents as the authoritative `0.4.54` source set and perform a safe full repository source sync through a bulk-safe method that can write `great-imports.php`, `readme.txt`, `uninstall.php`, and all `includes/...` files together.
+
 ## 2026-07-06 — Great Imports simulation matrix update
 
 ### User request
