@@ -21,10 +21,15 @@ The chat log should capture the conversation/action checkpoint. This rolling con
 - Chat tracking files are initialized.
 - The user wants GitHub file updates to include `docs/chat-log.md` and `docs/rolling-context.md` updates in the same pass.
 - This does not run as a silent background automation after every message. It is performed whenever ChatGPT is actively updating GitHub files.
-- Current Great Imports working line in chat: `Great Imports 0.4.55-simulation-matrix` following the `0.4.54 — unified event/location evidence layer` line.
-- Latest Great Imports repo update: added `includes/class-gi-great-imports-simulation-matrix.php` in `stanfieldjd/Great-importer`.
-- The new simulation matrix file is side-effect free. It records required simulation coverage, event/location evidence fields, event-location relation states, duplicate-prevention checks, and pass criteria. It does not fetch URLs, write Events Manager records, change scheduled imports, or mutate stored candidates.
-- The main plugin loader remains `great-imports.php`, a large single-file plugin source. Its header currently reports `0.4.22` even though later evidence-layer functions exist in the file. Do not destructively replace this file without a safe full-file patch path.
+- Latest user-provided artifact: `great-imports-v0.4.54-unified-evidence-layer.zip`.
+- The uploaded ZIP verified as a valid `Great Imports 0.4.54` plugin build.
+- ZIP SHA-256: `47e3b4092d03ef790f9cf42abd3b66c3c3d19af7c5918fa8ac941dbd86a33682`.
+- ZIP verification passed: clean path traversal check, 17 PHP files linted with `php -l`, plugin header/runtime/class/readme versions all `0.4.54`, forbidden map/provider placeholder string scan clean, and evidence strings present across extracted source.
+- Latest Great Imports repo update: added `docs/verification-great-imports-v0.4.54-unified-evidence-layer.md` in `stanfieldjd/Great-importer`.
+- Great-importer verification-report commit: `deb2403d6a13899b798e19d93d17932fc8f143d0`.
+- The verified ZIP contains the authoritative modular source layout rooted at `great-imports/`: `great-imports.php`, `readme.txt`, `uninstall.php`, and `includes/...` files should live at repo root when synced.
+- The full extracted source files were not destructively written over the current GitHub source in the verification pass because the active GitHub connector does not provide a safe local ZIP-to-repository directory sync action. Avoid partial manual text updates that would corrupt the modular plugin layout.
+- Previous Great Imports repo update: added `includes/class-gi-great-imports-simulation-matrix.php` in `stanfieldjd/Great-importer` as a side-effect-free simulation matrix. That file is not part of the verified `0.4.54` ZIP source set.
 - Plugin ZIPs/build artifacts have not been committed to this repository in this pass.
 
 ## Current Great Imports boundaries
@@ -47,12 +52,25 @@ The chat log should capture the conversation/action checkpoint. This rolling con
 - Imported/updated candidates are hidden from the visible review queue after import in 0.4.47.
 - Duplicate prevention was hardened in 0.4.48 for same URL, alternate URL, event URL, ticket URL, source URL list, storage key, and fingerprint cases.
 - Location/map boundary work was corrected after the user clarified which rules belong to Location Detector, which logic belongs to Great Imports, and which UI-only pieces belong to EM Local Importer.
-- 0.4.54 added detector-backed event/location evidence fields in the working line: `location_decision_state`, `event_location_relation_state`, `event_location_needs_review`, and `location_evidence`.
-- 0.4.55-simulation-matrix now records the expected full simulation coverage and pass criteria in a plugin-side PHP source file, but it is not yet wired into the active loader/report workflow.
+- 0.4.54 verified from uploaded ZIP: modular source layout, unified evidence references, clean forbidden-string scan, and PHP lint pass.
+- 0.4.55-simulation-matrix was added earlier as a repo-side source file but is not part of the verified 0.4.54 ZIP.
 
 ## Current next step
 
-Wire the simulation matrix or equivalent checks into the active Great Imports test/report workflow only through a safe patch path for the main loader, then run a full simulation pass against the current build using:
+Perform a safe full repository source sync using the verified ZIP contents as the authoritative `0.4.54` source set. The sync should write these files together, not partially:
+
+- `great-imports.php`
+- `readme.txt`
+- `uninstall.php`
+- all files under `includes/core/`
+- all files under `includes/admin/`
+- all files under `includes/integrations/`
+- all files under `includes/sources/`
+- all files under `includes/events/`
+- all files under `includes/reports/`
+- all files under `includes/locations/`
+
+After source sync, compare repository file hashes against `docs/verification-great-imports-v0.4.54-unified-evidence-layer.md`, then run the full simulation pass using:
 
 - uploaded Events Manager source
 - uploaded Location Detector reference
