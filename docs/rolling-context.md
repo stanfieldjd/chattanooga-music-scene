@@ -21,8 +21,11 @@ The chat log should capture the conversation/action checkpoint. This rolling con
 - Chat tracking files are initialized.
 - The user wants GitHub file updates to include `docs/chat-log.md` and `docs/rolling-context.md` updates in the same pass.
 - This does not run as a silent background automation after every message. It is performed whenever ChatGPT is actively updating GitHub files.
-- Current Great Imports working line in chat: `Great Imports 0.4.54 — unified event/location evidence layer`.
-- Plugin ZIPs/build artifacts have not been committed to this repository in this pass; this update is a context/checkpoint update only.
+- Current Great Imports working line in chat: `Great Imports 0.4.55-simulation-matrix` following the `0.4.54 — unified event/location evidence layer` line.
+- Latest Great Imports repo update: added `includes/class-gi-great-imports-simulation-matrix.php` in `stanfieldjd/Great-importer`.
+- The new simulation matrix file is side-effect free. It records required simulation coverage, event/location evidence fields, event-location relation states, duplicate-prevention checks, and pass criteria. It does not fetch URLs, write Events Manager records, change scheduled imports, or mutate stored candidates.
+- The main plugin loader remains `great-imports.php`, a large single-file plugin source. Its header currently reports `0.4.22` even though later evidence-layer functions exist in the file. Do not destructively replace this file without a safe full-file patch path.
+- Plugin ZIPs/build artifacts have not been committed to this repository in this pass.
 
 ## Current Great Imports boundaries
 
@@ -33,6 +36,8 @@ The chat log should capture the conversation/action checkpoint. This rolling con
 - The unified evidence layer should cover events, locations, event-location relationships, listing expansion, Public URL, CSV, JSON, ICS/iCal, platform-style sources, organizer/calendar sources, alternate URLs, duplicate/merge decisions, review-needed state, and import candidate state.
 - Avoid inventing extra Great Imports rules and labeling them as user rules.
 - Forbidden map/provider placeholder strings were removed from plugin source in the 0.4.53 line before the 0.4.54 unified evidence build.
+- Blocked or unreadable source pages must remain reviewable blocked-source records with source URL and reason. Do not fabricate event details from blocked pages.
+- Cleanup and uninstall behavior must remain limited to Great Imports-owned data unless the user explicitly instructs otherwise.
 
 ## Current Great Imports feature state from chat
 
@@ -42,11 +47,12 @@ The chat log should capture the conversation/action checkpoint. This rolling con
 - Imported/updated candidates are hidden from the visible review queue after import in 0.4.47.
 - Duplicate prevention was hardened in 0.4.48 for same URL, alternate URL, event URL, ticket URL, source URL list, storage key, and fingerprint cases.
 - Location/map boundary work was corrected after the user clarified which rules belong to Location Detector, which logic belongs to Great Imports, and which UI-only pieces belong to EM Local Importer.
-- 0.4.54 added detector-backed event/location evidence fields: `location_decision_state`, `event_location_relation_state`, `event_location_needs_review`, and `location_evidence`.
+- 0.4.54 added detector-backed event/location evidence fields in the working line: `location_decision_state`, `event_location_relation_state`, `event_location_needs_review`, and `location_evidence`.
+- 0.4.55-simulation-matrix now records the expected full simulation coverage and pass criteria in a plugin-side PHP source file, but it is not yet wired into the active loader/report workflow.
 
 ## Current next step
 
-Run a full simulation pass against `Great Imports 0.4.54` using:
+Wire the simulation matrix or equivalent checks into the active Great Imports test/report workflow only through a safe patch path for the main loader, then run a full simulation pass against the current build using:
 
 - uploaded Events Manager source
 - uploaded Location Detector reference
