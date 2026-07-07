@@ -8,6 +8,52 @@ Whenever ChatGPT updates files in this repository, it should also update this ch
 
 This is not automatic background logging. It is part of each requested GitHub update workflow.
 
+## 2026-07-06 — Great Imports 0.4.54 expanded URL matrix simulation
+
+### User request
+
+The user noted that the full simulation should probably have used a large list of URLs.
+
+### Simulation performed
+
+A follow-up URL-matrix simulation was run against the verified Great Imports `0.4.54` source. The test did not perform live network fetches. It exercised the plugin URL input parser, source-profile classifier, source-intelligence policy, parser routing, and normalized duplicate key behavior against a broad matrix of URL shapes.
+
+Results:
+
+- URL fixtures tested: `94`.
+- URL-matrix checks passed: `94/94`.
+- Invalid/private/non-http inputs rejected cleanly: `9`.
+- PHP harness completed without fatal errors.
+- Coverage included user/project-known URLs, Eventbrite organizer/detail URLs, TicketWeb, Ticketmaster, Live Nation, Bandsintown, Songkick, AXS, See Tickets, native venue detail/listing URLs, broad discovery/listing URLs, organizer/profile/social/link-in-bio URLs, ICS/iCal/calendar URLs, CSV/JSON/API/feed-like URLs, duplicate/canonical variants, invalid/private/local/file/blocked/protected URLs, and out-of-scope broad city examples.
+
+### Review notes
+
+- `webcal://` is classified as an ICS shape but rejected by URL input validation because supported remote input remains `http(s)`.
+- Social/protected pages such as Facebook/Instagram are accepted as URLs but route through generic/native discovery/event-shape handling rather than a dedicated social-source block. No fabrication occurred because this matrix did not fetch network content.
+- Normalized URL keys strip query strings. This is useful for tracking-parameter duplicate prevention but can collapse functional query-only endpoints if those ever become import sources.
+- Songkick detail URLs route generic discovery-first rather than dedicated platform-event support.
+- The previous `map_link` terminology review note from the full simulation remains open if zero map-related wording is required.
+
+### GitHub update performed
+
+Added an expanded URL matrix report to `stanfieldjd/Great-importer`:
+
+- `docs/expanded-url-matrix-great-imports-v0.4.54.md`
+
+Commit:
+
+- `c6a7531e6cd2bcf7f80b2a639145b1d49abb138e`
+
+### Files changed
+
+- `stanfieldjd/Great-importer`: `docs/expanded-url-matrix-great-imports-v0.4.54.md`
+- `stanfieldjd/chattanooga-music-scene`: `docs/chat-log.md`
+- `stanfieldjd/chattanooga-music-scene`: `docs/rolling-context.md`
+
+### Current next step
+
+Sync the verified, simulated, and URL-matrix-tested Great Imports 0.4.54 source files into `stanfieldjd/Great-importer` as source files only, not as a ZIP. During the next patch, consider explicit policy refinements for social/protected hosts, query-string normalization, Songkick classification, and `map_link` terminology.
+
 ## 2026-07-06 — Great Imports 0.4.54 full simulation with Events Manager
 
 ### User request
