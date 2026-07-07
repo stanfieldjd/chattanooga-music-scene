@@ -8,6 +8,55 @@ Whenever ChatGPT updates files in this repository, it should also update this ch
 
 This is not automatic background logging. It is part of each requested GitHub update workflow.
 
+## 2026-07-06 — Great Imports 0.4.54 full simulation with Events Manager
+
+### User request
+
+The user uploaded `events-manager.zip` and asked for a full simulation test of every functionality using the Great Imports build together with this Events Manager ZIP.
+
+### Simulation performed
+
+The local simulation used:
+
+- `great-imports-v0.4.54-unified-evidence-layer.zip` as the Great Imports source authority.
+- `events-manager.zip` as the Events Manager compatibility source.
+- `great-imports-chat-text-export.zip` only as context confirmation, not as source code.
+
+Results:
+
+- Great Imports source files: `18` total, `17` PHP files.
+- Great Imports PHP lint: `17/17` passed.
+- Events Manager version: `7.3.6`.
+- Events Manager PHP files: `723`.
+- Events Manager PHP lint: `723/723` passed.
+- Dynamic runtime simulation: `23/23` tests passed.
+- Covered bootstrap/admin/REST/scheduling, weekly/monthly cron schedules, CSV/JSON/ICS imports, Public URL source profiling, listing discovery, blocked-source no-fabrication behavior, event normalization, event/location evidence state, duplicate prevention, multi-source merge, Events Manager payload boundary, address-only location payloads, saved imports, cleanup scope, and imported-candidate hiding.
+- Boundary scans passed for forbidden provider/source-control strings, coordinate/geocode terms, and EM/front-end override hooks.
+
+### Review note
+
+The source still contains `map_link` address-evidence terminology in four files. The simulation confirmed it does not call a map/geocode provider and does not create latitude/longitude/coordinate fields. If the intended rule is zero map-related wording of any kind, this should be renamed or removed in the next patch.
+
+### GitHub update performed
+
+Added a full simulation report to `stanfieldjd/Great-importer`:
+
+- `docs/full-simulation-great-imports-v0.4.54-with-events-manager-7.3.6.md`
+
+Commit:
+
+- `3f4cd0eb3ae2f7249b919c0a88a64fd97a03ff0c`
+
+### Files changed
+
+- `stanfieldjd/Great-importer`: `docs/full-simulation-great-imports-v0.4.54-with-events-manager-7.3.6.md`
+- `stanfieldjd/chattanooga-music-scene`: `docs/chat-log.md`
+- `stanfieldjd/chattanooga-music-scene`: `docs/rolling-context.md`
+
+### Current next step
+
+Sync the verified and simulated Great Imports 0.4.54 source files into `stanfieldjd/Great-importer` as source files only, not as a ZIP. Then compare repository file hashes against the verification report and rerun the simulation against the repo copy.
+
 ## 2026-07-06 — Great Imports 0.4.54 ZIP verification
 
 ### User request
