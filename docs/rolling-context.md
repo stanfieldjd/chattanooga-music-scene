@@ -21,16 +21,21 @@ The chat log should capture the conversation/action checkpoint. This rolling con
 - Chat tracking files are initialized.
 - The user wants GitHub file updates to include `docs/chat-log.md` and `docs/rolling-context.md` updates in the same pass.
 - This does not run as a silent background automation after every message. It is performed whenever ChatGPT is actively updating GitHub files.
-- Latest user-provided artifact: `great-imports-v0.4.54-unified-evidence-layer.zip`.
-- The uploaded ZIP verified as a valid `Great Imports 0.4.54` plugin build.
-- ZIP SHA-256: `47e3b4092d03ef790f9cf42abd3b66c3c3d19af7c5918fa8ac941dbd86a33682`.
-- ZIP verification passed: clean path traversal check, 17 PHP files linted with `php -l`, plugin header/runtime/class/readme versions all `0.4.54`, forbidden map/provider placeholder string scan clean, and evidence strings present across extracted source.
-- Latest Great Imports repo update: added `docs/verification-great-imports-v0.4.54-unified-evidence-layer.md` in `stanfieldjd/Great-importer`.
-- Great-importer verification-report commit: `deb2403d6a13899b798e19d93d17932fc8f143d0`.
+- Latest user-provided source artifacts: `great-imports-v0.4.54-unified-evidence-layer.zip`, `great-imports-chat-text-export.zip`, and `events-manager.zip`.
+- The uploaded Great Imports ZIP verified as a valid `Great Imports 0.4.54` plugin build.
+- Great Imports ZIP SHA-256: `47e3b4092d03ef790f9cf42abd3b66c3c3d19af7c5918fa8ac941dbd86a33682`.
+- Events Manager ZIP SHA-256: `d4f73c17d5480eaa5b4d816cacabd58d3a3bb8437ae6935a84180ed37140ae74`.
+- Events Manager version from uploaded source: `7.3.6`.
+- Latest Great-importer repo updates:
+  - Verification report: `docs/verification-great-imports-v0.4.54-unified-evidence-layer.md`, commit `deb2403d6a13899b798e19d93d17932fc8f143d0`.
+  - Full simulation report: `docs/full-simulation-great-imports-v0.4.54-with-events-manager-7.3.6.md`, commit `3f4cd0eb3ae2f7249b919c0a88a64fd97a03ff0c`.
+- Full local simulation passed: Great Imports `17/17` PHP files linted, Events Manager `723/723` PHP files linted, and dynamic harness `23/23` tests passed.
+- The simulation covered bootstrap/admin/REST/scheduling, weekly/monthly cron schedules, CSV/JSON/ICS imports, Public URL source profiling, listing discovery, blocked-source no-fabrication behavior, event normalization, event/location evidence state, duplicate prevention, multi-source merge, Events Manager payload boundary, address-only location payloads, saved imports, cleanup scope, and imported-candidate hiding.
+- Boundary scans passed for forbidden provider/source-control strings, coordinate/geocode terms, and EM/front-end override hooks.
+- Review note: `map_link` address-evidence terminology appears in four source files. Simulation confirmed it does not call a map/geocode provider and does not create latitude/longitude/coordinate fields. If the desired rule is zero map-related wording of any kind, rename or remove it in the next patch.
 - The verified ZIP contains the authoritative modular source layout rooted at `great-imports/`: `great-imports.php`, `readme.txt`, `uninstall.php`, and `includes/...` files should live at repo root when synced.
-- The full extracted source files were not destructively written over the current GitHub source in the verification pass because the active GitHub connector does not provide a safe local ZIP-to-repository directory sync action. Avoid partial manual text updates that would corrupt the modular plugin layout.
-- Previous Great Imports repo update: added `includes/class-gi-great-imports-simulation-matrix.php` in `stanfieldjd/Great-importer` as a side-effect-free simulation matrix. That file is not part of the verified `0.4.54` ZIP source set.
-- Plugin ZIPs/build artifacts have not been committed to this repository in this pass.
+- The previous repo-side file `includes/class-gi-great-imports-simulation-matrix.php` is not part of the verified `0.4.54` ZIP source set and should be removed during source sync.
+- Plugin ZIPs/build artifacts should not be committed to GitHub.
 
 ## Current Great Imports boundaries
 
@@ -53,11 +58,12 @@ The chat log should capture the conversation/action checkpoint. This rolling con
 - Duplicate prevention was hardened in 0.4.48 for same URL, alternate URL, event URL, ticket URL, source URL list, storage key, and fingerprint cases.
 - Location/map boundary work was corrected after the user clarified which rules belong to Location Detector, which logic belongs to Great Imports, and which UI-only pieces belong to EM Local Importer.
 - 0.4.54 verified from uploaded ZIP: modular source layout, unified evidence references, clean forbidden-string scan, and PHP lint pass.
-- 0.4.55-simulation-matrix was added earlier as a repo-side source file but is not part of the verified 0.4.54 ZIP.
+- 0.4.54 full local simulation with Events Manager 7.3.6 passed `23/23` dynamic harness tests.
+- 0.4.55-simulation-matrix was added earlier as a repo-side source file but is not part of the verified 0.4.54 ZIP and should be removed during source sync.
 
 ## Current next step
 
-Perform a safe full repository source sync using the verified ZIP contents as the authoritative `0.4.54` source set. The sync should write these files together, not partially:
+Perform a safe full repository source sync using the verified and simulated `0.4.54` ZIP contents as the authoritative source set. The sync should write these files together, not partially:
 
 - `great-imports.php`
 - `readme.txt`
@@ -70,25 +76,9 @@ Perform a safe full repository source sync using the verified ZIP contents as th
 - all files under `includes/reports/`
 - all files under `includes/locations/`
 
-After source sync, compare repository file hashes against `docs/verification-great-imports-v0.4.54-unified-evidence-layer.md`, then run the full simulation pass using:
+During source sync, remove repo-side files that are not part of the verified `0.4.54` source set, especially `includes/class-gi-great-imports-simulation-matrix.php`. Do not commit ZIP artifacts.
 
-- uploaded Events Manager source
-- uploaded Location Detector reference
-- uploaded EM Local Importer UI reference
-- mixed Public URL fixtures
-- listing pages and expanded event-detail links
-- organizer/calendar/platform-style URLs
-- blocked/unreadable URL fixtures
-- invalid URL input
-- CSV imports
-- JSON imports
-- ICS/iCal file and URL imports
-- saved recurring imports
-- review/import workflow
-- duplicate prevention from same and alternate URLs
-- imported-candidate hiding
-- placeholder/string integrity checks
-- uninstall/delete safety
+After source sync, compare repository file hashes against `docs/verification-great-imports-v0.4.54-unified-evidence-layer.md`, then rerun the full simulation report against the repo copy.
 
 ## Operating rule
 
