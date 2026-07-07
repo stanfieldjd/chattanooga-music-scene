@@ -29,10 +29,16 @@ The chat log should capture the conversation/action checkpoint. This rolling con
 - Latest Great-importer repo updates:
   - Verification report: `docs/verification-great-imports-v0.4.54-unified-evidence-layer.md`, commit `deb2403d6a13899b798e19d93d17932fc8f143d0`.
   - Full simulation report: `docs/full-simulation-great-imports-v0.4.54-with-events-manager-7.3.6.md`, commit `3f4cd0eb3ae2f7249b919c0a88a64fd97a03ff0c`.
+  - Expanded URL matrix report: `docs/expanded-url-matrix-great-imports-v0.4.54.md`, commit `c6a7531e6cd2bcf7f80b2a639145b1d49abb138e`.
 - Full local simulation passed: Great Imports `17/17` PHP files linted, Events Manager `723/723` PHP files linted, and dynamic harness `23/23` tests passed.
-- The simulation covered bootstrap/admin/REST/scheduling, weekly/monthly cron schedules, CSV/JSON/ICS imports, Public URL source profiling, listing discovery, blocked-source no-fabrication behavior, event normalization, event/location evidence state, duplicate prevention, multi-source merge, Events Manager payload boundary, address-only location payloads, saved imports, cleanup scope, and imported-candidate hiding.
+- Expanded URL matrix passed: `94/94` URL fixtures completed without fatal errors, with `9` invalid/private/non-http inputs rejected cleanly.
+- URL matrix covered user/project-known URLs, Eventbrite organizer/detail URLs, TicketWeb, Ticketmaster, Live Nation, Bandsintown, Songkick, AXS, See Tickets, native venue detail/listing URLs, broad discovery/listing URLs, organizer/profile/social/link-in-bio URLs, ICS/iCal/calendar URLs, CSV/JSON/API/feed-like URLs, duplicate/canonical variants, invalid/private/local/file/blocked/protected URLs, and Atlanta/Nashville broad city examples.
 - Boundary scans passed for forbidden provider/source-control strings, coordinate/geocode terms, and EM/front-end override hooks.
-- Review note: `map_link` address-evidence terminology appears in four source files. Simulation confirmed it does not call a map/geocode provider and does not create latitude/longitude/coordinate fields. If the desired rule is zero map-related wording of any kind, rename or remove it in the next patch.
+- Review notes now open:
+  - `map_link` address-evidence terminology appears in four source files. Simulation confirmed it does not call a map/geocode provider and does not create latitude/longitude/coordinate fields. If the desired rule is zero map-related wording of any kind, rename or remove it.
+  - Social/protected pages such as Facebook/Instagram are accepted as URLs but route through generic/native discovery/event-shape handling. Consider explicit source-review/discovery-only handling.
+  - Normalized URL keys strip query strings. This helps tracking-parameter duplicate prevention but can collapse functional query-only endpoints if those become import sources.
+  - Songkick detail URLs route generic discovery-first rather than dedicated platform-event support.
 - The verified ZIP contains the authoritative modular source layout rooted at `great-imports/`: `great-imports.php`, `readme.txt`, `uninstall.php`, and `includes/...` files should live at repo root when synced.
 - The previous repo-side file `includes/class-gi-great-imports-simulation-matrix.php` is not part of the verified `0.4.54` ZIP source set and should be removed during source sync.
 - Plugin ZIPs/build artifacts should not be committed to GitHub.
@@ -59,6 +65,7 @@ The chat log should capture the conversation/action checkpoint. This rolling con
 - Location/map boundary work was corrected after the user clarified which rules belong to Location Detector, which logic belongs to Great Imports, and which UI-only pieces belong to EM Local Importer.
 - 0.4.54 verified from uploaded ZIP: modular source layout, unified evidence references, clean forbidden-string scan, and PHP lint pass.
 - 0.4.54 full local simulation with Events Manager 7.3.6 passed `23/23` dynamic harness tests.
+- 0.4.54 expanded URL matrix simulation passed `94/94` URL-policy fixtures.
 - 0.4.55-simulation-matrix was added earlier as a repo-side source file but is not part of the verified 0.4.54 ZIP and should be removed during source sync.
 
 ## Current next step
@@ -78,7 +85,9 @@ Perform a safe full repository source sync using the verified and simulated `0.4
 
 During source sync, remove repo-side files that are not part of the verified `0.4.54` source set, especially `includes/class-gi-great-imports-simulation-matrix.php`. Do not commit ZIP artifacts.
 
-After source sync, compare repository file hashes against `docs/verification-great-imports-v0.4.54-unified-evidence-layer.md`, then rerun the full simulation report against the repo copy.
+Recommended policy patch after source sync: remove/rename `map_link` terminology if zero map-related wording is required, add explicit source handling for social/protected hosts, review query-string normalization for functional query URLs, and optionally add a dedicated Songkick profile.
+
+After source sync, compare repository file hashes against `docs/verification-great-imports-v0.4.54-unified-evidence-layer.md`, then rerun the full simulation and URL matrix against the repo copy.
 
 ## Operating rule
 
