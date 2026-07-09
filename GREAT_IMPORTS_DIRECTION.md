@@ -19,6 +19,7 @@ This file is the maintained project direction file for Great Imports. It is not 
 - Do not hardcode source-specific shortcuts unless explicitly approved.
 - Blocked or unreadable sources must be recorded as blocked/failed; do not fabricate event data.
 - Do not commit plugin ZIP/build artifacts as source.
+- Do not store API keys, client secrets, private tokens, or public tokens in GitHub project files.
 
 ## Current patch direction — 2026-07-09
 
@@ -131,6 +132,25 @@ Useful reference direction:
 
 - The uploaded plugin shows an Eventbrite event-ID/API style path.
 - Great Imports should still accept full Eventbrite URLs, extract the numeric event ID internally, and then decide whether to use an API-based path, HTML/JSON-LD path, or both.
+
+## Eventbrite API credentials reference — 2026-07-09
+
+User provided a screenshot of Eventbrite Developer Links → API Keys for an app named `wordpress`.
+
+Visible credential types in the screenshot:
+
+- API key.
+- Client secret.
+- Private token.
+- Public token.
+
+Security handling direction:
+
+- Do not store the actual credential values in GitHub or project direction files.
+- Treat the screenshot as confirmation that Eventbrite API credentials exist for the account/app, not as a source file.
+- Any future plugin credential UI must mask secret values, store them in WordPress options only, and avoid logging/exporting secrets in diagnostics.
+- API calls should prefer the private token only if an API path is explicitly approved.
+- Because the screenshot exposed secret values in chat/image form, rotating/regenerating the Eventbrite credentials is recommended before live production use.
 
 Next likely move:
 
