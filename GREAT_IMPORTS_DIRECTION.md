@@ -152,6 +152,33 @@ Security handling direction:
 - API calls should prefer the private token only if an API path is explicitly approved.
 - Because the screenshot exposed secret values in chat/image form, rotating/regenerating the Eventbrite credentials is recommended before live production use.
 
-Next likely move:
+## Eventbrite API implementation patch — 2026-07-09
 
-Patch Great Imports to extract and store the Eventbrite numeric event ID from valid full Eventbrite URLs before adding API/token settings or Events Manager handoff.
+User instructed: do what is needed to make it work.
+
+Research and source basis:
+
+- The uploaded `import-eventbrite-events.1.8.1.zip` uses an Eventbrite event-ID/API path with endpoints shaped as `/v3/events/{event_id}/?expand=venue,ticket_availability,organizer,organizer.logo,category` and `/v3/events/{event_id}/description`.
+- Great Imports should not require the user to paste only the numeric ID; it should accept the full Eventbrite URL and extract the ID internally.
+- Credentials must be entered locally in WordPress, not committed to GitHub.
+
+Implemented in `stanfieldjd/Great-imports` version `0.1.1`:
+
+- Added masked Eventbrite private-token setting in the Great Imports admin page.
+- Stored the token in a WordPress option with autoload disabled.
+- Never displays the saved token after save.
+- Added ability to clear the saved token.
+- Extracts Eventbrite numeric event IDs from full detail URLs such as `/e/...-tickets-1978629906313`.
+- Tries authenticated Eventbrite API first when a private token is configured.
+- Uses an Authorization header, not a token query string.
+- Fetches event details with venue, ticket availability, organizer, organizer logo, and category expansions.
+- Fetches the separate Eventbrite description endpoint.
+- Normalizes only verified API fields into review-candidate metadata.
+- Does not use latitude/longitude from Eventbrite even when present.
+- Falls back to public HTML/JSON-LD if API fails.
+- If API and HTML fallback both fail, records a `source_unreadable` candidate with the source URL, event ID, fetch method, and error message instead of fabricating event data.
+- Recent candidates table now shows status and fetch method.
+
+Current next step:
+
+Install/update the plugin on WordPress, paste the Eventbrite private token in Great Imports → Eventbrite API Settings, then run the Amy Ray Eventbrite URL through `Import once`. If it fails, the candidate should still appear as `source_unreadable` with the real failure reason rather than fake event data.
