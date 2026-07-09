@@ -116,6 +116,22 @@ Importer consequence:
 - If the WordPress server receives HTTP 429, blocked HTML, empty body, CAPTCHA/protection page, or no schema.org Event JSON-LD, Great Imports must report the failure and must not create fabricated event data.
 - If the WordPress server can fetch the page successfully, Great Imports should parse only the verified fields present in schema.org Event JSON-LD and leave missing fields empty for review.
 
+## Uploaded Eventbrite importer reference — 2026-07-09
+
+User uploaded `import-eventbrite-events.1.8.1.zip` and clarified that previously identified differences are options, not conflicts.
+
+Corrected interpretation:
+
+- Treat the uploaded plugin as a reference implementation and option source, not as a list of rejected conflicts.
+- Coordinates/maps, direct publishing, location creation, scheduling, image import, cleanup, API/token mode, and Events Manager handoff are optional capabilities that may be adopted later if explicitly selected and implemented under Great Imports rules.
+- The only hard boundary is that Great Imports must not fabricate data. Anything unreadable, blocked, missing, or uncertain must remain explicit and visible.
+- Other capabilities are not rejected; they are staged options that need review-first behavior, source provenance, safe settings, and user approval before activation.
+
+Useful reference direction:
+
+- The uploaded plugin shows an Eventbrite event-ID/API style path.
+- Great Imports should still accept full Eventbrite URLs, extract the numeric event ID internally, and then decide whether to use an API-based path, HTML/JSON-LD path, or both.
+
 Next likely move:
 
-After this initial Eventbrite candidate path is tested in WordPress, the next patch should connect review candidate actions to explicit accept/reject/update behavior before adding scheduler or Events Manager handoff.
+Patch Great Imports to extract and store the Eventbrite numeric event ID from valid full Eventbrite URLs before adding API/token settings or Events Manager handoff.
