@@ -194,6 +194,30 @@ Implemented in `stanfieldjd/Great-imports` version `0.1.2`:
 - Report does not export actual Eventbrite credentials.
 - The plugin records a `source_unreadable` candidate when no verified event data can be retrieved, so failed sources remain visible in the report.
 
+## Exploratory correction patch — 2026-07-09
+
+User corrected that version `0.1.2` still selected relevant data instead of pulling broader exploratory source evidence.
+
+Corrected interpretation:
+
+- A true exploratory report should collect raw source/API evidence first and decide relevance later.
+- Normalized candidate fields are still useful, but they must not be the only evidence retained.
+- The report should expose what was requested, what was returned, what failed, and what was normalized.
+
+Implemented in `stanfieldjd/Great-imports` version `0.1.3`:
+
+- Added related Eventbrite exploratory API requests after a successful event-detail API response.
+- Captures endpoint labels, endpoint paths, query args, success flag, status code, error text, and raw payloads.
+- Captures the primary event detail payload under `exploratory_api_payloads.event_detail`.
+- Captures the description endpoint payload under `exploratory_api_payloads.event_description`.
+- Requests and captures `ticket_classes` from `/v3/events/{event_id}/ticket_classes/`.
+- Requests and captures `public_collections` from `/v3/events/{event_id}/collections/public/?expand=image`.
+- Requests and captures the venue endpoint when `venue_id` is available.
+- Requests and captures the organizer endpoint when `organizer_id` is available.
+- Requests and captures the category endpoint when `category_id` is available.
+- Keeps failed related endpoint responses in the report instead of hiding them.
+- Does not export credentials.
+
 Current next step:
 
-Install/update the plugin on WordPress, paste the Eventbrite private token in Great Imports → Eventbrite API Settings, run the Eventbrite URL through `Import once`, then download `Exploratory Report` and provide the JSON report for review.
+Install/update `0.1.3`, re-run the same Eventbrite URL, then download the Exploratory Report again. The report should now include an `exploratory_api_payloads` bundle with the extra endpoint responses in addition to the normalized candidate data.
