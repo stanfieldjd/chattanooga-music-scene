@@ -70,6 +70,24 @@ Implemented source direction:
 - Toolbar link points to `admin.php?page=great-imports`.
 - Do not add a Tools submenu.
 
+## First live Eventbrite test fixture — 2026-07-09
+
+User-selected Eventbrite detail URL:
+
+`https://www.eventbrite.com/e/amy-ray-band-of-indigo-girls-live-at-the-boneyard-71226-tickets-1978629906313?aff=ebdssbcategorybrowse`
+
+Research result:
+
+- The URL is an Eventbrite detail-page shape and is valid for the current one-time Eventbrite importer.
+- Browser fetch from ChatGPT was rate-limited by Eventbrite with HTTP 429, so the live page content was not verified through this environment.
+- The `aff=ebdssbcategorybrowse` query parameter is tracking-only for this import use case and should not become part of duplicate identity.
+
+Implemented source direction:
+
+- Normalize accepted Eventbrite URLs by stripping known tracking-only query parameters such as `aff`, `utm_*`, `fbclid`, `gclid`, `_gl`, and `_ga`.
+- Preserve the Eventbrite event path as the source identity.
+- Do not strip unknown functional query parameters globally.
+
 Next likely move:
 
 After this initial Eventbrite candidate path is tested in WordPress, the next patch should connect review candidate actions to explicit accept/reject/update behavior before adding scheduler or Events Manager handoff.
