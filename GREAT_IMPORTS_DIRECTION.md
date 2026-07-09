@@ -88,6 +88,34 @@ Implemented source direction:
 - Preserve the Eventbrite event path as the source identity.
 - Do not strip unknown functional query parameters globally.
 
+## Deep-dive result for first Eventbrite fixture — 2026-07-09
+
+Deep dive performed after user requested deeper research.
+
+Verified from live/open attempts:
+
+- Direct open of the provided Eventbrite URL returned HTTP 429 Too Many Requests from Eventbrite in ChatGPT's web environment.
+- Direct open of the normalized Eventbrite URL without `aff` also returned HTTP 429 Too Many Requests.
+- Direct open of the Eventbrite Chattanooga live-music category page returned HTTP 405 Method Not Allowed in ChatGPT's web environment.
+
+Verified from public search attempts:
+
+- Exact searches for the Eventbrite numeric ID `1978629906313`, the full event slug, and exact title variants did not return an indexed Eventbrite event-detail result in ChatGPT's web search results.
+- Search did return general public references confirming Amy Ray is a member of Indigo Girls, but this does not verify the Eventbrite event details.
+
+URL-level evidence only:
+
+- Host: `www.eventbrite.com`.
+- Path shape: `/e/{slug}-tickets-{numeric_id}`.
+- Numeric Eventbrite-like ID from path: `1978629906313`.
+- Slug text: `amy-ray-band-of-indigo-girls-live-at-the-boneyard-71226`.
+- The slug suggests, but does not independently verify, title/date/venue data. Do not treat slug-derived values as confirmed event fields unless the page content or another source verifies them.
+
+Importer consequence:
+
+- If the WordPress server receives HTTP 429, blocked HTML, empty body, CAPTCHA/protection page, or no schema.org Event JSON-LD, Great Imports must report the failure and must not create fabricated event data.
+- If the WordPress server can fetch the page successfully, Great Imports should parse only the verified fields present in schema.org Event JSON-LD and leave missing fields empty for review.
+
 Next likely move:
 
 After this initial Eventbrite candidate path is tested in WordPress, the next patch should connect review candidate actions to explicit accept/reject/update behavior before adding scheduler or Events Manager handoff.
