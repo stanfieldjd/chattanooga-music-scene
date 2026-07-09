@@ -232,6 +232,25 @@ Standing interpretation:
 - Exploratory reports are evidence-gathering artifacts, not curated summaries.
 - Any future importer design must separate raw evidence capture from later interpretation and action.
 
+## Full evidence capture foundation — 2026-07-09
+
+User asked to build the full data capture layer after clarifying that `0.1.3` was not enough.
+
+Implemented in `stanfieldjd/Great-imports` version `0.2.0`:
+
+- Added private `gi_evidence` post type as separate evidence storage.
+- Added `GI_Evidence_Store` for evidence bundles with capture run IDs, source context, item counts, and stored raw items.
+- Added `GI_HTTP_Evidence_Client` for source-agnostic raw HTTP GET capture.
+- Public page capture now records request method, sanitized request headers, success flag, status code, error, duration, response headers, full body, body SHA-256, byte count, and content type.
+- Added `GI_HTML_Evidence_Extractor` for broad non-decisional HTML evidence extraction.
+- HTML extraction captures meta tags, title tags, links, images, canonical URLs, JSON-LD blocks, and script blocks without deciding relevance.
+- Eventbrite imports now capture public page evidence and HTML extraction evidence before candidate interpretation.
+- Eventbrite API captures now include response headers, endpoint labels, endpoint paths, query args, success flags, status codes, errors, and payloads.
+- Candidate records now include `evidence_bundle_id` and `evidence_capture_run_id` so every candidate can be traced back to the raw evidence run.
+- Exploratory reports now include both `evidence_records` and `candidates`; candidates are downstream interpretations.
+- Report string handling was corrected to preserve raw evidence text while still redacting secret-like keys by field name.
+- Uninstall cleanup now includes `gi_evidence` records when Great Imports data deletion is enabled.
+
 Current next step:
 
-Install/update `0.1.3`, re-run the same Eventbrite URL, then download the Exploratory Report again. The report should now include an `exploratory_api_payloads` bundle with the extra endpoint responses in addition to the normalized candidate data.
+Install/update `0.2.0`, re-run the same Eventbrite URL, then download the Exploratory Report again. The report should now contain a separate evidence record with raw page/API evidence first and candidate data second.
