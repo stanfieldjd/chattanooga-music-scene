@@ -179,6 +179,21 @@ Implemented in `stanfieldjd/Great-imports` version `0.1.1`:
 - If API and HTML fallback both fail, records a `source_unreadable` candidate with the source URL, event ID, fetch method, and error message instead of fabricating event data.
 - Recent candidates table now shows status and fetch method.
 
+## Exploratory report patch — 2026-07-09
+
+User requested a clean full report for everything imported/tracked, including all data retrieved from the URL.
+
+Implemented in `stanfieldjd/Great-imports` version `0.1.2`:
+
+- Added `GI_Exploratory_Report` as a separate report exporter class.
+- Added `Download Exploratory Report` button to the Great Imports admin page.
+- Report downloads as sanitized JSON.
+- Report includes plugin version, WordPress/PHP environment, Events Manager detection, Eventbrite private-token configured status, summary counts, all Great Imports candidates, post title/content/status/dates, and all `_gi_*` candidate metadata.
+- Report includes source URL, submitted URL, Eventbrite numeric ID, fetch method, API/HTML status codes, error messages, candidate status, normalized fields, raw Eventbrite event API payloads, raw Eventbrite description endpoint payloads, raw JSON-LD event data, and API error payloads when captured.
+- Report redacts field names containing token, secret, password, authorization, bearer, API key, or client secret.
+- Report does not export actual Eventbrite credentials.
+- The plugin records a `source_unreadable` candidate when no verified event data can be retrieved, so failed sources remain visible in the report.
+
 Current next step:
 
-Install/update the plugin on WordPress, paste the Eventbrite private token in Great Imports → Eventbrite API Settings, then run the Amy Ray Eventbrite URL through `Import once`. If it fails, the candidate should still appear as `source_unreadable` with the real failure reason rather than fake event data.
+Install/update the plugin on WordPress, paste the Eventbrite private token in Great Imports → Eventbrite API Settings, run the Eventbrite URL through `Import once`, then download `Exploratory Report` and provide the JSON report for review.
