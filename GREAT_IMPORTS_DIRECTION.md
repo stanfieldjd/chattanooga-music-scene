@@ -16,6 +16,8 @@ This file is the maintained project direction file for Great Imports. It is not 
 - Preserve accepted behavior unless a change is explicitly requested.
 - Keep filtering/classification separate from rejection.
 - Keep partial evidence visible rather than collapsing candidates to empty.
+- Full-view-first is an unforgiving hard rule: collect and preserve broad raw source/API/page evidence before choosing relevance, normalizing, filtering, accepting/rejecting, or deciding what matters.
+- Relevance decisions must come after exploratory evidence is captured and visible. Do not design reports/import paths that expose only selected fields unless explicitly requested.
 - Do not hardcode source-specific shortcuts unless explicitly approved.
 - Blocked or unreadable sources must be recorded as blocked/failed; do not fabricate event data.
 - Do not commit plugin ZIP/build artifacts as source.
@@ -217,6 +219,18 @@ Implemented in `stanfieldjd/Great-imports` version `0.1.3`:
 - Requests and captures the category endpoint when `category_id` is available.
 - Keeps failed related endpoint responses in the report instead of hiding them.
 - Does not export credentials.
+
+## Hard rule correction — 2026-07-09
+
+User clarified that selecting relevance before full evidence capture is not acceptable and is an unforgiving hard rule.
+
+Standing interpretation:
+
+- Do not decide what data matters before collecting the broadest feasible source evidence.
+- For import/report/debug work, pull and preserve the full view first.
+- After the full evidence view exists, relevance, normalization, filtering, mapping, and handoff decisions can be made.
+- Exploratory reports are evidence-gathering artifacts, not curated summaries.
+- Any future importer design must separate raw evidence capture from later interpretation and action.
 
 Current next step:
 
