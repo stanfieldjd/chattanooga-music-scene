@@ -54,6 +54,22 @@ Protected boundaries for this move:
 - No map-provider logic.
 - No source collector control.
 
+## UI correction — 2026-07-09
+
+User instruction: put the plugin name on the admin bar, not under Tools.
+
+Research result:
+
+- The plugin was already registered as a top-level WordPress admin menu with `add_menu_page`, not under Tools.
+- WordPress admin toolbar placement is handled through the `admin_bar_menu` hook and `WP_Admin_Bar::add_node()`.
+
+Implemented source direction:
+
+- Keep `Great Imports` as a top-level admin menu.
+- Add `Great Imports` to the WordPress admin toolbar for users with `manage_options` capability.
+- Toolbar link points to `admin.php?page=great-imports`.
+- Do not add a Tools submenu.
+
 Next likely move:
 
 After this initial Eventbrite candidate path is tested in WordPress, the next patch should connect review candidate actions to explicit accept/reject/update behavior before adding scheduler or Events Manager handoff.
