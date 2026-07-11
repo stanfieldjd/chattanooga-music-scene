@@ -2300,3 +2300,144 @@ Tickets remain description-only; no EM tickets/bookings are created. Images, sch
 Version and stable tag are `0.2.28`, and release tag `0.2.28` matches final `main`. No ZIP was provided here.
 
 Update to `0.2.28` and click **Import to Events Manager** on the candidate. The resulting success notice or exact error will be the live contract test against Events Manager `7.4.0.1`.
+
+
+## User
+
+Okay I think this issue has to do with the geocoding and longitude and latitude because when it is manually entered none of that goes in there it's just the address only nothing else gets populated
+
+## Assistant
+
+I’m going to treat that screenshot as evidence, then check the current GitHub plugin source and the Events Manager location save path before I make any move. The alert you’re seeing is a strong clue, but I’m not going to call the fix until the source backs it up.
+
+## Assistant
+
+I’m using the GitHub skill here because your rule says GitHub is the source of truth for the plugin. First pass is evidence only: current adapter code, current version, and Events Manager’s actual fields/methods around coordinates.
+
+## Assistant
+
+I’ve got the GitHub connector available now. I’m going to read the importer and plugin header from the repository, then compare that to the Events Manager location source so the next patch is aimed at the actual coordinate handoff.
+
+## Assistant
+
+The current GitHub importer does exactly what your screenshot suggests: it saves the EM location name/address/town/state/postcode/country, then stops. There is no latitude/longitude assignment and no server-side geocode call in that file, so the edit-screen alert is probably Events Manager catching up after the fact.
+
+## Assistant
+
+The direct WordPress SVN URLs didn’t open cleanly through the browser tool, so I’m going to route through source search/mirrors next. I’m only looking for the Events Manager 7.4 location object/geocode behavior, not changing direction based on a guess.
+
+## Assistant
+
+The public docs confirm Events Manager has first-class physical locations and map integration, but they don’t expose the save internals. I’m going one layer lower into source now, because the important question is whether there’s an official PHP-side coordinate method or only the admin-page JavaScript geocoder.
+
+## Assistant
+
+The EM object fields are clear: latitude and longitude are real database/meta fields, and form submissions read `location_latitude` and `location_longitude` from POST. Next I’m reading the save path so I can decide whether Great Imports should set those fields directly or call an existing EM method.
+
+## Assistant
+
+Source evidence is lining up: EM saves coordinates if the object has `location_latitude` and `location_longitude`; Great Imports never provides them. I’m checking the payload builder next, because the fix should use coordinates only if the source evidence already captured them, and it should leave EM’s own save path in charge.
+
+## Assistant
+
+The payload builder is also excluding coordinates from the Events Manager payload, even if evidence captured them elsewhere. That makes the current behavior internally consistent, but it does not satisfy the import stage because EM maps need those coordinate fields populated.
+
+## Assistant
+
+I’m going to pull the review helper next because that’s where the editable location fields are normalized. The repair should pass through the same reviewed candidate data, so it doesn’t create a second location truth.
+
+## Assistant
+
+I found one more important point: the review helper normalizes address pieces, but it has no latitude/longitude fields in the editable review set. I’m checking the source normalizer/store now to see whether Eventbrite coordinates are captured at all or whether we need to add capture before transfer.
+
+## Assistant
+
+The API normalizer currently has a comment saying it formats the venue address “without using coordinates,” and it does not store Eventbrite venue latitude/longitude. That looks like the exact behind-the-scenes issue: coordinates are treated as excluded report data, but now we’re past preview and into real EM import where EM needs them.
+
+## Assistant
+
+Before code, here’s the chess move based on the evidence so far:
+
+- Proposed move: add source-backed latitude/longitude transfer into the Events Manager import payload and location save.
+- Why: EM already has `location_latitude` / `location_longitude` fields and saves them when supplied; Great Imports currently drops coordinates before import, which matches the edit-screen “re-save to update the map” alert.
+- Exact changes: capture Eventbrite API venue latitude/longitude and schema.org geo latitude/longitude into candidate meta; include sanitized coordinates in the EM payload; set them on new `EM_Location` objects before `save()`; bump the plugin version; update the chat transcript in the GitHub chat file.
+- What will not change: parser/report UI layout, candidate storage shape beyond two new meta keys, ticket handling, event import behavior, scheduling, existing-location selection, source evidence bundles, or Events Manager’s own save method.
+- Risks: older candidates collected before this patch may not have coordinate meta until they are re-searched; if the source has no coordinates and the reviewer manually types only an address, Great Imports still should not invent coordinates. Also, I’m using source-backed coordinates, not a separate geocoder.
+- Success checks: GitHub source shows version bump, normalizers populate coordinate keys, payload includes them, importer assigns them to EM location fields, no OSM/Nominatim/geocoder calls added, and current GitHub files verify after commit.
+- Rollback point: current GitHub main at `0.2.28`; if this direction proves wrong, revert the coordinate-transfer commit rather than piling on another workaround.
+
+## Assistant
+
+I’m going to do one last evidence check against the attached report files before editing, specifically for whether Eventbrite supplied coordinates for this candidate. If the source didn’t include them, the patch can still fix future imports that do, but it would not magically geocode address-only records.
+
+## Assistant
+
+The attached report confirms the source page itself carried coordinates: `35.0365381` / `-85.30590269999999` appeared in the Eventbrite page metadata. That means this is not an address-only case for the Boneyard candidate; Great Imports dropped usable source evidence before EM import.
+
+## Assistant
+
+I’ve got the code plan and enough evidence to patch. I’m also checking the transcript update path carefully because that file is large, and I don’t want to accidentally replace it with a truncated copy while appending this exact discussion.
+
+## Assistant
+
+Good, I can read the GitHub repos directly into a working checkout, which makes the patch safer and keeps the source readable. I’ll patch from current `main`, then push through the GitHub source path and verify back from GitHub.
+
+## Assistant
+
+The local checkouts are current at GitHub `main`. I’m making the coordinate transfer patch now: source capture, payload transfer, EM location assignment, version bump, and transcript append.
+
+## Assistant
+
+One important finding: the attached source page had actual coordinates in Eventbrite meta tags, while the current HTML fallback path only normalizes JSON-LD event data. So the patch needs to capture both API/JSON-LD coordinates and Eventbrite page meta coordinates, then transfer them only into EM location fields.
+
+## Assistant
+
+I found one more place to adjust: the exploratory report sanitizer currently redacts any coordinate key as “excluded-not-used.” Since coordinates will now be used privately for EM location save, reports should still not expose the raw numbers, but the label must stop saying “not used.”
+
+## Assistant
+
+I’m editing now. This removes the false “not used” posture, keeps coordinates out of reports, and transfers them only into the Events Manager location object when both latitude and longitude are valid source-backed decimal values.
+
+## Assistant
+
+The patch is in place locally. I’m checking syntax and the exact changed paths now, then I’ll update GitHub and verify the remote source rather than trusting the local checkout.
+
+## Assistant
+
+The regular PHP CLI is not installed here, so I can’t run `php -l`. I’m switching to a JavaScript PHP parser from npm for structural syntax checking and also correcting one report sentence that still said coordinates were “not used.”
+
+## Assistant
+
+I updated the report rule text so the report remains truthful: coordinates are redacted from reports, but used privately for EM location save when source-backed. I’m doing the structural parse check now.
+
+## Assistant
+
+The first parser command didn’t give useful output, so I’m rerunning it with the install/output visible enough to see whether the parser itself failed or the PHP parse failed.
+
+## Assistant
+
+That failure was npm cache setup, not the PHP files. I’ll rerun with a writable npm cache under `/tmp`; if the parser still can’t install, I’ll keep that limitation explicit.
+
+## Assistant
+
+Npm is still trying to write under `/root`, so I’m setting `HOME` as well for the verification command. The code changes themselves are done; this is verification plumbing.
+
+## Assistant
+
+The parser install is blocked by the environment’s npm home/caching behavior, not by a parse error. I’m doing local static checks with `rg` and then I’ll rely on GitHub-source verification; I’ll note that PHP lint could not run here.
+
+## Assistant
+
+A temporary `package.json` was created by the failed parser install; it is not part of the plugin change, so I’m removing that generated artifact and cleaning one formatting alignment before pushing.
+
+## Assistant
+
+That shell edit was rejected by policy, so I’m keeping to `apply_patch` for file changes.
+
+## Assistant
+
+The formatter patch didn’t alter the alignment because the text matched itself. I’ll do that one line plainly, then continue.
+
+## Assistant
+
+The report body contains the exact Eventbrite coordinate meta tags targeted by the patch: `35.0365381` and `-85.30590269999999`. I’m appending this progression to the GitHub transcript file now, then I’ll commit and push both repositories.
