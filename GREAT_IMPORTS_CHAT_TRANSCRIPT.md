@@ -1391,3 +1391,94 @@ Verified in GitHub:
 - No Events Manager write statements were added.
 
 I could not run PHP lint because this workspace has no PHP executable, and I have not verified the rendered live interaction. Update the plugin and test one field at a time, then send a screenshot or exact error if any editor or save path behaves incorrectly.
+
+
+## User
+
+Okay a couple of things where it says venues it probably should say locations my next point is about where it says collect Eventbrite URL just say source and where the button says collecting evidence change that to searching source
+
+Attached screenshot:
+
+- `Screenshot 2026-07-11 4.55.11 AM.png` — Great Imports 0.2.21 showing Venue, Collect Eventbrite URL, and Collect evidence labels.
+
+## Assistant
+
+The screenshot confirms `0.2.21` is rendering the new editors and dropdown. I interpret your wording changes as:
+
+- Column heading `Venue` → `Location`
+- Inline field label `Venue name` → `Location name`
+- Panel heading `Collect Eventbrite URL` → `Source`
+- Button `Collect evidence` → `Search Source`
+
+I’ll keep the Eventbrite URL placeholder and underlying validator unchanged because the plugin still accepts only Eventbrite URLs; removing that cue would falsely imply all source types already work. I’m checking every rendered occurrence before changing labels.
+
+## Assistant
+
+Evidence shows exactly four user-facing occurrences: two in the collection panel and two in the candidate table. The readme also describes the old panel name.
+
+Chess-game plan — proposed move: Great Imports `0.2.22`, terminology alignment.
+
+- Why: use `Location` consistently for candidate place data and simplify the source-search labels.
+- Exact changes:
+  - Table heading `Venue` → `Location`.
+  - Inline editor label `Venue name` → `Location name`.
+  - Panel heading `Collect Eventbrite URL` → `Source`.
+  - Button `Collect evidence` → `Search Source`.
+  - Update the corresponding readme wording.
+  - Bump version/stable tag to `0.2.22`.
+- What will not change: placeholder, Eventbrite-only validation, form action, candidate fields/meta keys, editor/save behavior, dropdown, parser, reports, cleanup, tickets, scheduling, or EM behavior.
+- Risks: `Source` is broader wording than the current Eventbrite-only capability; retaining the Eventbrite placeholder and help text prevents the interface from claiming unsupported source types.
+- Success checks:
+  - Old four rendered labels are gone.
+  - New four labels appear exactly once where expected.
+  - Form action and stored `location_*` fields are unchanged.
+  - No controls move or disappear.
+  - Version and changed files verified.
+- Rollback point: plugin commit `641c7ab5ba6a13fa6a378c626250aa5ef3c35078` (`0.2.21`).
+
+I’m proceeding with this text-only UI change.
+
+## Assistant
+
+Verification passed. The `Source` heading is rendered through `esc_html__()` rather than literal HTML, which is why a raw `>Source<` check returns zero; the translated heading call is present. All old labels are gone, the new labels are present, the Eventbrite placeholder/action and location field names remain unchanged, and GitHub reports `0.2.22`.
+
+Transcript checkpoint plan:
+
+- Proposed move: append this request, screenshot reference, evidence, plan, implementation, verification, and final result.
+- Why: `0.2.22` is complete.
+- Exact change: transcript file only.
+- What will not change: no further plugin edit.
+- Risk: screenshot referenced by filename.
+- Success check: transcript ends with the verified terminology result.
+- Rollback point: context commit `5aad5d8c9b1d8d331cfbecbc0e13442b60e887ab`.
+
+I’m recording the progression now.
+
+## Assistant
+
+Great Imports `0.2.22` is now in GitHub.
+
+Changed labels:
+
+- `Venue` → `Location`
+- `Venue name` → `Location name`
+- `Collect Eventbrite URL` → `Source`
+- `Collect evidence` → `Search Source`
+
+Verified unchanged:
+
+- Eventbrite URL placeholder and validator
+- Source-search form action
+- Stored location field names
+- Inline editors and save behavior
+- Events Manager location dropdown
+- All importer behavior
+
+Changed files:
+
+- `includes/class-gi-admin.php`
+- `includes/class-gi-candidate-list-table.php`
+- `great-imports.php`
+- `readme.txt`
+
+Version and stable tag are both `0.2.22`.
