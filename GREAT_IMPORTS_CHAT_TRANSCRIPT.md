@@ -2441,3 +2441,91 @@ The formatter patch didn’t alter the alignment because the text matched itself
 ## Assistant
 
 The report body contains the exact Eventbrite coordinate meta tags targeted by the patch: `35.0365381` and `-85.30590269999999`. I’m appending this progression to the GitHub transcript file now, then I’ll commit and push both repositories.
+
+## Assistant
+
+The direct `git push` failed because this environment has no GitHub credentials for HTTPS push. I’m switching to the GitHub connector’s contents API now, using the current remote blob SHAs, then I’ll verify from GitHub after each repository update.
+
+## Assistant
+
+I have the remote SHAs now. To avoid pasting large PHP files through chat manually, I’m going to use one orchestrated tool call to read each local file and update the corresponding GitHub content entry with its current blob SHA.
+
+## Assistant
+
+The connector update is running. I’ll wait for the per-file GitHub writes to finish, then verify version, changed functions, report redaction text, and transcript tail from remote.
+
+## Assistant
+
+The connector call shape inside the orchestrated tool wraps results differently, so my first update attempt did not write any files. I’m inspecting that wrapped return shape and then I’ll retry with the correct SHA field.
+
+## Assistant
+
+Found it: the SHA is under `structuredContent.sha` inside the orchestrated connector result. Retrying now with that exact field.
+
+## Assistant
+
+The retry is writing files through the connector now. I’m waiting for completion; after that comes remote verification and tag/release handling for the current version.
+
+## Assistant
+
+GitHub files are updated now. I’m verifying the remote source and checking the release workflow/tag path so the downloadable GitHub artifact can line up with `0.2.29`.
+
+## Assistant
+
+Remote plugin verification is good: version is `0.2.29`, EM location save now receives coordinates, report redaction text changed, and the release workflow builds the GitHub ZIP automatically on `main`. I’m checking the transcript tail with the right line range now.
+
+## Assistant
+
+One subtle release risk showed up: the GitHub release workflow runs on every `main` push, and the contents API updated files one at a time. I’m checking whether `0.2.29` release/tag was created from the final source or from the early version-bump commit. If it was early, I need to correct that before calling this done.
+
+## Assistant
+
+The connector exposes commit, ref, and workflow tools, so I can validate the release target. I’m pulling the latest repo state and tags/runs next.
+
+## Assistant
+
+I’m checking the public refs directly. The important comparison is whether `refs/tags/0.2.29` points at the final `main` commit, not just whether the files on `main` are correct.
+
+## Assistant
+
+That caught a real release problem: `main` is final at `931b4e5…`, but tag `0.2.29` points to the first version-bump commit `e1b5574…`. I’m not going to call that good. The clean repair is to make a new `0.2.30` single-commit release so the tag and generated ZIP are built from the complete source state.
+
+## Assistant
+
+I’m making a minimal `0.2.30` correction now: no behavior change, just version/readme to supersede the bad `0.2.29` release tag. This needs to be one GitHub commit so the release workflow sees a complete source tree.
+
+## Assistant
+
+The local files now say `0.2.30`. I’m creating a GitHub tree/commit directly against the current remote `main` SHA, which keeps this as one release-safe commit.
+
+## Assistant
+
+The embedded shell call yielded before returning a commit SHA, so I’m using the already verified remote `main` SHA directly for the GitHub commit lookup.
+
+## Assistant
+
+I confirmed `main` still has the completed coordinate behavior and currently advertises `0.2.29`; now I’m going to use the lower-level GitHub tree API for a single `0.2.30` version correction.
+
+## Assistant
+
+The commit lookup confirms the final `0.2.29` source commit. I need its tree SHA; the fetch output is compact, so I’m pulling just the metadata fields next.
+
+## Assistant
+
+The connector’s compact commit view doesn’t expose the tree SHA, so I’m fetching the public branch into the local checkout read-only and using git’s object data to build the one-commit version correction.
+
+## Assistant
+
+I have the final remote tree SHA. I’m creating blobs for only `great-imports.php` and `readme.txt`, building a tree on top of the complete `0.2.29` source, creating one commit, and fast-forwarding `main` to it.
+
+## Assistant
+
+The single-commit release correction is underway; the first blob was created. Waiting for the tree/commit/ref update to finish.
+
+## Assistant
+
+`main` is now at one clean `0.2.30` correction commit. I’m waiting briefly for the release workflow, then I’ll verify `main`, tags, and the final advertised version.
+
+## Assistant
+
+The release correction worked: `main` and tag `0.2.30` both point to `0040886543e5e90f583d260d7f4dfdd1a99119c4`. The bad `0.2.29` tag still exists historically, but `0.2.30` is the complete release to use. I’m recording that correction in the transcript file too.
