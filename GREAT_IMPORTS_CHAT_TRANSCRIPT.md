@@ -1482,3 +1482,99 @@ Changed files:
 - `readme.txt`
 
 Version and stable tag are both `0.2.22`.
+
+
+## User
+
+Also one other thing I forgot is that the address is not showing with the location that needs to be remedied
+
+## Assistant
+
+I’ll trace the address from source normalization through candidate storage to the table before changing the display. The table already attempts to render stored address fields, so the screenshot suggests the address may be missing upstream rather than merely hidden.
+
+I’m checking whether Eventbrite supplies the address, whether the normalizer maps it, and whether the candidate store persists those exact fields.
+
+## Assistant
+
+Evidence found the actual cause:
+
+- With an Eventbrite API token, the normalizer stores separate address fields.
+- Your screenshot shows `Not configured`, so this candidate came through the public-page JSON-LD fallback.
+- That fallback stores only one composite `_gi_location_address` string.
+- The table and matcher read `_gi_location_address_1`, city, state, and ZIP, so the composite address was captured and stored but then ignored by the display/matching path.
+
+This is a detected-but-discarded-field problem, not a CSS problem.
+
+Chess-game plan — proposed move: Great Imports `0.2.23`, recover and normalize fallback addresses.
+
+- Why: display address evidence already captured for existing candidates and preserve structured components for newly collected JSON-LD candidates.
+- Exact changes:
+  - In the JSON-LD parser, keep the existing composite `location_address` and also map `streetAddress`, `addressLocality`, `addressRegion`, `postalCode`, and `addressCountry` into the standard candidate fields.
+  - In candidate review/matching, use composite `location_address` as the street-address fallback when `location_address_1` is absent.
+  - In the list/editor, use that same composite fallback so existing candidates show an address immediately without requiring recollection.
+  - Do not attempt to guess/split an old composite string into city/state/ZIP fields; show it intact as street evidence.
+  - Bump version/stable tag to `0.2.23` and document the recovery.
+- What will not change: API path, raw evidence, stored old candidate metadata, manually edited address fields, title/date editing, location dropdown, reports, cleanup, tickets, scheduling, or EM writes.
+- Risks:
+  - Existing composite addresses may repeat city/state if other structured fields were separately present; formatting will use the composite only when street 1 is empty to avoid duplication.
+  - Existing candidates gain display/match input but are not rewritten in storage until recollected or manually saved.
+- Success checks:
+  - Parser emits all standard address components for new fallback candidates.
+  - Existing `_gi_location_address` is visible when address 1 is empty.
+  - Matcher receives the same fallback.
+  - Manual reviewer address 1 still has highest precedence.
+  - No fabricated splitting and no EM writes.
+  - Version and relevant paths verified in GitHub.
+- Rollback point: plugin commit `b6c5e3f6cdc5d02b82ad29005ec6fc1aaeee0fd1` (`0.2.22`).
+
+I’m proceeding with the address-path correction.
+
+## Assistant
+
+The GitHub correction is applied. I’m verifying both paths separately: existing candidates must fall back to `_gi_location_address`, while newly collected JSON-LD candidates must store structured components. I’m also checking that reviewer overrides remain first and that no EM write path appeared.
+
+## Assistant
+
+The second verification check was initially false because its regular expression did not match the literal PHP spacing, not because the fallback was absent. Direct inspection confirms both existing-candidate fallback calls are present. The structured parser fields, match fallback, reviewer precedence, `0.2.23`, and absence of EM writes are all confirmed.
+
+Transcript checkpoint plan:
+
+- Proposed move: append this address request, evidence, root cause, chess plan, implementation, verification correction, and final result.
+- Why: `0.2.23` is complete.
+- Exact change: transcript file only.
+- What will not change: no further plugin edit.
+- Risk: none beyond transcript accuracy.
+- Success check: transcript ends with the qualified address recovery result.
+- Rollback point: context commit `e797ee4353b693a994738c61e61b24c5475379e4`.
+
+I’m recording the progression now.
+
+## Assistant
+
+Great Imports `0.2.23` is now in GitHub.
+
+Root cause corrected:
+
+- Public-page JSON-LD candidates already stored a composite address, but the table and matcher ignored it because they expected separate address fields.
+- Existing candidates now use that stored composite address when street address 1 is empty.
+- Newly collected JSON-LD candidates now also store structured street, city, state, ZIP, and country fields.
+- Reviewer-entered street address remains the highest-priority value.
+- Existing composite strings are displayed intact; the plugin does not guess how to split them.
+
+Changed files:
+
+- `includes/class-gi-jsonld-parser.php`
+- `includes/class-gi-candidate-review.php`
+- `includes/class-gi-candidate-list-table.php`
+- `great-imports.php`
+- `readme.txt`
+
+Verified in GitHub:
+
+- Version and stable tag are `0.2.23`.
+- Existing-candidate display fallback is present.
+- Matching uses the same fallback.
+- New JSON-LD normalization emits all standard address components.
+- No Events Manager write statements were added.
+
+This is source verification. Update to `0.2.23`; the existing Boneyard candidate should show its composite address if Eventbrite’s JSON-LD actually supplied one. If it remains blank, the next evidence needed is the new Exploratory Report because that would mean the source payload itself did not contain an address.
