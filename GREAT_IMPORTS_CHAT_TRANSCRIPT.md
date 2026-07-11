@@ -2615,3 +2615,15 @@ Verification shows `main` and tag `0.2.31` both point to the same commit, so thi
 ## Assistant
 
 The transcript repo already has the previous release-correction discussion through `0.2.30`. I’m appending this current coordinate-repair exchange now rather than replacing or summarizing it.
+
+## Assistant
+
+The local transcript diff includes this turn plus the previous release-correction block, and the remote tail confirms the previous block is already there. I’m going to use an orchestrated connector call to replace the remote markdown with the local file content and preserve the full current transcript.
+
+## Assistant
+
+I found the full GitHub connector tools inside the orchestrator, so I can safely read the local markdown and update the remote file without manually pasting thousands of lines through chat.
+
+## Assistant
+
+I added the final transcript-update notes that happened after the first transcript push. I’m doing one last remote update and then a quiet verification pass.
