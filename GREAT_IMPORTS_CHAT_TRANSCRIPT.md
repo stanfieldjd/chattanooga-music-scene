@@ -1229,3 +1229,165 @@ Changed files:
 - `readme.txt`
 
 No other UI controls or plugin behavior changed.
+
+
+## User
+
+https://github.com/stanfieldjd/Great-imports.git in this line can you add the current version instead of it saying just great imports.get
+
+## Assistant
+
+I’ll use the GitHub source directly and locate the exact line containing `https://github.com/stanfieldjd/Great-imports.git` before changing anything. I won’t assume whether you mean repository text, a clone instruction, or a plugin display label until the actual occurrence is identified.
+
+## Assistant
+
+That exact Git URL does not appear anywhere in the current repository files, so I cannot safely identify the line you mean.
+
+Are you asking to change:
+
+1. The WordPress plugin name from `Great Imports` to `Great Imports 0.2.20`, or
+2. Text shown on the GitHub repository page?
+
+Please send a screenshot of the line. The repository URL itself cannot dynamically include the plugin’s current version without renaming the repository.
+
+## User
+
+No what I mean is can you change the url name to represent the current version
+
+## Assistant
+
+A GitHub repository URL cannot automatically reflect the current plugin version. Renaming it to something like:
+
+`github.com/stanfieldjd/Great-imports-0.2.20`
+
+would make that URL outdated at `0.2.21` and require renaming the repository after every version bump. It would also redirect or potentially disrupt existing links and integrations.
+
+The correct structure is:
+
+- Permanent repository: `stanfieldjd/Great-imports`
+- Version identifier: Git tag/release such as `0.2.20`
+- Version-specific URL: `github.com/stanfieldjd/Great-imports/releases/tag/0.2.20`
+
+There is not currently a `0.2.20` release/tag that I have verified. I recommend keeping the repository URL stable and adding versioned GitHub releases instead.
+
+## User
+
+Okay just curious didn't know
+
+## Assistant
+
+Perfectly reasonable question. Keeping the repository URL permanent and representing versions with tags/releases is the standard approach. No GitHub changes were made.
+
+## User
+
+In the screenshot I would like the title the date and the venue to selectable and when you select on it it will be editable and where it says matching allow for a drop-down menu of all current locations in event manager
+
+Attached screenshot:
+
+- `Screenshot 2026-07-11 4.41.02 AM.png` — Great Imports candidate list with display-only Title, Date, Venue, and Matching Location columns.
+
+## Assistant
+
+The screenshot makes the requested interaction clear:
+
+- Clicking the displayed Title should open an inline title editor.
+- Clicking Date should open date/time editing.
+- Clicking Venue should open venue and address editing.
+- Matching Location should be an always-available dropdown containing current Events Manager locations.
+- Each edit must save only that field group, while raw source evidence remains unchanged.
+
+This is larger than a presentation change because the current candidate save hook was deliberately removed in `0.2.14`. I’m inspecting the current save/storage code and researching WordPress’s actual inline-edit/list-table conventions before choosing the implementation. I will also verify how Events Manager locations are represented so the dropdown uses real IDs rather than fabricated options.
+
+## Assistant
+
+Evidence and research result:
+
+- The current list is a proper `WP_List_Table`, but it has display-only cells.
+- `GI_Candidate_Review::save()` already safely stores reviewer overrides separately from raw source evidence, including title, date, venue/address, and `em_location_id`.
+- The admin save hook that would invoke it is currently absent.
+- The table is wrapped in a GET form even though it has no bulk/search controls. Inline POST forms inside that wrapper would create invalid nested forms, so the unnecessary outer form must be removed.
+- WordPress supports custom `admin_post_{$action}` handlers for plugin forms; capability checks and nonces are both required. `WP_List_Table` supplies the list structure but leaves custom editing/data handling to the plugin. [WordPress `WP_List_Table`](https://developer.wordpress.org/reference/classes/wp_list_table/), [admin-post handlers](https://developer.wordpress.org/reference/hooks/admin_post_action/), [nonces](https://developer.wordpress.org/apis/security/nonces/).
+
+Chess-game plan — proposed move: Great Imports `0.2.21`, field-level inline candidate editing.
+
+- Why: restore only the editing workflow you requested, directly inside the current list cells.
+- Exact changes:
+  - Make the displayed Title, Date, and Venue values clickable inline editor summaries.
+  - Title editor: one title field and its own Save button.
+  - Date editor: date and time controls for start and end, with its own Save button.
+  - Venue editor: venue name plus street 1, street 2, city, state, ZIP, and country, with its own Save button.
+  - Replace Matching Location display text with a dropdown listing all current Events Manager locations; include `No matching location selected`; save only `em_location_id`.
+  - Preselect the saved EM location, or the current strict automatic match when no manual selection exists.
+  - Restore one capability-checked, nonce-protected `admin_post` handler that accepts only the requested field group and passes whitelisted fields to the existing reviewer-override storage.
+  - Remove the unnecessary outer GET form around the table so the inline POST forms are valid HTML. No control is lost because that form currently has no search, bulk, or filter action.
+  - Add focused editor CSS and enqueue no JavaScript; native disclosure controls provide click-to-open behavior.
+  - Bump version/stable tag to `0.2.21` and document the workflow.
+- What will not change: raw source evidence, candidate identity/storage, parser, reports, cleanup, tickets, scheduling, EM event/location records, or import behavior. Selecting a location stores only its ID on the candidate; it does not edit or assign the EM location yet.
+- Risks:
+  - A dropdown containing every location may become long on sites with many locations.
+  - Native disclosure editors are simpler than WordPress core Quick Edit and reopen closed after a save/redirect.
+  - An old candidate can have incomplete date/address values; those remain editable rather than being fabricated.
+- Success checks:
+  - Title, Date, and Venue each have an independent editor and save path.
+  - Saving one group cannot overwrite another group.
+  - Dropdown contains current EM locations and saves only `em_location_id`.
+  - Raw `_gi_` source metadata remains untouched; only `_gi_review_` overrides change.
+  - No nested forms, hidden edit rows, or EM writes.
+  - PHP structure, version, hooks, fields, and rendered markup verified in GitHub.
+- Rollback point: plugin commit `db64c066fc77e9ad77955caf5c324b9b5699e15c` (`0.2.20`).
+
+This is a necessary multi-file workflow change, bounded to candidate review editing. I’m proceeding with it.
+
+## Assistant
+
+The implementation is in GitHub. I’m now validating all modified PHP with `php -l` from the exact GitHub contents and checking the security/field boundaries: hook registration, nonce, capability guard, independent allowlists, absence of the outer table form, complete EM-location query, and no writes to Events Manager tables.
+
+## Assistant
+
+Source verification passed for the intended structure, but one check is unavailable: this workspace does not have a PHP executable, so I could not run `php -l`. I will not claim PHP lint verification. GitHub checks confirm the hooks, nonce, allowlists, editor markup, complete location query, review-only storage path, version, and absence of EM write statements.
+
+Transcript checkpoint plan:
+
+- Proposed move: append the previously unrecorded repository-URL discussion, this editing request and screenshot reference, research/evidence, chess plan, implementation, verification limitation, and final result.
+- Why: this completes `0.2.21` and closes the transcript gap from the intervening no-change discussion.
+- Exact change: transcript file only.
+- What will not change: no further plugin edit.
+- Risk: screenshot referenced by filename; PHP lint limitation recorded verbatim.
+- Success check: transcript ends with the qualified `0.2.21` result.
+- Rollback point: context commit `6e60a003c163abf94b23b861c4d53a6689e00720`.
+
+I’m recording that exact progression now.
+
+## Assistant
+
+Great Imports `0.2.21` is now in GitHub.
+
+Implemented:
+
+- Clicking Title opens an independent title editor.
+- Clicking Date opens start/end date and time controls.
+- Clicking Venue opens venue and complete address fields.
+- Matching Location is now a dropdown populated with all current Events Manager locations.
+- A saved location or strict automatic match is preselected.
+- Each field group has its own Save button and strict allowlist.
+- Saves use the existing reviewer-override storage, preserving raw source evidence.
+- The unnecessary outer table form was removed, so the inline POST forms are not nested.
+- Capability and nonce checks protect the save handler.
+- Selecting a location stores only the candidate’s review location ID; it does not change Events Manager.
+
+Changed files:
+
+- `includes/class-gi-admin.php`
+- `includes/class-gi-candidate-list-table.php`
+- `includes/class-gi-candidate-review.php`
+- `assets/css/admin.css`
+- `great-imports.php`
+- `readme.txt`
+
+Verified in GitHub:
+
+- Version and stable tag are `0.2.21`.
+- The save hook, nonce check, field-group allowlists, three editors, location dropdown, all-location lookup, and review-only storage path are present.
+- No Events Manager write statements were added.
+
+I could not run PHP lint because this workspace has no PHP executable, and I have not verified the rendered live interaction. Update the plugin and test one field at a time, then send a screenshot or exact error if any editor or save path behaves incorrectly.
