@@ -2175,3 +2175,128 @@ Verified:
 Important: `0.2.26` was an incomplete intermediate release—the builder method existed but was not attached to previews. Use `0.2.27`.
 
 The next move is the save adapter: consume this validated payload, revalidate the selected location at runtime, create a location only when required, save the EM event, persist source identity for duplicate/update protection, and report any EM validation errors without losing the candidate.
+
+
+## User
+
+Okay all the reports that you keep providing here I trust you enough to keep them hidden I don't need to keep continuously see them
+
+## Assistant
+
+Understood. I’ll keep the detailed evidence checks, verification results, and report analysis out of the chat unless:
+
+- You ask to see them.
+- I find a blocker, risk, failed verification, or contradiction.
+- A required chess-game plan must identify relevant risks and success checks.
+
+I’ll continue preserving the exact visible discussion in GitHub, but keep routine progress reporting concise.
+
+## User
+
+There was no way to import this information no buttons or anything
+
+Attached screenshot:
+
+- `Screenshot 2026-07-11 6.04.11 AM.png`
+
+## User
+
+Sorry about that but this doesn't show any way of importing
+
+Attached evidence:
+
+- `Screenshot 2026-07-11 6.04.11 AM(1).png`
+- `great-imports-exploratory-report-20260711-100419.json`
+
+## Assistant
+
+You are correct. `0.2.27` only added the internal payload to reports; it did not add an Import control or an Events Manager save adapter. I described a foundation when you expected an actionable import workflow.
+
+I’ll use the fresh report you attached to validate the payload now, then I’ll state the complete plan for the visible Import button and actual Events Manager handoff.
+
+## Assistant
+
+The fresh report exposes another contradiction: it identifies plugin `0.2.27`, but `events_manager_payload` is `null` for candidate `4713`. So even though GitHub source contains the payload key, the report-generation path is filtering or rebuilding preview fields before export.
+
+I’m tracing that exact report path before adding an Import button; otherwise the button could consume data that has never passed runtime validation.
+
+## Assistant
+
+The fresh report confirms two concrete omissions:
+
+- `0.2.27` has no Import button or save handler.
+- The report exporter whitelists preview fields and omitted `events_manager_payload`, so runtime validation was not visible even though the preview builder produced it.
+
+Chess-game plan — proposed move: Great Imports `0.2.28`, first actionable Events Manager import.
+
+- Proposed move:
+  - Export `events_manager_payload` in reports.
+  - Add `Import to Events Manager` to each candidate row.
+  - Add a nonce/capability-protected handler and dedicated EM adapter.
+- Exact behavior:
+  - Rebuild and validate the payload at click time.
+  - If an EM location is selected, verify and reuse it.
+  - Otherwise create an `EM_Location` from normalized source/reviewer fields and recover its `location_id`.
+  - Create a draft `EM_Event`, assign the location ID, title, local start/end, timezone, and assembled description.
+  - Store the resulting EM event/location IDs on the candidate.
+  - Repeated clicks update that same EM event instead of creating another.
+  - Persist source URL, Eventbrite ID, fingerprint, and candidate ID on the EM event post for provenance.
+  - Display EM validation errors and leave the candidate intact on failure.
+  - Tickets remain description-only; no EM tickets/bookings.
+- What will not change: collection, editors, matching list, raw evidence, reports other than exposing the payload, scheduling, cleanup, or automatic publishing.
+- Risks:
+  - Events Manager `7.4.0.1` is newer than available public source references; the adapter will use runtime class/function/method checks and fail visibly if its object contract differs.
+  - A newly created location can remain if the later event save fails; it will be recorded on the candidate rather than silently deleted.
+  - Imported events will be drafts (`event_status = 0`), not published.
+  - Image Media Library transfer remains out of this move.
+- Success checks:
+  - A visible Import button exists.
+  - Payload appears in the report.
+  - Import uses `EM_Location->save()`/`EM_Event->save()`, never direct EM SQL.
+  - Existing location reuse and new location creation are distinct.
+  - Event/location IDs are recovered and stored.
+  - Repeat import updates the same event.
+  - Failures preserve the candidate and show the EM error.
+- Rollback point: final `0.2.27` commit/tag `f472335d0559c74f880cebf22f2da6f071f18f39`.
+
+I’m proceeding with the first live draft-import path.
+
+## Assistant
+
+The visible import workflow and adapter are now committed. I’m running structural verification on the exact GitHub PHP, including a parser check because the local system lacks the PHP executable. I’ll only surface a problem if this check fails.
+
+## Assistant
+
+`0.2.28` is now verified in GitHub with the visible Import button, handler, report payload export, EM object adapter, duplicate/update tracking, and final release tag. The independent PHP parser could not be installed in this environment; structural checks pass, but the first live click is still the decisive Events Manager contract test.
+
+I’m recording this completed progression in the transcript, including your instruction to keep routine reports out of the chat.
+
+## Assistant
+
+Great Imports `0.2.28` is now in GitHub with an actionable import workflow.
+
+The candidate row now includes:
+
+- `Import to Events Manager`
+
+When clicked, it:
+
+- Rebuilds and validates the current payload.
+- Reuses the selected Events Manager location, or creates a new normalized location.
+- Creates a draft Events Manager event.
+- Assigns the recovered location ID.
+- Transfers title, dates, times, timezone, and assembled description.
+- Stores EM event/location IDs on the candidate.
+- Stores source URL, Eventbrite ID, fingerprint, and candidate ID on the EM event.
+- Updates the same imported event on repeated clicks instead of creating another.
+- Preserves the candidate and displays the Events Manager error if saving fails.
+
+Also corrected:
+
+- `events_manager_payload` now appears in exploratory reports.
+
+Tickets remain description-only; no EM tickets/bookings are created. Images, scheduling, and automatic publishing remain outside this move.
+
+Version and stable tag are `0.2.28`, and release tag `0.2.28` matches final `main`. No ZIP was provided here.
+
+Update to `0.2.28` and click **Import to Events Manager** on the candidate. The resulting success notice or exact error will be the live contract test against Events Manager `7.4.0.1`.
