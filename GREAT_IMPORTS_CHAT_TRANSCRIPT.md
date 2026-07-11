@@ -1705,3 +1705,140 @@ Current verification:
 Release page: [Great Imports 0.2.23](https://github.com/stanfieldjd/Great-imports/releases/tag/0.2.23)
 
 The GitHub connector cannot independently enumerate the attached assets, so I cannot directly confirm the asset listing from this environment. The tag’s creation at the workflow commit is strong evidence that the single release-and-upload command completed. Future versions must use a new version number; the workflow intentionally will not overwrite an existing release.
+
+
+## User
+
+Okay do not give Zips here
+
+## Assistant
+
+Understood. No ZIP files will be provided in this chat.
+
+Versioned ZIPs will exist only on GitHub Releases. GitHub remains the source of truth.
+
+## User
+
+Okay these fields are not populating properly
+
+Attached screenshot:
+
+- `Screenshot 2026-07-11 5.22.30 AM.png` — Location editor showing the full composite address in Street address, duplicated City and State values, an empty ZIP field, and Country US.
+
+## Assistant
+
+The screenshot shows the precise population error:
+
+- Street address contains the full composite: `26 Station Street, Chattanooga, TN 37408`
+- City separately contains `Chattanooga`
+- State separately contains `TN`
+- ZIP is empty
+- Country contains `US`
+
+So the address is now visible, but the fallback placed a localized display string into Street address without reconciling it with the structured locality fields. That causes duplication and loses the ZIP as its own field.
+
+I’m tracing the exact normalization and editor-value path before deciding whether this should be corrected during parsing, display, or both. I will preserve the original composite source evidence.
+
+## Assistant
+
+Evidence confirms the raw/source paths should remain untouched. The correction belongs in a shared review/display normalization step so it fixes existing candidates immediately and supplies the matcher with the same corrected fields.
+
+Chess-game plan — proposed move: Great Imports `0.2.24`, reconcile composite address fields.
+
+- Why: separate a localized composite address into editor/display fields only when the suffix can be identified from existing structured evidence.
+- Exact changes:
+  - Add one shared `normalized_location_fields(candidate_id)` method to the review layer.
+  - Start with reviewer overrides, then structured source fields, then the stored composite address fallback.
+  - If ZIP is empty, extract a US ZIP/ZIP+4 only when it appears as a clear terminal postal pattern.
+  - Remove trailing address segments only when they exactly match the already-known city, state+ZIP, ZIP, or country. For the screenshot, this yields:
+    - Street: `26 Station Street`
+    - City: `Chattanooga`
+    - State: `TN`
+    - ZIP: `37408`
+    - Country: `US`
+  - Use those normalized fields consistently in the Location editor, collapsed Location summary, and Events Manager matcher.
+  - Preserve the raw composite `_gi_location_address` unchanged.
+  - Bump version/stable tag to `0.2.24`; the existing GitHub release workflow will create the versioned ZIP on GitHub only. No ZIP will be provided here.
+- What will not change: title/date editing, raw evidence, candidate identity, EM dropdown contents, reports, cleanup, tickets, scheduling, or EM records.
+- Risks:
+  - Address parsing is intentionally conservative. It will not invent a city or state when no structured evidence supports them.
+  - Non-US postal formats will remain intact rather than being guessed.
+  - An address with a legitimate trailing segment identical to the city could be shortened, but only at comma-delimited suffix boundaries.
+- Success checks:
+  - The screenshot example normalizes to the five expected fields.
+  - Existing candidate source metadata is not updated.
+  - Location display/editor and matching all call the shared normalized fields.
+  - Reviewer overrides retain precedence.
+  - No EM writes.
+  - GitHub version and source paths verified.
+- Rollback point: plugin commit `95999bc9ac3d859b0bef8b1446142ad04d8041ba` plus release-workflow commit `ccfc98608ab2ab4cab333652354de68e7dd84dd9`; plugin behavior before this change is `0.2.23`.
+
+I’m proceeding with the conservative normalization fix.
+
+## Assistant
+
+The address fix is committed. During verification I’m also checking the automatic `0.2.24` release tag against final `main`; because this version required several sequential GitHub commits, the release must not point to an intermediate commit. I will correct the release workflow if that race occurred rather than leave a misleading ZIP.
+
+## Assistant
+
+Verification is now complete at the source level:
+
+- The normalization method contains the terminal ZIP and state+ZIP patterns.
+- The table calls the shared method for both editor values and collapsed display.
+- Matching calls the same method.
+- The new method performs no metadata writes; raw source remains intact.
+- No EM writes were added.
+- Version and stable tag are `0.2.24`.
+- Release tag `0.2.24` is identical to final `main` at commit `84bf937a05994dcc64296394cf457d2fa5d02217`, so the GitHub-only versioned package is not based on an intermediate commit.
+
+PHP lint and live WordPress rendering remain unverified because this workspace has no PHP executable or connected live admin.
+
+Transcript checkpoint plan:
+
+- Proposed move: append the no-ZIP instruction, this field-population report and screenshot reference, evidence, plan, implementation, verification, and final result.
+- Why: `0.2.24` is complete and the intervening instruction must remain verbatim.
+- Exact change: transcript file only.
+- What will not change: no further plugin edit.
+- Risk: screenshot referenced by filename; verification limits recorded.
+- Success check: transcript ends with the `0.2.24` result.
+- Rollback point: context commit `41824cbc44bba2c881789f14ce4c2b4de10bf301`.
+
+I’m recording it now.
+
+## Assistant
+
+Great Imports `0.2.24` is now in GitHub.
+
+The screenshot example is now normalized for display, editing, and matching as:
+
+- Street address: `26 Station Street`
+- City: `Chattanooga`
+- State: `TN`
+- ZIP: `37408`
+- Country: `US`
+
+Implementation behavior:
+
+- Reviewer overrides remain first priority.
+- Structured source fields come next.
+- Composite source address is the fallback.
+- Only explicit terminal US ZIP patterns are extracted.
+- Only comma-delimited suffixes supported by known city/state/ZIP/country evidence are removed.
+- Raw source metadata is not rewritten.
+- The Location summary, editor, and Events Manager matcher use the same normalized values.
+- No Events Manager records are changed.
+
+Changed files:
+
+- `includes/class-gi-candidate-review.php`
+- `includes/class-gi-candidate-list-table.php`
+- `great-imports.php`
+- `readme.txt`
+
+Verified:
+
+- Version and stable tag are `0.2.24`.
+- GitHub release tag `0.2.24` matches final `main`.
+- No ZIP was provided here.
+
+PHP lint and live rendering remain unverified. Update from the GitHub `0.2.24` release and re-open the Location editor; the populated fields should match the five values above.
