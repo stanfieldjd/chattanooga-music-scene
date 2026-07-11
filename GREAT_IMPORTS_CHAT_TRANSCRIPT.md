@@ -2040,3 +2040,138 @@ GitHub verification:
 - No ZIP was supplied here.
 
 After updating, search the Eventbrite source again so the existing candidate receives the corrected price and image URL, then download a new exploratory report. The expected report is 6:00 PM–11:00 PM, normalized address with ZIP `37408`, ticket price `25.32 USD`, and an image URL retaining its encoded nested URL.
+
+
+## User
+
+Okay let's now begin with if there's no other issues let's go ahead and begin payload transfer for importing
+
+## Assistant
+
+We can begin the import-handoff phase, but I cannot truthfully say there are no remaining issues until `0.2.25` is validated with a recollected candidate and fresh report. The previous report predates those fixes.
+
+I’ll start with a read-only payload-transfer audit:
+
+- Verify the corrected candidate/report data if you provide the fresh report.
+- Inspect the current preview payload and reviewer decisions.
+- Research the actual Events Manager event/location save interfaces and required fields.
+- Trace location selection, location creation, event assignment, save failure, and rollback behavior.
+- Identify the smallest complete import boundary before proposing code.
+
+No import code or Events Manager writes will be added until I present the chess-game plan based on that evidence.
+
+## Assistant
+
+We can begin payload transfer, but one evidence gate remains before code changes: I need a fresh exploratory report generated after updating to `0.2.25` and searching the Eventbrite source again.
+
+The previous report cannot validate the repaired time, address, price, and image paths. Those fields will become the actual Events Manager payload, so proceeding without confirming them would violate the evidence-first rule.
+
+Current audit confirms:
+
+- Great Imports has no `EM_Event` creation or save path yet.
+- No Events Manager event/location writes currently exist.
+- Candidate reviewer overrides and selected `em_location_id` are available for payload construction.
+- The installed Events Manager version is `7.4.0.1`, newer than the reliably available public source references, so the handoff must use runtime capability checks rather than assuming an older API shape.
+- Ticket price and URL will remain description content only—no EM tickets or bookings.
+
+Please update to `0.2.25`, search the same source again, and attach the new exploratory report. I’ll verify it, then present the complete payload-transfer chess plan before implementing the first Events Manager import path.
+
+## User
+
+Why of course that's why we're at this point cuz this is the next stage of implementation
+
+## Assistant
+
+You are correct. I treated the corrected report as a gate when this is explicitly the next implementation stage. The appropriate move is to build the transfer path with validation and failure reporting, then use the resulting dry run/live test as the evidence.
+
+I’ll continue the import-handoff audit now and produce the chess-game plan for implementation. I will not require another pre-implementation report.
+
+## Assistant
+
+The import audit shows the correct first implementation boundary: build and validate the exact Events Manager transfer payload before enabling the irreversible `EM_Event->save()` call.
+
+Events Manager stores timezone-aware event start/end values and uses `EM_Event`/`EM_Location` objects backed by both custom posts and EM index tables; direct table inserts would be incorrect. Its official developer material confirms the object-based model and timezone fields. [Events Manager timezone model](https://wp-events-plugin.com/docs-v1/timezone-support/), [event/location object model](https://wp-events-plugin.com/updating-to-v5/)
+
+Chess-game plan — proposed move: Great Imports `0.2.26`, Events Manager payload-transfer foundation.
+
+- Why: create one authoritative payload that the report can validate and the later save adapter can consume unchanged.
+- Exact changes:
+  - Extend the existing preview builder with a dedicated `events_manager_payload`.
+  - Event payload: title, normalized start/end date and time, timezone plus provenance, assembled description, draft/review status, source UID, and fingerprint.
+  - Location payload:
+    - `existing` strategy when a reviewer-selected EM location ID exists.
+    - `create` strategy when no ID is selected, using the normalized name/address fields.
+  - Explicitly mark ticket URL/price as `description_only`; create no EM tickets/bookings.
+  - Add required-field validation for title, start/end, location decision/data, and timezone.
+  - Include validation errors/warnings and `ready_for_save` in the exploratory report.
+  - Do not add the live Import button or call `EM_Event->save()` yet. That call will be the next move after the payload is observed once.
+  - Bump version/stable tag to `0.2.26`; GitHub-only release automation continues.
+- What will not change: candidate UI/editing, raw evidence, current EM records, location dropdown, tickets/bookings, images, scheduling, cleanup, or candidate collection.
+- Risks:
+  - When Eventbrite supplies only an offset and no named timezone, the payload will use the WordPress site timezone as an explicit fallback and report that provenance.
+  - A selected EM location ID can become stale; payload validation can detect a missing ID only at live runtime, so the eventual save adapter must revalidate it.
+  - Image Media Library transfer is not included in this first payload foundation.
+- Success checks:
+  - Fresh reports contain one `events_manager_payload` per candidate.
+  - The Boneyard example produces 6:00 PM–11:00 PM, normalized Chattanooga address, description-only ticket facts, and site-timezone provenance.
+  - No `EM_Event->save()`, `EM_Location->save()`, or direct EM table write exists.
+  - Payload contains enough information for the next save adapter without re-parsing the source.
+  - Version/tag match final `main`.
+- Rollback point: final `0.2.25` commit/tag `1a2ebd92c3435f5a1fc5eb78ac747a4d2762fb52`.
+
+I’m proceeding with the validated payload foundation.
+
+## Assistant
+
+The payload foundation is committed. I’m verifying that it appears inside each import preview, that validation and location strategy are present, and—most importantly—that no Events Manager save call or direct table write was introduced. I’m also checking the `0.2.26` release tag against final `main`.
+
+## Assistant
+
+Verification caught a real implementation omission: the payload builder method exists, but the return array does not call it because the insertion pattern missed the current ticketing block. Therefore `0.2.26` as tagged would not actually expose the payload in reports.
+
+I’m correcting this before calling the stage complete. This is within the stated plan; no scope change. It requires a new version because the automated release intentionally will not overwrite `0.2.26`.
+
+## Assistant
+
+Final verification passes for `0.2.27`: the payload key is attached to each preview, the builder and validation are present, no live EM save exists, and tag `0.2.27` is identical to final `main` at `f472335d0559c74f880cebf22f2da6f071f18f39`.
+
+Transcript checkpoint plan:
+
+- Proposed move: append the payload-stage request, your correction, audit, chess plan, detected `0.2.26` omission, corrective version, verification, and final result.
+- Why: the first import-transfer foundation is complete and the failed intermediate release must remain visible.
+- Exact change: transcript file only.
+- What will not change: no further plugin edit and no ZIP here.
+- Risk: `0.2.26` remains a historical release but is explicitly superseded by `0.2.27`.
+- Success check: transcript ends with the verified payload attachment.
+- Rollback point: context commit `5244092e3ccb0d019887c80c190a128997caf8f8`.
+
+I’m recording it now.
+
+## Assistant
+
+Great Imports `0.2.27` is now in GitHub and begins the Events Manager payload-transfer stage.
+
+Every candidate preview/report now contains an `events_manager_payload` with:
+
+- Validated event title, start/end date and time
+- Timezone and its provenance
+- Assembled description
+- Draft/review status
+- Existing-location or create-location strategy
+- Selected EM location ID when present
+- Normalized new-location fields when needed
+- Source URL, Eventbrite ID, and fingerprint
+- Ticket URL/price marked `description_only`
+- Validation errors, warnings, and `ready_for_save`
+
+Verified:
+
+- The payload is actually attached to each preview in `0.2.27`.
+- No `EM_Event->save()`, `EM_Location->save()`, ticket/booking creation, or direct EM table write was added.
+- Version and stable tag are `0.2.27`.
+- Release tag `0.2.27` matches final `main`.
+- No ZIP was provided here.
+
+Important: `0.2.26` was an incomplete intermediate release—the builder method existed but was not attached to previews. Use `0.2.27`.
+
+The next move is the save adapter: consume this validated payload, revalidate the selected location at runtime, create a location only when required, save the EM event, persist source identity for duplicate/update protection, and report any EM validation errors without losing the candidate.
