@@ -2529,3 +2529,89 @@ The single-commit release correction is underway; the first blob was created. Wa
 ## Assistant
 
 The release correction worked: `main` and tag `0.2.30` both point to `0040886543e5e90f583d260d7f4dfdd1a99119c4`. The bad `0.2.29` tag still exists historically, but `0.2.30` is the complete release to use. I’m recording that correction in the transcript file too.
+
+## User
+
+Okay I think this issue has to do with the geocoding and longitude and latitude because when it is manually entered none of that goes in there it's just the address only nothing else gets populated
+
+## Assistant
+
+I’ll treat this as a coordinates-import bug, not a visual/UI issue. I’m going to verify the current GitHub source path that handles Events Manager locations first, then I’ll state the chess move before making any code change.
+
+## Assistant
+
+The scratch root itself is not the repo; the plugin checkout is under `Great-imports/`. I’m narrowing on the importer and payload builder now, because that’s where address-only location creation would happen.
+
+## Assistant
+
+Evidence check found the important gap: the new coordinate transfer only happens when Great Imports creates a new `EM_Location`. If the candidate already has `_gi_em_location_id`, the importer returns that existing location immediately, so a previously created address-only location would stay address-only. That matches your screenshot path.
+
+## Assistant
+
+**Chess Move**
+
+Proposed move: update the importer so a Great Imports-created existing location can receive source-backed coordinates on a repeat import.
+
+Why: the current source sets latitude/longitude only during brand-new `EM_Location` creation. If the first import created “The Boneyard” with address only, the stored `_gi_em_location_id` path skips coordinate assignment forever.
+
+Exact changes:
+- In `GI_EM_Importer::resolve_location()`, when `_gi_em_location_id` already exists, load that same EM location and apply valid source-backed `location_latitude` / `location_longitude` before returning it.
+- Keep selected/matched existing Events Manager locations unchanged unless they were created by this candidate path.
+- Add a small helper so coordinate update is readable and guarded.
+- Bump plugin/readme to the next version and update the transcript file.
+
+What will not change: Eventbrite parsing beyond the coordinate payload already added, reports, ticket handling, scheduling, existing manually selected location behavior, event save fields, or UI layout.
+
+Risks: if Events Manager rejects saving an existing location, the import should report that instead of silently pretending coordinates were saved. Older candidates still need `Search Source` again if their stored candidate data does not yet contain coordinates.
+
+Success checks: verify the path no longer returns early for `_gi_em_location_id`, coordinates are assigned before EM save, selected locations are not overwritten, version is current in GitHub, and the transcript is updated.
+
+Rollback point: current GitHub `main` at `0.2.30`, before this existing-location coordinate repair.
+
+## Assistant
+
+I’ve confirmed GitHub `main` is `0.2.30` and the early return is present in the remote source, so this is not a guess from the screenshot. I’m making the importer update only the candidate-owned existing location path now.
+
+## Assistant
+
+The edit is intentionally narrow: no geocoder, no Events Manager selected-location overwrite, just “if Great Imports already owns this created location and now has valid source coordinates, save them onto that location.”
+
+## Assistant
+
+The importer now updates missing coordinates on an already-created candidate location before reusing it. I’m bumping the version next so the GitHub release/download identity is unambiguous.
+
+## Assistant
+
+The source change is in place locally. I’m running the checks I can here, then I’ll push through GitHub source rather than leaving it as a local-only fix.
+
+## Assistant
+
+`git diff --check` is clean. PHP CLI is not installed in this container, so I can’t run `php -l`; I’m keeping that limitation visible and using source/structure checks plus GitHub verification.
+
+## Assistant
+
+One release detail matters here: I’m going to update the importer source first, then the readme, and bump `great-imports.php` last. That keeps the version-tagged GitHub release from being cut before the actual repair source is already on `main`.
+
+## Assistant
+
+I’m publishing in three steps with the version bump last. The first push is importer-only, so even if automation watches versions, it won’t package an incomplete `0.2.31`.
+
+## Assistant
+
+Importer source is on GitHub now. I’m updating the readme/changelog next while the plugin header still says `0.2.30`; the actual version flip remains last.
+
+## Assistant
+
+The readme is now staged on GitHub with the `0.2.31` notes, and the repair source is already there. I’m flipping the plugin header/constant last, which is the version trigger point.
+
+## Assistant
+
+GitHub now has the actual code change and the `0.2.31` version bump. I’m verifying the remote source and release refs next, then I’ll update the chat transcript file in the other repo.
+
+## Assistant
+
+Verification shows `main` and tag `0.2.31` both point to the same commit, so this release package should contain the completed coordinate repair. I’m adding this discussion to the markdown transcript now.
+
+## Assistant
+
+The transcript repo already has the previous release-correction discussion through `0.2.30`. I’m appending this current coordinate-repair exchange now rather than replacing or summarizing it.
