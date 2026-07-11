@@ -1923,3 +1923,120 @@ Other findings:
 - Candidate remains review-ready, not import-ready; the plugin still performs no Events Manager save.
 
 No plugin code was changed during this diagnostic review. The correct next move is to fix the four confirmed data-path issues together because time, normalized location, price, and image URL all feed the eventual import preview.
+
+
+## User
+
+Some of that information like the ticketing and price that is part of the description or should be included in the description as far as everything else repair what you can
+
+## Assistant
+
+I understand the boundary:
+
+- Ticket URL and price are source facts that should appear in the assembled event description.
+- They remain read-only; this does not create Events Manager tickets or bookings.
+- Repair the confirmed time, preview-address, price, and image URL data paths without expanding into unrelated importer behavior.
+
+I’m checking the exact description builder and URL sanitization path once more so the fixes converge in one pipeline rather than producing another table/report mismatch.
+
+## Assistant
+
+Evidence confirms these four fixes belong together in the existing preview pipeline:
+
+- The description builder already has a Tickets section and already renders price when the stored price exists. The missing piece is fallback price extraction.
+- The location section independently rereads raw address fields instead of using the shared normalization.
+- The time formatter is the double-offset source.
+- JSON-LD URLs pass through `sanitize_text_field()` before URL escaping, which removes percent-encoded separators from Eventbrite’s nested image URL.
+
+Chess-game plan — proposed move: Great Imports `0.2.25`, repair preview/source-fact consistency.
+
+- Why: make the report and assembled description agree with the now-correct review UI.
+- Exact changes:
+  - Replace `strtotime()` + `date_i18n()` preview formatting with `DateTimeImmutable`, preserving the timezone/offset already embedded in the source value.
+  - Keep the absolute timestamp for duration calculations.
+  - Make preview location fields and the description Location section use `GI_Candidate_Review::normalized_location_fields()`.
+  - In JSON-LD offers, use `price` when present; otherwise use `lowPrice`; when low/high differ, preserve a readable range.
+  - The existing Tickets description section will then include price/currency and purchase URL. No ticket editing or EM ticket creation.
+  - Add a URL-specific scalar path that does not run percent-encoded URLs through `sanitize_text_field()` before `esc_url_raw()`, covering image and ticket URLs.
+  - Keep the raw JSON-LD payload unchanged.
+  - Bump version/stable tag to `0.2.25`; GitHub-only release automation remains responsible for the versioned package.
+- What will not change: candidate UI controls, reviewer overrides, source evidence, matching dropdown, EM events/locations/tickets, scheduling, cleanup, or report hygiene.
+- Risks:
+  - AggregateOffer ranges will be descriptive text, not bookable ticket classes.
+  - Offset-aware timestamps remain tied to their source offset; this does not invent an IANA timezone when Eventbrite omits it.
+  - Existing malformed stored image URLs require recollecting the source to be replaced; the fix prevents corruption on new/updated collection.
+- Success checks:
+  - The report example stays 6:00 PM–11:00 PM and duration remains five hours.
+  - Preview/description address becomes `26 Station Street`, `Chattanooga, TN 37408`, `US`.
+  - Price becomes `25.32 USD` in ticketing and description.
+  - Newly normalized image URL retains `%3A%2F%2F`.
+  - No EM writes or ticket creation.
+  - Release tag matches final `main`.
+- Rollback point: final `0.2.24` commit/tag `84bf937a05994dcc64296394cf457d2fa5d02217`.
+
+I’m proceeding with these four confirmed repairs.
+
+## Assistant
+
+The four repairs are committed. I’m verifying the exact producing functions and the `0.2.25` release tag against final `main`. Existing candidate price/image metadata will not change until the source is searched again, so verification must distinguish source repair from migrated data.
+
+## Assistant
+
+Verification passes at the source and release levels:
+
+- Offset-aware preview formatting no longer calls `date_i18n()`.
+- Preview and description use the shared normalized location.
+- AggregateOffer low/high price fallback is present.
+- Ticket description already renders price/currency plus the purchase link.
+- URL-specific normalization preserves encoded URL components.
+- No EM ticket, booking, location, or event writes were added.
+- Tag `0.2.25` is identical to final `main` at `1a2ebd92c3435f5a1fc5eb78ac747a4d2762fb52`.
+
+PHP lint and live output remain unverified here. Existing stored price/image values require searching the source again after updating.
+
+Transcript checkpoint plan:
+
+- Proposed move: append the repair authorization, evidence, chess plan, implementation, verification, and final result.
+- Why: `0.2.25` is complete.
+- Exact change: transcript file only.
+- What will not change: no further plugin edit and no ZIP here.
+- Risk: verification limitations and recollection requirement must be explicit.
+- Success check: transcript ends with the verified `0.2.25` result.
+- Rollback point: context commit `b2338d2f4db03e0ed92be4742c36f2ac28bcc13f`.
+
+I’m recording the progression now.
+
+## Assistant
+
+Great Imports `0.2.25` is now in GitHub.
+
+Repaired:
+
+- Preview time now preserves the source’s offset-aware local time instead of adding the WordPress offset again.
+- Preview and assembled description now use the same normalized Location fields as the admin editor.
+- JSON-LD `price`, `lowPrice`, and differing low/high ranges are preserved.
+- The Tickets section of the description includes source-backed price/currency and the purchase URL.
+- Eventbrite image and ticket URLs no longer pass through text sanitization that removes percent-encoded separators.
+
+Verified unchanged:
+
+- Ticket information remains read-only.
+- No Events Manager tickets or bookings are created.
+- No EM events or locations are written.
+- Raw source evidence remains unchanged.
+- Candidate editing, matching dropdown, reports, cleanup, and scheduling behavior were not expanded.
+
+Changed files:
+
+- `includes/class-gi-import-preview-builder.php`
+- `includes/class-gi-jsonld-parser.php`
+- `great-imports.php`
+- `readme.txt`
+
+GitHub verification:
+
+- Version and stable tag are `0.2.25`.
+- Release tag `0.2.25` matches final `main`.
+- No ZIP was supplied here.
+
+After updating, search the Eventbrite source again so the existing candidate receives the corrected price and image URL, then download a new exploratory report. The expected report is 6:00 PM–11:00 PM, normalized address with ZIP `37408`, ticket price `25.32 USD`, and an image URL retaining its encoded nested URL.
