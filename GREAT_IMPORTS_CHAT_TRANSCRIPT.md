@@ -1156,3 +1156,76 @@ Changed files:
 - `readme.txt`
 
 No token handling, report generation, cleanup behavior, candidate data, matching, parser, scheduling, tickets, or Events Manager behavior changed.
+
+
+## User
+
+Also in the top right hand corner says collect URL remove that
+
+Attached screenshot:
+
+- `Screenshot 2026-07-11 4.27.15 AM.png` — Great Imports header showing the upper-right Collect URL shortcut.
+
+## Assistant
+
+The screenshot identifies the redundant `Collect URL` page-title button in the upper-right. The actual URL collection form remains below, so removing this shortcut will not remove the collection workflow.
+
+I’m verifying the current GitHub header markup first, then I’ll remove the link from rendered PHP—not hide it with CSS.
+
+## Assistant
+
+Evidence confirms exactly one upper-right shortcut link and one separate collection form.
+
+Chess-game plan — proposed move: Great Imports `0.2.20`, remove the redundant header shortcut.
+
+- Why: you explicitly requested removal, and the real URL form already exists on the page.
+- Exact changes:
+  - Delete the `page-title-action` anchor from `page_header()`.
+  - Leave the page title and description intact.
+  - Leave the `Collect Eventbrite URL` form intact.
+  - Bump version/stable tag to `0.2.20` and document the removal.
+- What will not change: top utility row, URL form, candidate list, address/matching columns, parser, evidence, storage, reports, cleanup, tickets, scheduling, or EM behavior.
+- Risks: the page will no longer have a shortcut that scrolls to the form; the form itself remains immediately available.
+- Success checks:
+  - `Collect URL` and `page-title-action` are absent from header markup.
+  - `gi-collect-url` and the collection action remain.
+  - No CSS hiding is added.
+  - Version and files verified in GitHub.
+- Rollback point: plugin commit `7ee7a80c2e911c7954136faf607503a206dc7762` (`0.2.19`).
+
+I’m proceeding with the rendered-markup removal.
+
+## Assistant
+
+Verification passed: the header shortcut text and anchor class are gone, the actual collection form/action remains, no hiding rule was added, and GitHub reports `0.2.20`.
+
+Transcript checkpoint plan:
+
+- Proposed move: append the request, screenshot reference, evidence, plan, implementation, verification, and final result.
+- Why: `0.2.20` is complete.
+- Exact change: transcript file only.
+- What will not change: no additional plugin edits.
+- Risk: screenshot referenced by filename.
+- Success check: transcript ends with the verified removal.
+- Rollback point: context commit `5b74a5070349946a7932c1d5f0a55344696faad5`.
+
+I’m recording this progression now.
+
+## Assistant
+
+Great Imports `0.2.20` is now in GitHub.
+
+Verified:
+
+- The upper-right `Collect URL` shortcut was removed from rendered PHP.
+- The actual `Collect Eventbrite URL` form remains unchanged.
+- No CSS hiding was used.
+- Version and stable tag are both `0.2.20`.
+
+Changed files:
+
+- `includes/class-gi-admin.php`
+- `great-imports.php`
+- `readme.txt`
+
+No other UI controls or plugin behavior changed.
