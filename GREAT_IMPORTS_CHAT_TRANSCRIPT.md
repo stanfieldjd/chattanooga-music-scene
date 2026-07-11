@@ -954,3 +954,105 @@ Changed files:
 No parser, evidence, candidate storage, report, ticket, scheduling, or Events Manager behavior changed.
 
 This is source verification, not live visual verification. Install/update to `0.2.17` and send a screenshot of the rendered Great Imports screen; that will confirm whether it now matches the Posts screen width in your actual WordPress admin.
+
+
+## User
+
+Where it says venue it needs to have the address and next to it needs to have a matching location if there is one
+
+Attached screenshot:
+
+- `image(2).png` — Great Imports 0.2.17 full-width candidate list showing Venue without its address and no adjacent matching-location column.
+
+## Assistant
+
+The screenshot confirms `0.2.17` now spans the available width. Your next requested table structure is:
+
+- `Venue` should show the detected venue plus its address.
+- A new adjacent column should show the matching Events Manager location when one exists.
+
+Before planning the change, I’m tracing the actual stored address fields and existing EM-location matching path. I need to determine whether a match is already calculated and merely omitted from the table, or whether matching logic does not yet exist. That distinction controls the necessary scope.
+
+## Assistant
+
+Evidence result:
+
+- The candidate already stores all address components: street 1, street 2, city, state, ZIP, and country.
+- The table currently reads only `location_name`, which is why it shows only “The Boneyard.”
+- Existing code already queries Events Manager locations and returns suggestions with IDs, names, addresses, and match reasons.
+- However, that query can return partial possibilities. Displaying its first result as a definite match would be unreliable.
+- A reviewer-selected `_gi_review_em_location_id` may also exist, and that must take precedence when present.
+
+Chess-game plan — proposed move: Great Imports `0.2.18`, venue/address plus conservative EM match column.
+
+- Why: expose location evidence already stored and show an Events Manager match without mislabeling a weak partial suggestion as confirmed.
+- Exact changes:
+  - Keep the `Venue` column in its current position.
+  - Render venue name on the first line and the assembled address beneath it.
+  - Add `Matching Location` immediately to the right of `Venue`.
+  - If a reviewer-selected EM location ID exists, display that location.
+  - Otherwise use the existing EM suggestion path but display a match only when its reason contains an exact same-name or same-address signal; do not display a merely “possible partial match.”
+  - Show the matched EM location name and address; show `No match` when none qualifies.
+  - Add only small line-formatting CSS, then bump version/stable tag to `0.2.18` and document the change.
+- What will not change: candidate capture/storage, address values, EM data, selection metadata, parser, reports, tickets, scheduling, or EM import/save behavior. No location will be created, updated, merged, or assigned.
+- Risks:
+  - Same-name venues at different addresses could still be ambiguous; exact address is stronger, but the existing matcher reports both signals.
+  - Older candidates with incomplete address data may show `No match`.
+  - This is a display lookup on page load, so each visible candidate performs an EM suggestion lookup.
+- Success checks:
+  - Column order is `Title`, `Date`, `Venue`, `Matching Location`, `Source`.
+  - Venue includes the stored address.
+  - Weak partial suggestions are not presented as matches.
+  - No EM write occurs.
+  - Version, changed files, and relevant methods are verified in GitHub.
+- Rollback point: plugin commit `1757ec576ae79fd921dd6e382ffb09e62cc7aa04` (`0.2.17`).
+
+I’m proceeding with this display-only match behavior.
+
+## Assistant
+
+One verification issue surfaced before I can call this complete: the first implementation would display a reviewer-selected location only if it also appeared in the current suggestion set. That does not fully satisfy the stated precedence rule. I’m correcting that now so a saved EM location ID is resolved directly first; automatic suggestions remain the fallback. This stays within the approved display-only scope.
+
+## Assistant
+
+GitHub verification now passes for the intended source structure: `0.2.18`, correct column order, all six stored address components included, direct resolution of a selected EM location, strict automatic fallback, and no EM write statements.
+
+Transcript checkpoint plan:
+
+- Proposed move: append this request, screenshot reference, evidence, chess plan, correction discovered during verification, and final result.
+- Why: this completes the `0.2.18` progression point.
+- Exact change: transcript file only.
+- What will not change: no additional plugin change.
+- Risk: the screenshot will be referenced by its uploaded filename.
+- Success check: transcript ends with the verified `0.2.18` result.
+- Rollback point: context commit `f8beeae88a1c4282f598fb55bd6677d0e3193425`.
+
+I’m recording it now.
+
+## Assistant
+
+Great Imports `0.2.18` is now in GitHub.
+
+The candidate table now reads:
+
+`Title | Date | Venue | Matching Location | Source`
+
+Behavior:
+
+- `Venue` shows the detected venue name with its complete stored address underneath.
+- `Matching Location` first honors a saved reviewer-selected Events Manager location.
+- Without a saved selection, it displays only an existing EM location with an exact same-name or same-address signal.
+- Weak partial possibilities display as `No match`.
+- The matched EM location name and address are both shown.
+- This is display-only; it does not create, edit, merge, assign, or save an Events Manager location.
+
+Changed files:
+
+- `includes/class-gi-candidate-list-table.php`
+- `assets/css/admin.css`
+- `great-imports.php`
+- `readme.txt`
+
+GitHub verification confirmed version and stable tag `0.2.18`, all stored address fields, selected-location precedence, strict fallback filtering, and no EM write statements.
+
+The remaining proof is live rendering. Update the plugin and send the next screenshot so we can verify the address layout and actual location match against your Events Manager data.
