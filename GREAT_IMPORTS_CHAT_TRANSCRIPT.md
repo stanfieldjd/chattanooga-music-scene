@@ -1842,3 +1842,84 @@ Verified:
 - No ZIP was provided here.
 
 PHP lint and live rendering remain unverified. Update from the GitHub `0.2.24` release and re-open the Location editor; the populated fields should match the five values above.
+
+
+## User
+
+Everything looks great I don't see any kind of inconsistencies are there any issues behind the scenes
+
+Attached evidence:
+
+- `Screenshot 2026-07-11 5.34.29 AM.png`
+- `great-imports-exploratory-report-20260711-093529.json`
+
+## Assistant
+
+The rendered fields now look internally consistent, including the date/time split and normalized address. I’ll inspect the attached exploratory report against the current `0.2.24` GitHub paths before answering.
+
+This is a diagnostic review only. I will not change code unless you later ask me to fix a confirmed issue.
+
+## Assistant
+
+The report reveals several behind-the-scenes inconsistencies despite the admin row looking correct. I’m tracing each one to its producing function before giving you the assessment—especially the time conversion, because the UI shows 6:00 PM while the import preview reports 10:00 PM.
+
+## Assistant
+
+The evidence supports four real behind-the-scenes issues:
+
+1. **Critical: preview times are shifted by four hours.**  
+   Source and editor correctly show 6:00 PM–11:00 PM with `-04:00`, but the import preview reports 10:00 PM–3:00 AM. `strtotime()` converts the ISO value to an absolute timestamp, then `date_i18n()` applies the WordPress offset again.
+
+2. **Address normalization is not used by the preview/report path.**  
+   The UI correctly shows Street `26 Station Street` and ZIP `37408`, but the report preview still contains the composite street and an empty ZIP. The candidate table uses the new shared normalization; `GI_Import_Preview_Builder` still reads raw fields independently.
+
+3. **Ticket price is captured but discarded.**  
+   Raw JSON-LD contains `AggregateOffer.lowPrice = 25.32`, while candidate `price` and preview `price` are empty. The parser only checks `offers.price`, not `lowPrice`/`highPrice`.
+
+4. **The stored image URL appears malformed.**  
+   The raw URL contains an encoded nested CDN URL, while the normalized candidate value becomes `https://img.evbuc.com/httpscdn...`, losing the nested URL separators. That likely will not download correctly later.
+
+There are also two limitations, not current failures: Eventbrite API is unconfigured, so collection uses HTML/JSON-LD fallback; and timezone is reported missing even though the ISO timestamps contain `-04:00`.
+
+The report hygiene is clean: no secrets, cookies, rate-limit headers, or coordinates were exported. There are no missing-required sections or recorded fetch failures. I’m recording this diagnostic checkpoint without changing code.
+
+## Assistant
+
+Transcript checkpoint plan:
+
+- Proposed move: append this diagnostic request, screenshot/report references, inspection updates, confirmed findings, and final assessment.
+- Why: the behind-the-scenes review is complete.
+- Exact change: transcript file only.
+- What will not change: no plugin code or release.
+- Risk: report findings must remain distinguished from inference; the image URL is labeled “likely broken,” not proven by a download test.
+- Success check: transcript ends with the four confirmed issues and clean findings.
+- Rollback point: context commit `0f9e8dfb0c6d31ef41af9f92d212bf1219f343f5`.
+
+I’m recording the diagnostic progression now.
+
+## Assistant
+
+Yes. The visible UI is now consistent, but the report exposes four backend issues:
+
+1. **Critical time conversion error**  
+   The source and editor show 6:00 PM–11:00 PM, while the preview reports 10:00 PM–3:00 AM. The preview applies the WordPress timezone offset after parsing an already offset-aware ISO timestamp.
+
+2. **Preview address is stale/inconsistent**  
+   The UI correctly shows `26 Station Street` and ZIP `37408`, but the preview still uses the composite street and leaves ZIP empty. The preview builder does not use the shared normalized location fields.
+
+3. **Price is discarded**  
+   JSON-LD contains `lowPrice: 25.32`, but stored and preview price are empty because the fallback parser only reads `offers.price`.
+
+4. **Image URL is likely malformed**  
+   The normalized stored URL loses separators from Eventbrite’s encoded nested image URL. It needs a targeted retrieval/normalization test before image importing can be trusted.
+
+Other findings:
+
+- Eventbrite API token is not configured; the candidate used HTML/JSON-LD fallback.
+- Timezone is marked missing even though `-04:00` exists in the source timestamps.
+- Report hygiene passed: no secrets, cookies, rate-limit headers, or coordinates leaked.
+- Source fetch succeeded with HTTP 200.
+- No required coverage sections are missing.
+- Candidate remains review-ready, not import-ready; the plugin still performs no Events Manager save.
+
+No plugin code was changed during this diagnostic review. The correct next move is to fix the four confirmed data-path issues together because time, normalized location, price, and image URL all feed the eventual import preview.
