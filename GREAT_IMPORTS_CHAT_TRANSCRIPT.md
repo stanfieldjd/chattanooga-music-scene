@@ -1056,3 +1056,103 @@ Changed files:
 GitHub verification confirmed version and stable tag `0.2.18`, all stored address fields, selected-location precedence, strict fallback filtering, and no EM write statements.
 
 The remaining proof is live rendering. Update the plugin and send the next screenshot so we can verify the address layout and actual location match against your Events Manager data.
+
+
+## User
+
+I would like you to take these and put them on the top also add current version Eventbrite API Settings
+Not configured
+Exploratory Report
+Danger Zone: Manual Data Removal
+
+## Assistant
+
+I understand the requested top order as:
+
+1. `Current Version` with the installed Great Imports version
+2. `Eventbrite API Settings` with `Configured` or `Not configured`
+3. `Exploratory Report`
+4. `Danger Zone: Manual Data Removal`
+5. Then the full-width URL collection and candidate list
+
+This explicitly moves the three existing utility controls from below the candidate table to the top and adds a fourth read-only version item.
+
+I’m checking the current `0.2.18` markup and CSS once more so the move reuses the existing forms rather than duplicating them or leaving dead controls.
+
+## Assistant
+
+Evidence confirms the three controls exist only once, inside the utility block rendered after the candidate list. Moving that block before `<main>` will relocate the real controls; it will not duplicate them or leave hidden copies.
+
+Chess-game plan — proposed move: Great Imports `0.2.19`, top status/utility row.
+
+- Why: place the requested controls at the top while keeping the full-width candidate workflow below.
+- Exact changes:
+  - Move the existing utility block above the URL collection and candidate list.
+  - Add a non-interactive `Current Version` status item using `GREAT_IMPORTS_VERSION`.
+  - Use four equal columns on wide screens: Current Version, Eventbrite API Settings/status, Exploratory Report, Danger Zone.
+  - Stack responsively when the screen is narrower.
+  - Keep the existing expandable settings/report/cleanup contents and forms intact.
+  - Bump version and stable tag to `0.2.19`; document the UI move.
+- What will not change: control actions, nonces, token handling, report generation, cleanup behavior, candidate table, address/matching columns, parser, storage, tickets, scheduling, or EM behavior.
+- Risks: four columns are tighter than three; responsive stacking must begin before labels become cramped. The version item must not look clickable because it has no form or expandable content.
+- Success checks:
+  - Utility markup appears before `<main>`.
+  - Each existing form/action appears exactly once.
+  - `Current Version` displays `0.2.19`.
+  - Wide layout has four columns; narrower layout stacks.
+  - No CSS hiding or duplicate controls.
+  - GitHub version and files verified.
+- Rollback point: plugin commit `be86c7fd7a1f0d05995aaa9abfa87a51d24428b3` (`0.2.18`).
+
+I’m proceeding with the requested control movement and version display.
+
+## Assistant
+
+The GitHub changes are applied. I’m verifying the rendered source order and ensuring each action form remains exactly once; this is specifically checking that the move did not create duplicate settings, report, or cleanup workflows.
+
+## Assistant
+
+Verification passed: the top utility block precedes the main workflow, version comes from the installed constant, each existing action appears exactly once, the row uses four columns, and no hiding rules were introduced.
+
+Transcript checkpoint plan:
+
+- Proposed move: append this request, evidence, chess plan, implementation update, verification, and final result.
+- Why: `0.2.19` is a completed progression point.
+- Exact change: transcript file only.
+- What will not change: plugin source is now frozen at the verified result.
+- Risk: none beyond transcription accuracy.
+- Success check: transcript ends with the `0.2.19` result.
+- Rollback point: context commit `4692d21e79560ae6cc925cd6860352d680f7cbc3`.
+
+I’m recording the progression now.
+
+## Assistant
+
+Great Imports `0.2.19` is now in GitHub.
+
+The top of the plugin screen now contains, in order:
+
+1. `Current Version — 0.2.19`
+2. `Eventbrite API Settings — Configured/Not configured`
+3. `Exploratory Report`
+4. `Danger Zone: Manual Data Removal`
+
+The URL collection form and full-width candidate list follow beneath that row.
+
+Verified:
+
+- The actual existing controls were moved; they were not copied.
+- Settings, report, and cleanup actions each appear exactly once.
+- Current Version is read-only and sourced from `GREAT_IMPORTS_VERSION`.
+- The top row uses four columns on wide screens and stacks responsively.
+- No controls were hidden.
+- Version and stable tag are both `0.2.19`.
+
+Changed files:
+
+- `includes/class-gi-admin.php`
+- `assets/css/admin.css`
+- `great-imports.php`
+- `readme.txt`
+
+No token handling, report generation, cleanup behavior, candidate data, matching, parser, scheduling, tickets, or Events Manager behavior changed.
