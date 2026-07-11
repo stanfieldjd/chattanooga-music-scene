@@ -865,3 +865,92 @@ The current GitHub baseline is Great Imports `0.2.16`. It presently supports:
 No plugin files were changed. The exchange and baseline were added to the exact transcript.
 
 Send the first plugin issue, screenshot, report, or desired behavior you want examined.
+
+
+## User
+
+I want the plug-in to appear just like the posts in the screenshots all the way across the screen
+
+Attached screenshots:
+
+- `Screenshot 2026-07-11 4.07.59 AM.png` — WordPress Posts screen using the available admin width.
+- `Screenshot 2026-07-11 4.07.18 AM.png` — Great Imports screen constrained to a narrower main column with utility panels on the right.
+
+## Assistant
+
+I see the specific mismatch: the Posts screen uses the full available admin-content width, while Great Imports is constrained by a two-column grid—the candidate list stops around 833 px and the utility panels occupy a right sidebar, leaving a large unused area.
+
+Before deciding the fix, I’m checking the screenshots at full resolution and the current GitHub CSS/list-table markup. I will verify whether the width constraint comes from the page grid, the table, or both; I won’t infer it solely from appearance.
+
+## Assistant
+
+Evidence result: the width problem is confirmed in GitHub source.
+
+- `.gi-admin-screen { max-width: 1240px; }` caps the entire plugin page.
+- `.gi-admin-grid` reserves a fixed `320px` sidebar.
+- The candidate table itself is a real `WP_List_Table` and has no independent width cap.
+- Therefore, changing the table class is not required. The constraining page layout is the cause.
+
+Chess-game plan — proposed move: Great Imports `0.2.17`, full-width admin-list layout.
+
+- Why: remove the two confirmed layout constraints so the candidate list uses the available WordPress admin width like the Posts list.
+- Exact changes:
+  - Remove the `1240px` page cap.
+  - Change the admin grid from main-plus-320px-sidebar to one full-width column.
+  - The existing utility controls will consequently move below the candidate list in their current markup order. This movement is necessary to stop them reserving the right side of the screen.
+  - Lay the three collapsed utility panels across the available width on wide screens, stacking them at narrower widths.
+  - Remove the candidate excerpt’s `560px` cap so its content can use the title column naturally.
+  - Bump the plugin and stable tag to `0.2.17`; document only this layout change.
+- What will not change: form controls, labels, candidate columns/data, `WP_List_Table`, parser, evidence, storage, reports, tickets, scheduling, or Events Manager behavior.
+- Risks: very wide screens may produce longer title/excerpt lines; utility panels will be lower on the page instead of beside the collection form.
+- Success checks:
+  - No `max-width: 1240px`, fixed `320px` sidebar, or `560px` excerpt cap remains.
+  - Candidate table remains the same `WP_List_Table`.
+  - Candidate area spans the full plugin content width.
+  - All three utility controls remain rendered and usable.
+  - GitHub version and changed files are verified.
+- Rollback point: current plugin commit `d3afeadd99abc32784e78cb27c533aa2aba6244c` (`0.2.16`).
+
+This is a bounded layout change; I’m proceeding without altering the importer workflow.
+
+## Assistant
+
+The GitHub source changes are now applied. I’m performing the required verification against `main`: version/stable tag, exact CSS constraints removed, responsive utility layout present, and the candidate list-table PHP unchanged. I have not yet claimed the rendered WordPress result; the screenshots after installing `0.2.17` will be the visual proof.
+
+## Assistant
+
+Transcript checkpoint plan:
+
+- Proposed move: append this request, both screenshot references, the evidence findings, the pre-change plan, implementation update, verification update, and final result.
+- Why: this is a completed plugin progression point.
+- Exact change: `GREAT_IMPORTS_CHAT_TRANSCRIPT.md` only in the context repository.
+- What will not change: no further plugin change during transcription.
+- Risk: GitHub cannot embed the temporary chat attachment paths reliably, so the transcript will preserve the exact user text and name both attached screenshot files where they appeared.
+- Success check: the transcript ends with the `0.2.17` verified result.
+- Rollback point: context commit `c098c76da106a2807e40a47d6937b21d8d02d47f`.
+
+I’m recording the completed progression now.
+
+## Assistant
+
+Great Imports `0.2.17` is now in GitHub with the full-width layout change.
+
+Verified in `main`:
+
+- Removed the plugin page’s `1240px` maximum width.
+- Removed the fixed `320px` utility sidebar.
+- The candidate list now receives the full available admin-content width.
+- Existing utility panels remain present below the candidate workflow and display in a responsive row on wide screens.
+- Removed the `560px` candidate-excerpt width cap.
+- The candidate `WP_List_Table` PHP file is byte-for-byte unchanged.
+- Plugin version and stable tag are both `0.2.17`.
+
+Changed files:
+
+- `assets/css/admin.css`
+- `great-imports.php`
+- `readme.txt`
+
+No parser, evidence, candidate storage, report, ticket, scheduling, or Events Manager behavior changed.
+
+This is source verification, not live visual verification. Install/update to `0.2.17` and send a screenshot of the rendered Great Imports screen; that will confirm whether it now matches the Posts screen width in your actual WordPress admin.
