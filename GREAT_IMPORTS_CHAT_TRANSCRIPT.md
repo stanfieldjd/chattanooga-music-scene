@@ -1578,3 +1578,130 @@ Verified in GitHub:
 - No Events Manager write statements were added.
 
 This is source verification. Update to `0.2.23`; the existing Boneyard candidate should show its composite address if Eventbrite’s JSON-LD actually supplied one. If it remains blank, the next evidence needed is the new Exploratory Report because that would mean the source payload itself did not contain an address.
+
+
+## User
+
+And GitHub is there a way every time I download the zip from there that it will show the current version
+
+## Assistant
+
+Yes—by using GitHub Releases.
+
+The green **Code → Download ZIP** button always downloads the current branch with a generic filename such as `Great-imports-main.zip`. It does not use the plugin version.
+
+For versioned downloads, each plugin version should have a GitHub release/tag:
+
+- Tag: `0.2.23`
+- Release title: `Great Imports 0.2.23`
+- ZIP asset: `great-imports-0.2.23.zip`
+
+Then every release page provides an explicitly versioned download while the main repository URL remains permanent.
+
+Going forward, I can create a GitHub release for each completed, verified version. That would be an additional publishing step, so I would state the release plan before doing it.
+
+## User
+
+I just didn't know if it would be possible because sometimes it's a little hard to keep up with after downloading
+
+## Assistant
+
+Yes, it is possible, and versioned release ZIPs would solve that problem. The downloaded filename would clearly show which version you have, for example:
+
+`great-imports-0.2.23.zip`
+
+The installed plugin already displays its current version at the top, so the ZIP filename and installed version could be compared directly. No GitHub change was made from this discussion.
+
+## User
+
+If you can make it so that would be great
+
+## Assistant
+
+I can set that up. I’ll first verify GitHub’s current tags/releases and the exact `main` commit for `0.2.23`. Then I’ll present the publishing plan before creating anything, including the ZIP filename and rollback/removal point.
+
+This will not modify plugin source; it is a GitHub distribution change.
+
+## Assistant
+
+Evidence result:
+
+- Current `main` is Great Imports `0.2.23` at commit `95999bc9ac3d859b0bef8b1446142ad04d8041ba`.
+- The connected GitHub tools do not expose Releases, and this workspace has no `gh` executable, so I cannot truthfully claim I can manually publish a release from here.
+- The durable solution is repository automation: a GitHub Actions workflow can read the plugin version on each push, create that version’s tag/release if absent, package the plugin under the correct `great-imports/` folder, and attach a ZIP named with the version.
+
+Chess-game plan — proposed move: add automated versioned release packaging.
+
+- Why: every completed version should produce an unmistakably named ZIP without requiring you to track the generic `main` download.
+- Exact changes:
+  - Add one readable workflow file: `.github/workflows/release-plugin.yml`.
+  - On pushes to `main`, read `GREAT_IMPORTS_VERSION` from `great-imports.php`.
+  - Check whether a release for that exact version already exists; stop successfully if it does.
+  - Stage only plugin distributable files inside a `great-imports/` directory, excluding `.git`, `.github`, and development metadata.
+  - Build `great-imports-{version}.zip`.
+  - Create tag/release `{version}` at the triggering commit and attach the ZIP.
+  - Grant only `contents: write`, required to create the tag/release and asset.
+- What will not change: plugin PHP/CSS, current version, importer behavior, transcript, or existing repository URL.
+- Risks:
+  - The first workflow run depends on GitHub Actions being enabled and the repository token having release permission.
+  - If a version number is reused after source changes, the workflow will not replace the existing release; a new plugin version must be used.
+  - Source-only GitHub ZIPs will still exist, but the release asset is the WordPress-ready, versioned download.
+- Success checks:
+  - Workflow exists on `main`.
+  - YAML includes version extraction, distributable staging, ZIP naming, existing-release guard, and release creation.
+  - GitHub Actions run is inspected after the commit.
+  - A release asset named `great-imports-0.2.23.zip` exists before I call the setup complete.
+- Rollback point: current plugin commit `95999bc9ac3d859b0bef8b1446142ad04d8041ba`; removing the single workflow file disables future automatic releases without touching plugin source.
+
+I’m proceeding with this GitHub-only distribution automation.
+
+## Assistant
+
+The workflow is now committed to GitHub at `ccfc98608ab2ab4cab333652354de68e7dd84dd9`. I’m checking the exact file from `main` and the workflow run associated with that commit. I will not call this complete until the release asset itself is verified—or report the precise GitHub Actions blocker if it fails.
+
+## Assistant
+
+The GitHub connector cannot list push-triggered Actions runs, but the release workflow has produced the `0.2.23` tag: GitHub now resolves files at that tag, including the correct `0.2.23` plugin header. I’m performing one more check that the tag points to the release-automation commit rather than an older source state.
+
+## Assistant
+
+Verification confirms tag `0.2.23` and `main` are identical at automation commit `ccfc98608ab2ab4cab333652354de68e7dd84dd9`. Because the tag is created by the same `gh release create` command that uploads the versioned asset, this is strong evidence the release step completed. The connector still cannot independently enumerate release assets, so I’ll state that limitation rather than overclaiming direct asset inspection.
+
+Transcript checkpoint plan:
+
+- Proposed move: append the complete versioned-ZIP discussion, evidence, automation plan, implementation, and qualified verification.
+- Why: this is a completed GitHub distribution progression point.
+- Exact change: transcript file only.
+- What will not change: plugin source and version remain `0.2.23`.
+- Risk: release asset enumeration limitation is recorded.
+- Success check: transcript ends with the automation result and release link.
+- Rollback point: context commit `8af1b47ca5947a04752e7ae2709f4beae3bce985`.
+
+I’m recording it now.
+
+## Assistant
+
+Automated versioned ZIP releases are now configured in GitHub.
+
+Added:
+
+- `.github/workflows/release-plugin.yml`
+
+For each new version pushed to `main`, the workflow will:
+
+1. Read the installed version from `GREAT_IMPORTS_VERSION`.
+2. Skip publishing if that version already has a release.
+3. Package only the distributable plugin beneath a `great-imports/` folder.
+4. Create `great-imports-{version}.zip`.
+5. Create the matching GitHub tag/release and attach the ZIP.
+
+Current verification:
+
+- Tag `0.2.23` exists.
+- It points exactly to current `main` at commit `ccfc98608ab2ab4cab333652354de68e7dd84dd9`.
+- The tagged plugin header reports `0.2.23`.
+- The workflow’s release command names the asset `great-imports-0.2.23.zip`.
+
+Release page: [Great Imports 0.2.23](https://github.com/stanfieldjd/Great-imports/releases/tag/0.2.23)
+
+The GitHub connector cannot independently enumerate the attached assets, so I cannot directly confirm the asset listing from this environment. The tag’s creation at the workflow commit is strong evidence that the single release-and-upload command completed. Future versions must use a new version number; the workflow intentionally will not overwrite an existing release.
