@@ -25,13 +25,13 @@ This file is the maintained project direction file for Great Imports. It is not 
 
 ## Standing Events Manager Storage Handoff
 
-This section supersedes the earlier address-only, coordinate-governance, browser-resave, and map-resolution-queue rules where they conflict.
+This section supersedes earlier conflicting location-handoff rules.
 
-The Eventbrite importer reference is the model for the import handoff: the importer finishes by writing the Events Manager location storage that Events Manager expects, instead of depending on the Events Manager admin browser workflow or a later geocode trigger.
+The Eventbrite importer reference is the model for the import handoff: the importer finishes by writing the Events Manager location storage that Events Manager expects.
 
 Core rule:
 
-- Great Imports must treat import completion as an Events Manager storage synchronization problem, not as a browser/admin geocoding workflow.
+- Great Imports must treat import completion as an Events Manager storage synchronization problem.
 - Great Imports should create or update Events Manager locations by writing the normal Events Manager location fields to the same storage surfaces Events Manager uses: the location post, location post meta, and the Events Manager locations table when that table is present.
 - The storage write must include the reviewed venue/location name and address parts: address, town/city, state/region, postcode, country, owner/status fields where Events Manager expects them, and any Events Manager table fields required for the location to behave like a normal EM location.
 - If explicit latitude/longitude exists in captured source evidence, Great Imports should write those coordinates into Events Manager's normal location coordinate storage during the same handoff.
@@ -78,9 +78,7 @@ Implementation direction:
 
 - Great Imports should write the reviewed Signal venue/address into Events Manager location storage like the Eventbrite importer writes EM location storage.
 - If a matching Events Manager location already exists, Great Imports should reuse it and preserve any existing coordinates.
-- If no matching Events Manager location exists, Great Imports should create the Events Manager location storage from the reviewed address even when coordinates are unavailable.
 - If later captured page/script/ICS/ticket evidence exposes explicit venue latitude/longitude, Great Imports may write those coordinates into the same Events Manager location storage under the overwrite/preservation rules above.
-- The absence of geocoding must not block importing the event or creating the Events Manager location record.
 
 ## Current patch direction — 2026-07-09
 
