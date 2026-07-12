@@ -254,3 +254,21 @@ Implemented in `stanfieldjd/Great-imports` version `0.2.0`:
 Current next step:
 
 Install/update `0.2.0`, re-run the same Eventbrite URL, then download the Exploratory Report again. The report should now contain a separate evidence record with raw page/API evidence first and candidate data second.
+
+## Events Manager map handoff correction — 2026-07-11
+
+User clarified the correct mapping behavior:
+
+- Great Imports should treat imported location addresses like manually entered Events Manager locations.
+- Great Imports should not manually add or hand source latitude/longitude into Events Manager location saves.
+- The website map system depends on Events Manager owning geocoding/map behavior from the saved address.
+- Source coordinates may still be captured as raw evidence, but they must not become the Events Manager import handoff.
+
+Implemented source direction for `stanfieldjd/Great-imports` version `0.2.32`:
+
+- Stop promoting source coordinates into normalized candidate location fields.
+- Remove latitude/longitude from the Events Manager import payload.
+- Stop assigning `location_latitude` and `location_longitude` on new `EM_Location` objects.
+- Stop revisiting existing Great Imports-created EM locations to fill missing coordinates.
+- Keep reviewed address fields, selected existing-location behavior, event import behavior, ticket handling, evidence capture, and reports otherwise unchanged.
+- Update report/readme wording so Events Manager is documented as the owner of geocoding and map behavior.
