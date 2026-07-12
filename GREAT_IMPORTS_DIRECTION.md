@@ -305,3 +305,17 @@ Report trace direction for `stanfieldjd/Great-imports` version `0.2.34`:
 - Report browser trace records under `events_manager_location_traces[].browser_location_trace`.
 - Record only field presence, value presence, complete/incomplete state, address presence, labels, and timing. Do not send, store, or export raw latitude/longitude values.
 - Preserve the Events Manager ownership rule: Great Imports may observe the browser flow, but it must not geocode, hand off coordinates, overwrite coordinates, backfill coordinates, remove coordinates, or change Events Manager save behavior.
+
+## Events Manager map readiness guard — 2026-07-11
+
+User requested a complete solution, not only a trace.
+
+Implemented solution direction for `stanfieldjd/Great-imports` version `0.2.35`:
+
+- Keep Events Manager as the owner of location geocoding, map coordinates, and coordinate persistence.
+- Keep Great Imports out of source-coordinate handoff, coordinate writes, coordinate overwrites, coordinate backfills, and coordinate removals.
+- On Events Manager location edit pages, show a Great Imports readiness notice based on Events Manager's own hidden coordinate fields.
+- If an address exists but Events Manager's hidden coordinate fields are still incomplete, prevent the Update submit and tell the user to wait until coordinates are ready.
+- If Events Manager's hidden coordinate fields are complete, allow the normal Update submit so EM persists its own produced coordinates.
+- Continue recording the browser trace for report proof: before OK, after OK, delayed checks, coordinate-field state changes, and before submit.
+- Store and report only coordinate-field presence/readiness, never raw latitude/longitude values.
