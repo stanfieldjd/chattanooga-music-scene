@@ -289,3 +289,19 @@ Report trace direction for `stanfieldjd/Great-imports` version `0.2.33`:
 - Redact raw latitude/longitude values and report only coordinate presence/absence.
 - Preserve the Events Manager ownership rule: Great Imports may observe and report EM-produced coordinates but must not hand off, overwrite, backfill, or remove them.
 - Do not change import behavior, coordinate handoff, ticket handling, publishing, scheduling, images, evidence capture, or geocoding.
+
+## Events Manager browser OK-button trace — 2026-07-11
+
+User clarified that the report should show before/after the Events Manager map-refresh OK button, not only before/after the import save.
+
+Report trace direction for `stanfieldjd/Great-imports` version `0.2.34`:
+
+- Add a Great Imports observer only on Events Manager location edit pages.
+- Wrap the Events Manager map-refresh alert so the report can record `before_ok_alert` and `after_ok_alert`.
+- Record short delayed snapshots after OK because Events Manager's Google geocoder callback is asynchronous.
+- Record hidden coordinate-field state changes while the edit page remains open.
+- Record a `before_location_form_submit` snapshot so the report can show whether the form was submitted with complete hidden coordinate fields.
+- Store browser trace records on the Events Manager location post and copy them to matching Great Imports candidates by EM location ID.
+- Report browser trace records under `events_manager_location_traces[].browser_location_trace`.
+- Record only field presence, value presence, complete/incomplete state, address presence, labels, and timing. Do not send, store, or export raw latitude/longitude values.
+- Preserve the Events Manager ownership rule: Great Imports may observe the browser flow, but it must not geocode, hand off coordinates, overwrite coordinates, backfill coordinates, remove coordinates, or change Events Manager save behavior.
