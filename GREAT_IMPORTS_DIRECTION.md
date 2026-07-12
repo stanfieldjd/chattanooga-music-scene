@@ -35,8 +35,6 @@ Core rule:
 - Great Imports should create or update Events Manager locations by writing the normal Events Manager location fields to the same storage surfaces Events Manager uses: the location post, location post meta, and the Events Manager locations table when that table is present.
 - The storage write must include the reviewed venue/location name and address parts: address, town/city, state/region, postcode, country, owner/status fields where Events Manager expects them, and any Events Manager table fields required for the location to behave like a normal EM location.
 - If explicit latitude/longitude exists in captured source evidence, Great Imports should write those coordinates into Events Manager's normal location coordinate storage during the same handoff.
-- If explicit coordinates do not exist, Great Imports should still write the reviewed address into Events Manager storage. Geocoding is optional enrichment, not a required import step.
-- Great Imports must not depend on the Events Manager location edit screen, browser alert, hidden-field refresh, or manual re-save for imported locations to become usable records.
 - Great Imports must not fabricate coordinates. A missing coordinate pair should remain missing unless it comes from captured source evidence, an existing Events Manager location, or a deliberate resolution action.
 - Great Imports must never remove existing Events Manager coordinates. If an existing matching EM location already has coordinates, preserve and reuse that location.
 - If an existing matching EM location lacks coordinates and the import has explicit source coordinates for the same reviewed venue/address, Great Imports may fill the missing coordinate fields during the storage handoff.
