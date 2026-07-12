@@ -30,7 +30,7 @@ This section supersedes the earlier absolute “address-only handoff” rule whe
 - Events Manager remains the system of record for locations, map display, and final coordinate storage.
 - Great Imports must not fabricate coordinates.
 - Great Imports may carry coordinates into Events Manager only when they are verified coordinate evidence, not guesses.
-- Verified coordinate evidence includes explicit venue latitude/longitude from a source API, explicit structured data from the source page, or a reviewer-approved geocode result from a configured provider.
+- Verified coordinate evidence includes explicit venue latitude/longitude from a source API when one exists, explicit latitude/longitude discovered in captured public-page evidence, or a reviewer-approved geocode result from a configured provider.
 - Great Imports must record coordinate provenance: source type, source URL or endpoint, source field path, capture run/evidence ID, and whether reviewer approval was required.
 - Great Imports must distinguish source-supplied coordinates from geocoded coordinates.
 - Source-supplied coordinates may be imported automatically only when the source identifies them as venue/location coordinates for the same reviewed address.
@@ -42,6 +42,24 @@ This section supersedes the earlier absolute “address-only handoff” rule whe
 - When no verified coordinates exist, Great Imports may create an address-only draft/review location and place it in a map-resolution queue.
 - Reports must show whether coordinates came from source evidence, reviewer-approved geocoding, existing EM location data, or EM browser/admin workflow.
 - Reports must continue to redact raw coordinate values by default while showing presence, completeness, provenance, and decision path.
+
+### Public URL Coordinate Evidence
+
+Most public event URLs will not provide an API. Great Imports must therefore treat the captured public page as the primary evidence source for generic URL imports.
+
+Allowed public-page coordinate evidence includes:
+
+- JSON-LD, microdata, RDFa, or other structured event/venue/location markup that contains explicit latitude and longitude.
+- Embedded map configuration or page scripts that contain explicit latitude and longitude tied to the displayed venue/location.
+- Map links or iframe URLs that contain explicit latitude and longitude tied to the venue/location.
+- Source-visible venue payloads, hydration data, or application state that identify the same reviewed location and include explicit latitude and longitude.
+
+Public-page coordinates are source-supplied coordinates, not Great Imports geocoding, when they are explicitly present in captured page evidence.
+
+Public-page coordinate evidence must not be inferred from nearby text, map center defaults, unrelated search results, or approximate city/region coordinates. If the page does not contain explicit venue/location coordinates, the importer must use the reviewed geocoding/resolution workflow instead.
+
+The Eventbrite importer reference is useful because it shows the successful Events Manager handoff shape: source coordinates can be written into Events Manager location coordinate storage so the map works. Great Imports may follow that handoff shape only after its own evidence capture, provenance recording, duplicate-location checks, and overwrite rules are satisfied.
+
 
 ## Current patch direction — 2026-07-09
 
