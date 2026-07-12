@@ -23,6 +23,26 @@ This file is the maintained project direction file for Great Imports. It is not 
 - Do not commit plugin ZIP/build artifacts as source.
 - Do not store API keys, client secrets, private tokens, or public tokens in GitHub project files.
 
+## Standing Coordinate Governance
+
+This section supersedes the earlier absolute “address-only handoff” rule where it conflicts.
+
+- Events Manager remains the system of record for locations, map display, and final coordinate storage.
+- Great Imports must not fabricate coordinates.
+- Great Imports may carry coordinates into Events Manager only when they are verified coordinate evidence, not guesses.
+- Verified coordinate evidence includes explicit venue latitude/longitude from a source API, explicit structured data from the source page, or a reviewer-approved geocode result from a configured provider.
+- Great Imports must record coordinate provenance: source type, source URL or endpoint, source field path, capture run/evidence ID, and whether reviewer approval was required.
+- Great Imports must distinguish source-supplied coordinates from geocoded coordinates.
+- Source-supplied coordinates may be imported automatically only when the source identifies them as venue/location coordinates for the same reviewed address.
+- Geocoded coordinates require a review/resolution step unless the user explicitly enables trusted automatic geocoding.
+- Great Imports may write verified coordinates into Events Manager’s normal location coordinate fields so the website map works, but only as an Events Manager location write with provenance and reporting.
+- Great Imports must never overwrite complete existing Events Manager coordinates unless the reviewer explicitly chooses replacement.
+- Great Imports must never remove Events Manager-produced coordinates.
+- When a matching Events Manager location already has complete coordinates, Great Imports should reuse it instead of creating an unresolved duplicate.
+- When no verified coordinates exist, Great Imports may create an address-only draft/review location and place it in a map-resolution queue.
+- Reports must show whether coordinates came from source evidence, reviewer-approved geocoding, existing EM location data, or EM browser/admin workflow.
+- Reports must continue to redact raw coordinate values by default while showing presence, completeness, provenance, and decision path.
+
 ## Current patch direction — 2026-07-09
 
 Requested move: begin with a one-time simple import from Eventbrite.
@@ -319,3 +339,18 @@ Implemented solution direction for `stanfieldjd/Great-imports` version `0.2.35`:
 - If Events Manager's hidden coordinate fields are complete, allow the normal Update submit so EM persists its own produced coordinates.
 - Continue recording the browser trace for report proof: before OK, after OK, delayed checks, coordinate-field state changes, and before submit.
 - Store and report only coordinate-field presence/readiness, never raw latitude/longitude values.
+
+## Coordinate Rule Rewrite — 2026-07-11
+
+User identified that the strict address-only rule prevents a scalable importer for other public URLs.
+
+Superseding direction:
+
+- The previous `0.2.32` rule was too restrictive because it treated all coordinate handoff as forbidden.
+- The Eventbrite reference importer works because it writes source venue coordinates directly into Events Manager post meta and the EM locations table.
+- Great Imports should not copy that blindly, but it should adopt the better principle: verified coordinates are allowed when provenance and review rules are satisfied.
+- The better rule is not “never coordinates”; it is “never fabricated, never unproven, never silent, never destructive.”
+- Great Imports may import source-provided venue coordinates into Events Manager when they are explicitly present in captured evidence and tied to the reviewed location.
+- Great Imports may support geocoding as a resolution workflow for public URLs that do not provide coordinates, but that workflow must be configured, traceable, and reviewable.
+- Events Manager remains the final location/map storage layer; Great Imports may prepare or update EM location coordinate fields only under the coordinate governance rules above.
+- This rewrite is the basis for a future implementation that reintroduces coordinate handling safely, instead of relying on EM’s browser-only map refresh workflow.
