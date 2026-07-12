@@ -272,3 +272,20 @@ Implemented source direction for `stanfieldjd/Great-imports` version `0.2.32`:
 - Stop revisiting existing Great Imports-created EM locations to fill missing coordinates.
 - Keep reviewed address fields, selected existing-location behavior, event import behavior, ticket handling, evidence capture, and reports otherwise unchanged.
 - Update report/readme wording so Events Manager is documented as the owner of geocoding and map behavior.
+
+## Events Manager location trace report — 2026-07-11
+
+User requested a report that can trace the Events Manager location issue with before/after and possibly during states.
+
+Report trace direction for `stanfieldjd/Great-imports` version `0.2.33`:
+
+- Store an `_gi_em_import_trace` on the candidate each time the Events Manager import action runs.
+- Capture the candidate's existing EM event/location IDs before import.
+- Capture the reviewed address payload and whether the payload included any coordinate field.
+- Capture the location-resolution strategy during import: reviewer-selected existing location, prior imported location reuse, or new location from reviewed address.
+- Capture location snapshots before resolution, after location save/reuse, after event save, and again at exploratory-report generation time.
+- Capture EM event snapshots after save and again at exploratory-report generation time.
+- Report EM event ID, EM location ID, location post ID, admin edit URL, saved address fields, coordinate presence/absence, complete-coordinate state, and map-refresh-needed state.
+- Redact raw latitude/longitude values and report only coordinate presence/absence.
+- Preserve the Events Manager ownership rule: Great Imports may observe and report EM-produced coordinates but must not hand off, overwrite, backfill, or remove them.
+- Do not change import behavior, coordinate handoff, ticket handling, publishing, scheduling, images, evidence capture, or geocoding.
