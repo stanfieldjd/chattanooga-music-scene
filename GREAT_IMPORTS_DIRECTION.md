@@ -60,6 +60,29 @@ Public-page coordinate evidence must not be inferred from nearby text, map cente
 
 The Eventbrite importer reference is useful because it shows the successful Events Manager handoff shape: source coordinates can be written into Events Manager location coordinate storage so the map works. Great Imports may follow that handoff shape only after its own evidence capture, provenance recording, duplicate-location checks, and overwrite rules are satisfied.
 
+## Public URL fixture: The Signal tickets — 2026-07-12
+
+User-provided example URL:
+
+- https://www.thesignaltn.com/tickets
+
+Observed direction from the public page:
+
+- Treat this as a public calendar/listing URL, not an API-backed import.
+- The listing page exposes event rows, event-detail links, ticket links, venue names, calendar/ICS links, and repeated Google Maps links.
+- Event detail pages expose the full venue address, for example The Parlour at The Signal / 21 Choo Choo Avenue / Chattanooga, TN 37402 / United States.
+- The visible Google Maps links use an address query, not explicit latitude/longitude.
+- Initial page evidence did not expose obvious `latitude`, `longitude`, `GeoCoordinates`, or `application/ld+json` markers in the captured text view.
+
+Implementation direction:
+
+- For public calendar/listing URLs, Great Imports should capture the listing page first, then follow each event-detail link as separate event evidence before creating candidates.
+- The importer should capture map links, calendar/ICS links, ticket links, venue text, and full detail-page address text as evidence.
+- A map link containing only an address query is address evidence, not coordinate evidence.
+- Before creating a new Events Manager location from address-only evidence, Great Imports should search for an existing EM location by normalized venue name/address and reuse a complete-coordinate match when found.
+- If no existing EM location has complete coordinates and the public page does not contain explicit venue coordinates, Great Imports should route the location into the reviewed map-resolution/geocoding workflow.
+- If future page/script evidence for this source exposes explicit venue latitude/longitude, Great Imports may use it as public-page source coordinate evidence under Standing Coordinate Governance.
+
 
 ## Current patch direction — 2026-07-09
 
