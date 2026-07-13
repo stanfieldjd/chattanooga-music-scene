@@ -2547,3 +2547,11 @@ Evidence trace:
 - Great Imports captured those meta tags as evidence but normalized only JSON-LD, and that JSON-LD omitted `location.geo`, so the EM payload had `payload_included_coordinates: false`.
 
 Corrected move: Great Imports `0.2.44` completes candidate coordinates from explicit Eventbrite public-page meta evidence, then lets the existing server-side Events Manager storage handoff persist the pair during import. This does not add a geocoder, browser autosave, edit-screen OK dependency, or another matching repair.
+
+## User
+
+Everything looks fine except the event page is displaying `#_OPENSTREETMAP`; it is not supposed to be part of the description, it is not in the manually created event, and the user says it is not part of the template.
+
+## Assistant
+
+Acknowledged that the current report proves only some layers: it shows the token is not in captured import/source evidence and not in the import preview `post_content`, but it does not prove the final saved event content or render-time path. Prepared Great Imports `0.2.45` as a trace-only repair so the next report can compare saved WP event content, the active Events Manager single-event format, and rendered single-event output for `#_OPENSTREETMAP` without changing import behavior.

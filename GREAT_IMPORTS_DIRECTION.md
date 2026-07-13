@@ -330,3 +330,24 @@ Corrected source direction for `stanfieldjd/Great-imports` version `0.2.44`:
 - Let the existing Events Manager storage handoff write the coordinate pair server-side to location post meta and the `em_locations` table during import.
 - Continue preserving existing complete EM coordinates unless an explicit replacement decision is recorded.
 - Keep raw latitude/longitude values redacted from reports while reporting presence, provenance, and storage decisions.
+
+## OpenStreetMap placeholder trace — 2026-07-13
+
+User reported that the imported event page displays a literal `#_OPENSTREETMAP` token above the event description, while manually created events do not show that token.
+
+Current evidence:
+
+- The latest uploaded Great Imports report did not contain `#_OPENSTREETMAP`, `OPENSTREETMAP`, or `openstreetmap` in captured source evidence or candidate content.
+- The import preview payload's `event.post_content` did not contain the token.
+- Great Imports source does not intentionally insert `#_OPENSTREETMAP`.
+- Events Manager's known built-in map placeholder is `#_LOCATIONMAP`, not `#_OPENSTREETMAP`.
+- The existing report did not yet include the final saved event post content, the active Events Manager single-event format option, or rendered single-event output, so the origin could not be proven from the old report alone.
+
+Source direction for `stanfieldjd/Great-imports` version `0.2.45`:
+
+- Add trace-only report fields under EM event snapshots.
+- Compare saved WP event `post_content`, the active Events Manager single-event format, and rendered single-event output.
+- Report whether each layer contains `#_OPENSTREETMAP`.
+- Report the placeholder markers found in saved content and format settings.
+- Include only a short context snippet around `#_OPENSTREETMAP` from rendered output, not full rendered page HTML.
+- Do not change import behavior, matching, location storage, rendering, templates, or Events Manager save workflow until the trace proves the origin.
