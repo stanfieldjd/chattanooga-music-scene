@@ -477,3 +477,30 @@ Source direction for `stanfieldjd/Great-imports` version `0.2.51`:
 - Record a cleanup trace with candidate ID, EM event ID, event post ID, before/after hashes, whether the generated Good-to-know block was present before cleanup, status, and timestamp.
 - Store a last cleanup summary option for reporting/debugging.
 - Keep the existing per-candidate `Update Events Manager` button in place.
+
+Correction: user clarified this was the wrong interpretation of "clean up". They meant clean up the plugin, not add a description/body cleanup workflow.
+
+## Plugin cleanup correction — 2026-07-13
+
+User raised three issues after seeing `0.2.51`:
+
+- Images had been removed from the imported description body.
+- The new `Imported Content Cleanup` panel/action was not requested and cluttered the plugin UI.
+- `#_OPENSTREETMAP` still rendered on the public event page.
+
+Evidence from `great-imports-exploratory-report-20260713-114722.json`:
+
+- Source description evidence still contained Eventbrite inline images.
+- Great Imports candidate/event body preview had removed those image tags.
+- Saved event post content did not contain `#_OPENSTREETMAP`.
+- The active Events Manager single-event format did contain `#_OPENSTREETMAP`.
+- Rendered Events Manager output contained the literal token because the active format setting included it.
+
+Source direction for `stanfieldjd/Great-imports` version `0.2.52`:
+
+- Restore sanitized `<img>` tags in public candidate/event body content.
+- Continue stripping source inline styles and oversized heading/bold wrappers.
+- Remove the `Imported Content Cleanup` admin panel, handler, hook, and backend cleanup code.
+- Repair Events Manager's `dbem_single_event_format` setting when it contains unsupported `#_OPENSTREETMAP`, replacing it with supported `#_LOCATIONMAP`.
+- Store a small repair audit option recording when the format token was repaired.
+- Do not add new UI for this repair.

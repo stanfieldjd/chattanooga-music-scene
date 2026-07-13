@@ -2609,3 +2609,13 @@ Said to clean all of that up.
 Interpreted this as a request to clean already-imported Events Manager event bodies, not just prevent the issue on future imports. The existing per-candidate `Update Events Manager` button can resave a single linked event from the current cleaned preview, but it requires one-by-one repair.
 
 Prepared Great Imports `0.2.51` with an `Imported Content Cleanup` admin utility. The new `Clean Imported Event Bodies` action loops over Great Imports candidates linked to EM events, rebuilds the current cleaned body/notes content from the reviewed candidate preview, and updates only that linked EM event body/notes. It records cleanup traces and a last cleanup summary. It does not run location resolution or change locations, coordinates, duplicate-location records, source evidence, or ticketing data outside the event body.
+
+## User
+
+Clarified three issues: images should not have been removed; "clean up" meant clean up the plugin, not add a description cleanup action; and `#_OPENSTREETMAP` was still visible.
+
+## Assistant
+
+Acknowledged the wrong assumptions. Checked `great-imports-exploratory-report-20260713-114722.json`: source evidence still had inline Eventbrite images, Great Imports preview had stripped those images, saved event post content did not contain `#_OPENSTREETMAP`, the active Events Manager single-event format did contain `#_OPENSTREETMAP`, and rendered output showed the literal token because of that format setting.
+
+Prepared Great Imports `0.2.52` to restore sanitized image tags, remove the mistaken Imported Content Cleanup UI/action/backend code, and repair the Events Manager `dbem_single_event_format` option by replacing unsupported `#_OPENSTREETMAP` with supported `#_LOCATIONMAP` when present. No new UI is added for the format repair.
