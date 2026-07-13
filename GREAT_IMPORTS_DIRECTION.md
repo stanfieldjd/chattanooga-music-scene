@@ -23,63 +23,6 @@ This file is the maintained project direction file for Great Imports. It is not 
 - Do not commit plugin ZIP/build artifacts as source.
 - Do not store API keys, client secrets, private tokens, or public tokens in GitHub project files.
 
-## Standing Events Manager Storage Handoff
-
-This section supersedes earlier conflicting location-handoff rules.
-
-The Eventbrite importer reference is the model for the import handoff: the importer finishes by writing the Events Manager location storage that Events Manager expects.
-
-Core rule:
-
-- Great Imports must treat import completion as an Events Manager storage synchronization problem.
-- Great Imports should create or update Events Manager locations by writing the normal Events Manager location fields to the same storage surfaces Events Manager uses: the location post, location post meta, and the Events Manager locations table when that table is present.
-- The storage write must include the reviewed venue/location name and address parts: address, town/city, state/region, postcode, country, owner/status fields where Events Manager expects them, and any Events Manager table fields required for the location to behave like a normal EM location.
-- If explicit latitude/longitude exists in captured source evidence, Great Imports should write those coordinates into Events Manager's normal location coordinate storage during the same handoff.
-- Great Imports must not fabricate coordinates. A missing coordinate pair should remain missing unless it comes from captured source evidence, an existing Events Manager location, or a deliberate resolution action.
-- Great Imports must never remove existing Events Manager coordinates. If an existing matching EM location already has coordinates, preserve and reuse that location.
-- If an existing matching EM location lacks coordinates and the import has explicit source coordinates for the same reviewed venue/address, Great Imports may fill the missing coordinate fields during the storage handoff.
-- Overwriting a complete existing coordinate pair requires an explicit reviewer replacement decision.
-- Reports must show the Events Manager storage handoff before/during/after: location post ID, EM location ID, address fields, coordinate presence/completeness, which storage surfaces were written, whether an existing location was reused, and where any coordinates came from.
-- Reports should redact raw coordinate values by default while still showing whether values were present, complete, preserved, written, skipped, or missing.
-
-### Public URL Storage Evidence
-
-Most public event URLs will not provide an API. Great Imports must therefore treat the captured public page as the evidence source for generic URL imports.
-
-Allowed public-page evidence includes:
-
-- Event listing rows and event-detail links.
-- Visible venue/location name and address text.
-- JSON-LD, microdata, RDFa, hydration data, embedded scripts, or other source-visible payloads.
-- Map links, iframe URLs, ticket links, Google Calendar links, and ICS links.
-- Detail pages reached from the listing page when the listing page is only a summary.
-
-Public-page coordinates are source coordinates only when latitude and longitude are explicitly present in captured page evidence and tied to the same reviewed venue/location. A map link containing only an address query is address evidence, not coordinate evidence.
-
-Address evidence is still enough to create or update Events Manager location storage. It is not enough to invent latitude/longitude.
-
-For public calendar/listing URLs, Great Imports should capture the listing page first, then follow each event-detail link as separate event evidence before creating candidates. The importer should capture map links, calendar/ICS links, ticket links, venue text, and full detail-page address text as evidence.
-
-### Public URL Fixture: The Signal Tickets — 2026-07-12
-
-User-provided example URL:
-
-- https://www.thesignaltn.com/tickets
-
-Observed direction from the public page:
-
-- Treat this as a public calendar/listing URL, not an API-backed import.
-- The listing page exposes event rows, event-detail links, ticket links, venue names, calendar/ICS links, and repeated Google Maps links.
-- Event detail pages expose the full venue address, for example The Parlour at The Signal / 21 Choo Choo Avenue / Chattanooga, TN 37402 / United States.
-- The visible Google Maps links use an address query, not explicit latitude/longitude.
-- Initial page evidence did not expose obvious `latitude`, `longitude`, `GeoCoordinates`, or `application/ld+json` markers in the captured text view.
-
-Implementation direction:
-
-- Great Imports should write the reviewed Signal venue/address into Events Manager location storage like the Eventbrite importer writes EM location storage.
-- If a matching Events Manager location already exists, Great Imports should reuse it and preserve any existing coordinates.
-- If later captured page/script/ICS/ticket evidence exposes explicit venue latitude/longitude, Great Imports may write those coordinates into the same Events Manager location storage under the overwrite/preservation rules above.
-
 ## Current patch direction — 2026-07-09
 
 Requested move: begin with a one-time simple import from Eventbrite.
@@ -314,8 +257,6 @@ Install/update `0.2.0`, re-run the same Eventbrite URL, then download the Explor
 
 ## Events Manager map handoff correction — 2026-07-11
 
-Historical note: this section was superseded on 2026-07-12 by Standing Events Manager Storage Handoff. Keep it as context for the discarded address-only/browser-workflow experiment, not as current implementation direction.
-
 User clarified the correct mapping behavior:
 
 - Great Imports should treat imported location addresses like manually entered Events Manager locations.
@@ -365,67 +306,27 @@ Report trace direction for `stanfieldjd/Great-imports` version `0.2.34`:
 - Record only field presence, value presence, complete/incomplete state, address presence, labels, and timing. Do not send, store, or export raw latitude/longitude values.
 - Preserve the Events Manager ownership rule: Great Imports may observe the browser flow, but it must not geocode, hand off coordinates, overwrite coordinates, backfill coordinates, remove coordinates, or change Events Manager save behavior.
 
-## Events Manager map readiness guard — 2026-07-11
+## Events Manager save-alert correction — 2026-07-12
 
-User requested a complete solution, not only a trace.
+User corrected the active issue: the problem is not location matching. The problem is the Events Manager location edit-screen alert:
 
-Implemented solution direction for `stanfieldjd/Great-imports` version `0.2.35`:
+`Location map and coordinates have been updated. Please re-save your location to update the map.`
 
-- Keep Events Manager as the owner of location geocoding, map coordinates, and coordinate persistence.
-- Keep Great Imports out of source-coordinate handoff, coordinate writes, coordinate overwrites, coordinate backfills, and coordinate removals.
-- On Events Manager location edit pages, show a Great Imports readiness notice based on Events Manager's own hidden coordinate fields.
-- If an address exists but Events Manager's hidden coordinate fields are still incomplete, prevent the Update submit and tell the user to wait until coordinates are ready.
-- If Events Manager's hidden coordinate fields are complete, allow the normal Update submit so EM persists its own produced coordinates.
-- Continue recording the browser trace for report proof: before OK, after OK, delayed checks, coordinate-field state changes, and before submit.
-- Store and report only coordinate-field presence/readiness, never raw latitude/longitude values.
+Evidence result:
 
-## Coordinate Rule Rewrite — 2026-07-11
+- Events Manager emits that alert when an existing location has an address but no saved latitude/longitude.
+- Events Manager's edit-page JavaScript geocodes the saved address after the post save has already completed, then asks for another save so the newly filled hidden coordinate fields can persist.
+- The latest Great Imports report showed the import itself succeeded, creating EM event `954` and EM location `409`, but the EM location storage had no coordinate pair after import.
+- The same captured Eventbrite public HTML contained explicit `event:location:latitude` and `event:location:longitude` meta tags, while the JSON-LD event omitted `location.geo`.
+- Great Imports captured that public-page meta evidence but normalized only the JSON-LD event, so the EM payload reported `payload_included_coordinates: false`.
 
-Historical note: this coordinate rewrite was superseded on 2026-07-12 by Standing Events Manager Storage Handoff. The current rule follows the Eventbrite-style Events Manager storage write and treats geocoding as optional enrichment.
+Corrected source direction for `stanfieldjd/Great-imports` version `0.2.44`:
 
-User identified that the strict address-only rule prevents a scalable importer for other public URLs.
-
-Superseding direction:
-
-- The previous `0.2.32` rule was too restrictive because it treated all coordinate handoff as forbidden.
-- The Eventbrite reference importer works because it writes source venue coordinates directly into Events Manager post meta and the EM locations table.
-- Great Imports should not copy that blindly, but it should adopt the better principle: verified coordinates are allowed when provenance and review rules are satisfied.
-- The better rule is not “never coordinates”; it is “never fabricated, never unproven, never silent, never destructive.”
-- Great Imports may import source-provided venue coordinates into Events Manager when they are explicitly present in captured evidence and tied to the reviewed location.
-- Great Imports may support geocoding as a resolution workflow for public URLs that do not provide coordinates, but that workflow must be configured, traceable, and reviewable.
-- Events Manager remains the final location/map storage layer; Great Imports may prepare or update EM location coordinate fields only under the coordinate governance rules above.
-- This rewrite is the basis for a future implementation that reintroduces coordinate handling safely, instead of relying on EM’s browser-only map refresh workflow.
-
-## Matching Location Reuse Repair — 2026-07-13
-
-Problem evidence:
-
-- The latest attached exploratory report was generated by Great Imports `0.2.41`.
-- That report showed the Events Manager import succeeded but used `location_strategy: create`.
-- It created Events Manager location ID `409` / location post ID `4744` for `The Boneyard`.
-- The created location had the reviewed address fields but no complete coordinate pair in either location post meta or the Events Manager locations table.
-- The user screenshot showed Events Manager's own location edit screen alert: "Location map and coordinates have been updated. Please re-save your location to update the map."
-- The report did not test the later `0.2.42` matching-location repair because it predates that source state.
-
-Causal conclusion:
-
-- The immediate problem was not Great Imports triggering browser autosave.
-- The problem was that the import path could create a duplicate coordinate-less EM location when a strong matching EM location should be reused.
-- A new duplicate coordinate-less location re-enters Events Manager's map-refresh/admin prompt path.
-
-Implemented source direction:
-
-- Great Imports `0.2.42` changed the Events Manager payload builder so strong automatic EM location matches are used in the import payload instead of remaining display-only suggestions.
-- Matching prefers an existing Events Manager location that already has complete coordinate storage.
-- Matching is limited to same-address matches, or same-name plus same city/ZIP matches, to reduce wrong-location reuse.
-- The Events Manager import trace now records whether a location was reviewer-selected or automatically matched.
-- Great Imports `0.2.43` republishes that completed matching-location repair as one complete source state with no behavior change from `0.2.42`.
-
-Boundaries:
-
-- No browser autosave workflow was added.
-- No Events Manager edit-screen OK-button dependency was added.
-- No hidden coordinate-field dependency was added.
-- No fabricated coordinates were added.
-- Existing Events Manager coordinates remain preserved.
-- Tickets, bookings, scheduling, images, candidate collection, and unrelated UI behavior remain unchanged.
+- Keep full evidence capture first.
+- Do not change matching as the save-alert fix.
+- Do not depend on the EM edit screen, the OK alert, browser autosave, or a manual re-save.
+- Do not add a geocoder or fabricate coordinates from an address.
+- When explicit Eventbrite public-page coordinate meta exists, store the complete pair privately on the candidate with provenance.
+- Let the existing Events Manager storage handoff write the coordinate pair server-side to location post meta and the `em_locations` table during import.
+- Continue preserving existing complete EM coordinates unless an explicit replacement decision is recorded.
+- Keep raw latitude/longitude values redacted from reports while reporting presence, provenance, and storage decisions.
