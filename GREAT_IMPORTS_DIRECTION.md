@@ -458,3 +458,22 @@ Source direction for `stanfieldjd/Great-imports` version `0.2.50`:
 - Keep source-page Good-to-know evidence/reporting intact.
 - Add the generated Good-to-know labels to `excluded_public_data` so reports explain why they were not published.
 - Do not change tickets, organizer details, FAQs, location handoff, duplicate-location audits, coordinates, or Events Manager save workflow.
+
+## Cleanup existing imported event bodies — 2026-07-13
+
+User said to clean all of that up after the generated `Good to know` body section was removed for future imports.
+
+Important distinction:
+
+- Version `0.2.50` prevents newly built event body content from including the generated `Good to know` block.
+- Already-imported Events Manager events still contain the old saved body content until they are updated.
+- Re-clicking `Update Events Manager` on a candidate can update one linked event, but the cleanup should not require one-by-one repair when multiple imported events may need it.
+
+Source direction for `stanfieldjd/Great-imports` version `0.2.51`:
+
+- Add an explicit admin utility action named `Clean Imported Event Bodies`.
+- For each Great Imports candidate linked to an Events Manager event, rebuild the current cleaned body from the reviewed candidate preview and update only the linked EM event's body/notes content.
+- Do not run location resolution or alter Events Manager locations, coordinates, duplicate-location records, source evidence, or ticketing data outside the body.
+- Record a cleanup trace with candidate ID, EM event ID, event post ID, before/after hashes, whether the generated Good-to-know block was present before cleanup, status, and timestamp.
+- Store a last cleanup summary option for reporting/debugging.
+- Keep the existing per-candidate `Update Events Manager` button in place.

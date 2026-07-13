@@ -2599,3 +2599,13 @@ Said the public event page section headed `Good to know` was gibberish and made 
 Traced that section to Great Imports, not Events Manager. `GI_Import_Preview_Builder::assemble_description_html()` was generating a public `Good to know` block from derived duration/in-person labels such as `Duration: 28 hours 30 minutes` and `In person`. Those labels duplicate information Events Manager already renders through date/time and location sections and do not belong in the public event body.
 
 Prepared Great Imports `0.2.50` to stop generating that public block, keep source-page Good-to-know evidence in reports, and list the generated labels as excluded public data. No change to tickets, organizer details, FAQs, location storage, duplicate-location audits, coordinates, or the Events Manager save workflow.
+
+## User
+
+Said to clean all of that up.
+
+## Assistant
+
+Interpreted this as a request to clean already-imported Events Manager event bodies, not just prevent the issue on future imports. The existing per-candidate `Update Events Manager` button can resave a single linked event from the current cleaned preview, but it requires one-by-one repair.
+
+Prepared Great Imports `0.2.51` with an `Imported Content Cleanup` admin utility. The new `Clean Imported Event Bodies` action loops over Great Imports candidates linked to EM events, rebuilds the current cleaned body/notes content from the reviewed candidate preview, and updates only that linked EM event body/notes. It records cleanup traces and a last cleanup summary. It does not run location resolution or change locations, coordinates, duplicate-location records, source evidence, or ticketing data outside the event body.
