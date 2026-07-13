@@ -351,3 +351,26 @@ Source direction for `stanfieldjd/Great-imports` version `0.2.45`:
 - Report the placeholder markers found in saved content and format settings.
 - Include only a short context snippet around `#_OPENSTREETMAP` from rendered output, not full rendered page HTML.
 - Do not change import behavior, matching, location storage, rendering, templates, or Events Manager save workflow until the trace proves the origin.
+
+## Duplicate address in event description — 2026-07-13
+
+User reported a duplicate address display issue. The latest reports showed the stored Events Manager location address fields were correct:
+
+- `location_address`: `26 Station Street`
+- `location_town`: `Chattanooga`
+- `location_state`: `TN`
+- `location_postcode`: `37408`
+- `location_country`: `US`
+
+Root cause:
+
+- Great Imports assembled an extra `Location` section inside the Events Manager event description HTML.
+- Events Manager already renders the canonical event location/address separately from the saved EM location.
+- The duplicate was therefore description content duplication, not a bad Events Manager location field or coordinate handoff problem.
+
+Source direction for `stanfieldjd/Great-imports` version `0.2.46`:
+
+- Remove the generated venue/address `Location` section from `description_html` and the Events Manager event `post_content` payload.
+- Keep the address in `location_fields` and `events_manager_payload.location`.
+- Continue letting Events Manager own the public location/address/map display.
+- Do not change location storage, coordinates, matching, tickets, organizer details, FAQs, or the save workflow.

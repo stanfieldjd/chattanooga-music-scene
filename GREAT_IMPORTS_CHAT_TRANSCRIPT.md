@@ -2555,3 +2555,11 @@ Everything looks fine except the event page is displaying `#_OPENSTREETMAP`; it 
 ## Assistant
 
 Acknowledged that the current report proves only some layers: it shows the token is not in captured import/source evidence and not in the import preview `post_content`, but it does not prove the final saved event content or render-time path. Prepared Great Imports `0.2.45` as a trace-only repair so the next report can compare saved WP event content, the active Events Manager single-event format, and rendered single-event output for `#_OPENSTREETMAP` without changing import behavior.
+
+## User
+
+The user reported a duplicate address issue but did not have the screenshot.
+
+## Assistant
+
+Checked the latest reports and found the saved Events Manager location address fields were correct (`TN` state and `US` country). The duplicate address came from Great Imports assembling its own `<h2>Location</h2>` venue/address block into the event description while Events Manager also renders the canonical event location. Prepared Great Imports `0.2.46` to remove the generated location/address section from description HTML while preserving the Events Manager location payload.
