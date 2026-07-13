@@ -439,3 +439,22 @@ Source direction for `stanfieldjd/Great-imports` version `0.2.49`:
 - Report hidden postcode/region differences so the user can see why two list-identical locations may not have matched.
 - Suggest a canonical location by preferring complete coordinates, then most linked events, then lowest location ID.
 - Do not merge, delete, trash, or rewrite existing Events Manager locations from the report.
+
+## Generated Good-to-know body section — 2026-07-13
+
+User reported that the public event page section headed `Good to know` was gibberish and made no sense.
+
+Evidence:
+
+- Great Imports generated this section in `GI_Import_Preview_Builder::assemble_description_html()`.
+- The generated body section contained derived labels such as `Duration: 28 hours 30 minutes` and `In person`.
+- These labels were not necessary event copy; Events Manager already renders event date/time and location through its own template sections.
+- Source-page `good_to_know` evidence in the report is still useful for audit/coverage, but it should not automatically become public event body content.
+
+Source direction for `stanfieldjd/Great-imports` version `0.2.50`:
+
+- Stop generating the public `Good to know` section from derived duration/in-person labels.
+- Keep Events Manager responsible for date/time and location display.
+- Keep source-page Good-to-know evidence/reporting intact.
+- Add the generated Good-to-know labels to `excluded_public_data` so reports explain why they were not published.
+- Do not change tickets, organizer details, FAQs, location handoff, duplicate-location audits, coordinates, or Events Manager save workflow.

@@ -2589,3 +2589,13 @@ Sent a Locations admin screenshot showing existing duplicate Boneyard rows in Ev
 Corrected the scope again: the screenshot is not proof that import matching is the only remaining problem. It proves existing duplicate Events Manager location records are present. Version `0.2.48` can stop future exact duplicate creation, but it does not and should not silently merge/delete existing rows.
 
 Prepared Great Imports `0.2.49` to add a report-only duplicate-location audit. The audit reports exact duplicates and visible-address potential duplicates, exposes hidden postcode/region differences, linked event counts, coordinate completeness, edit URLs, and a canonical suggestion. It remains evidence-only: no automatic merge, delete, trash, or location rewrite.
+
+## User
+
+Said the public event page section headed `Good to know` was gibberish and made no sense.
+
+## Assistant
+
+Traced that section to Great Imports, not Events Manager. `GI_Import_Preview_Builder::assemble_description_html()` was generating a public `Good to know` block from derived duration/in-person labels such as `Duration: 28 hours 30 minutes` and `In person`. Those labels duplicate information Events Manager already renders through date/time and location sections and do not belong in the public event body.
+
+Prepared Great Imports `0.2.50` to stop generating that public block, keep source-page Good-to-know evidence in reports, and list the generated labels as excluded public data. No change to tickets, organizer details, FAQs, location storage, duplicate-location audits, coordinates, or the Events Manager save workflow.
