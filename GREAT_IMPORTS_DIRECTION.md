@@ -416,3 +416,26 @@ Source direction for `stanfieldjd/Great-imports` version `0.2.48`:
 - Prefer an exact existing location with complete coordinates when available.
 - Keep `#_OPENSTREETMAP` as trace evidence because it belongs to the active Events Manager format setting, not Great Imports candidate content.
 - Do not change date/time parsing, coordinate handoff, tickets, organizer details, FAQs, or the Events Manager save workflow.
+
+## Existing duplicate Events Manager locations — 2026-07-13
+
+User sent a Locations list screenshot showing existing duplicate active Events Manager location rows for `The Boneyard`:
+
+- Location row `412`: `The Boneyard`, `26 Station Street`, `Chattanooga`, `TN`, `US`.
+- Location row `410`: `The Boneyard`, `26 Station Street`, `Chattanooga`, `TN`, `US`.
+
+Important distinction:
+
+- Version `0.2.48` can prevent future exact-address duplicate creation by reusing an existing location before creating a new one.
+- It does not clean existing duplicate EM location rows, and it should not silently merge/delete them.
+- The list view only proves visible-field duplication; hidden fields such as postcode, region, coordinates, or linked event counts may differ and must be reported before cleanup.
+
+Source direction for `stanfieldjd/Great-imports` version `0.2.49`:
+
+- Add an exploratory-report-only Events Manager duplicate-location audit.
+- Report exact duplicate groups using normalized venue name, street, town, state, postcode, and country.
+- Report potential duplicate groups using visible list-style fields: venue name, street, town, state, and country.
+- Include each duplicate row's EM `location_id`, WP `post_id`, edit URL, linked event count, coordinate completeness, and stored address fields including postcode and region.
+- Report hidden postcode/region differences so the user can see why two list-identical locations may not have matched.
+- Suggest a canonical location by preferring complete coordinates, then most linked events, then lowest location ID.
+- Do not merge, delete, trash, or rewrite existing Events Manager locations from the report.

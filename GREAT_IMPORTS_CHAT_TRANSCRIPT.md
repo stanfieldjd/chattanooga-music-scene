@@ -2579,3 +2579,13 @@ Sent multiple screenshots and said there are a few issues, not just one.
 ## Assistant
 
 Read the new `0.2.47` report. Identified multiple issues together: the location-region duplicate is fixed on the new location, `#_OPENSTREETMAP` is in the active Events Manager single-event format rather than saved post content, Eventbrite description HTML is being imported too raw with inline images/styles/oversized wrappers, and a fresh candidate still created a new Boneyard EM location instead of reusing an existing exact-address location. Prepared Great Imports `0.2.48` to clean public description body HTML and add a server-side exact-address location reuse fallback before creating a new EM location, while keeping `#_OPENSTREETMAP` as an EM format-setting issue.
+
+## User
+
+Sent a Locations admin screenshot showing existing duplicate Boneyard rows in Events Manager: location row `412` and location row `410` both displayed as `The Boneyard`, `26 Station Street`, `Chattanooga`, `TN`, `US`.
+
+## Assistant
+
+Corrected the scope again: the screenshot is not proof that import matching is the only remaining problem. It proves existing duplicate Events Manager location records are present. Version `0.2.48` can stop future exact duplicate creation, but it does not and should not silently merge/delete existing rows.
+
+Prepared Great Imports `0.2.49` to add a report-only duplicate-location audit. The audit reports exact duplicates and visible-address potential duplicates, exposes hidden postcode/region differences, linked event counts, coordinate completeness, edit URLs, and a canonical suggestion. It remains evidence-only: no automatic merge, delete, trash, or location rewrite.
