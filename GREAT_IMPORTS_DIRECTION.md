@@ -504,3 +504,22 @@ Source direction for `stanfieldjd/Great-imports` version `0.2.52`:
 - Repair Events Manager's `dbem_single_event_format` setting when it contains unsupported `#_OPENSTREETMAP`, replacing it with supported `#_LOCATIONMAP`.
 - Store a small repair audit option recording when the format token was repaired.
 - Do not add new UI for this repair.
+
+Correction: user clarified that `#_OPENSTREETMAP` was supposed to be traced, not changed. The automatic Events Manager format mutation was wrong.
+
+## Trace-only map placeholder correction — 2026-07-13
+
+User asked why Great Imports changed `#_OPENSTREETMAP` when the request was to trace where it was coming from.
+
+Evidence already established by the report:
+
+- Saved event post content did not contain `#_OPENSTREETMAP`.
+- The active Events Manager single-event format did contain `#_OPENSTREETMAP`.
+- Rendered output showed the literal token because of that active format setting.
+
+Source direction for `stanfieldjd/Great-imports` version `0.2.53`:
+
+- Remove the automatic `dbem_single_event_format` mutation added in `0.2.52`.
+- Keep the existing report trace fields that compare saved event content, Events Manager single-event format, and rendered output.
+- Do not alter Events Manager settings for `#_OPENSTREETMAP`.
+- Do not add UI for changing the placeholder.

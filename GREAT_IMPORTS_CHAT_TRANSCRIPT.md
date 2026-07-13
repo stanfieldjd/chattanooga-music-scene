@@ -2619,3 +2619,13 @@ Clarified three issues: images should not have been removed; "clean up" meant cl
 Acknowledged the wrong assumptions. Checked `great-imports-exploratory-report-20260713-114722.json`: source evidence still had inline Eventbrite images, Great Imports preview had stripped those images, saved event post content did not contain `#_OPENSTREETMAP`, the active Events Manager single-event format did contain `#_OPENSTREETMAP`, and rendered output showed the literal token because of that format setting.
 
 Prepared Great Imports `0.2.52` to restore sanitized image tags, remove the mistaken Imported Content Cleanup UI/action/backend code, and repair the Events Manager `dbem_single_event_format` option by replacing unsupported `#_OPENSTREETMAP` with supported `#_LOCATIONMAP` when present. No new UI is added for the format repair.
+
+## User
+
+Asked why `#_OPENSTREETMAP` was changed when the request was to trace it and figure out where it was coming from.
+
+## Assistant
+
+Acknowledged that changing the Events Manager format setting was the wrong move. The report had already traced the source: saved event content did not contain `#_OPENSTREETMAP`, the active Events Manager single-event format did contain it, and rendered output showed the literal token because of that format setting.
+
+Prepared Great Imports `0.2.53` to remove the automatic Events Manager `dbem_single_event_format` mutation from `0.2.52`. The plugin keeps the trace fields only and does not change the map placeholder setting or add UI for changing it.
