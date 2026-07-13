@@ -2563,3 +2563,11 @@ The user reported a duplicate address issue but did not have the screenshot.
 ## Assistant
 
 Checked the latest reports and found the saved Events Manager location address fields were correct (`TN` state and `US` country). The duplicate address came from Great Imports assembling its own `<h2>Location</h2>` venue/address block into the event description while Events Manager also renders the canonical event location. Prepared Great Imports `0.2.46` to remove the generated location/address section from description HTML while preserving the Events Manager location payload.
+
+## User
+
+Clarified that the duplicate address issue was not the description-body Location block. The issue was in the Events Manager-rendered location section.
+
+## Assistant
+
+Corrected course. Traced Events Manager `#_LOCATIONFULLLINE`: it builds the public location line from address, town, state, postcode, region, and optionally country. Great Imports was copying `location_state` into `location_region`, which can make `TN` appear twice in the location section. Prepared Great Imports `0.2.47` to stop copying state into region and to add `location_region` to future location snapshots.

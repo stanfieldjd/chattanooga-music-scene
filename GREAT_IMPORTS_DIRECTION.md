@@ -374,3 +374,24 @@ Source direction for `stanfieldjd/Great-imports` version `0.2.46`:
 - Keep the address in `location_fields` and `events_manager_payload.location`.
 - Continue letting Events Manager own the public location/address/map display.
 - Do not change location storage, coordinates, matching, tickets, organizer details, FAQs, or the save workflow.
+
+Correction: user clarified this was not the duplication being reported.
+
+## Duplicate state in Events Manager location section — 2026-07-13
+
+User clarified the duplicate address problem was in the Events Manager-rendered location section, not the imported event description body.
+
+Evidence:
+
+- Events Manager default single-event format prints the location section with `#_LOCATIONFULLLINE`.
+- Events Manager builds `#_LOCATIONFULLLINE` from `location_address`, `location_town`, `location_state`, `location_postcode`, `location_region`, and optionally country.
+- Great Imports was copying `location_state` into `location_region` during the Events Manager address handoff.
+- For The Boneyard this can render `TN` twice in the location section because state and region both contain `TN`.
+
+Source direction for `stanfieldjd/Great-imports` version `0.2.47`:
+
+- Stop copying state into Events Manager `location_region`.
+- Store/clear `location_region` as blank for Great Imports-managed address handoffs unless a true separate region source is added later.
+- Add `location_region` to location snapshots so future reports show whether the region field is causing duplicated location-section output.
+- Preserve existing selected Events Manager locations when the reviewer chooses an existing location.
+- Do not change location matching, coordinates, tickets, organizer details, FAQs, or the save workflow.
