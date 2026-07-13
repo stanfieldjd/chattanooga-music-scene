@@ -2571,3 +2571,11 @@ Clarified that the duplicate address issue was not the description-body Location
 ## Assistant
 
 Corrected course. Traced Events Manager `#_LOCATIONFULLLINE`: it builds the public location line from address, town, state, postcode, region, and optionally country. Great Imports was copying `location_state` into `location_region`, which can make `TN` appear twice in the location section. Prepared Great Imports `0.2.47` to stop copying state into region and to add `location_region` to future location snapshots.
+
+## User
+
+Sent multiple screenshots and said there are a few issues, not just one.
+
+## Assistant
+
+Read the new `0.2.47` report. Identified multiple issues together: the location-region duplicate is fixed on the new location, `#_OPENSTREETMAP` is in the active Events Manager single-event format rather than saved post content, Eventbrite description HTML is being imported too raw with inline images/styles/oversized wrappers, and a fresh candidate still created a new Boneyard EM location instead of reusing an existing exact-address location. Prepared Great Imports `0.2.48` to clean public description body HTML and add a server-side exact-address location reuse fallback before creating a new EM location, while keeping `#_OPENSTREETMAP` as an EM format-setting issue.

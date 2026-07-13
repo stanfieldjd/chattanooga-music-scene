@@ -395,3 +395,24 @@ Source direction for `stanfieldjd/Great-imports` version `0.2.47`:
 - Add `location_region` to location snapshots so future reports show whether the region field is causing duplicated location-section output.
 - Preserve existing selected Events Manager locations when the reviewer chooses an existing location.
 - Do not change location matching, coordinates, tickets, organizer details, FAQs, or the save workflow.
+
+## Multi-issue event-page cleanup — 2026-07-13
+
+User reported that there were multiple visible issues and instructed not to focus on only one.
+
+Evidence from `great-imports-exploratory-report-20260713-092906.json` and screenshots:
+
+- The new import ran on Great Imports `0.2.47`.
+- The Events Manager location section no longer duplicated `TN` through region: saved `location_region` was blank.
+- The literal `#_OPENSTREETMAP` was not in saved event post content; the report showed it in the active Events Manager single-event format and rendered EM output.
+- The candidate/event body content included raw Eventbrite description HTML with five inline images, twelve inline style attributes, and six oversized heading wrappers.
+- A fresh candidate created a new Events Manager location `412` instead of reusing an existing same-address Boneyard location.
+
+Source direction for `stanfieldjd/Great-imports` version `0.2.48`:
+
+- Clean Eventbrite description HTML before storing candidate body content: remove inline images, source styling, and oversized heading/bold wrappers while preserving text, links, lists, ticket facts, and FAQs.
+- Keep raw source description available in captured evidence/meta; only public candidate/event body content is cleaned.
+- Add a server-side exact-address Events Manager location reuse check before creating a new EM location.
+- Prefer an exact existing location with complete coordinates when available.
+- Keep `#_OPENSTREETMAP` as trace evidence because it belongs to the active Events Manager format setting, not Great Imports candidate content.
+- Do not change date/time parsing, coordinate handoff, tickets, organizer details, FAQs, or the Events Manager save workflow.
