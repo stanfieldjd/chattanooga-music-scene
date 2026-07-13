@@ -2627,3 +2627,107 @@ I found the full GitHub connector tools inside the orchestrator, so I can safely
 ## Assistant
 
 I added the final transcript-update notes that happened after the first transcript push. I’m doing one last remote update and then a quiet verification pass.
+
+## User
+
+Are you following the rules
+
+## Assistant
+
+Yes. I’m following the corrected rules now:
+
+- No Great Imports autosave.
+- No browser-location workflow.
+- No dependency on the EM edit screen, OK alert, hidden fields, browser geocoding, or manual re-save.
+- Great Imports writes the Events Manager storage handoff.
+- If source coordinates exist, it may pass them into EM storage.
+- If EM already produced coordinates, Great Imports preserves them.
+- If coordinates are missing, Great Imports still creates/updates the EM location from the address, but does not fabricate coordinates.
+- Strong matching EM locations should be reused instead of creating duplicates.
+
+The last fix was specifically to bring the code back into those rules: reuse an existing matching EM location, especially one with EM-produced coordinates, instead of creating another coordinate-less “The Boneyard” location that triggers EM’s own map prompt.
+
+## User
+
+I wasn't talking about those rules I was talking about the actual rules
+
+## Assistant
+
+You’re right. No, I was not fully following the actual rules.
+
+The actual project rules are the ones in `GREAT_IMPORTS_DIRECTION.md` and the exact-transcript requirement in `GREAT_IMPORTS_CHAT_TRANSCRIPT.md`, not just the location handoff rules I repeated.
+
+The ones I missed on the last fix:
+
+- I did not state the full chess-game move before implementation: proposed move, why, exact changes, what will not change, risks, success checks, rollback point.
+- I patched `Great-imports` but did not update the `chattanooga-music-scene` chat transcript/context in the same pass.
+- I answered from memory first instead of going straight back to the written rules.
+- I treated the location rules as “the rules,” when they are only one subsection of the actual rules.
+
+What I did follow:
+
+- I inspected the report before patching.
+- I used GitHub as the source of truth for the plugin update.
+- I verified the GitHub files after the change.
+- I did not leave the work local-only.
+
+But the correct answer is: **not completely**. The missing GitHub context/transcript update is the big one.
+
+## User
+
+Those others are not rules because they can be changed
+
+## Assistant
+
+Understood. The actual rules you mean are the fixed operating rules from the chat transcript, especially:
+
+1. Chess-game planning before changes.
+2. Evidence first.
+3. Truth, not agreement.
+4. Necessary scope.
+5. GitHub is source of truth.
+6. No ZIPs unless explicitly asked.
+7. Do not rewrite from memory.
+8. Preserve readable source.
+9. Do not hide unnecessary UI.
+10. Do not remove or move controls unless requested.
+11. Preserve unrelated behavior.
+12. Verify after change.
+13. Roll back when direction is wrong.
+14. Do not rehash accepted points.
+
+The Events Manager/location instructions are project direction, not permanent rules, because they can change as the solution changes. So yes: I conflated changeable direction with the actual operating rules.
+
+## User
+
+Now try to fix the problem with these rules
+
+## Assistant
+
+You’re right. I’m going to treat the fixed operating rules as controlling here, and I’ll state the move before touching code.
+
+**Proposed move:** repair the Events Manager location/import issue by tracing current GitHub source, the latest report evidence, and the actual location matching path, then patch only the proven cause.
+
+**Why:** the last report showed Great Imports created a new coordinate-less “The Boneyard” location, which triggered Events Manager’s own map/update prompt. My last patch aimed at automatic matching, but I need to verify whether that fully satisfies the cause and whether I missed any release/context requirements.
+
+**Exact changes under consideration:** only if evidence confirms it, tighten the EM location reuse path and/or correct the release/context state. I will also update the GitHub chat transcript/context if I change code.
+
+**What will not change:** no ZIP workflow, no browser autosave, no hidden EM edit-screen dependency, no fabricated coordinates, no ticket/bookings/scheduler/image changes, no unrelated UI rewrite.
+
+**Risks:** automatic matching must not pick the wrong venue; existing duplicate locations already created may remain unless we add a deliberate cleanup step. GitHub contents updates may create multiple commits unless I use the tree/commit API.
+
+**Success checks:** GitHub source shows the repaired path, report payload can show matched existing vs created location, no browser/autosave code exists, version/readme match, and transcript/context is updated.
+
+**Rollback point:** current `Great-imports` main at `0.2.42`; if this direction is wrong, revert the matching-location patch rather than layering unrelated behavior.
+
+## Assistant
+
+The latest report’s cause is now concrete: it was made on `0.2.41`, and the trace says `location_strategy: create`, location `409`, no coordinates. So the report cannot prove the `0.2.42` fix failed; it proves the old code path was still installed when that run happened.
+
+## Assistant
+
+The current GitHub source already has the behavioral fix: automatic matching is in the EM payload and prefers matched locations with complete coordinates. The remaining rule-compliant repair is to publish the complete state as one atomic version bump and record the direction/transcript, rather than stacking another behavioral guess.
+
+## Assistant
+
+Remote verification passed: `0.2.43` is advertised, the matching-location code is still present, and the old browser trace class is still not loaded. Now I’m updating the context repository instead of leaving that out.
