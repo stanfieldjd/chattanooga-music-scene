@@ -3386,3 +3386,38 @@ The transcript update wrapper in code mode expects a different SHA parameter tha
 ## Assistant
 
 The schema is `sha`; the miss was that the fetched file SHA is also under `structuredContent` in code mode. I’m retrying with that extracted correctly.
+
+
+## User
+
+You are getting closer there is no way to do a scheduling how far in advance for searching and there's no button for being able to run<image name=[Image #1] path="/workspace/scratch/0e90d5373d29/upload/Screenshot 2026-07-14 4.05.22 AM.png">
+
+===== BEGIN ADDITIONAL MESSAGE =====
+File citation identifiers for available files: Screenshot 2026-07-14 4.05.22 AM.png (file_00000000dcc071f7a2a0fd0d77148365).
+===== END ADDITIONAL MESSAGE =====
+
+===== BEGIN ADDITIONAL MESSAGE =====
+Copies of the attached library files have been made available immediately in your scratch workspace.
+
+Do not read the attachments through the library tool. If you intend to make persist changes to the uploaded files, read the library skill for more information.
+
+The scratch paths and corresponding library IDs of the attachments are listed below.
+
+{"uploaded_name":"Screenshot 2026-07-14 4.05.22 AM.png","workspace_path":"/workspace/scratch/0e90d5373d29/upload/Screenshot 2026-07-14 4.05.22 AM.png","library_file_id":"libfile_75101cee60388191aec28996d9edcfcb"}
+===== END ADDITIONAL MESSAGE =====
+
+## Assistant
+
+Chess-game plan before touching source:
+
+- proposed move: update and sync `GREAT_IMPORTS_CHAT_TRANSCRIPT.md` first with your exact screenshot report and this plan, then add real saved-recurring controls: how far ahead to search and a button to run the saved recurring source.
+- why: your screenshot shows `0.2.69` is closer, but the saved recurring row is still passive. It says “Not scheduled” and “Never run,” with no way to set an advance search window and no way to run it.
+- exact changes: add a “search ahead” field to each saved recurring source record, render it in the table, add a row-level `Run` button, add a nonce/capability-protected handler for that button, and have it run the existing URL search for that saved source URL while updating last-run status/time. Bump/release as one complete version.
+- what will not change: no automatic scheduler unless explicitly requested; no Events Manager event creation from the run button; no parser rewrite; no ticket/location/report/manual-cleanup behavior changes; no ZIP.
+- risks: “run” could mean search-only or recurring EM creation; based on your wording and current saved-source flow, I will make it run the saved URL search/collection, not create Events Manager events.
+- success checks: transcript commit first; remote source shows search-ahead storage/display/control and a run handler/button; version/tag point to the same complete commit; `Search Source` and `Save Recurring` remain unchanged.
+- rollback point: current `Great-imports` `0.2.69` commit `01b8b1d250cdeda5dceb633cd9b47a9995a395bc`.
+
+## Assistant
+
+I’m syncing the transcript first against the current remote file, then I’ll inspect `0.2.69` source and patch the saved recurring controls from that exact state.
