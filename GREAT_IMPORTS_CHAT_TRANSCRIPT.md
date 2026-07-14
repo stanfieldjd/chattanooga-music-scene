@@ -3280,3 +3280,20 @@ Chess-game plan before touching the transcript file:
 - risks: none to plugin behavior because this is transcript-only.
 - success checks: GitHub returns a transcript commit SHA.
 - rollback point: current `chattanooga-music-scene` `main` before this transcript append.
+
+
+## User
+
+Then make it a proper save recurring 
+
+## Assistant
+
+Chess-game plan before touching source:
+
+- proposed move: update and sync `GREAT_IMPORTS_CHAT_TRANSCRIPT.md` first with your exact instruction and this plan, then change the saved recurring display from a bare URL trace into a usable saved recurring source table.
+- why: you explicitly said to make it a proper save recurring after the screenshot showed the current display is not meaningful.
+- exact changes: keep the saved URL behavior; store/display a generated source name, URL, source type, enabled status, saved/updated timestamp, last run placeholder, next run/schedule placeholder, and a clearer table under Source; bump/release as one complete version.
+- what will not change: no automatic scheduler, no Events Manager event creation from Save Recurring, no parser changes, no candidate import changes, no ZIP.
+- risks: “proper” could later require editable cadence/time controls; I will not invent scheduler behavior in this move because you did not explicitly ask for scheduling controls here.
+- success checks: transcript commit first; remote source shows saved recurring records rendered as a table with meaningful columns; `Save Recurring` still saves URL data only; tag points to one complete release commit.
+- rollback point: current `Great-imports` `0.2.68` commit `244945d9554455eb4cc2466677a55419310d43bf`.
