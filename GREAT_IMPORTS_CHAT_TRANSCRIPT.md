@@ -2632,40 +2632,110 @@ Prepared Great Imports `0.2.53` to remove the automatic Events Manager `dbem_sin
 
 ## User
 
-Pointed out that the `Imported Content Cleanup` panel and the helper/status text under the Source box were not requested UI, and that images still needed to stay in imported event descriptions.
-
-## Assistant
-
-Corrected the plugin cleanup direction after the mistaken cleanup utility. Prepared later Great Imports updates to keep source images in the Events Manager description, remove obsolete imported-content cleanup wording/UI, and remove the visible Source panel status/helper line while keeping diagnostics inside exploratory reports.
+Make sure that the GitHub chat text is been updated
 
 ## User
 
-Reported that automatic location matching was not being reflected in the Matching Location dropdown, then provided Eventbrite organizer URL `https://www.eventbrite.com/o/58111834153` and reported that putting the Boneyard URL in Source Search produced no candidate.
+This is not what I asked for you ignored the word chat
 
 ## Assistant
 
-Prepared Great Imports updates to make automatic Events Manager location matches selectable in the Matching Location dropdown, label automatic selections as auto matches, accept Eventbrite organizer URLs, extract event detail links from organizer pages, and keep Source Search candidate-only so organizer collection does not create Events Manager events or locations.
+You’re right. I treated “GitHub text” as README/version text and ignored “chat.” I’m checking the repo for any chat-facing text/file now...
 
 ## User
 
-Called out that the text below the Source box still needed to be removed.
+You're looking in the wrong repo
 
 ## Assistant
 
-Prepared Great Imports `0.2.61` and `0.2.62` so numeric Eventbrite organizer URLs such as `/o/58111834153` validate correctly, the visible last-search trace line is removed from the Source panel, and the helper sentence under the Search Source field is removed. Diagnostics remain in exploratory reports rather than visible below the Source field.
+You’re right. I carried the Great-imports repo forward and missed that the repo you gave at the start was `stanfieldjd/chattanooga-music-scene`. I’m switching to that repo now and checking the chat-facing text there.
+
+## Assistant
+
+That repo has no PRs/issues exposed through the connector and no search hits for “chat” or the recurring button text. I’m going one level wider now: listing the repository shape so I can find where the site/plugin text actually lives instead of searching blind.
+
+## Assistant
+
+The correct repo search is coming back empty for those terms. Since the connector search does not list the whole tree, I’m opening the public repo page to identify the actual files and then I’ll update the right text target.
+
+## Assistant
+
+The browser fetch is blocked here, so I’m staying with the GitHub connector and local git. I’m checking whether I can clone or inspect the repo directly from git so I can find the actual chat text instead of guessing.
+
+## Assistant
+
+That clone attempt got blocked because I included a cleanup step. I’m retrying without deleting anything.
+
+## Assistant
+
+I have the correct repo locally now. I’m searching it for chat/conversation text and the plugin-related notes, then I’ll make the GitHub update in this repo, not the Great-imports repo.
+
+## Assistant
+
+Found it: the correct repo has `GREAT_IMPORTS_CHAT_TRANSCRIPT.md`. That’s the chat text you meant. I’m updating that file now with the recurring-candidate save-button correction and the fact that the button must show without the recurring detector hiding it.
+
+## Assistant
+
+The transcript currently stops at `0.2.53`, so it is missing the later work: source-box copy removal, organizer URL behavior, auto matching, images, and the recurring save button. I’m pulling the current Great-imports changelog to append an accurate chat update instead of writing from memory alone.
+
+## Assistant
+
+I’m appending the missing chat section rather than changing the direction file, because you specifically said chat. It will record the actual later decisions and the `0.2.64` correction that keeps the recurring save button visible.
+
+## Assistant
+
+The chat transcript file is updated locally in the correct repo. I’m checking the diff, then I’ll commit and push that transcript update to GitHub.
+
+## Assistant
+
+The diff is exactly in `GREAT_IMPORTS_CHAT_TRANSCRIPT.md`, and it records the correction that I checked the wrong repo first. I’m committing and pushing this now.
+
+## Assistant
+
+The local commit succeeded, but normal `git push` is not authenticated in this environment. I’m switching to the GitHub connector’s file update path so the chat transcript still gets updated on GitHub.
+
+## Assistant
+
+I need the connector update to use the full file body. I’m going to run one orchestrated call that reads the local transcript and passes it directly to the GitHub file update tool, so I don’t have to paste the whole transcript through the chat.
+
+## Assistant
+
+The connector call rejected the SHA field name in the JavaScript wrapper, so I’m checking the wrapper schema and retrying with the parameter name it actually expects.
+
+## Assistant
+
+The SHA is nested under `structuredContent`; that was the wrapper mismatch. Retrying the GitHub update with the correct value now.
+
+## Assistant
+
+The GitHub connector update succeeded. I’m verifying the remote file now so the final answer isn’t just “it probably worked.”
+
+## Assistant
+
+You were right. I was in the wrong repo.
+
+I updated the actual GitHub chat transcript in `stanfieldjd/chattanooga-music-scene`: `GREAT_IMPORTS_CHAT_TRANSCRIPT.md`.
+
+Remote GitHub update commit: `287e03dd2b5bd90cca57f7bec6ed53063578a360`
+
+I verified the remote file now includes the missing chat history through the `0.2.64` Save Recurring correction and notes that I first checked the wrong repo.
 
 ## User
 
-Asked to move on to adding a Save Recurring button for recurring candidates, then said to double-check because the save button did not appear.
+You do understand that this is a chat transcript not a log file
 
 ## Assistant
 
-Prepared Great Imports `0.2.63` to add a `Save Recurring` action that saves recurring candidates through Events Manager repeating events and recurrence sets while reusing the existing location handoff. After the user reported the button did not appear, traced the problem to the UI gate: the button was hidden unless automatic recurring detection passed. Prepared Great Imports `0.2.64` so `Save Recurring` appears on every candidate row, while recurring validation stays in the Events Manager import handler and reports a direct error when the candidate is not actually recurring.
-
-## User
-
-Said to make sure the GitHub chat text had been updated.
+Yes. You’re right again: I turned the chat transcript into a progress log. That violates the file’s own purpose. I’m going to replace the summarized section with exact user/assistant chat entries instead of paraphrased “Prepared…” style notes.
 
 ## Assistant
 
-Initially checked the wrong repository and treated repo/readme text as the requested chat text. Corrected that mistake by switching to `stanfieldjd/chattanooga-music-scene`, locating `GREAT_IMPORTS_CHAT_TRANSCRIPT.md`, and appending the missing chat history through the `0.2.64` recurring-button correction.
+I’m removing the paraphrase block I added. Where exact prior assistant wording is not available anymore because of context compaction, I will not invent it; the transcript should contain exact visible chat text, not reconstructed summaries.
+
+## Assistant
+
+I found that the section I added is all “Reported/Prepared/Corrected” summary language. I’m replacing that section with literal chat text for the current correction thread, and I’m not going to fabricate older assistant lines I can’t see verbatim.
+
+## Assistant
+
+The replacement now contains literal user/assistant messages from this correction thread instead of my summary bullets. I’m adding the exact correction messages from this turn too, then I’ll update the remote GitHub file again.
