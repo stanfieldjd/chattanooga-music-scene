@@ -3150,3 +3150,34 @@ GitHub verification:
 
 Transcript was updated first:
 - `1813e2349e94628da49d8f22b0bdad8b4e2beaec`
+
+
+## User
+
+ I asked for this save recurring to be a save URL for recurring and there's no URL being saved<image name=[Image #1] path="/workspace/scratch/0e90d5373d29/upload/Screenshot 2026-07-14 3.30.31 AM.png">
+
+===== BEGIN ADDITIONAL MESSAGE =====
+File citation identifiers for available files: Screenshot 2026-07-14 3.30.31 AM.png (file_000000009b3871f5bd38ff009a6fca55).
+===== END ADDITIONAL MESSAGE =====
+
+===== BEGIN ADDITIONAL MESSAGE =====
+Copies of the attached library files have been made available immediately in your scratch workspace.
+
+Do not read the attachments through the library tool. If you intend to make persist changes to the uploaded files, read the library skill for more information.
+
+The scratch paths and corresponding library IDs of the attachments are listed below.
+
+{"uploaded_name":"Screenshot 2026-07-14 3.30.31 AM.png","workspace_path":"/workspace/scratch/0e90d5373d29/upload/Screenshot 2026-07-14 3.30.31 AM.png","library_file_id":"libfile_b5d5bf8fb53c81918d962e3f1a2e5dd6"}
+===== END ADDITIONAL MESSAGE =====
+
+## Assistant
+
+Chess-game plan before touching source:
+
+- proposed move: update and sync `GREAT_IMPORTS_CHAT_TRANSCRIPT.md` first with your exact screenshot report and this plan, then inspect the current `Great-imports` source for any saved-URL / recurring-source storage before deciding the patch.
+- why: you explicitly said `Save Recurring` was supposed to save the URL for recurring, and the screenshot shows candidates were collected but no saved URL entry is visible.
+- exact changes for this first step: append exact `## User` and `## Assistant` entries to the transcript file only.
+- what will not change yet: no plugin source until I verify the existing saved recurring/source storage path; no ZIP; no parser or Events Manager changes.
+- risks: I previously treated `Save Recurring` as “create recurring EM event now,” but your statement says the intended behavior is “save this source URL as recurring,” so I need to correct the workflow at the source-storage layer, not keep patching the button.
+- success checks: transcript sync commit first; source inspection identifies whether saved URL storage already exists or must be added; then the code move can target URL saving specifically.
+- rollback point: current `Great-imports` `0.2.67` commit `b014f60f941545056273785b333544eada3004ee`.
