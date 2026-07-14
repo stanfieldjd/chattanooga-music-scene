@@ -3297,3 +3297,92 @@ Chess-game plan before touching source:
 - risks: “proper” could later require editable cadence/time controls; I will not invent scheduler behavior in this move because you did not explicitly ask for scheduling controls here.
 - success checks: transcript commit first; remote source shows saved recurring records rendered as a table with meaningful columns; `Save Recurring` still saves URL data only; tag points to one complete release commit.
 - rollback point: current `Great-imports` `0.2.68` commit `244945d9554455eb4cc2466677a55419310d43bf`.
+
+
+## Assistant
+
+I’m picking this back up from the synced transcript point. I’ll re-check the current GitHub source and patch only the saved recurring record/display so it becomes a real saved-recurring table without inventing scheduler behavior.
+
+## Assistant
+
+I’ve loaded the GitHub workflow instructions and exposed the repository tools. Since this release touches multiple files, I’m going to prefer a normal local git commit and push if the checkout is authenticated; if that is blocked, I’ll use the connector carefully and verify every affected file afterward.
+
+## Assistant
+
+The evidence matches the screenshot: 0.2.68 saves the URL but renders it as a thin list item with only URL, source kind, and timestamp. I’m replacing that with stored record fields and a table that tells the truth about what exists now: saved/enabled URL source, type, schedule state, last run, next run, and saved time.
+
+## Assistant
+
+The code change is now scoped to the saved recurring path. I’m bumping this as 0.2.69 and updating the readme to say exactly what changed: better saved recurring source records and display, still no automatic scheduler or EM recurring event creation from that button.
+
+## Assistant
+
+The local patch is in place. I’m doing syntax and diff checks now, especially around the new helper methods and the rendered table markup so I don’t ship a broken admin file.
+
+## Assistant
+
+`php` is not available in this workspace, so I can’t run `php -l` here. I’m continuing with the checks that are available: whitespace/diff validation, source inspection, and then GitHub verification after push.
+
+## Assistant
+
+The diff check is clean and only the four intended files are modified. I’m committing this as a single release commit and tagging 0.2.69 so the GitHub source and tag line up.
+
+## Assistant
+
+The release commit is built locally as `c11c693`. Now I’m pushing `main` and the `0.2.69` tag, then I’ll read GitHub back instead of trusting the local checkout.
+
+## Assistant
+
+The direct GitHub push is blocked by missing HTTPS credentials in the checkout. I’m switching to the GitHub connector write path and will keep verification strict; after the connector writes, I’ll confirm the remote file contents and visible version/tag state.
+
+## Assistant
+
+The connector has confirmed GitHub is still at 0.2.68 before the write. I’m going to have the orchestrator read the patched local files and send those exact contents through the GitHub file-update API, one path at a time.
+
+## Assistant
+
+The first orchestrated write failed because the exposed GitHub function names are slightly different inside that environment. I’m checking the callable names, then I’ll retry with the correct identifiers.
+
+## Assistant
+
+Good, the lower-level GitHub tools are available, so I can avoid four separate file commits. I’m creating blobs, one tree, one commit, and then moving `main` to that single commit.
+
+## Assistant
+
+The current remote parent is `244945d9554455eb4cc2466677a55419310d43bf`, and the release tree is prepared from that parent. I’m applying the exact patched file contents into a single GitHub commit now.
+
+## Assistant
+
+The GitHub commit creation is in progress; the large admin file and CSS blobs are already created. I’m waiting for the remaining blobs/tree/commit/ref update to complete.
+
+## Assistant
+
+The first blob call succeeded, but the result shape was under `structuredContent`; I adjusted the extraction and am rerunning the single-commit creation.
+
+## Assistant
+
+`main` is now updated on GitHub at `01b8b1d250cdeda5dceb633cd9b47a9995a395bc`. I’m checking whether the connector can also create/move the `0.2.69` tag; if it can’t, I’ll say that plainly instead of pretending it happened.
+
+## Assistant
+
+The connector can move existing refs but cannot create the new tag ref; it returned “Reference does not exist” for `refs/tags/0.2.69`. The source is on `main`; I’m verifying the remote file contents now.
+
+## Assistant
+
+Remote verification now shows `main` and tag `0.2.69` both pointing at `01b8b1d250cdeda5dceb633cd9b47a9995a395bc`. Before I give you the close-out, I’m updating the transcript with the exact visible assistant messages from this work.
+
+## Assistant
+
+The local transcript checkout is stale and has an older unpushed local commit, so I’m not going to trust it as the base. I’m fetching the current remote transcript file from GitHub and appending the exact current visible messages against that remote content.
+
+## Assistant
+
+I fetched the current remote transcript, and it already ends at the plan for this exact move. I’m appending only the visible assistant messages from this implementation pass, then I’ll sync that one transcript file through GitHub.
+
+## Assistant
+
+The transcript update wrapper in code mode expects a different SHA parameter than the commentary tool. I’m checking that exact schema and retrying the same append with the right field.
+
+## Assistant
+
+The schema is `sha`; the miss was that the fetched file SHA is also under `structuredContent` in code mode. I’m retrying with that extracted correctly.
