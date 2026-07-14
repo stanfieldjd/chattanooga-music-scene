@@ -2834,3 +2834,36 @@ I found the correct internal names: `mcp__codex_apps__github_fetch_file` and `mc
 ## Assistant
 
 The wrapper returned the SHA under `structuredContent.sha`, not the top-level field. I’m retrying with that exact value and appending this visible correction line too.
+
+
+## User
+
+And what kind of file is this
+
+## Assistant
+
+It is a chat transcript file.
+
+Specifically: `GREAT_IMPORTS_CHAT_TRANSCRIPT.md` is supposed to contain the exact visible discussion in chronological order, with `## User` and `## Assistant` entries.
+
+It is not supposed to be a summary, progress log, changelog, direction file, or reconstruction.
+
+## User
+
+Commit that to memory
+
+## Assistant
+
+Chess-game plan before touching the transcript file:
+
+- proposed move: append this exact visible exchange to `GREAT_IMPORTS_CHAT_TRANSCRIPT.md` in `stanfieldjd/chattanooga-music-scene`, then sync it to GitHub before answering.
+- why: you explicitly instructed that this file is a chat transcript and told me to commit that to memory.
+- exact changes: append `## User` and `## Assistant` entries for “And what kind of file is this,” my answer, “Commit that to memory,” and this planning message.
+- what will not change: no plugin source, no direction file, no cleanup of older contaminated transcript sections, no ZIP.
+- risks: I cannot literally write to a hidden long-term memory store from here; the durable action I can take is to record the instruction in the GitHub transcript and follow it going forward.
+- success checks: only `GREAT_IMPORTS_CHAT_TRANSCRIPT.md` changes; GitHub returns a commit SHA; remote fetch verifies the appended text.
+- rollback point: current GitHub `main` before this transcript append.
+
+## Assistant
+
+I’m appending this exchange through the GitHub connector now, using the current remote blob SHA so the transcript update lands on `main` directly.
