@@ -2924,3 +2924,63 @@ Chess-game plan before touching `Great-imports` source:
 - risks: if the URL search creates multiple candidates from an organizer URL, the existing `import_once()` return may only expose one `post_id`; I will verify the importer return path before patching and avoid claiming broad multi-candidate recurring behavior unless the source supports it.
 - success checks: transcript commit verified first; plugin version/changelog updated; Source panel contains `Search Source` followed by `Save Recurring`; candidate row no longer renders `Save Recurring`; recurring handler uses URL and resulting candidate ID internally; GitHub source verifies all changed files.
 - rollback point: current `stanfieldjd/Great-imports` `main` at version `0.2.64` before the patch.
+
+
+## Assistant
+
+Transcript is synced first at commit `48bafe7d46fbe7910b21a74f90ca0213899f4a3a`. I’m now checking the importer return path so the Source Search `Save Recurring` action uses the actual candidate ID produced by the URL search.
+
+## Assistant
+
+The importer return path confirms a URL search returns a `post_id` for the created/updated candidate. I can use that internally for the recurring save after Source Search, while keeping the UI button URL-based as you directed.
+
+## Assistant
+
+I’m bringing the plugin repo into a separate local directory so I can patch and inspect the exact diff before sending the GitHub update. No ZIP and no unrelated files.
+
+## Assistant
+
+Now I’m editing only the UI/action files needed: admin handler/button placement, candidate row button removal, version, and readme changelog.
+
+## Assistant
+
+The patch is in place locally. I’m verifying the exact markup and handler path now, including that the row button is gone and the Source panel button submits to the new URL-based recurring action.
+
+## Assistant
+
+Verification caught a real issue before publishing: the Source form only has the existing Source Search nonce, so the new Source-panel recurring handler must verify that same Source Search nonce instead of a nonexistent second nonce. I’m correcting that before syncing.
+
+## Assistant
+
+The nonce path is corrected. I can’t run `php -l` because PHP is not installed in this environment, so I’m doing source-level verification and then will update GitHub through the connector with the verified files.
+
+## Assistant
+
+Source-level verification passed for the intended placement/removal. I’m updating the four changed plugin files on GitHub now through the connector, then I’ll fetch the remote files back to verify version, button placement, and candidate-row removal.
+
+## Assistant
+
+The plugin source is now updated on GitHub and verified remotely. I’m updating the transcript again with the visible progression and final result before I give the final answer here.
+
+## Assistant
+
+Done.
+
+Transcript was updated first and synced:
+- `48bafe7d46fbe7910b21a74f90ca0213899f4a3a`
+
+Plugin source was then updated on GitHub to `0.2.65`.
+
+Changed in `stanfieldjd/Great-imports`:
+- `Save Recurring` is now in the Source panel immediately after `Search Source`.
+- It submits the Source Search URL, creates/updates the candidate internally, then runs the recurring Events Manager save from that candidate.
+- The candidate-row `Save Recurring` button was removed.
+- Normal `Search Source` and normal `Import to Events Manager` remain in place.
+
+Verified remotely from GitHub:
+- `great-imports.php` shows version `0.2.65`.
+- `readme.txt` stable tag is `0.2.65`.
+- `includes/class-gi-admin.php` contains `handle_eventbrite_save_recurring_from_source()` and renders `Save Recurring` after `Search Source`.
+- `includes/class-gi-candidate-list-table.php` no longer renders the row-level `Save Recurring` form.
+
+I could not run PHP lint because `php` is not installed in this environment.
