@@ -2797,3 +2797,40 @@ The transcript append is local now. I’m checking the diff for exactly one file
 ## Assistant
 
 The diff is clean: one transcript file, append-only, no direction-file edits. I’m adding this verification line to the transcript too, then I’ll commit and push/update the remote.
+
+
+## User
+
+Anytime an update takes place I fix or anything you are to update this file first and sync it
+
+## Assistant
+
+Chess-game plan before touching the transcript file:
+
+- proposed move: update `GREAT_IMPORTS_CHAT_TRANSCRIPT.md` in `stanfieldjd/chattanooga-music-scene` with the exact visible messages for this new transcript-sync instruction, then sync it to GitHub.
+- why: you explicitly instructed that this file must be updated first and synced whenever an update/fix takes place.
+- exact changes: append exact `## User` and `## Assistant` entries for the visible exchange starting with “Anytime an update takes place...” and this planning response.
+- what will not change: no plugin source, no direction file, no summaries, no reconstructed older transcript, no ZIP.
+- risks: this cannot repair older contaminated transcript sections because exact missing text is not available; this only records the current explicit instruction exactly.
+- success checks: only `GREAT_IMPORTS_CHAT_TRANSCRIPT.md` changes; GitHub `main` contains the appended exact entries; remote file fetch verifies the new text.
+- rollback point: current GitHub `main` commit before the transcript append.
+
+## Assistant
+
+I’m fetching the remote transcript from GitHub now and appending only the exact entries for this instruction and the plan I just stated. This keeps the update on the GitHub source of truth instead of relying on the dirty local checkout.
+
+## Assistant
+
+The fetched remote file is large, so I’m using an orchestrated connector call to fetch the full remote content internally, append the exact visible entries, update the same GitHub file with its current SHA, and then verify the tail from GitHub.
+
+## Assistant
+
+The orchestrated call used the wrong internal tool name. I’m checking the available connector method names inside the orchestrator and then I’ll retry with the exact callable name.
+
+## Assistant
+
+I found the correct internal names: `mcp__codex_apps__github_fetch_file` and `mcp__codex_apps__github_update_file`. I’m retrying the same transcript-only update with those names.
+
+## Assistant
+
+The wrapper returned the SHA under `structuredContent.sha`, not the top-level field. I’m retrying with that exact value and appending this visible correction line too.
