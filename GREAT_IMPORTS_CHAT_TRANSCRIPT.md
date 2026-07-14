@@ -3181,3 +3181,18 @@ Chess-game plan before touching source:
 - risks: I previously treated `Save Recurring` as “create recurring EM event now,” but your statement says the intended behavior is “save this source URL as recurring,” so I need to correct the workflow at the source-storage layer, not keep patching the button.
 - success checks: transcript sync commit first; source inspection identifies whether saved URL storage already exists or must be added; then the code move can target URL saving specifically.
 - rollback point: current `Great-imports` `0.2.67` commit `b014f60f941545056273785b333544eada3004ee`.
+
+
+## Assistant
+
+Evidence found: there is no saved recurring URL storage path in the plugin. The current code still treats `Save Recurring` as “search URL, create/update candidate, then try to save an Events Manager recurring event.” That is not what you asked for.
+
+Corrected chess-game plan before source changes:
+
+- proposed move: update and sync the transcript with this corrected evidence, then change `Save Recurring` into a URL-saving action.
+- why: your instruction is explicit: save the URL for recurring. It should not behave like Search Source and it should not immediately try to create an Events Manager recurring event.
+- exact changes: add a saved recurring sources option, validate and store the submitted Eventbrite URL, show the saved recurring URLs in the Source panel, keep `Search Source` unchanged, keep `Save Recurring` beside it, and bump/release as one complete version.
+- what will not change: no Events Manager event creation from the Source-panel `Save Recurring`; no parser changes; no candidate row import changes; no report/download/manual cleanup changes unless cleanup must remove Great Imports-owned saved URL data.
+- risks: this creates storage for saved recurring URLs but does not invent a scheduler cadence or automatic runner because you did not ask for those details in this instruction.
+- success checks: transcript sync first; remote source shows `Save Recurring` stores URL data; Source panel renders saved recurring URL entries; no call to `import_recurring_candidate()` from the Source-panel save handler; tag points to one complete release commit.
+- rollback point: current `0.2.67` commit `b014f60f941545056273785b333544eada3004ee`.
