@@ -3099,3 +3099,54 @@ Chess-game plan before touching plugin source:
 - risks: if the browser/PHP environment still resolves duplicate submit names unexpectedly, I will avoid duplicate `action` fields entirely in the corrected markup.
 - success checks: transcript commit first; remote `0.2.67` source shows no hidden `action` in the Source form; both buttons have explicit different `name="action"` values; tag `0.2.67` points at the complete single commit.
 - rollback point: current `Great-imports` `0.2.66` commit `31bc9abaab8ccc200e4e5017546a9b926c6bbaad`.
+
+
+## Assistant
+
+Transcript is synced first at `1813e2349e94628da49d8f22b0bdad8b4e2beaec`. I’m now patching the Source form so there is no duplicate hidden `action` field for the buttons to fight with.
+
+## Assistant
+
+The fresh checkout is current `main`. I’m applying only the button-action correction and the `0.2.67` release bump.
+
+## Assistant
+
+The markup now has one URL field and two explicit action buttons, with no hidden `action` input. I’m verifying that exact source shape before creating the single release commit.
+
+## Assistant
+
+Verification shows the Source form no longer has the hidden Source action and each button has its own explicit `action` value. I’m publishing this as one complete `0.2.67` commit now.
+
+## Assistant
+
+The single-commit update is still running through the connector. I’m waiting for the remote verification output instead of assuming it landed.
+
+## Assistant
+
+`main` is now at one complete `0.2.67` commit and the remote Source form verifies the two different actions. I’m waiting for the tag/release and then I’ll update the transcript with the result.
+
+## Assistant
+
+The `0.2.67` tag points to the same complete commit as `main`, so the release should contain the corrected button action. I’m syncing the transcript with this result now.
+
+## Assistant
+
+Fixed.
+
+Cause:
+The Source form still had a hidden `action=gi_eventbrite_import_once`, so clicking `Save Recurring` could still route through the normal Search Source action.
+
+Corrected in `0.2.67`:
+- Removed the hidden Source form `action`.
+- `Search Source` is now an explicit button with `name="action" value="gi_eventbrite_import_once"`.
+- `Save Recurring` is now an explicit button with `name="action" value="gi_eventbrite_save_recurring_from_source"`.
+- Both buttons use the same URL field, but now submit different actions.
+
+GitHub verification:
+- `main` commit: `b014f60f941545056273785b333544eada3004ee`
+- tag `0.2.67`: `b014f60f941545056273785b333544eada3004ee`
+- version: `0.2.67`
+- remote `includes/class-gi-admin.php` shows both button actions and no hidden Source form action.
+
+Transcript was updated first:
+- `1813e2349e94628da49d8f22b0bdad8b4e2beaec`
