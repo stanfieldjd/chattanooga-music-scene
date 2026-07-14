@@ -2890,3 +2890,20 @@ Chess-game plan before touching anything in `stanfieldjd/Great-imports`:
 - risks: you have not yet stated the action to perform in `Great-imports`, so after the transcript sync I should not infer a task from the link alone.
 - success checks: GitHub returns a commit SHA for the transcript update; remote fetch verifies the appended text; then I confirm access/orientation for `stanfieldjd/Great-imports`.
 - rollback point: current GitHub `main` of `stanfieldjd/chattanooga-music-scene` before this transcript append.
+
+
+## User
+
+There was a save button that was added but you put it in the wrong place it is supposed to be after Source search
+
+## Assistant
+
+Chess-game plan before touching `stanfieldjd/Great-imports` source:
+
+- proposed move: update and sync `GREAT_IMPORTS_CHAT_TRANSCRIPT.md` first with your exact save-button placement instruction and this planning message, then inspect the current `Great-imports` GitHub source to find the save button and the `Source search` section.
+- why: you explicitly instructed transcript updates happen first; the code issue is placement, and I need evidence from the actual source before changing it.
+- exact changes for this first step: append only exact `## User` and `## Assistant` entries to the transcript file.
+- what will not change in this first step: no plugin code yet, no ZIP, no direction file, no inferred UI changes beyond locating the button.
+- risks: the button label or section name may differ in code, so I need source search before naming the final code patch.
+- success checks: transcript commit SHA from GitHub; remote fetch confirms the appended text; then source inspection identifies the exact file/function.
+- rollback point: current `chattanooga-music-scene` `main` before the transcript append.
