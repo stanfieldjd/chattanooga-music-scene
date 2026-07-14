@@ -3024,3 +3024,61 @@ Transcript is synced first at `3e54d71255b4dcc9a5946a4696a0887ad015f7f1`. I’m 
 ## Assistant
 
 The screenshot is right. GitHub `main` contains the button, but tag `0.2.65` points to the first sequential commit `b7598ab`, which only had the version bump. That means the release/installable `0.2.65` can show version `0.2.65` while missing the admin button change. I’m going to correct this as a new single-commit `0.2.66` release so the tag cannot land on a partial source state.
+
+
+## Assistant
+
+Transcript is updated with the diagnosis at `d1071a7e8a5270ad569db2717bb3815cb10a295a`. Next I’m making only a release correction: keep the existing button code, bump to `0.2.66`, and publish it as one complete GitHub commit.
+
+## Assistant
+
+The fresh checkout is at current `main`, which already has the Source-panel button in source. I’m applying the minimal `0.2.66` release correction now.
+
+## Assistant
+
+The `0.2.66` change is intentionally just version/readme on top of the already-correct source. I’m verifying the tree contains the button and then I’ll create one GitHub commit from this exact state.
+
+## Assistant
+
+Verification shows the complete source has the button code and only `great-imports.php`/`readme.txt` need the `0.2.66` release bump. I’m using a single GitHub tree/commit update now, not per-file contents updates, to avoid another partial tag.
+
+## Assistant
+
+The first low-level commit attempt hit a connector result-shape mismatch before changing `main`; I’m inspecting the blob/tree return shape and retrying with the exact fields.
+
+## Assistant
+
+Blob SHA is returned as `structuredContent.sha`. I’m retrying the single-commit release using that shape.
+
+## Assistant
+
+The replacement tree was created successfully. I’m creating the commit from that tree and fast-forwarding `main` to it now.
+
+## Assistant
+
+The single complete `0.2.66` commit exists. I’m moving `main` to it with a non-forced fast-forward, then I’ll verify `main`, admin markup, and the release tag.
+
+## Assistant
+
+`main` is now at single commit `31bc9abaab8ccc200e4e5017546a9b926c6bbaad`, and that exact commit contains both version `0.2.66` and the Source-panel `Save Recurring` button. I’m waiting briefly for the release workflow/tag, then I’ll verify whether tag `0.2.66` points to that same commit.
+
+## Assistant
+
+The `0.2.66` tag now points to the same single complete commit as `main`, so the installable release should include the button. I’m updating the transcript with this result before final.
+
+## Assistant
+
+You were right. The screenshot showed the real failure.
+
+Cause found:
+`0.2.65` was tagged at the first sequential GitHub update commit, `b7598ab`, which had the version bump but not the later admin-file change. So the installed/released `0.2.65` could show version `0.2.65` and still have no `Save Recurring` button.
+
+Corrected now:
+- Created `0.2.66` as one complete release commit: `31bc9abaab8ccc200e4e5017546a9b926c6bbaad`
+- Verified `main` has version `0.2.66`.
+- Verified `includes/class-gi-admin.php` has `Save Recurring` immediately after `Search Source`.
+- Verified tag `0.2.66` points to the same complete commit: `31bc9abaab8ccc200e4e5017546a9b926c6bbaad`
+
+Transcript was updated first and again after the correction:
+- `3e54d71255b4dcc9a5946a4696a0887ad015f7f1`
+- `d1071a7e8a5270ad569db2717bb3815cb10a295a`
