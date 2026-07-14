@@ -3538,3 +3538,20 @@ Chess-game plan before touching anything:
 - risks: none to plugin behavior.
 - success checks: transcript commit verifies on GitHub.
 - rollback point: current transcript `main` before this append.
+
+
+## User
+
+And what about an auto run
+
+## Assistant
+
+Chess-game plan before touching anything:
+
+- proposed move: update and sync the transcript first with your exact question and this response, then answer the auto-run question directly.
+- why: you are asking about the expected design, not yet instructing me to implement it.
+- exact changes: transcript append only.
+- what will not change: no plugin source, no scheduler code, no UI patch, no ZIP.
+- risks: none to plugin behavior.
+- success checks: transcript commit verifies on GitHub.
+- rollback point: current transcript `main` before this append.
