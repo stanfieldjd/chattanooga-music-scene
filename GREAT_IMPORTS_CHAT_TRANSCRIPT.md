@@ -3555,3 +3555,20 @@ Chess-game plan before touching anything:
 - risks: none to plugin behavior.
 - success checks: transcript commit verifies on GitHub.
 - rollback point: current transcript `main` before this append.
+
+
+## User
+
+Then make it so
+
+## Assistant
+
+Chess-game plan before touching source:
+
+- proposed move: update and sync `GREAT_IMPORTS_CHAT_TRANSCRIPT.md` first with your exact instruction and this plan, then add real auto-run support for saved recurring sources.
+- why: you explicitly said “Then make it so,” and the current `0.2.70` UI only supports manual run plus a passive search-ahead value.
+- exact changes: add saved-source auto-run fields, frequency control, next-run calculation, a WP-Cron hook/runner that runs enabled saved sources when due, UI controls to save auto-run settings, keep `Run now`, and bump/release as one complete version.
+- what will not change: no Events Manager event creation from saved recurring runs; no ticket/location/report/manual-cleanup behavior changes; no ZIP; `Search Source` and `Save Recurring` stay where they are.
+- risks: WordPress cron depends on site traffic unless a real server cron calls WP-Cron; the Eventbrite organizer importer still does not filter by the search-ahead window, so this move will schedule/run the saved URL and store the search-ahead setting, but date-window filtering is a separate parser/importer change.
+- success checks: transcript commit first; remote source shows cron hook/runner, auto-run UI fields, settings save handler, next-run calculation, version `0.2.71`, and tag matching `main`.
+- rollback point: current `Great-imports` `0.2.70` commit `1536ec9ae5a0fda8ffc21027662722ae12d350bf`.
