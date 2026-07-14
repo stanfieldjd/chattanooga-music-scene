@@ -3196,3 +3196,56 @@ Corrected chess-game plan before source changes:
 - risks: this creates storage for saved recurring URLs but does not invent a scheduler cadence or automatic runner because you did not ask for those details in this instruction.
 - success checks: transcript sync first; remote source shows `Save Recurring` stores URL data; Source panel renders saved recurring URL entries; no call to `import_recurring_candidate()` from the Source-panel save handler; tag points to one complete release commit.
 - rollback point: current `0.2.67` commit `b014f60f941545056273785b333544eada3004ee`.
+
+
+## Assistant
+
+Transcript is synced with the corrected plan at `792fd06c26f844e2be1795bd58e2543a3c9cac2e`. I’m now making the URL-save change from a fresh `Great-imports` checkout so I’m not building on stale local files.
+
+## Assistant
+
+I’m patching only the admin URL-save path, visible saved URL list, version/readme, and cleanup for Great Imports-owned saved URL data.
+
+## Assistant
+
+The patch now saves a validated URL into `great_imports_recurring_sources` and renders a saved recurring URL list under Source. I’m verifying that the Source-panel save handler no longer calls the importer or Events Manager recurring import.
+
+## Assistant
+
+Verification shows the corrected handler stores `great_imports_recurring_sources` and no longer calls candidate import or Events Manager recurring import from the Source-panel save path. I’m publishing `0.2.68` as one complete commit now so the tag includes the storage, display, and version together.
+
+## Assistant
+
+The single-commit GitHub update is still running. I’m waiting for the remote verification rather than assuming the release landed.
+
+## Assistant
+
+`main` is updated and remotely verified at `0.2.68`. I’m waiting for the release tag to appear and confirm it points to the same complete commit.
+
+## Assistant
+
+The `0.2.68` tag points to the same complete commit as `main`. I’m updating the transcript with the final result before I answer here.
+
+## Assistant
+
+Corrected.
+
+You were right: `Save Recurring` was still not saving a recurring URL. It was still wired to collect/import behavior.
+
+Changed in `0.2.68`:
+- `Save Recurring` now validates the URL and stores it in `great_imports_recurring_sources`.
+- The Source panel now shows a `Saved Recurring URLs` list after a URL is saved.
+- `Save Recurring` no longer calls `import_once()`.
+- `Save Recurring` no longer calls `import_recurring_candidate()`.
+- `Search Source` remains the candidate collection button.
+
+GitHub verification:
+- `main` commit: `244945d9554455eb4cc2466677a55419310d43bf`
+- tag `0.2.68`: `244945d9554455eb4cc2466677a55419310d43bf`
+- version: `0.2.68`
+- remote `includes/class-gi-admin.php` shows `update_option( 'great_imports_recurring_sources', ... )`
+- remote Source panel calls `saved_recurring_sources_list()`
+
+Transcript was updated first:
+- `0669832e2b650016a70d47c565738cdce16df607`
+- corrected plan also synced: `792fd06c26f844e2be1795bd58e2543a3c9cac2e`
