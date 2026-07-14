@@ -3249,3 +3249,34 @@ GitHub verification:
 Transcript was updated first:
 - `0669832e2b650016a70d47c565738cdce16df607`
 - corrected plan also synced: `792fd06c26f844e2be1795bd58e2543a3c9cac2e`
+
+
+## User
+
+Does that really make sense for saved recurring<image name=[Image #1] path="/workspace/scratch/0e90d5373d29/upload/Screenshot 2026-07-14 3.47.14 AM.png">
+
+===== BEGIN ADDITIONAL MESSAGE =====
+File citation identifiers for available files: Screenshot 2026-07-14 3.47.14 AM.png (file_00000000063471f7aeace6436bc51b4f).
+===== END ADDITIONAL MESSAGE =====
+
+===== BEGIN ADDITIONAL MESSAGE =====
+Copies of the attached library files have been made available immediately in your scratch workspace.
+
+Do not read the attachments through the library tool. If you intend to make persist changes to the uploaded files, read the library skill for more information.
+
+The scratch paths and corresponding library IDs of the attachments are listed below.
+
+{"uploaded_name":"Screenshot 2026-07-14 3.47.14 AM.png","workspace_path":"/workspace/scratch/0e90d5373d29/upload/Screenshot 2026-07-14 3.47.14 AM.png","library_file_id":"libfile_6c154620f214819188857ec1a8c55961"}
+===== END ADDITIONAL MESSAGE =====
+
+## Assistant
+
+Chess-game plan before touching the transcript file:
+
+- proposed move: update and sync `GREAT_IMPORTS_CHAT_TRANSCRIPT.md` with your exact question and this response, then answer the question directly.
+- why: this is continuing project discussion about the saved recurring UI, and the transcript file is the exact chat transcript.
+- exact changes: append this `## User` screenshot/question entry and this `## Assistant` planning entry only.
+- what will not change: no plugin source, no UI patch, no ZIP, no inferred fix.
+- risks: none to plugin behavior because this is transcript-only.
+- success checks: GitHub returns a transcript commit SHA.
+- rollback point: current `chattanooga-music-scene` `main` before this transcript append.
