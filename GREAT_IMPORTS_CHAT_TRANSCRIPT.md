@@ -3015,3 +3015,12 @@ Chess-game plan before touching plugin source:
 - risks: the likely cause is the same sequential GitHub-update/release problem as before, where the version file updated before the admin file change reached the release artifact, but I will verify rather than assume.
 - success checks: transcript commit verifies first; then GitHub source/release state explains why the live plugin shows `0.2.65` without the button.
 - rollback point: current `chattanooga-music-scene` `main` before this transcript append.
+
+
+## Assistant
+
+Transcript is synced first at `3e54d71255b4dcc9a5946a4696a0887ad015f7f1`. I’m now checking the plugin GitHub source and release/tag state against the screenshot evidence.
+
+## Assistant
+
+The screenshot is right. GitHub `main` contains the button, but tag `0.2.65` points to the first sequential commit `b7598ab`, which only had the version bump. That means the release/installable `0.2.65` can show version `0.2.65` while missing the admin button change. I’m going to correct this as a new single-commit `0.2.66` release so the tag cannot land on a partial source state.
