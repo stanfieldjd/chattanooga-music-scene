@@ -2629,3 +2629,43 @@ Asked why `#_OPENSTREETMAP` was changed when the request was to trace it and fig
 Acknowledged that changing the Events Manager format setting was the wrong move. The report had already traced the source: saved event content did not contain `#_OPENSTREETMAP`, the active Events Manager single-event format did contain it, and rendered output showed the literal token because of that format setting.
 
 Prepared Great Imports `0.2.53` to remove the automatic Events Manager `dbem_single_event_format` mutation from `0.2.52`. The plugin keeps the trace fields only and does not change the map placeholder setting or add UI for changing it.
+
+## User
+
+Pointed out that the `Imported Content Cleanup` panel and the helper/status text under the Source box were not requested UI, and that images still needed to stay in imported event descriptions.
+
+## Assistant
+
+Corrected the plugin cleanup direction after the mistaken cleanup utility. Prepared later Great Imports updates to keep source images in the Events Manager description, remove obsolete imported-content cleanup wording/UI, and remove the visible Source panel status/helper line while keeping diagnostics inside exploratory reports.
+
+## User
+
+Reported that automatic location matching was not being reflected in the Matching Location dropdown, then provided Eventbrite organizer URL `https://www.eventbrite.com/o/58111834153` and reported that putting the Boneyard URL in Source Search produced no candidate.
+
+## Assistant
+
+Prepared Great Imports updates to make automatic Events Manager location matches selectable in the Matching Location dropdown, label automatic selections as auto matches, accept Eventbrite organizer URLs, extract event detail links from organizer pages, and keep Source Search candidate-only so organizer collection does not create Events Manager events or locations.
+
+## User
+
+Called out that the text below the Source box still needed to be removed.
+
+## Assistant
+
+Prepared Great Imports `0.2.61` and `0.2.62` so numeric Eventbrite organizer URLs such as `/o/58111834153` validate correctly, the visible last-search trace line is removed from the Source panel, and the helper sentence under the Search Source field is removed. Diagnostics remain in exploratory reports rather than visible below the Source field.
+
+## User
+
+Asked to move on to adding a Save Recurring button for recurring candidates, then said to double-check because the save button did not appear.
+
+## Assistant
+
+Prepared Great Imports `0.2.63` to add a `Save Recurring` action that saves recurring candidates through Events Manager repeating events and recurrence sets while reusing the existing location handoff. After the user reported the button did not appear, traced the problem to the UI gate: the button was hidden unless automatic recurring detection passed. Prepared Great Imports `0.2.64` so `Save Recurring` appears on every candidate row, while recurring validation stays in the Events Manager import handler and reports a direct error when the candidate is not actually recurring.
+
+## User
+
+Said to make sure the GitHub chat text had been updated.
+
+## Assistant
+
+Initially checked the wrong repository and treated repo/readme text as the requested chat text. Corrected that mistake by switching to `stanfieldjd/chattanooga-music-scene`, locating `GREAT_IMPORTS_CHAT_TRANSCRIPT.md`, and appending the missing chat history through the `0.2.64` recurring-button correction.
