@@ -2984,3 +2984,34 @@ Verified remotely from GitHub:
 - `includes/class-gi-candidate-list-table.php` no longer renders the row-level `Save Recurring` form.
 
 I could not run PHP lint because `php` is not installed in this environment.
+
+
+## User
+
+I've never made you feel no button<image name=[Image #1] path="/workspace/scratch/0e90d5373d29/upload/Screenshot 2026-07-13 9.46.31 PM.png">
+
+===== BEGIN ADDITIONAL MESSAGE =====
+File citation identifiers for available files: Screenshot 2026-07-13 9.46.31 PM.png (file_0000000020f871f5930532e0e7158354).
+===== END ADDITIONAL MESSAGE =====
+
+===== BEGIN ADDITIONAL MESSAGE =====
+Copies of the attached library files have been made available immediately in your scratch workspace.
+
+Do not read the attachments through the library tool. If you intend to make persist changes to the uploaded files, read the library skill for more information.
+
+The scratch paths and corresponding library IDs of the attachments are listed below.
+
+{"uploaded_name":"Screenshot 2026-07-13 9.46.31 PM.png","workspace_path":"/workspace/scratch/0e90d5373d29/upload/Screenshot 2026-07-13 9.46.31 PM.png","library_file_id":"libfile_858a9ad362e4819183dc58def48e5c69"}
+===== END ADDITIONAL MESSAGE =====
+
+## Assistant
+
+Chess-game plan before touching plugin source:
+
+- proposed move: update and sync `GREAT_IMPORTS_CHAT_TRANSCRIPT.md` first with your exact screenshot report and this planning message, then verify why the live admin shows `0.2.65` but no `Save Recurring` button after `Search Source`.
+- why: your screenshot is evidence that the button is still absent in the Source panel even though the version says `0.2.65`.
+- exact changes for this first step: append exact transcript entries only; after that, inspect GitHub `main`, the release/tag state, and the actual admin source.
+- what will not change yet: no plugin source until the evidence check identifies the cause; no ZIP; no unrelated UI changes.
+- risks: the likely cause is the same sequential GitHub-update/release problem as before, where the version file updated before the admin file change reached the release artifact, but I will verify rather than assume.
+- success checks: transcript commit verifies first; then GitHub source/release state explains why the live plugin shows `0.2.65` without the button.
+- rollback point: current `chattanooga-music-scene` `main` before this transcript append.
