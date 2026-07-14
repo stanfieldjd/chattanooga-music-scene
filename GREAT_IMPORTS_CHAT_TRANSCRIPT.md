@@ -3421,3 +3421,72 @@ Chess-game plan before touching source:
 ## Assistant
 
 I’m syncing the transcript first against the current remote file, then I’ll inspect `0.2.69` source and patch the saved recurring controls from that exact state.
+
+
+## Assistant
+
+Transcript is synced first at `ea5181bf66ffa892498c509c73fbd5ab4053b667`. I’m now reading the current plugin source around saved recurring storage/display and the importer return shape so the run button uses the existing search path correctly.
+
+## Assistant
+
+Evidence from `0.2.69` confirms the problem: the table is informational only. There is no submitted form per saved source, no `Run` handler, and no stored “search ahead” setting beyond the placeholder schedule labels.
+
+## Assistant
+
+The existing importer can already run a saved organizer URL and create/update candidates, but it has no date-window parameter. I’m going to add the search-ahead setting to saved recurring records and pass it through trace/status for now without rewriting the parser or Eventbrite collection logic.
+
+## Assistant
+
+I’m patching the saved-source row to become an actionable control row: a numeric “search ahead days” setting and a `Run` submit button per saved source. The run action will call the existing source search/importer for that saved URL and record the result back on the saved source.
+
+## Assistant
+
+The first patch pass adds the handler and row forms. I’m tightening the UI styling and release metadata now, then I’ll check the exact diff so the run path is limited to saved recurring sources.
+
+## Assistant
+
+I’m bumping this to `0.2.70` as a complete release because the UI and handler behavior changed together. No source-search button names or normal candidate import controls are being moved.
+
+## Assistant
+
+The version/readme bump is done locally. I’m verifying the handler, table columns, and forms now, then I’ll publish one GitHub commit from the exact patched tree.
+
+## Assistant
+
+Diff verification is clean: the new scope is the saved-recurring hook, stored fields, row columns/forms, CSS for the row form, and version/readme. I’m committing locally only to freeze the exact tree, then I’ll publish that tree as one GitHub commit from the current remote parent.
+
+## Assistant
+
+The local `origin/main` pointer is stale, so I’m not using it as the parent. I’ll fetch the current GitHub commit metadata for `01b8b1d...` and build the new release commit on that exact remote parent.
+
+## Assistant
+
+The GitHub commit fetch verifies the current parent, but it doesn’t expose the base tree SHA. I’m doing a read-only `git fetch` from the public repo to refresh the local remote pointer, then I’ll use that tree for the connector commit.
+
+## Assistant
+
+The read-only fetch refreshed `origin/main`; the tag conflict is only local because I had made a local tag earlier. I’m reading the refreshed main/tree now and continuing.
+
+## Assistant
+
+`origin/main` stayed stale despite the fetch output, so I’m using `FETCH_HEAD` from the fresh fetch. That points at the current public `main`; I’ll build the commit against `FETCH_HEAD` instead of the stale tracking ref.
+
+## Assistant
+
+I have the correct remote parent and tree now: parent `01b8b1d...`, tree `8836c2a...`. I’m publishing the four changed files as one GitHub commit on top of that parent.
+
+## Assistant
+
+The new blobs and tree are created; I’m waiting for the commit and `main` ref update to finish before verifying the remote files.
+
+## Assistant
+
+`main` is updated at `1536ec9ae5a0fda8ffc21027662722ae12d350bf`. I’m verifying version, handler, row controls, and tag state from GitHub now.
+
+## Assistant
+
+Remote source now shows `0.2.70`, the registered run handler, and the new table columns. I’m checking the row form helper/CSS/readme and waiting briefly for the `0.2.70` tag to appear.
+
+## Assistant
+
+Remote verification is clean: `main` and tag `0.2.70` both point at `1536ec9ae5a0fda8ffc21027662722ae12d350bf`. I’m syncing the transcript with the visible implementation messages and result before I close this out.
