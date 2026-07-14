@@ -3572,3 +3572,64 @@ Chess-game plan before touching source:
 - risks: WordPress cron depends on site traffic unless a real server cron calls WP-Cron; the Eventbrite organizer importer still does not filter by the search-ahead window, so this move will schedule/run the saved URL and store the search-ahead setting, but date-window filtering is a separate parser/importer change.
 - success checks: transcript commit first; remote source shows cron hook/runner, auto-run UI fields, settings save handler, next-run calculation, version `0.2.71`, and tag matching `main`.
 - rollback point: current `Great-imports` `0.2.70` commit `1536ec9ae5a0fda8ffc21027662722ae12d350bf`.
+
+
+## Assistant
+
+Transcript is synced first at `a9f2c873e4b96598dcf9f6e9d72f8a8ed5c33f71`. I’m now inspecting the plugin boot/activation shape and current admin source so the auto-run hooks fit the existing structure instead of being bolted on blindly.
+
+## Assistant
+
+The boot evidence matters here: the plugin currently only builds the admin object inside `is_admin()`, which would not be enough for WP-Cron on normal site traffic. I’m adjusting the hook registration so the cron runner exists outside the admin screen while keeping the admin page controls admin-only.
+
+## Assistant
+
+The plugin coordinator now schedules an hourly WP-Cron event and registers the recurring runner outside `is_admin()`. I’m adding the saved-source settings handler, cron callback, and a cleaner table with auto-run controls.
+
+## Assistant
+
+The admin class now has separate save-settings, manual run, and cron callbacks. I’m adding the helper methods that calculate frequency/next run and render the settings/actions forms so the table reads naturally.
+
+## Assistant
+
+The saved recurring table now has an auto-run settings form and a separate `Run now` action per row. I’m updating the CSS so it lays out like controls rather than a cramped inline fragment, then I’ll update the release notes.
+
+## Assistant
+
+I’m bumping the release metadata to `0.2.71` and documenting this as actual auto-run support through WP-Cron, with the limitation that date-window filtering is not yet implemented inside Eventbrite collection.
+
+## Assistant
+
+The release text is updated. I’m checking for a key WordPress edge case now: because the runner is registered outside admin, every class loaded during boot has to be safe on front-end/WP-Cron requests.
+
+## Assistant
+
+The first layout still duplicated “Search ahead” as both a column and an editable control. Since the goal is a natural standard-user UI, I’m removing that duplicate column and making the editable control visibly say `Ahead [30] days` in the Actions area.
+
+## Assistant
+
+The table now keeps the high-level status columns and puts editable settings together in Actions. I’m adding a tiny label style and then running source/diff checks.
+
+## Assistant
+
+`php` is still unavailable, so lint cannot run here. The available checks passed: whitespace diff is clean, the hook/control names are present, and the changed file set is limited to plugin boot, admin saved-recurring logic, CSS, version, and readme.
+
+## Assistant
+
+The exact release tree is frozen locally. I’m publishing it as one GitHub commit on top of remote `0.2.70` so `main` and the release tag can point to the same complete source state.
+
+## Assistant
+
+The GitHub blobs, tree, and commit were created; I’m waiting on the `main` ref update result and then I’ll verify remote files and tag state.
+
+## Assistant
+
+`main` is updated at `3c4ce6b6a334beb361ce705a5d6b91e5a13f6610`. I’m reading GitHub back now for version, cron registration, auto-run controls, and release tag.
+
+## Assistant
+
+Remote verification shows the version, activation/deactivation hooks, hourly cron scheduling, admin save handler, cron callback hook, and the cleaner auto-run table columns. I’m checking the controls helper, runner logic, readme, and tag pointer now.
+
+## Assistant
+
+Remote verification is complete: `main` and tag `0.2.71` match at `3c4ce6b6a334beb361ce705a5d6b91e5a13f6610`. I’m syncing the transcript with the implementation steps and result before final.
