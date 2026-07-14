@@ -3633,3 +3633,34 @@ Remote verification shows the version, activation/deactivation hooks, hourly cro
 ## Assistant
 
 Remote verification is complete: `main` and tag `0.2.71` match at `3c4ce6b6a334beb361ce705a5d6b91e5a13f6610`. I’m syncing the transcript with the implementation steps and result before final.
+
+
+## User
+
+Go pick him up the Saved reoccurring source needs to have a way to delete<image name=[Image #1] path="/workspace/scratch/0e90d5373d29/upload/Screenshot 2026-07-14 5.06.35 AM.png">
+
+===== BEGIN ADDITIONAL MESSAGE =====
+File citation identifiers for available files: Screenshot 2026-07-14 5.06.35 AM.png (file_00000000c4d071f584e1362b59774cf6).
+===== END ADDITIONAL MESSAGE =====
+
+===== BEGIN ADDITIONAL MESSAGE =====
+Copies of the attached library files have been made available immediately in your scratch workspace.
+
+Do not read the attachments through the library tool. If you intend to make persist changes to the uploaded files, read the library skill for more information.
+
+The scratch paths and corresponding library IDs of the attachments are listed below.
+
+{"uploaded_name":"Screenshot 2026-07-14 5.06.35 AM.png","workspace_path":"/workspace/scratch/0e90d5373d29/upload/Screenshot 2026-07-14 5.06.35 AM.png","library_file_id":"libfile_84d3ca8a6ae88191a473f230c6dc680b"}
+===== END ADDITIONAL MESSAGE =====
+
+## Assistant
+
+Chess-game plan before touching source:
+
+- proposed move: update and sync `GREAT_IMPORTS_CHAT_TRANSCRIPT.md` first with your exact screenshot report and this plan, then add a delete control for saved recurring sources.
+- why: you explicitly said the saved recurring source needs a way to delete, and the screenshot shows saved sources have Save/Run controls but no Delete action.
+- exact changes: add a nonce/capability-protected `gi_delete_recurring_source` handler, render a `Delete` button in the saved recurring source Actions area, remove the source from `great_imports_recurring_sources`, and bump/release as one complete version.
+- what will not change: no parser changes, no candidate import changes, no Events Manager event/ticket behavior, no auto-run scheduling behavior beyond deleting the saved source record, no ZIP.
+- risks: delete is destructive for that saved source record, so the control should be explicit and limited to that one row.
+- success checks: transcript commit first; remote source shows delete handler and row button; version/tag point to the same complete commit; deleting removes the saved source option entry.
+- rollback point: current `Great-imports` `0.2.71` commit `3c4ce6b6a334beb361ce705a5d6b91e5a13f6610`.
