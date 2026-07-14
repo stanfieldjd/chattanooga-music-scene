@@ -3664,3 +3664,44 @@ Chess-game plan before touching source:
 - risks: delete is destructive for that saved source record, so the control should be explicit and limited to that one row.
 - success checks: transcript commit first; remote source shows delete handler and row button; version/tag point to the same complete commit; deleting removes the saved source option entry.
 - rollback point: current `Great-imports` `0.2.71` commit `3c4ce6b6a334beb361ce705a5d6b91e5a13f6610`.
+
+
+## Assistant
+
+Transcript is synced first at `908a7ca3c11cd622934bcda268f7b325a79c3aa1`. I’m now patching only the saved recurring source delete path and release metadata from the current source.
+
+## Assistant
+
+The current `0.2.71` source has the saved recurring source actions grouped in one place, so I’m adding Delete there instead of moving the table structure again. It will be a row-scoped POST form with its own nonce.
+
+## Assistant
+
+The delete handler and row form are in place. I’m adding minimal styling so Delete reads as a destructive action without changing the rest of the saved-source controls.
+
+## Assistant
+
+I’m updating the readme to `0.2.72` and documenting only the new delete capability, then I’ll verify the diff.
+
+## Assistant
+
+The patch is intentionally narrow: delete handler, delete form/button, styling, version, and changelog. I’m running source checks now, then I’ll publish as one GitHub commit and verify the remote.
+
+## Assistant
+
+Checks are clean except PHP lint is still unavailable in this workspace. I’m committing the exact tree locally, then publishing those four files as one GitHub commit on top of `0.2.71`.
+
+## Assistant
+
+The release commit is frozen locally. I’m using the GitHub connector to create one tree/commit and fast-forward `main`, then I’ll verify the tag points to the same commit.
+
+## Assistant
+
+`main` is updated at `f7fd40c898ea84832b99c1f3b9f21fca45a7b50d`. I’m verifying version, handler, button markup, CSS, readme, and the release tag from GitHub now.
+
+## Assistant
+
+Remote source shows `0.2.72`, the delete handler, and the Delete row form. I’m checking CSS/readme and the tag pointer before I close out.
+
+## Assistant
+
+GitHub verification is clean: `main` and tag `0.2.72` both point at `f7fd40c898ea84832b99c1f3b9f21fca45a7b50d`. I’m syncing the transcript with the implementation result before final.
