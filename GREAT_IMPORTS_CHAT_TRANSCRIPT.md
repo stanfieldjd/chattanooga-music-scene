@@ -2907,3 +2907,20 @@ Chess-game plan before touching `stanfieldjd/Great-imports` source:
 - risks: the button label or section name may differ in code, so I need source search before naming the final code patch.
 - success checks: transcript commit SHA from GitHub; remote fetch confirms the appended text; then source inspection identifies the exact file/function.
 - rollback point: current `chattanooga-music-scene` `main` before the transcript append.
+
+
+## User
+
+It doesn't need a candidate I ID because it's saving from the URL a search and save
+
+## Assistant
+
+Chess-game plan before touching `Great-imports` source:
+
+- proposed move: update and sync `GREAT_IMPORTS_CHAT_TRANSCRIPT.md` first with your exact clarification, then patch `stanfieldjd/Great-imports` so `Save Recurring` is a Source Search action that uses the URL field instead of a candidate-row action.
+- why: you explicitly clarified that it does not need `candidate_id` because it should search from the URL and save recurring from that source.
+- exact changes: add a new Source Search recurring admin action that accepts `gi_eventbrite_url`, runs the existing source import/search to create or update the candidate, then calls the recurring Events Manager save for the resulting candidate; render `Save Recurring` after `Search Source` in `collect_panel()`; remove the candidate-row `Save Recurring` form from `column_source()`; bump version/readme.
+- what will not change: normal `Search Source`, normal one-off `Import to Events Manager`, parser/evidence capture/candidate storage/location handoff/ticket handling/manual cleanup/report download.
+- risks: if the URL search creates multiple candidates from an organizer URL, the existing `import_once()` return may only expose one `post_id`; I will verify the importer return path before patching and avoid claiming broad multi-candidate recurring behavior unless the source supports it.
+- success checks: transcript commit verified first; plugin version/changelog updated; Source panel contains `Search Source` followed by `Save Recurring`; candidate row no longer renders `Save Recurring`; recurring handler uses URL and resulting candidate ID internally; GitHub source verifies all changed files.
+- rollback point: current `stanfieldjd/Great-imports` `main` at version `0.2.64` before the patch.
