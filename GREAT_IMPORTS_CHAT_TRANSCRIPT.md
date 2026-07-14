@@ -3082,3 +3082,20 @@ Corrected now:
 Transcript was updated first and again after the correction:
 - `3e54d71255b4dcc9a5946a4696a0887ad015f7f1`
 - `d1071a7e8a5270ad569db2717bb3815cb10a295a`
+
+
+## User
+
+Okay the save button did not save the URL it acted just like search button
+
+## Assistant
+
+Chess-game plan before touching plugin source:
+
+- proposed move: update and sync `GREAT_IMPORTS_CHAT_TRANSCRIPT.md` first with your exact report, then patch `Great-imports` so the two Source panel buttons submit distinct `admin-post.php?action` values instead of both resolving as normal Search Source.
+- why: you reported `Save Recurring` acted exactly like `Search Source`; the current source still has a hidden `action=gi_eventbrite_import_once`, which can override the clicked `Save Recurring` button and send the request to the search handler.
+- exact changes: replace the hidden action plus mixed submit setup with explicit submit buttons where `Search Source` submits `action=gi_eventbrite_import_once` and `Save Recurring` submits `action=gi_eventbrite_save_recurring_from_source`; bump version/readme as one complete release commit.
+- what will not change: URL field, nonce, Source panel location, recurring handler logic, normal candidate row import button, parser/evidence capture/candidate storage/reports/tickets/location handoff.
+- risks: if the browser/PHP environment still resolves duplicate submit names unexpectedly, I will avoid duplicate `action` fields entirely in the corrected markup.
+- success checks: transcript commit first; remote `0.2.67` source shows no hidden `action` in the Source form; both buttons have explicit different `name="action"` values; tag `0.2.67` points at the complete single commit.
+- rollback point: current `Great-imports` `0.2.66` commit `31bc9abaab8ccc200e4e5017546a9b926c6bbaad`.
