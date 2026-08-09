@@ -2,7 +2,7 @@
 /**
  * Plugin Name: CMS Mobile Splash Redirect
  * Description: Redirects phone visitors to The Scene after the landing-page welcome video finishes.
- * Version: 1.1.0
+ * Version: 1.2.0
  * Author: Chattanooga Music Scene
  * Requires at least: 6.2
  * Requires PHP: 8.0
@@ -22,7 +22,8 @@ function cms_mobile_splash_redirect_script(): void {
 	(function () {
 		'use strict';
 
-		if (!window.matchMedia || !window.matchMedia('(max-width: 782px)').matches) return;
+		var liveTest = window.location.search.indexOf('cms-mobile-splash-test=1') !== -1;
+		if (!liveTest && (!window.matchMedia || !window.matchMedia('(max-width: 782px)').matches)) return;
 
 		var destination = <?php echo $scene_url; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JSON-encoded URL. ?>;
 		var sourceNeedle = 'cms-original-crt-snow-bleed-v7';
@@ -46,9 +47,32 @@ function cms_mobile_splash_redirect_script(): void {
 			if (!video || !isWelcomeVideo(video) || video.dataset.cmsSplashRedirectReady === '1') return;
 			video.dataset.cmsSplashRedirectReady = '1';
 			video.setAttribute('playsinline', '');
+			var finishTimer = 0;
+
+			function nearEnd() {
+				return Number.isFinite(video.duration) && video.duration > 0 && video.currentTime >= video.duration - 0.5;
+			}
+
+			function scheduleFallback() {
+				window.clearTimeout(finishTimer);
+				if (!Number.isFinite(video.duration) || video.duration <= 0) return;
+				finishTimer = window.setTimeout(goToScene, Math.max(0, (video.duration - video.currentTime) * 1000) + 750);
+			}
+
 			video.addEventListener('ended', goToScene);
+			video.addEventListener('playing', scheduleFallback);
+			video.addEventListener('loadedmetadata', function () {
+				if (!video.paused) scheduleFallback();
+			});
 			video.addEventListener('timeupdate', function () {
-				if (Number.isFinite(video.duration) && video.duration > 0 && video.currentTime >= video.duration - 0.35) goToScene();
+				if (nearEnd()) goToScene();
+			});
+			video.addEventListener('pause', function () {
+				window.clearTimeout(finishTimer);
+				if (nearEnd()) goToScene();
+			});
+			video.addEventListener('webkitendfullscreen', function () {
+				if (nearEnd() || video.ended) goToScene();
 			});
 		}
 
