@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Chattanooga Music Scene Admin App
  * Description: Installable administrator dashboard and configurable phone notifications for Chattanooga Music Scene.
- * Version: 0.7.1
+ * Version: 0.7.2
  * Author: Chattanooga Music Scene
  * License: GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class CMS_Admin_App {
-	private const VERSION = '0.7.1';
+	private const VERSION = '0.7.2';
 	private const PAGE_SLUG = 'cms-admin-app';
 	private const OPTION_SETTINGS = 'cms_admin_notification_settings';
 	private const OPTION_FIREBASE_KEY = 'cms_admin_firebase_service_key';
@@ -35,6 +35,7 @@ final class CMS_Admin_App {
 		add_action( 'wp_head', array( __CLASS__, 'print_manifest_link' ) );
 		add_action( 'admin_footer', array( __CLASS__, 'print_registration_script' ) );
 		add_action( 'wp_footer', array( __CLASS__, 'print_registration_script' ) );
+		add_action( 'wp_footer', array( __CLASS__, 'print_public_help_menu_link' ), 30 );
 		add_action( 'template_redirect', array( __CLASS__, 'serve_app_asset' ), 0 );
 		add_action( 'wp_ajax_cms_admin_register_push', array( __CLASS__, 'register_push_token' ) );
 		add_action( 'wp_ajax_cms_member_disconnect_push', array( __CLASS__, 'disconnect_push_token' ) );
@@ -62,6 +63,30 @@ final class CMS_Admin_App {
 		add_action( 'great_imports_run_failed', array( __CLASS__, 'notice_great_imports_failed' ), 10, 2 );
 		add_action( 'great_imports_review_required', array( __CLASS__, 'notice_great_imports_review' ), 10, 2 );
 		add_action( 'cms_admin_app_notify', array( __CLASS__, 'receive_custom_notification' ), 10, 4 );
+	}
+
+	public static function print_public_help_menu_link(): void {
+		if ( is_admin() ) {
+			return;
+		}
+		$help_url = home_url( '/help/' );
+		?>
+		<script>
+		document.addEventListener('DOMContentLoaded',()=>{
+			const menu=document.querySelector('.rr-community-nav__list');
+			if(!menu||menu.querySelector('a[data-cms-help-link]'))return;
+			const item=document.createElement('li');
+			const link=document.createElement('a');
+			link.className='rr-community-nav__link';
+			link.href=<?php echo wp_json_encode( $help_url ); ?>;
+			link.textContent='Help';
+			link.setAttribute('data-cms-help-link','1');
+			if(location.pathname.replace(/\/+$/,'')==='/help')link.setAttribute('aria-current','page');
+			item.appendChild(link);
+			menu.appendChild(item);
+		});
+		</script>
+		<?php
 	}
 
 	private static function catalog(): array {
