@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Chattanooga Music Scene Admin App
  * Description: Installable administrator dashboard and configurable phone notifications for Chattanooga Music Scene.
- * Version: 0.6.0
+ * Version: 0.6.1
  * Author: Chattanooga Music Scene
  * License: GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class CMS_Admin_App {
-	private const VERSION = '0.6.0';
+	private const VERSION = '0.6.1';
 	private const PAGE_SLUG = 'cms-admin-app';
 	private const OPTION_SETTINGS = 'cms_admin_notification_settings';
 	private const OPTION_FIREBASE_KEY = 'cms_admin_firebase_service_key';
@@ -38,6 +38,7 @@ final class CMS_Admin_App {
 		add_action( 'template_redirect', array( __CLASS__, 'serve_app_asset' ), 0 );
 		add_action( 'wp_ajax_cms_admin_register_push', array( __CLASS__, 'register_push_token' ) );
 		add_action( 'wp_ajax_cms_member_disconnect_push', array( __CLASS__, 'disconnect_push_token' ) );
+		add_action( 'wp_ajax_cms_member_test_push', array( __CLASS__, 'test_member_push' ) );
 		add_action( 'wp_ajax_cms_admin_save_firebase_key', array( __CLASS__, 'save_firebase_key' ) );
 		add_action( 'wp_ajax_cms_admin_test_push', array( __CLASS__, 'test_push' ) );
 		add_action( 'admin_post_cms_admin_save_notifications', array( __CLASS__, 'save_notification_settings' ) );
@@ -259,6 +260,7 @@ final class CMS_Admin_App {
 			<div class="cms-member-device">
 				<p><strong>Device status:</strong> <span id="cms-member-push-status"><?php echo $connected ? 'A device is connected to your account.' : 'No device is connected yet.'; ?></span></p>
 				<button type="button" class="button" id="cms-member-enable-push"><?php echo $connected ? 'Connect or Refresh This Device' : 'Connect This Device'; ?></button>
+				<button type="button" class="button" id="cms-member-test-push">Send Test to My Device</button>
 				<button type="button" class="button" id="cms-member-disconnect-push">Disconnect All My Devices</button>
 			</div>
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
@@ -277,10 +279,11 @@ final class CMS_Admin_App {
 		<script type="module">
 		import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js';
 		import { getMessaging, getToken, isSupported } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-messaging.js';
-		const connect=document.getElementById('cms-member-enable-push'),disconnect=document.getElementById('cms-member-disconnect-push'),status=document.getElementById('cms-member-push-status');
+		const connect=document.getElementById('cms-member-enable-push'),test=document.getElementById('cms-member-test-push'),disconnect=document.getElementById('cms-member-disconnect-push'),status=document.getElementById('cms-member-push-status');
 		const config=<?php echo wp_json_encode( self::firebase_config() ); ?>,vapid=<?php echo wp_json_encode( self::FIREBASE_VAPID_KEY ); ?>,ajax=<?php echo wp_json_encode( admin_url( 'admin-ajax.php' ) ); ?>,nonce=<?php echo wp_json_encode( wp_create_nonce( 'cms_admin_push' ) ); ?>;
 		async function currentToken(){if(!(await isSupported()))throw Error('Phone notifications are not supported by this browser.');const permission=await Notification.requestPermission();if(permission!=='granted')throw Error('Notification permission was not granted.');const registration=window.cmsAdminAppRegistration||await navigator.serviceWorker.ready;return getToken(getMessaging(initializeApp(config)),{vapidKey:vapid,serviceWorkerRegistration:registration});}
 		connect.onclick=async()=>{connect.disabled=true;try{const token=await currentToken(),response=await fetch(ajax,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body:new URLSearchParams({action:'cms_admin_register_push',nonce,token})}),result=await response.json();if(!response.ok||!result.success)throw Error(result?.data?.message||'This device could not be connected.');status.textContent=result.data.message;}catch(error){status.textContent=error.message;}connect.disabled=false;};
+		test.onclick=async()=>{test.disabled=true;try{const response=await fetch(ajax,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body:new URLSearchParams({action:'cms_member_test_push',nonce})}),result=await response.json();if(!response.ok||!result.success)throw Error(result?.data?.message||'The test could not be sent.');status.textContent=result.data.message;}catch(error){status.textContent=error.message;}test.disabled=false;};
 		disconnect.onclick=async()=>{if(!window.confirm('Disconnect every phone and browser from your notification account?'))return;disconnect.disabled=true;try{const response=await fetch(ajax,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body:new URLSearchParams({action:'cms_member_disconnect_push',nonce})}),result=await response.json();if(!response.ok||!result.success)throw Error(result?.data?.message||'Your devices could not be disconnected.');status.textContent=result.data.message;}catch(error){status.textContent=error.message;}disconnect.disabled=false;};
 		</script>
 		<?php
@@ -624,6 +627,17 @@ final class CMS_Admin_App {
 		}
 		$sent = self::send_push( 'CMS Admin', 'Administrator notifications are connected.', admin_url( 'admin.php?page=' . self::PAGE_SLUG ), get_current_user_id() );
 		$sent ? wp_send_json_success( array( 'message' => sprintf( 'Test sent to %d administrator device(s).', $sent ) ) ) : wp_send_json_error( array( 'message' => 'Firebase did not deliver the test notification.' ), 502 );
+	}
+
+	public static function test_member_push(): void {
+		check_ajax_referer( 'cms_admin_push', 'nonce' );
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error( array( 'message' => 'You must be logged in.' ), 403 );
+		}
+		$user_id = get_current_user_id();
+		$link = function_exists( 'bp_core_get_user_domain' ) ? trailingslashit( bp_core_get_user_domain( $user_id ) . 'settings/phone-notifications' ) : home_url( '/' );
+		$sent = self::send_push( 'Chattanooga Music Scene', 'Your member phone notifications are connected.', $link, $user_id );
+		$sent ? wp_send_json_success( array( 'message' => sprintf( 'Test sent to %d connected device(s).', $sent ) ) ) : wp_send_json_error( array( 'message' => 'Firebase did not deliver the member test notification.' ), 502 );
 	}
 
 	public static function render_page(): void {
