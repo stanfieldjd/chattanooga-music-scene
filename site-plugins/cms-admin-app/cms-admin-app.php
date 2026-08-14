@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Chattanooga Music Scene Admin App
  * Description: Installable administrator dashboard and configurable phone notifications for Chattanooga Music Scene.
- * Version: 0.7.0
+ * Version: 0.7.1
  * Author: Chattanooga Music Scene
  * License: GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class CMS_Admin_App {
-	private const VERSION = '0.7.0';
+	private const VERSION = '0.7.1';
 	private const PAGE_SLUG = 'cms-admin-app';
 	private const OPTION_SETTINGS = 'cms_admin_notification_settings';
 	private const OPTION_FIREBASE_KEY = 'cms_admin_firebase_service_key';
@@ -44,7 +44,8 @@ final class CMS_Admin_App {
 		add_action( 'admin_post_cms_admin_save_notifications', array( __CLASS__, 'save_notification_settings' ) );
 		add_action( 'admin_post_cms_member_save_notifications', array( __CLASS__, 'save_member_notification_settings' ) );
 		add_action( 'bp_setup_nav', array( __CLASS__, 'register_member_notifications_tab' ), 100 );
-		add_shortcode( 'cms_member_notifications_help', array( __CLASS__, 'render_member_help' ) );
+		add_shortcode( 'cms_site_help', array( __CLASS__, 'render_site_help' ) );
+		add_shortcode( 'cms_member_notifications_help', array( __CLASS__, 'render_site_help' ) );
 
 		add_action( 'user_register', array( __CLASS__, 'notice_user_registered' ) );
 		add_action( 'profile_update', array( __CLASS__, 'notice_user_updated' ), 10, 2 );
@@ -290,14 +291,27 @@ final class CMS_Admin_App {
 		<?php
 	}
 
-	public static function render_member_help(): string {
+	public static function render_site_help(): string {
 		$logged_in = is_user_logged_in();
 		$settings_url = $logged_in && function_exists( 'bp_loggedin_user_domain' ) ? trailingslashit( bp_loggedin_user_domain() . 'settings/phone-notifications' ) : '';
 		ob_start();
 		?>
 		<section class="cms-notification-help" aria-labelledby="cms-notification-help-title">
-			<h1 id="cms-notification-help-title">Phone Notifications Help</h1>
-			<p class="cms-help-lead">Install Chattanooga Music Scene Notifications and receive the community alerts you choose—even when the website is closed.</p>
+			<h1 id="cms-notification-help-title">Chattanooga Music Scene Help Center</h1>
+			<p class="cms-help-lead">Learn how to use your account, find and submit events, connect with the community, use the marketplace, and install website notifications.</p>
+			<nav class="cms-help-nav" aria-label="Help topics"><a href="#accounts">Accounts</a><a href="#profiles">Profiles</a><a href="#events">Events &amp; Venues</a><a href="#community">Community</a><a href="#marketplace">Marketplace</a><a href="#notifications">Notification App</a><a href="#privacy">Privacy</a><a href="#troubleshooting">Troubleshooting</a></nav>
+
+			<div class="cms-help-grid cms-help-main-grid">
+				<article id="accounts"><h2>Accounts and Signing In</h2><ul><li>Create an account from the Register page.</li><li>Confirm your email if the site requests verification.</li><li>Use the login page to sign in with your username, email, or an available social-login option.</li><li>Open your account settings to change your email, password, privacy choices, and notification preferences.</li></ul></article>
+				<article id="profiles"><h2>Your Profile</h2><ul><li>Add a profile photo, cover image, biography, and the information you want other members to see.</li><li>Musicians, fans, and subscribers use the same community tools while keeping their selected profile identity.</li><li>Use the Members directory to find people, follow members, or request a connection.</li></ul></article>
+				<article id="events"><h2>Events and Venues</h2><ul><li>Browse Events to find upcoming Chattanooga-area music and community events.</li><li>Open an event for its date, time, venue, description, and original ticket or information link.</li><li>Logged-in members with permission can use Edit Events or Edit Venues to submit information.</li><li>Submitted information may remain pending until an administrator reviews it.</li></ul></article>
+				<article><h2>Posts, Photos, and Videos</h2><ul><li>Read site posts and community updates from the appropriate navigation pages.</li><li>Use activity feeds to share updates and reply to other members.</li><li>Upload only media you own or have permission to share.</li><li>Use comments and replies respectfully; moderation controls apply throughout the site.</li></ul></article>
+				<article id="community"><h2>Groups, Forums, and Messages</h2><ul><li>Join groups that match your interests and follow their activity.</li><li>Use discussion forums for organized conversations and subscribe when you want updates.</li><li>Private messages are visible only to conversation participants.</li><li>Mentions, follows, invitations, requests, replies, and messages can generate notifications.</li></ul></article>
+				<article id="marketplace"><h2>Chattanooga Music Marketplace</h2><ul><li>Browse listings without mixing the marketplace into the event calendar.</li><li>Logged-in members can place, edit, renew, and reply to ads when their account has permission.</li><li>Review the listing description, seller information, price, and terms carefully.</li><li>Use the checkout page only when a listing provides an approved purchase option.</li></ul></article>
+			</div>
+
+			<h2 id="notifications">Install the Member Notification App</h2>
+			<p>Install Chattanooga Music Scene Notifications and receive only the community alerts you choose—even when the website is closed.</p>
 			<?php if ( ! $logged_in ) : ?>
 				<div class="cms-help-callout"><p>You must log in before connecting a phone to your account.</p><p><a class="cms-help-button" href="<?php echo esc_url( wp_login_url( get_permalink() ) ); ?>">Log In to Continue</a></p></div>
 			<?php else : ?>
@@ -322,12 +336,16 @@ final class CMS_Admin_App {
 			<h2>Test or Disconnect a Phone</h2>
 			<p>Open <strong>Choose My Notifications</strong>. Use <strong>Send Test to My Device</strong> to check delivery. Use <strong>Disconnect All My Devices</strong> to remove every phone and browser connected to your account.</p>
 
-			<h2>If a Notification Does Not Arrive</h2>
-			<ol><li>Confirm notifications are allowed in the phone’s settings.</li><li>Open Choose My Notifications and tap Connect or Refresh This Device.</li><li>Make sure the notification category is selected.</li><li>Send a test notification.</li></ol>
+			<h2>Accessibility and Navigation</h2>
+			<ul><li>Use the main menu to reach Events, Venues, Members, Groups, Forums, the Marketplace, and your account.</li><li>Browser zoom and the phone’s text-size settings can enlarge the website without changing your account.</li><li>Buttons and links on this help page use large text and strong contrast.</li><li>If a page is difficult to use with a screen reader, magnifier, keyboard, or touch device, report the page and the problem to the site administrator.</li></ul>
 
-			<p class="cms-help-privacy"><strong>Privacy:</strong> Member phones receive only notifications assigned to that member’s account. Administrator alerts and another member’s notices are never included.</p>
+			<h2 id="troubleshooting">Troubleshooting</h2>
+			<ul><li><strong>Cannot sign in:</strong> check the email or username, reset the password, and confirm the account’s email if required.</li><li><strong>Cannot find a feature:</strong> sign in first; some account, submission, messaging, and marketplace tools are hidden from logged-out visitors.</li><li><strong>Event or listing is not visible:</strong> it may still be awaiting review, expired, or filtered from the current view.</li><li><strong>Page looks outdated:</strong> refresh the page once and reopen it from the main navigation.</li><li><strong>Notification does not arrive:</strong> confirm phone permission, reconnect the device, verify the category is selected, and send a test.</li></ul>
+
+			<h2 id="privacy">Privacy and Safety</h2>
+			<p class="cms-help-privacy">Member phones receive only notifications assigned to that member’s account. Administrator alerts and another member’s notices are never included. Do not publish passwords, payment information, private addresses, or sensitive personal information in profiles, posts, messages, events, or marketplace listings.</p>
 		</section>
-		<style>.cms-notification-help{max-width:980px;margin:0 auto;font-size:1.12rem;line-height:1.65}.cms-notification-help h1{font-size:clamp(2rem,5vw,3.4rem);line-height:1.1}.cms-notification-help h2{font-size:1.55rem;margin-top:1.6em}.cms-help-lead{font-size:1.3rem}.cms-help-actions{display:flex;flex-wrap:wrap;gap:14px;margin:24px 0 12px}.cms-help-button{display:inline-block;min-height:52px;padding:13px 22px;border:0;border-radius:6px;background:#1f5148;color:#fff!important;font-size:1.05rem;font-weight:700;text-decoration:none;cursor:pointer}.cms-help-secondary{background:#9a3324}.cms-help-status,.cms-help-callout,.cms-help-privacy{padding:16px;border-left:5px solid #1f5148;background:#f4eedc}.cms-help-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-top:26px}.cms-help-grid article{padding:20px;border:1px solid #d4cdbd;background:#fff}.cms-notification-help li{margin:.6em 0}@media(max-width:600px){.cms-help-actions{display:block}.cms-help-button{display:block;width:100%;margin:10px 0;text-align:center}}</style>
+		<style>.cms-notification-help{max-width:980px;margin:0 auto;font-size:1.12rem;line-height:1.65}.cms-notification-help h1{font-size:clamp(2rem,5vw,3.4rem);line-height:1.1}.cms-notification-help h2{font-size:1.55rem;margin-top:1.6em;scroll-margin-top:90px}.cms-help-lead{font-size:1.3rem}.cms-help-nav{display:flex;flex-wrap:wrap;gap:10px;margin:24px 0;padding:16px;background:#1f5148}.cms-help-nav a{color:#fff!important;font-weight:700;padding:7px 10px}.cms-help-actions{display:flex;flex-wrap:wrap;gap:14px;margin:24px 0 12px}.cms-help-button{display:inline-block;min-height:52px;padding:13px 22px;border:0;border-radius:6px;background:#1f5148;color:#fff!important;font-size:1.05rem;font-weight:700;text-decoration:none;cursor:pointer}.cms-help-secondary{background:#9a3324}.cms-help-status,.cms-help-callout,.cms-help-privacy{padding:16px;border-left:5px solid #1f5148;background:#f4eedc}.cms-help-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-top:26px}.cms-help-grid article{padding:20px;border:1px solid #d4cdbd;background:#fff}.cms-help-main-grid article{scroll-margin-top:90px}.cms-notification-help li{margin:.6em 0}@media(max-width:600px){.cms-help-actions{display:block}.cms-help-button{display:block;width:100%;margin:10px 0;text-align:center}.cms-help-nav{display:block}.cms-help-nav a{display:block}}</style>
 		<?php if ( $logged_in ) : ?>
 		<script>(()=>{let promptEvent;const button=document.getElementById('cms-member-install-app'),status=document.getElementById('cms-member-install-status');const standalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;if(standalone){status.textContent='The notification app is already installed on this device.';button.hidden=true;return;}window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();promptEvent=event;status.textContent='This device is ready to install the notification app.';});button.addEventListener('click',async()=>{if(!promptEvent){status.textContent=/iPhone|iPad|iPod/.test(navigator.userAgent)?'On iPhone or iPad, use Safari’s Share button and choose Add to Home Screen.':'Open your browser menu and choose Install app or Add to Home screen.';return;}promptEvent.prompt();const choice=await promptEvent.userChoice;status.textContent=choice.outcome==='accepted'?'Installation started. Open CMS Notices from your home screen.':'Installation was not completed.';promptEvent=null;});window.addEventListener('appinstalled',()=>{status.textContent='The notification app is installed.';button.hidden=true;});})();</script>
 		<?php endif; ?>
@@ -537,7 +555,7 @@ final class CMS_Admin_App {
 		if ( ! is_user_logged_in() ) {
 			return;
 		}
-		$member_help = ! is_admin() && is_page( 'phone-notifications-help' );
+		$member_help = ! is_admin() && is_page( 'help' );
 		$manifest = $member_help || ! current_user_can( 'manage_options' ) ? home_url( '/?cms_member_manifest=1' ) : home_url( '/?cms_admin_manifest=1' );
 		printf( '<link rel="manifest" href="%s">' . "\n" . '<meta name="theme-color" content="#1f5148">' . "\n", esc_url( $manifest ) );
 	}
