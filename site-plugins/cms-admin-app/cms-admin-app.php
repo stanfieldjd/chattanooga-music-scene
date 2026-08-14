@@ -4,6 +4,8 @@
  * Description: Installable administrator dashboard and configurable phone notifications for Chattanooga Music Scene.
  * Version: 0.5.0
  * Author: Chattanooga Music Scene
+ * License: GPL-2.0-or-later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
