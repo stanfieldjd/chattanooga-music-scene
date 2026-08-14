@@ -256,7 +256,7 @@ final class CMS_Admin_App {
 	}
 
 	public static function notice_post_transition( string $new_status, string $old_status, $post ): void {
-		if ( ! $post instanceof WP_Post || wp_is_post_revision( $post ) || $new_status === $old_status ) {
+		if ( ! $post instanceof WP_Post || wp_is_post_revision( $post ) || wp_is_post_autosave( $post ) ) {
 			return;
 		}
 		$types = array( 'post', 'page', 'event', 'location', 'product' );
