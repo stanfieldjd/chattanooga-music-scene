@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Chattanooga Music Scene Admin App
  * Description: Installable administrator dashboard and configurable phone notifications for Chattanooga Music Scene.
- * Version: 0.5.0
+ * Version: 0.5.1
  * Author: Chattanooga Music Scene
  * License: GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class CMS_Admin_App {
-	private const VERSION = '0.5.0';
+	private const VERSION = '0.5.1';
 	private const PAGE_SLUG = 'cms-admin-app';
 	private const OPTION_SETTINGS = 'cms_admin_notification_settings';
 	private const OPTION_FIREBASE_KEY = 'cms_admin_firebase_service_key';
@@ -43,14 +43,9 @@ final class CMS_Admin_App {
 		add_action( 'user_register', array( __CLASS__, 'notice_user_registered' ) );
 		add_action( 'profile_update', array( __CLASS__, 'notice_user_updated' ), 10, 2 );
 		add_action( 'delete_user', array( __CLASS__, 'notice_user_deleted' ) );
-		add_action( 'wp_login_failed', array( __CLASS__, 'notice_login_failed' ) );
-		add_action( 'wp_login', array( __CLASS__, 'notice_login_success' ), 10, 2 );
-		add_action( 'password_reset', array( __CLASS__, 'notice_password_reset' ) );
 		add_action( 'transition_post_status', array( __CLASS__, 'notice_post_transition' ), 10, 3 );
 		add_action( 'wp_insert_comment', array( __CLASS__, 'notice_comment_created' ), 10, 2 );
 		add_action( 'transition_comment_status', array( __CLASS__, 'notice_comment_transition' ), 10, 3 );
-		add_action( 'add_attachment', array( __CLASS__, 'notice_media_added' ) );
-		add_action( 'delete_attachment', array( __CLASS__, 'notice_media_deleted' ) );
 		add_action( 'upgrader_process_complete', array( __CLASS__, 'notice_update_complete' ), 10, 2 );
 		add_action( 'automatic_updates_complete', array( __CLASS__, 'notice_automatic_updates' ) );
 		add_action( 'wp_mail_failed', array( __CLASS__, 'notice_mail_failed' ) );
@@ -68,9 +63,6 @@ final class CMS_Admin_App {
 				'user_registered' => 'New user registered',
 				'user_updated' => 'User profile changed',
 				'user_deleted' => 'User deleted',
-				'login_failed' => 'Failed administrator login',
-				'login_success' => 'Successful administrator login',
-				'password_reset' => 'Administrator password reset',
 			),
 			'Content' => array(
 				'post_pending' => 'Post submitted for review',
@@ -101,10 +93,6 @@ final class CMS_Admin_App {
 				'comment_spam' => 'Comment marked as spam',
 				'comment_trashed' => 'Comment moved to trash',
 				'buddyboss_notification' => 'BuddyBoss notification created',
-			),
-			'Media' => array(
-				'media_added' => 'Media uploaded',
-				'media_deleted' => 'Media deleted',
 			),
 			'Updates and delivery' => array(
 				'plugin_updated' => 'Plugin update completed',
@@ -238,25 +226,6 @@ final class CMS_Admin_App {
 		self::notify( 'user_deleted', 'Website user deleted', $user ? $user->display_name . ' was deleted.' : 'A website user was deleted.', admin_url( 'users.php' ) );
 	}
 
-	public static function notice_login_failed( string $username ): void {
-		$user = get_user_by( 'login', $username );
-		if ( $user && in_array( 'administrator', (array) $user->roles, true ) ) {
-			self::notify( 'login_failed', 'Failed administrator login', 'A login attempt failed for an administrator account.', admin_url() );
-		}
-	}
-
-	public static function notice_login_success( string $username, $user ): void {
-		if ( $user instanceof WP_User && in_array( 'administrator', (array) $user->roles, true ) ) {
-			self::notify( 'login_success', 'Administrator signed in', $user->display_name . ' signed in.', admin_url() );
-		}
-	}
-
-	public static function notice_password_reset( $user ): void {
-		if ( $user instanceof WP_User && in_array( 'administrator', (array) $user->roles, true ) ) {
-			self::notify( 'password_reset', 'Administrator password reset', $user->display_name . "'s password was reset.", admin_url( 'users.php' ) );
-		}
-	}
-
 	public static function notice_post_transition( string $new_status, string $old_status, $post ): void {
 		if ( ! $post instanceof WP_Post || wp_is_post_revision( $post ) || wp_is_post_autosave( $post ) ) {
 			return;
@@ -297,14 +266,6 @@ final class CMS_Admin_App {
 		if ( isset( $map[ $new_status ] ) ) {
 			self::notify( $map[ $new_status ], 'Comment status changed', 'A comment from ' . $comment->comment_author . ' is now ' . $new_status . '.', admin_url( 'comment.php?action=editcomment&c=' . $comment->comment_ID ) );
 		}
-	}
-
-	public static function notice_media_added( int $attachment_id ): void {
-		self::notify( 'media_added', 'Media uploaded', get_the_title( $attachment_id ) ?: 'A media file was uploaded.', get_edit_post_link( $attachment_id, 'raw' ) ?: admin_url( 'upload.php' ) );
-	}
-
-	public static function notice_media_deleted( int $attachment_id ): void {
-		self::notify( 'media_deleted', 'Media deleted', get_the_title( $attachment_id ) ?: 'A media file was deleted.', admin_url( 'upload.php' ) );
 	}
 
 	public static function notice_update_complete( $upgrader, array $options ): void {
