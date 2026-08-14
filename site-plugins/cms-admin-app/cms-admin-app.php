@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Chattanooga Music Scene Admin App
  * Description: Installable administrator dashboard and configurable phone notifications for Chattanooga Music Scene.
- * Version: 0.8.1
+ * Version: 0.7.2
  * Author: Chattanooga Music Scene
  * License: GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class CMS_Admin_App {
-	private const VERSION = '0.8.1';
+	private const VERSION = '0.7.2';
 	private const PAGE_SLUG = 'cms-admin-app';
 	private const OPTION_SETTINGS = 'cms_admin_notification_settings';
 	private const OPTION_FIREBASE_KEY = 'cms_admin_firebase_service_key';
@@ -369,7 +369,6 @@ final class CMS_Admin_App {
 
 			<h2 id="privacy">Privacy and Safety</h2>
 			<p class="cms-help-privacy">Member phones receive only notifications assigned to that member’s account. Administrator alerts and another member’s notices are never included. Do not publish passwords, payment information, private addresses, or sensitive personal information in profiles, posts, messages, events, or marketplace listings.</p>
-
 		</section>
 		<style>.cms-notification-help{max-width:980px;margin:0 auto;font-size:1.12rem;line-height:1.65}.cms-notification-help h1{font-size:clamp(2rem,5vw,3.4rem);line-height:1.1}.cms-notification-help h2{font-size:1.55rem;margin-top:1.6em;scroll-margin-top:90px}.cms-help-lead{font-size:1.3rem}.cms-help-nav{display:flex;flex-wrap:wrap;gap:10px;margin:24px 0;padding:16px;background:#1f5148}.cms-help-nav a{color:#fff!important;font-weight:700;padding:7px 10px}.cms-help-actions{display:flex;flex-wrap:wrap;gap:14px;margin:24px 0 12px}.cms-help-button{display:inline-block;min-height:52px;padding:13px 22px;border:0;border-radius:6px;background:#1f5148;color:#fff!important;font-size:1.05rem;font-weight:700;text-decoration:none;cursor:pointer}.cms-help-secondary{background:#9a3324}.cms-help-status,.cms-help-callout,.cms-help-privacy{padding:16px;border-left:5px solid #1f5148;background:#f4eedc}.cms-help-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-top:26px}.cms-help-grid article{padding:20px;border:1px solid #d4cdbd;background:#fff}.cms-help-main-grid article{scroll-margin-top:90px}.cms-notification-help li{margin:.6em 0}@media(max-width:600px){.cms-help-actions{display:block}.cms-help-button{display:block;width:100%;margin:10px 0;text-align:center}.cms-help-nav{display:block}.cms-help-nav a{display:block}}</style>
 		<?php if ( $logged_in ) : ?>
