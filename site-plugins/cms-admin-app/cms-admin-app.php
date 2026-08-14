@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Chattanooga Music Scene Admin App
  * Description: Installable administrator dashboard and configurable phone notifications for Chattanooga Music Scene.
- * Version: 0.5.1
+ * Version: 0.6.0
  * Author: Chattanooga Music Scene
  * License: GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -13,11 +13,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class CMS_Admin_App {
-	private const VERSION = '0.5.1';
+	private const VERSION = '0.6.0';
 	private const PAGE_SLUG = 'cms-admin-app';
 	private const OPTION_SETTINGS = 'cms_admin_notification_settings';
 	private const OPTION_FIREBASE_KEY = 'cms_admin_firebase_service_key';
 	private const TOKEN_META = 'cms_admin_push_tokens';
+	private const MEMBER_SETTINGS_META = 'cms_member_notification_settings';
 	private const FIREBASE_API_KEY = 'AIzaSyC-SaF0QTN2KzPgGfLlIQINMwzVnTiPRYI';
 	private const FIREBASE_AUTH_DOMAIN = 'cms-admin-79199.firebaseapp.com';
 	private const FIREBASE_PROJECT_ID = 'cms-admin-79199';
@@ -36,9 +37,12 @@ final class CMS_Admin_App {
 		add_action( 'wp_footer', array( __CLASS__, 'print_registration_script' ) );
 		add_action( 'template_redirect', array( __CLASS__, 'serve_app_asset' ), 0 );
 		add_action( 'wp_ajax_cms_admin_register_push', array( __CLASS__, 'register_push_token' ) );
+		add_action( 'wp_ajax_cms_member_disconnect_push', array( __CLASS__, 'disconnect_push_token' ) );
 		add_action( 'wp_ajax_cms_admin_save_firebase_key', array( __CLASS__, 'save_firebase_key' ) );
 		add_action( 'wp_ajax_cms_admin_test_push', array( __CLASS__, 'test_push' ) );
 		add_action( 'admin_post_cms_admin_save_notifications', array( __CLASS__, 'save_notification_settings' ) );
+		add_action( 'admin_post_cms_member_save_notifications', array( __CLASS__, 'save_member_notification_settings' ) );
+		add_action( 'bp_setup_nav', array( __CLASS__, 'register_member_notifications_tab' ), 100 );
 
 		add_action( 'user_register', array( __CLASS__, 'notice_user_registered' ) );
 		add_action( 'profile_update', array( __CLASS__, 'notice_user_updated' ), 10, 2 );
@@ -144,6 +148,36 @@ final class CMS_Admin_App {
 		return $settings['master'] && ! empty( $settings['events'][ $event ] );
 	}
 
+	private static function member_catalog(): array {
+		return array(
+			'mentions' => 'Someone mentions me',
+			'private_messages' => 'I receive a private message',
+			'activity_replies' => 'Someone replies to my activity or comment',
+			'follows' => 'Someone follows me or a followed member posts',
+			'groups' => 'Group invitations, requests, approvals and updates',
+			'forums' => 'New discussions and replies in subscribed forums',
+			'connections' => 'Connection requests and acceptances',
+			'post_replies' => 'Someone replies to my website post comment',
+			'account' => 'Important changes to my account',
+			'other_community' => 'Other community notifications',
+		);
+	}
+
+	private static function member_settings( int $user_id ): array {
+		$saved = get_user_meta( $user_id, self::MEMBER_SETTINGS_META, true );
+		$saved = is_array( $saved ) ? $saved : array();
+		$defaults = array_fill_keys( array_keys( self::member_catalog() ), true );
+		return array(
+			'master' => array_key_exists( 'master', $saved ) ? (bool) $saved['master'] : true,
+			'events' => array_merge( $defaults, isset( $saved['events'] ) && is_array( $saved['events'] ) ? $saved['events'] : array() ),
+		);
+	}
+
+	private static function member_event_enabled( int $user_id, string $event ): bool {
+		$settings = self::member_settings( $user_id );
+		return $settings['master'] && ! empty( $settings['events'][ $event ] );
+	}
+
 	public static function register_page(): void {
 		add_menu_page( 'CMS Admin App', 'Admin App', 'manage_options', self::PAGE_SLUG, array( __CLASS__, 'render_page' ), 'dashicons-smartphone', 3 );
 	}
@@ -165,6 +199,91 @@ final class CMS_Admin_App {
 		update_option( self::OPTION_SETTINGS, array( 'master' => ! empty( $_POST['master'] ), 'events' => $selected ), false );
 		wp_safe_redirect( add_query_arg( array( 'page' => self::PAGE_SLUG, 'settings-updated' => '1' ), admin_url( 'admin.php' ) ) );
 		exit;
+	}
+
+	public static function register_member_notifications_tab(): void {
+		if ( ! is_user_logged_in() || ! function_exists( 'bp_core_new_subnav_item' ) ) {
+			return;
+		}
+		bp_core_new_subnav_item(
+			array(
+				'name' => 'Phone Notifications',
+				'slug' => 'phone-notifications',
+				'parent_slug' => 'settings',
+				'parent_url' => trailingslashit( bp_loggedin_user_domain() . 'settings' ),
+				'screen_function' => array( __CLASS__, 'member_notifications_screen' ),
+				'position' => 95,
+				'user_has_access' => bp_is_my_profile(),
+			)
+		);
+	}
+
+	public static function member_notifications_screen(): void {
+		if ( ! bp_is_my_profile() ) {
+			bp_core_no_access();
+			return;
+		}
+		add_action( 'bp_template_content', array( __CLASS__, 'render_member_notifications' ) );
+		bp_core_load_template( 'members/single/plugins' );
+	}
+
+	public static function save_member_notification_settings(): void {
+		if ( ! is_user_logged_in() ) {
+			wp_die( esc_html__( 'You must be logged in.', 'cms-admin-app' ) );
+		}
+		check_admin_referer( 'cms_member_save_notifications' );
+		$user_id = get_current_user_id();
+		$posted = isset( $_POST['events'] ) && is_array( $_POST['events'] ) ? array_map( 'sanitize_key', wp_unslash( $_POST['events'] ) ) : array();
+		$selected = array();
+		foreach ( self::member_catalog() as $key => $label ) {
+			$selected[ $key ] = in_array( $key, $posted, true );
+		}
+		update_user_meta( $user_id, self::MEMBER_SETTINGS_META, array( 'master' => ! empty( $_POST['master'] ), 'events' => $selected ) );
+		$url = function_exists( 'bp_loggedin_user_domain' ) ? trailingslashit( bp_loggedin_user_domain() . 'settings/phone-notifications' ) : home_url( '/' );
+		wp_safe_redirect( add_query_arg( 'settings-updated', '1', $url ) );
+		exit;
+	}
+
+	public static function render_member_notifications(): void {
+		$user_id = get_current_user_id();
+		$settings = self::member_settings( $user_id );
+		$tokens = get_user_meta( $user_id, self::TOKEN_META, true );
+		$connected = is_array( $tokens ) && ! empty( $tokens );
+		?>
+		<div class="cms-member-notifications">
+			<h2>Phone Notifications</h2>
+			<?php if ( isset( $_GET['settings-updated'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?>
+				<div class="bp-feedback success"><span class="bp-icon" aria-hidden="true"></span><p>Your phone-notification choices were saved.</p></div>
+			<?php endif; ?>
+			<p>Connect this device, then choose which community notices you want sent to your phone.</p>
+			<div class="cms-member-device">
+				<p><strong>Device status:</strong> <span id="cms-member-push-status"><?php echo $connected ? 'A device is connected to your account.' : 'No device is connected yet.'; ?></span></p>
+				<button type="button" class="button" id="cms-member-enable-push"><?php echo $connected ? 'Connect or Refresh This Device' : 'Connect This Device'; ?></button>
+				<button type="button" class="button" id="cms-member-disconnect-push">Disconnect All My Devices</button>
+			</div>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<input type="hidden" name="action" value="cms_member_save_notifications">
+				<?php wp_nonce_field( 'cms_member_save_notifications' ); ?>
+				<label class="cms-member-master"><input type="checkbox" name="master" value="1" <?php checked( $settings['master'] ); ?>> Enable phone notifications for my account</label>
+				<div class="cms-member-choices">
+				<?php foreach ( self::member_catalog() as $key => $label ) : ?>
+					<label><input type="checkbox" name="events[]" value="<?php echo esc_attr( $key ); ?>" <?php checked( ! empty( $settings['events'][ $key ] ) ); ?>> <?php echo esc_html( $label ); ?></label>
+				<?php endforeach; ?>
+				</div>
+				<p><button type="submit" class="button submit">Save Phone Notification Choices</button></p>
+			</form>
+		</div>
+		<style>.cms-member-notifications{max-width:760px}.cms-member-device{padding:16px;border:1px solid #d6d6d6;margin:16px 0}.cms-member-master{display:block;font-weight:700;margin:18px 0}.cms-member-choices label{display:block;padding:9px 0;border-bottom:1px solid #eee}</style>
+		<script type="module">
+		import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js';
+		import { getMessaging, getToken, isSupported } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-messaging.js';
+		const connect=document.getElementById('cms-member-enable-push'),disconnect=document.getElementById('cms-member-disconnect-push'),status=document.getElementById('cms-member-push-status');
+		const config=<?php echo wp_json_encode( self::firebase_config() ); ?>,vapid=<?php echo wp_json_encode( self::FIREBASE_VAPID_KEY ); ?>,ajax=<?php echo wp_json_encode( admin_url( 'admin-ajax.php' ) ); ?>,nonce=<?php echo wp_json_encode( wp_create_nonce( 'cms_admin_push' ) ); ?>;
+		async function currentToken(){if(!(await isSupported()))throw Error('Phone notifications are not supported by this browser.');const permission=await Notification.requestPermission();if(permission!=='granted')throw Error('Notification permission was not granted.');const registration=window.cmsAdminAppRegistration||await navigator.serviceWorker.ready;return getToken(getMessaging(initializeApp(config)),{vapidKey:vapid,serviceWorkerRegistration:registration});}
+		connect.onclick=async()=>{connect.disabled=true;try{const token=await currentToken(),response=await fetch(ajax,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body:new URLSearchParams({action:'cms_admin_register_push',nonce,token})}),result=await response.json();if(!response.ok||!result.success)throw Error(result?.data?.message||'This device could not be connected.');status.textContent=result.data.message;}catch(error){status.textContent=error.message;}connect.disabled=false;};
+		disconnect.onclick=async()=>{if(!window.confirm('Disconnect every phone and browser from your notification account?'))return;disconnect.disabled=true;try{const response=await fetch(ajax,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body:new URLSearchParams({action:'cms_member_disconnect_push',nonce})}),result=await response.json();if(!response.ok||!result.success)throw Error(result?.data?.message||'Your devices could not be disconnected.');status.textContent=result.data.message;}catch(error){status.textContent=error.message;}disconnect.disabled=false;};
+		</script>
+		<?php
 	}
 
 	private static function notify( string $event, string $title, string $body, string $link = '' ): void {
@@ -301,6 +420,52 @@ final class CMS_Admin_App {
 
 	public static function notice_buddyboss( $notification ): void {
 		self::notify( 'buddyboss_notification', 'BuddyBoss notification', 'A new community notification was created.', admin_url( 'admin.php?page=bp-notices' ) );
+		if ( ! is_object( $notification ) || empty( $notification->user_id ) ) {
+			return;
+		}
+		$user_id = (int) $notification->user_id;
+		$component = isset( $notification->component_name ) ? sanitize_key( (string) $notification->component_name ) : '';
+		$action = isset( $notification->component_action ) ? sanitize_key( (string) $notification->component_action ) : '';
+		$event = self::map_member_event( $component, $action );
+		if ( ! self::member_event_enabled( $user_id, $event ) ) {
+			return;
+		}
+		$labels = self::member_catalog();
+		$title = isset( $labels[ $event ] ) ? $labels[ $event ] : 'New community notification';
+		$link = function_exists( 'bp_core_get_user_domain' ) ? trailingslashit( bp_core_get_user_domain( $user_id ) . 'notifications' ) : home_url( '/' );
+		self::send_push( 'Chattanooga Music Scene', $title . '.', $link, $user_id );
+	}
+
+	private static function map_member_event( string $component, string $action ): string {
+		$combined = $component . ' ' . $action;
+		if ( false !== strpos( $combined, 'mention' ) ) {
+			return 'mentions';
+		}
+		if ( false !== strpos( $combined, 'message' ) ) {
+			return 'private_messages';
+		}
+		if ( false !== strpos( $combined, 'friend' ) || false !== strpos( $combined, 'connection' ) ) {
+			return 'connections';
+		}
+		if ( false !== strpos( $combined, 'follow' ) ) {
+			return 'follows';
+		}
+		if ( false !== strpos( $combined, 'group' ) ) {
+			return 'groups';
+		}
+		if ( false !== strpos( $combined, 'forum' ) || false !== strpos( $combined, 'topic' ) || false !== strpos( $combined, 'bbp_' ) ) {
+			return 'forums';
+		}
+		if ( false !== strpos( $combined, 'comment' ) && false !== strpos( $combined, 'post' ) ) {
+			return 'post_replies';
+		}
+		if ( false !== strpos( $combined, 'activity' ) || false !== strpos( $combined, 'reply' ) ) {
+			return 'activity_replies';
+		}
+		if ( false !== strpos( $combined, 'account' ) || false !== strpos( $combined, 'password' ) || false !== strpos( $combined, 'settings' ) ) {
+			return 'account';
+		}
+		return 'other_community';
 	}
 
 	public static function notice_wordfence( $event, $data = array() ): void {
@@ -326,7 +491,7 @@ final class CMS_Admin_App {
 	}
 
 	public static function print_registration_script(): void {
-		if ( ! current_user_can( 'manage_options' ) ) {
+		if ( ! is_user_logged_in() ) {
 			return;
 		}
 		$worker_url = add_query_arg( array( 'cms_admin_sw' => '1', 'v' => self::VERSION ), home_url( '/' ) );
@@ -365,7 +530,7 @@ final class CMS_Admin_App {
 		?>
 		importScripts('https://www.gstatic.com/firebasejs/11.10.0/firebase-app-compat.js');
 		importScripts('https://www.gstatic.com/firebasejs/11.10.0/firebase-messaging-compat.js');
-		firebase.initializeApp(<?php echo wp_json_encode( self::firebase_config() ); ?>);const cmsMessaging=firebase.messaging();cmsMessaging.onBackgroundMessage(payload=>{const d=payload.data||{};return self.registration.showNotification(d.title||'CMS Admin',{body:d.body||'',data:{url:d.link||<?php echo wp_json_encode( admin_url( 'admin.php?page=' . self::PAGE_SLUG ) ); ?>}});});self.addEventListener('install',()=>self.skipWaiting());self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));self.addEventListener('fetch',()=>{});self.addEventListener('notificationclick',e=>{e.notification.close();e.waitUntil(clients.openWindow((e.notification.data&&e.notification.data.url)||<?php echo wp_json_encode( admin_url( 'admin.php?page=' . self::PAGE_SLUG ) ); ?>));});
+		firebase.initializeApp(<?php echo wp_json_encode( self::firebase_config() ); ?>);const cmsMessaging=firebase.messaging();cmsMessaging.onBackgroundMessage(payload=>{const d=payload.data||{};return self.registration.showNotification(d.title||'Chattanooga Music Scene',{body:d.body||'',data:{url:d.link||<?php echo wp_json_encode( home_url( '/' ) ); ?>}});});self.addEventListener('install',()=>self.skipWaiting());self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));self.addEventListener('fetch',()=>{});self.addEventListener('notificationclick',e=>{e.notification.close();e.waitUntil(clients.openWindow((e.notification.data&&e.notification.data.url)||<?php echo wp_json_encode( home_url( '/' ) ); ?>));});
 		<?php
 		exit;
 	}
@@ -376,8 +541,8 @@ final class CMS_Admin_App {
 
 	public static function register_push_token(): void {
 		check_ajax_referer( 'cms_admin_push', 'nonce' );
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'message' => 'Administrator access is required.' ), 403 );
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error( array( 'message' => 'You must be logged in.' ), 403 );
 		}
 		$token = isset( $_POST['token'] ) ? sanitize_text_field( wp_unslash( $_POST['token'] ) ) : '';
 		if ( '' === $token || strlen( $token ) > 4096 ) {
@@ -387,7 +552,16 @@ final class CMS_Admin_App {
 		$tokens = is_array( $tokens ) ? $tokens : array();
 		$tokens[ hash( 'sha256', $token ) ] = array( 'token' => $token, 'updated' => time() );
 		update_user_meta( get_current_user_id(), self::TOKEN_META, array_slice( $tokens, -10, 10, true ) );
-		wp_send_json_success( array( 'message' => 'This administrator device is connected.' ) );
+		wp_send_json_success( array( 'message' => current_user_can( 'manage_options' ) ? 'This administrator device is connected.' : 'This device is connected to your account.' ) );
+	}
+
+	public static function disconnect_push_token(): void {
+		check_ajax_referer( 'cms_admin_push', 'nonce' );
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error( array( 'message' => 'You must be logged in.' ), 403 );
+		}
+		delete_user_meta( get_current_user_id(), self::TOKEN_META );
+		wp_send_json_success( array( 'message' => 'All devices are disconnected from your account.' ) );
 	}
 
 	public static function save_firebase_key(): void {
