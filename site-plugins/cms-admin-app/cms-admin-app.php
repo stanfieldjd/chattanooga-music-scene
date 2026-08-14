@@ -377,8 +377,7 @@ final class CMS_Admin_App {
 	public static function render_terms_and_conditions(): string {
 		ob_start();
 		?>
-		<section class="cms-terms" aria-labelledby="cms-terms-title">
-			<h1 id="cms-terms-title">Terms and Conditions</h1>
+		<section class="cms-terms" aria-label="Terms and Conditions">
 			<p><strong>Last updated: August 14, 2026</strong></p>
 			<p>These Terms and Conditions govern your access to and use of Chattanooga Music Scene, including accounts, profiles, community features, events, venue information, forums, groups, messages, marketplace listings, and store purchases. By using the website, creating an account, submitting content, listing an item, or placing an order, you agree to these terms.</p>
 
@@ -458,7 +457,7 @@ final class CMS_Admin_App {
 			<h2>23. Contact</h2>
 			<p>For account, content, order, return, or legal questions, contact Chattanooga Music Scene through the contact method provided on the website. Include an order number when contacting us about a purchase.</p>
 		</section>
-		<style>.cms-terms{max-width:920px;margin:0 auto;font-size:1.08rem;line-height:1.7}.cms-terms h1{font-size:clamp(2rem,5vw,3.4rem);line-height:1.1}.cms-terms h2{margin-top:1.7em;color:#1f5148}.cms-terms a{font-weight:700}</style>
+		<style>.cms-terms{max-width:920px;margin:0 auto;font-size:1.08rem;line-height:1.7}.cms-terms h2{margin-top:1.7em;color:#1f5148}.cms-terms a{font-weight:700}</style>
 		<?php
 		return (string) ob_get_clean();
 	}
