@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Chattanooga Music Scene Admin App
  * Description: Installable administrator dashboard and configurable phone notifications for Chattanooga Music Scene.
- * Version: 0.7.2
+ * Version: 0.8.0
  * Author: Chattanooga Music Scene
  * License: GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class CMS_Admin_App {
-	private const VERSION = '0.7.2';
+	private const VERSION = '0.8.0';
 	private const PAGE_SLUG = 'cms-admin-app';
 	private const OPTION_SETTINGS = 'cms_admin_notification_settings';
 	private const OPTION_FIREBASE_KEY = 'cms_admin_firebase_service_key';
@@ -37,6 +37,7 @@ final class CMS_Admin_App {
 		add_action( 'wp_footer', array( __CLASS__, 'print_registration_script' ) );
 		add_action( 'wp_footer', array( __CLASS__, 'print_public_help_menu_link' ), 30 );
 		add_action( 'template_redirect', array( __CLASS__, 'serve_app_asset' ), 0 );
+		add_action( 'template_redirect', array( __CLASS__, 'redirect_legacy_terms_page' ), 20 );
 		add_action( 'wp_ajax_cms_admin_register_push', array( __CLASS__, 'register_push_token' ) );
 		add_action( 'wp_ajax_cms_member_disconnect_push', array( __CLASS__, 'disconnect_push_token' ) );
 		add_action( 'wp_ajax_cms_member_test_push', array( __CLASS__, 'test_member_push' ) );
@@ -47,6 +48,13 @@ final class CMS_Admin_App {
 		add_action( 'bp_setup_nav', array( __CLASS__, 'register_member_notifications_tab' ), 100 );
 		add_shortcode( 'cms_site_help', array( __CLASS__, 'render_site_help' ) );
 		add_shortcode( 'cms_member_notifications_help', array( __CLASS__, 'render_site_help' ) );
+		add_shortcode( 'cms_terms_and_conditions', array( __CLASS__, 'render_terms_and_conditions' ) );
+		add_action( 'bp_before_registration_submit_buttons', array( __CLASS__, 'render_signup_terms_agreement' ) );
+		add_action( 'bp_signup_validate', array( __CLASS__, 'validate_buddypress_terms_agreement' ) );
+		add_action( 'register_form', array( __CLASS__, 'render_signup_terms_agreement' ) );
+		add_filter( 'registration_errors', array( __CLASS__, 'validate_wordpress_terms_agreement' ), 10, 3 );
+		add_action( 'woocommerce_register_form', array( __CLASS__, 'render_signup_terms_agreement' ) );
+		add_filter( 'woocommerce_registration_errors', array( __CLASS__, 'validate_woocommerce_terms_agreement' ), 10, 3 );
 
 		add_action( 'user_register', array( __CLASS__, 'notice_user_registered' ) );
 		add_action( 'profile_update', array( __CLASS__, 'notice_user_updated' ), 10, 2 );
@@ -87,6 +95,56 @@ final class CMS_Admin_App {
 		});
 		</script>
 		<?php
+	}
+
+	private static function terms_url(): string {
+		return home_url( '/terms-and-conditions/' );
+	}
+
+	public static function redirect_legacy_terms_page(): void {
+		if ( is_page( 36 ) ) {
+			wp_safe_redirect( self::terms_url(), 301 );
+			exit;
+		}
+	}
+
+	public static function render_signup_terms_agreement(): void {
+		$checked = ! empty( $_POST['cms_terms_agreement'] ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		?>
+		<p class="cms-signup-terms">
+			<label>
+				<input type="checkbox" name="cms_terms_agreement" value="1" <?php checked( $checked ); ?> required>
+				I have read and agree to the <a href="<?php echo esc_url( self::terms_url() ); ?>" target="_blank" rel="noopener">Terms and Conditions</a>.
+			</label>
+		</p>
+		<?php
+	}
+
+	private static function terms_were_accepted(): bool {
+		return ! empty( $_POST['cms_terms_agreement'] ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+	}
+
+	public static function validate_buddypress_terms_agreement(): void {
+		if ( self::terms_were_accepted() || ! function_exists( 'buddypress' ) ) {
+			return;
+		}
+		buddypress()->signup->errors['cms_terms_agreement'] = 'You must agree to the Terms and Conditions to create an account.';
+	}
+
+	public static function validate_wordpress_terms_agreement( WP_Error $errors, string $sanitized_user_login, string $user_email ): WP_Error {
+		unset( $sanitized_user_login, $user_email );
+		if ( ! self::terms_were_accepted() ) {
+			$errors->add( 'cms_terms_agreement_required', 'You must agree to the Terms and Conditions to create an account.' );
+		}
+		return $errors;
+	}
+
+	public static function validate_woocommerce_terms_agreement( WP_Error $errors, string $username, string $email ): WP_Error {
+		unset( $username, $email );
+		if ( ! self::terms_were_accepted() ) {
+			$errors->add( 'cms_terms_agreement_required', 'You must agree to the Terms and Conditions to create an account.' );
+		}
+		return $errors;
 	}
 
 	private static function catalog(): array {
@@ -316,6 +374,95 @@ final class CMS_Admin_App {
 		<?php
 	}
 
+	public static function render_terms_and_conditions(): string {
+		ob_start();
+		?>
+		<section class="cms-terms" aria-labelledby="cms-terms-title">
+			<h1 id="cms-terms-title">Terms and Conditions</h1>
+			<p><strong>Last updated: August 14, 2026</strong></p>
+			<p>These Terms and Conditions govern your access to and use of Chattanooga Music Scene, including accounts, profiles, community features, events, venue information, forums, groups, messages, marketplace listings, and store purchases. By using the website, creating an account, submitting content, listing an item, or placing an order, you agree to these terms.</p>
+
+			<h2>1. Eligibility and Acceptance</h2>
+			<p>You must be legally able to agree to these terms. If you use the website for an organization, band, venue, or business, you represent that you are authorized to act for it. Provide accurate information and do not create an account or use the website for unlawful or deceptive purposes.</p>
+
+			<h2>2. Accounts and Security</h2>
+			<p>You are responsible for the accuracy of your registration information, the security of your password and connected devices, and activity conducted through your account. Do not share access, impersonate another person, or attempt to obtain another member’s credentials. Notify Chattanooga Music Scene promptly if you believe an account has been compromised.</p>
+
+			<h2>3. Community Conduct</h2>
+			<p>Profiles, activity feeds, comments, groups, forums, private messages, follows, connections, and notification tools exist to support Chattanooga’s music community. You may not harass, threaten, stalk, defraud, exploit, discriminate against, or unlawfully expose another person’s private information. Spam, malicious code, coordinated manipulation, unauthorized advertising, and attempts to interfere with the website are prohibited.</p>
+			<p>Private messages are intended for their participants, but no online system can guarantee absolute confidentiality. Use good judgment and do not send passwords, payment-card details, or other highly sensitive information through community features.</p>
+
+			<h2>4. User Content and Permissions</h2>
+			<p>You retain ownership of content you submit. You grant Chattanooga Music Scene a non-exclusive, worldwide, royalty-free license to host, store, reproduce, format, display, and distribute that content only as reasonably necessary to operate, promote, archive, and improve the website and its community services. This permission ends when the content is deleted, except for reasonable backups, legal retention, and content already shared by others.</p>
+			<p>Submit only material you own or are authorized to use. Do not upload infringing music, photographs, video, artwork, trademarks, personal information, or other protected material. You are responsible for the accuracy and legality of your submissions.</p>
+
+			<h2>5. Events, Venues, and Editorial Information</h2>
+			<p>Event, venue, artist, and ticket information may come from organizers, members, public sources, or third parties. Dates, times, prices, lineups, availability, age restrictions, and venue details can change. Confirm important details with the organizer, venue, or original ticket source before traveling or purchasing. Submission does not guarantee publication, endorsement, or continued listing.</p>
+			<p>Chattanooga Music Scene may correct formatting, remove duplicates, add source attribution, update stale information, decline a submission, or remove content that is inaccurate, expired, unsafe, unlawful, or inconsistent with these terms.</p>
+
+			<h2>6. Marketplace and Classified Listings</h2>
+			<p>Marketplace and classified listings may connect independent buyers and sellers. Unless a listing uses an approved Chattanooga Music Scene checkout, the website is not a party to the transaction and does not guarantee identity, condition, authenticity, payment, delivery, or performance. Inspect items, verify claims, use secure payment methods, and use caution when meeting another person. Fraudulent, stolen, illegal, dangerous, misleading, or infringing items are prohibited.</p>
+
+			<h2>7. Store Eligibility and Orders</h2>
+			<p>You must provide accurate billing, shipping, and contact information when placing an order. Product availability can change without notice. We may limit quantities, discontinue products, correct errors, or cancel an order when a product is unavailable, information is materially incorrect, or fraud or unauthorized activity is suspected.</p>
+
+			<h2>8. Products and Availability</h2>
+			<p>We make reasonable efforts to describe products, colors, measurements, features, and availability accurately. Images may appear differently depending on your screen. Product names, trademarks, photographs, and other supplier materials remain the property of their respective owners.</p>
+
+			<h2>9. Prices, Taxes, and Payment</h2>
+			<p>Prices are listed in U.S. dollars unless stated otherwise. Applicable sales tax is calculated at checkout based on the shipping address. Payment is processed through the methods displayed at checkout. An order is not accepted until payment is authorized and an order confirmation is sent.</p>
+
+			<h2>10. Shipping and Third-Party Fulfillment</h2>
+			<p>We currently ship to addresses within the United States. Free standard shipping may be offered as shown at checkout. Some products may be stored, packed, or shipped by third-party fulfillment partners. Items in one order may arrive in separate packages and on different dates.</p>
+			<p>Delivery estimates are not guarantees. Carrier delays, severe weather, address errors, supply interruptions, and circumstances outside our reasonable control can affect delivery. Customers are responsible for providing a complete and deliverable shipping address. Contact us promptly if tracking shows a delivery problem.</p>
+
+			<h2>11. Order Changes and Cancellations</h2>
+			<p>Contact us as soon as possible to request a change or cancellation. Once fulfillment or shipment begins, a change or cancellation may no longer be possible. If an order cannot be cancelled, the return policy applies after delivery.</p>
+
+			<h2>12. Thirty-Day Returns</h2>
+			<p>You may request a return within 30 days after delivery. To qualify, the item must be unused, unworn, unwashed, undamaged, and returned with its original packaging, accessories, manuals, and tags. Proof of purchase is required.</p>
+			<p>Contact Chattanooga Music Scene before sending a return. Do not send products to the business address or an address shown on a package unless we provide that return address and instructions. Products fulfilled by different suppliers may require different return destinations.</p>
+			<p>Unless an item arrived damaged, defective, materially different from its description, or was sent in error, the customer is responsible for approved return-shipping costs. Original expedited-shipping charges are not refundable. Use of a trackable return method is recommended.</p>
+			<p>The following are not returnable unless defective or required by law: personalized or custom-made goods, gift cards, downloadable or digital products after delivery, hygiene-sensitive goods after opening, and products marked final sale.</p>
+
+			<h2>13. Damaged, Defective, Incorrect, or Missing Items</h2>
+			<p>Inspect your order promptly. Contact us with the order number, a description, and clear photographs when an item arrives damaged, defective, incomplete, or incorrect. We may request reasonable evidence. Depending on the circumstances and availability, we may offer a replacement, refund, or other appropriate remedy.</p>
+
+			<h2>14. Refunds</h2>
+			<p>Approved refunds are issued to the original payment method after the returned item is received and inspected, or after a claim is otherwise approved. Bank and payment-provider processing times vary. We may reduce or deny a refund when a returned product does not meet the stated conditions, except where prohibited by law.</p>
+
+			<h2>15. Intellectual Property</h2>
+			<p>The Chattanooga Music Scene name, site design, original text, graphics, software, and other original content are protected by applicable intellectual-property laws. No rights are transferred except the limited right to use the website for its intended personal or community purposes. Do not copy, scrape, republish, sell, or exploit protected content without permission or another lawful basis.</p>
+
+			<h2>16. Third-Party Services and Links</h2>
+			<p>The website may use or link to ticket sellers, payment processors, carriers, fulfillment providers, analytics services, social platforms, organizers, venues, and other websites. Their services are governed by their own terms and privacy practices. Chattanooga Music Scene does not control independent third-party services and is not responsible for them except to the extent required by law.</p>
+
+			<h2>17. Moderation, Suspension, and Termination</h2>
+			<p>We may review, limit, hide, reject, or remove content and may warn, suspend, or terminate accounts when reasonably necessary to protect members, comply with law, enforce these terms, prevent fraud or abuse, or preserve website security. We may also preserve information when required for security, dispute resolution, or legal compliance.</p>
+
+			<h2>18. Disclaimers and Limitation of Liability</h2>
+			<p>The website, community features, information, listings, and store services are provided subject to warranties and rights required by law. To the fullest extent permitted by law, Chattanooga Music Scene disclaims implied warranties not expressly stated and is not liable for indirect, incidental, special, punitive, or consequential damages. Liability relating to a store purchase will not exceed the amount paid for the product giving rise to the claim. Nothing in these terms excludes rights or remedies that cannot legally be excluded.</p>
+
+			<h2>19. Indemnification</h2>
+			<p>To the extent permitted by law, you agree to be responsible for losses or claims resulting from your unlawful misuse of the website, violation of these terms, content you submit, or infringement of another person’s rights.</p>
+
+			<h2>20. Privacy</h2>
+			<p>Use of personal information is also governed by the <a href="<?php echo esc_url( home_url( '/privacy-policy/' ) ); ?>">Privacy Policy</a>. Do not publish information about another person without permission or another lawful basis.</p>
+
+			<h2>21. Governing Law</h2>
+			<p>These terms are governed by the laws of the State of Georgia, without regard to conflict-of-law principles. Any dispute will be handled in an appropriate court with jurisdiction in Georgia, unless applicable law requires otherwise.</p>
+
+			<h2>22. Changes to These Terms</h2>
+			<p>These terms may be updated when website practices, services, or legal requirements change. The revised version will be posted on this page with an updated date. Changes apply prospectively unless law requires otherwise.</p>
+
+			<h2>23. Contact</h2>
+			<p>For account, content, order, return, or legal questions, contact Chattanooga Music Scene through the contact method provided on the website. Include an order number when contacting us about a purchase.</p>
+		</section>
+		<style>.cms-terms{max-width:920px;margin:0 auto;font-size:1.08rem;line-height:1.7}.cms-terms h1{font-size:clamp(2rem,5vw,3.4rem);line-height:1.1}.cms-terms h2{margin-top:1.7em;color:#1f5148}.cms-terms a{font-weight:700}</style>
+		<?php
+		return (string) ob_get_clean();
+	}
+
 	public static function render_site_help(): string {
 		$logged_in = is_user_logged_in();
 		$settings_url = $logged_in && function_exists( 'bp_loggedin_user_domain' ) ? trailingslashit( bp_loggedin_user_domain() . 'settings/phone-notifications' ) : '';
@@ -369,8 +516,10 @@ final class CMS_Admin_App {
 
 			<h2 id="privacy">Privacy and Safety</h2>
 			<p class="cms-help-privacy">Member phones receive only notifications assigned to that member’s account. Administrator alerts and another member’s notices are never included. Do not publish passwords, payment information, private addresses, or sensitive personal information in profiles, posts, messages, events, or marketplace listings.</p>
+
+			<p class="cms-help-legal">By using Chattanooga Music Scene or creating an account, you agree to the <a href="<?php echo esc_url( self::terms_url() ); ?>">Terms and Conditions</a>. The consolidated page covers accounts, community participation, events, marketplace listings, and store purchases.</p>
 		</section>
-		<style>.cms-notification-help{max-width:980px;margin:0 auto;font-size:1.12rem;line-height:1.65}.cms-notification-help h1{font-size:clamp(2rem,5vw,3.4rem);line-height:1.1}.cms-notification-help h2{font-size:1.55rem;margin-top:1.6em;scroll-margin-top:90px}.cms-help-lead{font-size:1.3rem}.cms-help-nav{display:flex;flex-wrap:wrap;gap:10px;margin:24px 0;padding:16px;background:#1f5148}.cms-help-nav a{color:#fff!important;font-weight:700;padding:7px 10px}.cms-help-actions{display:flex;flex-wrap:wrap;gap:14px;margin:24px 0 12px}.cms-help-button{display:inline-block;min-height:52px;padding:13px 22px;border:0;border-radius:6px;background:#1f5148;color:#fff!important;font-size:1.05rem;font-weight:700;text-decoration:none;cursor:pointer}.cms-help-secondary{background:#9a3324}.cms-help-status,.cms-help-callout,.cms-help-privacy{padding:16px;border-left:5px solid #1f5148;background:#f4eedc}.cms-help-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-top:26px}.cms-help-grid article{padding:20px;border:1px solid #d4cdbd;background:#fff}.cms-help-main-grid article{scroll-margin-top:90px}.cms-notification-help li{margin:.6em 0}@media(max-width:600px){.cms-help-actions{display:block}.cms-help-button{display:block;width:100%;margin:10px 0;text-align:center}.cms-help-nav{display:block}.cms-help-nav a{display:block}}</style>
+		<style>.cms-notification-help{max-width:980px;margin:0 auto;font-size:1.12rem;line-height:1.65}.cms-notification-help h1{font-size:clamp(2rem,5vw,3.4rem);line-height:1.1}.cms-notification-help h2{font-size:1.55rem;margin-top:1.6em;scroll-margin-top:90px}.cms-help-lead{font-size:1.3rem}.cms-help-nav{display:flex;flex-wrap:wrap;gap:10px;margin:24px 0;padding:16px;background:#1f5148}.cms-help-nav a{color:#fff!important;font-weight:700;padding:7px 10px}.cms-help-actions{display:flex;flex-wrap:wrap;gap:14px;margin:24px 0 12px}.cms-help-button{display:inline-block;min-height:52px;padding:13px 22px;border:0;border-radius:6px;background:#1f5148;color:#fff!important;font-size:1.05rem;font-weight:700;text-decoration:none;cursor:pointer}.cms-help-secondary{background:#9a3324}.cms-help-status,.cms-help-callout,.cms-help-privacy{padding:16px;border-left:5px solid #1f5148;background:#f4eedc}.cms-help-legal{margin-top:32px;padding-top:22px;border-top:2px solid #1f5148;font-weight:700}.cms-help-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-top:26px}.cms-help-grid article{padding:20px;border:1px solid #d4cdbd;background:#fff}.cms-help-main-grid article{scroll-margin-top:90px}.cms-notification-help li{margin:.6em 0}@media(max-width:600px){.cms-help-actions{display:block}.cms-help-button{display:block;width:100%;margin:10px 0;text-align:center}.cms-help-nav{display:block}.cms-help-nav a{display:block}}</style>
 		<?php if ( $logged_in ) : ?>
 		<script>(()=>{let promptEvent;const button=document.getElementById('cms-member-install-app'),status=document.getElementById('cms-member-install-status');const standalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;if(standalone){status.textContent='The notification app is already installed on this device.';button.hidden=true;return;}window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();promptEvent=event;status.textContent='This device is ready to install the notification app.';});button.addEventListener('click',async()=>{if(!promptEvent){status.textContent=/iPhone|iPad|iPod/.test(navigator.userAgent)?'On iPhone or iPad, use Safari’s Share button and choose Add to Home Screen.':'Open your browser menu and choose Install app or Add to Home screen.';return;}promptEvent.prompt();const choice=await promptEvent.userChoice;status.textContent=choice.outcome==='accepted'?'Installation started. Open CMS Notices from your home screen.':'Installation was not completed.';promptEvent=null;});window.addEventListener('appinstalled',()=>{status.textContent='The notification app is installed.';button.hidden=true;});})();</script>
 		<?php endif; ?>
