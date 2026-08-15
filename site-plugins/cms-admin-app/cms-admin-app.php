@@ -35,8 +35,6 @@ final class CMS_Admin_App {
 		add_action( 'wp_head', array( __CLASS__, 'print_manifest_link' ) );
 		add_action( 'admin_footer', array( __CLASS__, 'print_registration_script' ) );
 		add_action( 'wp_footer', array( __CLASS__, 'print_registration_script' ) );
-		add_action( 'wp_footer', array( __CLASS__, 'print_public_help_menu_link' ), 30 );
-		add_filter( 'render_block_core/navigation', array( __CLASS__, 'append_help_navigation' ), 10, 2 );
 		add_action( 'template_redirect', array( __CLASS__, 'serve_app_asset' ), 0 );
 		add_action( 'wp_ajax_cms_admin_register_push', array( __CLASS__, 'register_push_token' ) );
 		add_action( 'wp_ajax_cms_member_disconnect_push', array( __CLASS__, 'disconnect_push_token' ) );
@@ -64,61 +62,6 @@ final class CMS_Admin_App {
 		add_action( 'great_imports_run_failed', array( __CLASS__, 'notice_great_imports_failed' ), 10, 2 );
 		add_action( 'great_imports_review_required', array( __CLASS__, 'notice_great_imports_review' ), 10, 2 );
 		add_action( 'cms_admin_app_notify', array( __CLASS__, 'receive_custom_notification' ), 10, 4 );
-	}
-
-	public static function append_help_navigation( string $block_content, array $block ): string {
-		if ( is_admin() || false !== strpos( $block_content, 'data-cms-help-link' ) ) {
-			return $block_content;
-		}
-		$position = strrpos( $block_content, '</ul>' );
-		if ( false === $position ) {
-			return $block_content;
-		}
-		$item = sprintf(
-			'<li class="has-large-font-size wp-block-navigation-item wp-block-navigation-link"><a class="wp-block-navigation-item__content" href="%s" data-cms-help-link="1"><span class="wp-block-navigation-item__label">Help</span></a></li>',
-			esc_url( home_url( '/help/' ) )
-		);
-		return substr_replace( $block_content, $item, $position, 0 );
-	}
-
-	public static function print_public_help_menu_link(): void {
-		if ( is_admin() ) {
-			return;
-		}
-		$help_url = home_url( '/help/' );
-		?>
-		<script>
-		(()=>{
-			const addHelpLinks=()=>{
-				document.querySelectorAll('.rr-community-nav__list, nav[aria-label="main"] .wp-block-navigation__container').forEach(menu=>{
-					if(menu.querySelector('a[data-cms-help-link]'))return;
-					const item=document.createElement('li');
-					const link=document.createElement('a');
-					const blockMenu=menu.classList.contains('wp-block-navigation__container');
-					item.className=blockMenu?'has-large-font-size wp-block-navigation-item wp-block-navigation-link':'';
-					link.className=blockMenu?'wp-block-navigation-item__content':'rr-community-nav__link';
-					link.href=<?php echo wp_json_encode( $help_url ); ?>;
-					link.setAttribute('data-cms-help-link','1');
-					if(blockMenu){
-						const label=document.createElement('span');
-						label.className='wp-block-navigation-item__label';
-						label.textContent='Help';
-						link.appendChild(label);
-					}else{
-						link.textContent='Help';
-					}
-					if(location.pathname.replace(/\/+$/,'')==='/help')link.setAttribute('aria-current','page');
-					item.appendChild(link);
-					menu.appendChild(item);
-				});
-			};
-			if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',addHelpLinks);
-			else addHelpLinks();
-			window.addEventListener('pageshow',addHelpLinks);
-			new MutationObserver(addHelpLinks).observe(document.documentElement,{childList:true,subtree:true});
-		})();
-		</script>
-		<?php
 	}
 
 	private static function catalog(): array {
