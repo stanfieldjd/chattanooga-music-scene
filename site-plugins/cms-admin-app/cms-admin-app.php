@@ -73,14 +73,23 @@ final class CMS_Admin_App {
 		?>
 		<script>
 		document.addEventListener('DOMContentLoaded',()=>{
-			const menu=document.querySelector('.rr-community-nav__list');
+			const menu=document.querySelector('.rr-community-nav__list, nav[aria-label="main"] .wp-block-navigation__container');
 			if(!menu||menu.querySelector('a[data-cms-help-link]'))return;
 			const item=document.createElement('li');
 			const link=document.createElement('a');
-			link.className='rr-community-nav__link';
+			const blockMenu=menu.classList.contains('wp-block-navigation__container');
+			item.className=blockMenu?'has-large-font-size wp-block-navigation-item wp-block-navigation-link':'';
+			link.className=blockMenu?'wp-block-navigation-item__content':'rr-community-nav__link';
 			link.href=<?php echo wp_json_encode( $help_url ); ?>;
-			link.textContent='Help';
 			link.setAttribute('data-cms-help-link','1');
+			if(blockMenu){
+				const label=document.createElement('span');
+				label.className='wp-block-navigation-item__label';
+				label.textContent='Help';
+				link.appendChild(label);
+			}else{
+				link.textContent='Help';
+			}
 			if(location.pathname.replace(/\/+$/,'')==='/help')link.setAttribute('aria-current','page');
 			item.appendChild(link);
 			menu.appendChild(item);
