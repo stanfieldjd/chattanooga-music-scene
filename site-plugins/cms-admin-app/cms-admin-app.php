@@ -629,7 +629,7 @@ final class CMS_Admin_App {
 				$icons[] = array( 'src' => $url, 'sizes' => $size . 'x' . $size, 'type' => 'image/png' );
 			}
 		}
-		$start_url = home_url( '/phone-notifications-help/' );
+		$start_url = home_url( '/help/' );
 		nocache_headers();
 		header( 'Content-Type: application/manifest+json; charset=utf-8' );
 		echo wp_json_encode( array( 'id' => home_url( '/member-notifications-app' ), 'name' => 'Chattanooga Music Scene Notifications', 'short_name' => 'CMS Notices', 'description' => 'Community notifications for Chattanooga Music Scene members.', 'start_url' => $start_url, 'scope' => home_url( '/' ), 'display' => 'standalone', 'background_color' => '#f4eedc', 'theme_color' => '#1f5148', 'icons' => $icons ), JSON_UNESCAPED_SLASHES );
