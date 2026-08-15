@@ -586,18 +586,11 @@ final class CMS_Admin_App {
 	}
 
 	public static function print_manifest_link(): void {
-		if ( ! is_user_logged_in() ) {
-			return;
-		}
-		$member_help = ! is_admin() && is_page( 'help' );
-		$manifest = $member_help || ! current_user_can( 'manage_options' ) ? home_url( '/?cms_member_manifest=1' ) : home_url( '/?cms_admin_manifest=1' );
+		$manifest = is_admin() ? home_url( '/?cms_admin_manifest=1' ) : home_url( '/?cms_member_manifest=1' );
 		printf( '<link rel="manifest" href="%s">' . "\n" . '<meta name="theme-color" content="#1f5148">' . "\n", esc_url( $manifest ) );
 	}
 
 	public static function print_registration_script(): void {
-		if ( ! is_user_logged_in() ) {
-			return;
-		}
 		$worker_url = add_query_arg( array( 'cms_admin_sw' => '1', 'v' => self::VERSION ), home_url( '/' ) );
 		?>
 		<script>(()=>{if(!('serviceWorker'in navigator))return;window.addEventListener('load',()=>{navigator.serviceWorker.register(<?php echo wp_json_encode( $worker_url ); ?>,{scope:'/'}).then(r=>{window.cmsAdminAppRegistration=r;document.dispatchEvent(new CustomEvent('cms-admin-app-ready'));}).catch(()=>{});});})();</script>
