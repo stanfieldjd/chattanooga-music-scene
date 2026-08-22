@@ -1,0 +1,8 @@
+{
+  "canvas":{"width":1920,"height":1080,"authoritative_source":"index.html","flattened_source":false},
+  "font":{"family":"SceneHeadline","source":"embedded data URI in index.html","usage":"display lettering only"},
+  "image_assets":{"background":"https://www.chattanoogamusicscene.com/wp-content/uploads/2026/08/scene-river-bridge-background-v1.webp","performer":"https://www.chattanoogamusicscene.com/wp-content/uploads/2026/08/exec-ffd32e58-386d-41ba-a280-4bac143af016.png"},
+  "layers":[
+    {"z":1,"id":"01-background","type":"replaceable-image"},{"z":2,"id":"02-ink-wash","type":"css-effect"},{"z":20,"id":"03-logo","type":"fixed-linked-object"},{"z":21,"id":"04-navigation","type":"live-links"},{"z":5,"id":"05-hero-paper","type":"css-surface"},{"z":10,"id":"06-performer","type":"replaceable-image"},{"z":12,"id":"07-hero-live-content","type":"editable-html"},{"z":13,"id":"08-river-paper-transition","type":"css-surface"},{"z":14,"id":"09-editorial-ribbon","type":"container"},{"z":15,"id":"10-tonight","type":"editable-cms-module"},{"z":15,"id":"11-upcoming","type":"editable-cms-module"},{"z":15,"id":"12-free","type":"editable-cms-module"},{"z":15,"id":"13-venue","type":"editable-cms-module"},{"z":15,"id":"14-scene-story","type":"editable-cms-module"}
+  ]
+}
