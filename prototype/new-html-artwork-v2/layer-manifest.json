@@ -1,0 +1,24 @@
+{
+  "name":"New HTML Artwork Mock-up v2",
+  "canvas":{"width":1920,"height":1080,"desktop_first":true,"flattened":false},
+  "authoritative_source":"index.html",
+  "construction_order":[
+    {"id":"01-environment","type":"replaceable image","editable":true},
+    {"id":"02-grain","type":"CSS texture","editable":true},
+    {"id":"03-logo","type":"linked HTML lettering","editable":false,"behavior":"neon hover"},
+    {"id":"04-navigation","type":"live HTML links","editable":true},
+    {"id":"05-torn-transition","type":"CSS paper edge","editable":true},
+    {"id":"06-feature-paper","type":"CSS surface","editable":true},
+    {"id":"07-editable-feature","type":"live HTML content","editable":true},
+    {"id":"08-feature-photo","type":"replaceable linked image","editable":true},
+    {"id":"09-red-thread","type":"SVG connector","editable":true},
+    {"id":"10-editorial-paper","type":"CSS surface","editable":true},
+    {"id":"11-editorial-edition","type":"live HTML composition","editable":true},
+    {"id":"12-tonight","type":"CMS module","editable":true},
+    {"id":"13-upcoming","type":"CMS module","editable":true},
+    {"id":"14-free","type":"CMS module","editable":true},
+    {"id":"15-venue","type":"CMS module","editable":true},
+    {"id":"16-editorial","type":"CMS module","editable":true}
+  ],
+  "acceptance":{"full_page_flattened_image":false,"real_links":true,"editable_event_text":true,"independent_layers":16}
+}
