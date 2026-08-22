@@ -1,0 +1,51 @@
+{
+  "name": "Chattanooga Music Scene City Map — Refined",
+  "image": "chattanooga-music-scene-city-map-refined.png",
+  "dimensions": {"width": 1672, "height": 941, "aspect": "16:9 landscape"},
+  "concept": "An illustrated nighttime music map in which a luminous soundwave connects the homepage destinations.",
+  "preserved_objects": [
+    "left signpost menu",
+    "central weekend destination",
+    "Tonight venue",
+    "Upcoming venue",
+    "Free Music venue",
+    "The Scene rooftop",
+    "Explore the City pavement lettering",
+    "five-node luminous soundwave"
+  ],
+  "hierarchy": [
+    "left signpost menu",
+    "What's Playing This Weekend",
+    "Tonight, Upcoming, Free Music, and The Scene"
+  ],
+  "reconstruction_layers": [
+    {"id": 1, "name": "night atmosphere", "type": "painted background"},
+    {"id": 2, "name": "receding city blocks", "type": "low-contrast environment"},
+    {"id": 3, "name": "left signpost menu", "type": "five linked HTML controls"},
+    {"id": 4, "name": "Tonight building", "type": "linked destination"},
+    {"id": 5, "name": "weekend building", "type": "primary linked feature"},
+    {"id": 6, "name": "Upcoming building", "type": "linked destination"},
+    {"id": 7, "name": "Free Music building", "type": "linked destination"},
+    {"id": 8, "name": "The Scene rooftop", "type": "linked identity/editorial destination"},
+    {"id": 9, "name": "Explore the City lettering", "type": "secondary linked destination"},
+    {"id": 10, "name": "soundwave route", "type": "SVG path"},
+    {"id": 11, "name": "five luminous nodes", "type": "interactive markers"},
+    {"id": 12, "name": "people and warm windows", "type": "ambient depth"}
+  ],
+  "excluded": [
+    "performer hero",
+    "bridge panorama",
+    "torn-paper cards",
+    "stage marquee",
+    "cassette",
+    "vinyl record",
+    "ticket",
+    "soundboard",
+    "phone",
+    "browser frame",
+    "header bar",
+    "footer",
+    "dashboard grid"
+  ],
+  "status": "artwork mock-up; HTML reconstruction not started"
+}
