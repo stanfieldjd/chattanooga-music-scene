@@ -1,10 +1,19 @@
-# Chattanooga Music Scene HTML artwork prototype
+# Chattanooga Music Scene artwork prototypes
 
-`index.html` is the authoritative prototype source. It constructs a 1920 × 1080 desktop composition from independently addressable HTML/CSS layers rather than using a flattened full-page mockup.
+This branch preserves two distinct non-flattened HTML constructions.
 
-- The custom `SceneHeadline` display font is embedded directly in `index.html`.
-- The river background and performer are replaceable image layers loaded from the Chattanooga Music Scene WordPress media library.
-- Event dates, counts, headings, labels, navigation, calls to action, and editorial copy remain editable HTML.
-- `layer-manifest.json` records the 14-layer reconstruction order and each layer's implementation type.
+## Current WordPress prototype
 
-Status: prototype source preserved for further visual refinement. This branch does not change the repository's `main` branch, the WordPress site, or the live website.
+- `wordpress-page-source.html` is the exact source currently saved in the WordPress **Scene Homepage Prototype** draft.
+- `wordpress-layer-manifest.json` records its stage-marquee composition, editable fields, linked controls, image surfaces, and layer order.
+- This is the design visible in the verified WordPress preview.
+
+## Earlier standalone construction
+
+- `index.html` is an earlier self-contained river/editorial HTML prototype.
+- `layer-manifest.json` records that earlier prototype's 14 layers.
+- Its custom display font is embedded directly in `index.html`.
+
+The two designs are intentionally identified separately. Neither source is a flattened full-page screenshot. The main branch, WordPress installation, and live website are not changed by this branch.
+
+Status: source preservation is complete. Visual refinement and dynamic WordPress event-data wiring remain incomplete.
