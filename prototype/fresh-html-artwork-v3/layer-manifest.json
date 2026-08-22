@@ -1,0 +1,10 @@
+{
+  "name":"Fresh HTML Artwork v3",
+  "source":"index.html",
+  "canvas":{"width":1920,"height":1080,"desktop_first":true,"flattened":false},
+  "external_website_assets":false,
+  "layer_count":18,
+  "layers":["01-sky","02-bridge","03-river","04-logo","05-nav-brush","06-navigation","07-headline-paper","08-hero-copy","09-artist","10-artist-link","11-soundline","12-paper-field","13-content-columns","14-tonight","15-upcoming","16-free","17-venue","18-editorial"],
+  "editable":{"text":true,"links":true,"colors":true,"angles":true,"positions":true,"svg_artwork":true,"surfaces":true},
+  "fixed":{"logo_letterforms":true,"embedded_font":true}
+}
