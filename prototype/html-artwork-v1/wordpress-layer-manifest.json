@@ -1,0 +1,44 @@
+{
+  "design": "stage-marquee WordPress prototype",
+  "authoritative_source": "wordpress-page-source.html",
+  "canvas": {"aspect_ratio": "16:9", "desktop_first": true, "flattened": false},
+  "layers": [
+    {"z": 1, "selector": ".scene-v3", "role": "river-and-bridge environment", "implementation": "replaceable image layer"},
+    {"z": 10, "selector": ".grain", "role": "surface grain", "implementation": "CSS texture"},
+    {"z": 15, "selector": ".stage-door", "role": "weekend entry control", "implementation": "linked image surface with live HTML label"},
+    {"z": 30, "selector": ".scene-mark", "role": "logo", "implementation": "live linked HTML lettering with neon hover"},
+    {"z": 31, "selector": ".painted-nav", "role": "primary navigation", "implementation": "live HTML links"},
+    {"z": 14, "selector": ".marquee", "role": "weekend feature", "implementation": "replaceable marquee surface with editable HTML content"},
+    {"z": 13, "selector": ".performer", "role": "event feature image", "implementation": "replaceable linked image with live caption"},
+    {"z": 12, "selector": ".cable", "role": "visual connector", "implementation": "SVG"},
+    {"z": 35, "selector": ".utility", "role": "editorial line", "implementation": "editable HTML text"},
+    {"z": 22, "selector": ".friday", "role": "Friday listings", "implementation": "CMS-populated linked HTML over replaceable paper surface"},
+    {"z": 24, "selector": ".saturday", "role": "Saturday listings", "implementation": "CMS-populated linked HTML over replaceable paper surface"},
+    {"z": 23, "selector": ".sunday", "role": "Sunday listings", "implementation": "CMS-populated linked HTML over replaceable paper surface"},
+    {"z": 24, "selector": ".editorial", "role": "latest story", "implementation": "CMS-populated linked HTML"},
+    {"z": 28, "selector": ".venue", "role": "featured venue", "implementation": "CMS-populated linked HTML over replaceable image surface"}
+  ],
+  "editable_fields": [
+    "weekend eyebrow",
+    "weekend headline",
+    "weekend date range",
+    "weekend call to action",
+    "Friday event names, times, and venues",
+    "Saturday event names, times, and venues",
+    "Sunday event names, times, and venues",
+    "editorial headline and URL",
+    "featured venue name and URL",
+    "navigation labels and URLs",
+    "performer image, caption, and URL"
+  ],
+  "fixed_or_decorative_fields": [
+    "logo appearance",
+    "river-and-bridge environment",
+    "stage-door surface",
+    "marquee surface",
+    "paper surfaces",
+    "cable",
+    "grain"
+  ],
+  "status": "source-preserved; visual refinement and dynamic WordPress data wiring remain incomplete"
+}
