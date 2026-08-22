@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Chattanooga Music Scene — City Map Prototype</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main class="viewport">
+  <section class="map" aria-label="Chattanooga Music Scene city map homepage prototype">
+    <div class="layer atmosphere" data-layer="01-atmosphere"></div>
+    <svg class="layer streets" data-layer="02-streets" viewBox="0 0 1920 1080" aria-hidden="true">
+      <g class="street-lines">
+        <path d="M0 785C250 690 390 720 590 590S900 510 1080 390 1460 300 1920 210"/>
+        <path d="M80 1030C260 860 500 890 670 760S920 650 1130 710 1510 870 1920 690"/>
+        <path d="M160 70C230 250 290 385 480 520S760 780 870 1080"/>
+        <path d="M790 0C760 210 820 375 1010 510s370 210 520 570"/>
+        <path d="M1390 0C1320 210 1370 360 1530 500s270 260 350 520"/>
+      </g>
+      <g class="cross-streets">
+        <path d="M0 315L1920 510"/><path d="M0 540L1920 850"/><path d="M220 0L1140 1080"/><path d="M560 0L1660 1080"/><path d="M1050 0L1920 760"/>
+      </g>
+    </svg>
+    <div class="layer city-blocks" data-layer="03-city-blocks" aria-hidden="true"></div>
+
+    <a class="layer identity" data-layer="04-identity" href="#scene" aria-label="Chattanooga Music Scene">
+      <span>CHATTANOOGA</span><span>MUSIC SCENE</span>
+    </a>
+
+    <nav class="layer signpost" data-layer="05-signpost" aria-label="Primary navigation">
+      <i class="post" aria-hidden="true"></i>
+      <a class="sign sign-1" href="#shows">SHOWS</a>
+      <a class="sign sign-2" href="#venues">VENUES</a>
+      <a class="sign sign-3" href="#scene">THE SCENE</a>
+      <a class="sign sign-4" href="#marketplace">MARKETPLACE</a>
+      <a class="sign sign-5" href="#help">HELP</a>
+    </nav>
+
+    <a class="layer destination tonight" data-layer="06-tonight" href="#shows">
+      <span class="roof-sign" data-bind="tonight.label">TONIGHT</span>
+      <span class="door-copy" data-bind="tonight.detail">Current show · venue · time</span>
+    </a>
+
+    <a class="layer destination weekend" data-layer="07-weekend" href="#weekend">
+      <span class="weekend-kicker" data-bind="weekend.kicker">HAPPENING THIS WEEKEND</span>
+      <strong data-bind="weekend.title">WHAT'S PLAYING<br>THIS WEEKEND</strong>
+      <small data-bind="weekend.meta">Show count · venue count · date range</small>
+      <span class="enter" data-bind="weekend.action">OPEN THE WEEKEND →</span>
+    </a>
+
+    <a class="layer destination upcoming" data-layer="08-upcoming" href="#shows">
+      <span class="roof-sign" data-bind="upcoming.label">UPCOMING</span>
+      <span class="door-copy" data-bind="upcoming.detail">Newly announced performances</span>
+    </a>
+
+    <a class="layer destination free-music" data-layer="09-free-music" href="#shows">
+      <span class="mural" data-bind="freeMusic.label">FREE<br>MUSIC</span>
+      <span class="door-copy" data-bind="freeMusic.detail">No-cover performances</span>
+    </a>
+
+    <a id="scene" class="layer destination scene-house" data-layer="10-scene" href="#stories">
+      <span class="mural" data-bind="scene.label">THE<br>SCENE</span>
+      <span class="door-copy" data-bind="scene.detail">Stories from Chattanooga music</span>
+    </a>
+
+    <svg class="layer sound-route" data-layer="11-sound-route" viewBox="0 0 1920 1080" aria-hidden="true">
+      <path class="route-glow" d="M225 745C375 620 515 680 650 520S825 245 1000 300 1150 390 1260 305 1430 195 1515 270 1590 405 1690 490 1780 590 1640 700 1510 730 1280 790 1180 910 1010 930 805 955 650 860 500 930"/>
+      <path class="route-core" d="M225 745C375 620 515 680 650 520S825 245 1000 300 1150 390 1260 305 1430 195 1515 270 1590 405 1690 490 1780 590 1640 700 1510 730 1280 790 1180 910 1010 930 805 955 650 860 500 930"/>
+      <g class="pulse-nodes"><circle cx="225" cy="745" r="18"/><circle cx="650" cy="520" r="18"/><circle cx="1000" cy="300" r="22"/><circle cx="1515" cy="270" r="18"/><circle cx="1690" cy="490" r="18"/></g>
+    </svg>
+
+    <a class="layer explore" data-layer="12-explore" href="#venues">EXPLORE<br>THE CITY →</a>
+    <div class="layer grain" data-layer="13-grain" aria-hidden="true"></div>
+  </section>
+</main>
+<script src="content.js"></script>
+</body>
+</html>
