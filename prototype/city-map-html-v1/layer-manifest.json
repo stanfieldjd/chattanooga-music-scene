@@ -1,0 +1,13 @@
+{
+  "name":"City Map HTML Prototype v1",
+  "reference":"../city-map-artwork-v1/chattanooga-music-scene-city-map-refined.png",
+  "authoritative_files":["index.html","styles.css","content.js"],
+  "canvas":{"width":1920,"height":1080,"desktop_first":true,"flattened":false},
+  "layers":[
+    "01-atmosphere","02-streets","03-city-blocks","04-identity","05-signpost","06-tonight","07-weekend","08-upcoming","09-free-music","10-scene","11-sound-route","12-explore","13-grain"
+  ],
+  "editable_data_source":"content.js",
+  "transfer_target":"WordPress prototype page after explicit authorization",
+  "website_modified":false,
+  "status":"rebuildable GitHub prototype; visual comparison pending"
+}
