@@ -148,7 +148,7 @@ body:has(.cms-prototype-artwork) {
   <div class="cms-prototype-canvas">
     <img class="cms-prototype-collage" src="https://www.chattanoogamusicscene.com/wp-content/uploads/2026/08/chattanooga-current-theme-blank.png" alt="" aria-hidden="true" fetchpriority="high">
     <nav id="cms-prototype-navigation" class="cms-prototype-navigation" aria-label="Explore Chattanooga Music Scene">
-      <a class="cms-prototype-letter cms-prototype-tonight" href="/events/?scope=today" aria-label="Tonight">
+      <a class="cms-prototype-letter cms-prototype-tonight" href="/events/" aria-label="Tonight" data-cms-tonight>
         <img src="https://raw.githubusercontent.com/stanfieldjd/chattanooga-music-scene/871f9e04e17a9a11f33053eaaa1b4dd344b835dc/site-plugins/cms-prototype-page/assets/lettering/tonight.png" alt="" aria-hidden="true" draggable="false">
       </a>
       <a class="cms-prototype-letter cms-prototype-upcoming" href="/events/" aria-label="Upcoming">
@@ -166,5 +166,25 @@ body:has(.cms-prototype-artwork) {
     </nav>
   </div>
   <header class="cms-prototype-visually-hidden"><h1>Chattanooga Music Scene</h1></header>
+  <script>
+  (() => {
+    const tonight = document.querySelector("[data-cms-tonight]");
+    if (!tonight) return;
+
+    const parts = Object.fromEntries(
+      new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+      })
+        .formatToParts(new Date())
+        .filter(({ type }) => type !== "literal")
+        .map(({ type, value }) => [type, value])
+    );
+
+    tonight.href = `/events/${parts.year}-${parts.month}-${parts.day}/`;
+  })();
+  </script>
 </main>
 <!-- /wp:html -->
