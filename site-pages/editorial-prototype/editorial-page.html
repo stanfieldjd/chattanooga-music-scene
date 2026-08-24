@@ -1,553 +1,446 @@
 <!-- wp:html -->
 <style>
-.cms-editorial,
-.cms-editorial * {
-  box-sizing: border-box;
+body.page-id-8038 .entry-header,
+body.page-id-8038 .entry-title,
+body.page-id-8038 .rr-readylaunch-page-title { display: none !important; }
+body.page-id-8038 .entry-content { margin-top: 0 !important; }
+body.page-id-8038 #primary,
+body.page-id-8038 #primary > .bb-rl-container,
+body.page-id-8038 article#post-8038,
+body.page-id-8038 article#post-8038 .entry-content {
+  width: 100% !important;
+  max-width: none !important;
+  margin-inline: 0 !important;
+  padding-inline: 0 !important;
 }
 
-.cms-editorial {
-  --ink: #1b1915;
-  --paper: #d6c49b;
-  --paper-light: #e9ddbd;
-  --red: #7f1d18;
-  --blue: #123649;
-  --gold: #c78d37;
+.cms-edition,
+.cms-edition * { box-sizing: border-box; }
+.cms-edition {
+  --ink: #142f2d;
+  --teal: #145b59;
+  --rust: #9f3320;
+  --gold: #d49a43;
+  --paper: #f2e3bf;
+  --cream: #fff5d8;
   position: relative;
   isolation: isolate;
   width: 100%;
-  max-width: 1120px;
-  margin: 0 auto 4rem;
-  padding: clamp(1.25rem, 3vw, 3rem);
   overflow: hidden;
   color: var(--ink);
   background:
-    linear-gradient(90deg, rgba(74,46,22,.06) 1px, transparent 1px) 0 0 / 7px 7px,
-    radial-gradient(circle at 18% 7%, rgba(255,255,255,.34), transparent 31%),
-    linear-gradient(145deg, #a88e61, #dbc99f 34%, #c6aa76 72%, #8d6d45);
-  border: 1px solid rgba(59,37,18,.75);
-  box-shadow: 0 24px 60px rgba(12,11,9,.42), inset 0 0 80px rgba(66,37,13,.2);
-  font-family: Georgia, "Times New Roman", serif;
-}
-
-.cms-editorial::before,
-.cms-editorial::after {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  pointer-events: none;
-}
-
-.cms-editorial::before {
-  inset: 0;
-  opacity: .33;
-  background:
-    repeating-linear-gradient(2deg, transparent 0 19px, rgba(43,30,18,.08) 20px),
-    repeating-linear-gradient(91deg, transparent 0 47px, rgba(255,255,255,.08) 48px);
-  mix-blend-mode: multiply;
-}
-
-.cms-editorial::after {
-  width: 36rem;
-  height: 36rem;
-  right: -16rem;
-  bottom: -17rem;
-  border: 5rem solid rgba(18,54,73,.22);
-  border-radius: 50%;
-}
-
-.cms-editorial a {
-  color: inherit;
-}
-
-.cms-editorial a:focus-visible {
-  outline: 3px solid #fff1a7;
-  outline-offset: 5px;
-}
-
-.cms-editorial-masthead {
-  position: relative;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 1rem;
-  align-items: end;
-  padding: .7rem 0 1rem;
-  border-top: 6px double var(--ink);
-  border-bottom: 2px solid var(--ink);
-}
-
-.cms-editorial-kicker,
-.cms-editorial-date,
-.cms-editorial-section-label,
-.cms-editorial-day,
-.cms-editorial-stamp,
-.cms-editorial-post-date {
+    radial-gradient(circle at 11% 8%, rgba(212,154,67,.22), transparent 22rem),
+    linear-gradient(112deg, rgba(255,255,255,.46), transparent 43%),
+    repeating-linear-gradient(0deg, rgba(30,61,57,.027) 0 1px, transparent 1px 4px),
+    var(--paper);
   font-family: Arial, Helvetica, sans-serif;
-  font-weight: 800;
-  letter-spacing: .12em;
-  text-transform: uppercase;
+}
+.cms-edition a { color: inherit; }
+.cms-edition a:focus-visible,
+.cms-edition summary:focus-visible { outline: 4px solid var(--gold); outline-offset: 5px; }
+.cms-edition::before,
+.cms-edition::after { content: ""; position: absolute; z-index: -1; pointer-events: none; }
+.cms-edition::before {
+  left: -10%; top: 29%; width: 59%; height: 48rem;
+  background: rgba(20,91,89,.12);
+  clip-path: polygon(0 14%, 87% 0, 100% 38%, 71% 56%, 96% 89%, 11% 100%);
+  transform: rotate(-7deg);
+}
+.cms-edition::after {
+  right: -14%; bottom: 8%; width: 58%; height: 39rem;
+  background: rgba(159,51,32,.09);
+  clip-path: polygon(9% 0, 100% 17%, 78% 100%, 0 73%);
+  transform: rotate(7deg);
 }
 
-.cms-editorial-kicker {
-  margin: 0 0 .35rem;
-  color: var(--red);
-  font-size: clamp(.72rem, 1.2vw, .9rem);
-}
-
-.cms-editorial-masthead h1 {
-  margin: 0;
-  max-width: 14ch;
-  font-size: clamp(2.35rem, 7vw, 5.8rem);
-  line-height: .79;
-  letter-spacing: -.065em;
-  text-transform: uppercase;
-  transform: scaleY(1.08);
-  transform-origin: left bottom;
-}
-
-.cms-editorial-date {
-  margin: 0;
-  padding: .6rem .7rem;
-  text-align: right;
-  font-size: clamp(.68rem, 1.15vw, .88rem);
-  line-height: 1.45;
-  border-left: 2px solid var(--ink);
-}
-
-.cms-editorial-lead {
-  display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(16rem, .55fr);
-  gap: clamp(1rem, 2.6vw, 2.4rem);
-  padding: clamp(1.4rem, 3vw, 2.6rem) 0;
-}
-
-.cms-editorial-lead-copy {
+.cms-edition-hero {
   position: relative;
-  z-index: 2;
-}
-
-.cms-editorial-section-label {
-  display: inline-block;
-  margin: 0 0 .75rem;
-  padding: .35rem .6rem .3rem;
-  color: #f2e5c4;
-  background: var(--red);
-  font-size: .72rem;
-  transform: rotate(-1.2deg);
-}
-
-.cms-editorial-lead h2 {
-  margin: 0;
-  font-size: clamp(2.7rem, 7.3vw, 6.9rem);
-  line-height: .82;
-  letter-spacing: -.065em;
-  text-wrap: balance;
-}
-
-.cms-editorial-deck {
-  max-width: 46rem;
-  margin: 1.15rem 0 0;
-  padding-top: .8rem;
-  border-top: 1px solid rgba(27,25,21,.65);
-  font-size: clamp(1.08rem, 2vw, 1.42rem);
-  line-height: 1.35;
-  font-style: italic;
-}
-
-.cms-editorial-lead-photo {
-  position: relative;
-  align-self: center;
-  margin: 1.3rem .5rem 0 0;
-  padding: .72rem .72rem 2.5rem;
-  background: #eee2c2;
-  box-shadow: 0 12px 24px rgba(44,28,14,.3);
-  transform: rotate(2.2deg);
-}
-
-.cms-editorial-lead-photo::before {
-  content: "";
-  position: absolute;
-  width: 6.8rem;
-  height: 1.7rem;
-  left: 50%;
-  top: -.8rem;
-  transform: translateX(-50%) rotate(-3deg);
-  background: rgba(181,153,93,.64);
-  box-shadow: 0 1px 2px rgba(0,0,0,.18);
-}
-
-.cms-editorial-lead-photo img {
-  display: block;
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
-  filter: saturate(.72) contrast(1.08) sepia(.13);
-}
-
-.cms-editorial-lead-photo figcaption {
-  position: absolute;
-  left: .9rem;
-  right: .9rem;
-  bottom: .65rem;
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: .7rem;
-  font-weight: 700;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-}
-
-.cms-editorial-weekend {
-  position: relative;
+  min-height: clamp(35rem, 54vw, 49rem);
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0;
-  margin: .8rem -1rem 3.2rem;
-  color: #eadfbe;
-  background:
-    linear-gradient(rgba(10,25,31,.91), rgba(10,25,31,.94)),
-    url("https://www.chattanoogamusicscene.com/wp-content/uploads/2026/08/chattanooga-current-theme-blank.png") center 55% / cover;
-  border-top: 4px solid var(--gold);
-  border-bottom: 4px solid var(--gold);
-  box-shadow: 0 15px 26px rgba(44,28,14,.28);
-  transform: rotate(-.35deg);
-}
-
-.cms-editorial-weekend::before {
-  content: "WEEKEND FREQUENCY";
-  position: absolute;
-  left: 1.2rem;
-  top: -1rem;
-  padding: .35rem .7rem;
-  color: #17130f;
-  background: var(--gold);
-  font-family: Arial, Helvetica, sans-serif;
-  font-size: .74rem;
-  font-weight: 900;
-  letter-spacing: .15em;
-}
-
-.cms-editorial-day-column {
-  min-width: 0;
-  padding: clamp(1.55rem, 3vw, 2.4rem) clamp(1rem, 2.2vw, 1.8rem);
-  border-right: 1px solid rgba(234,223,190,.36);
-}
-
-.cms-editorial-day-column:last-child {
-  border-right: 0;
-}
-
-.cms-editorial-day {
-  display: flex;
-  align-items: baseline;
-  gap: .55rem;
-  margin: 0 0 1rem;
-  color: #eeb456;
-  font-size: clamp(1rem, 2vw, 1.4rem);
-}
-
-.cms-editorial-day span {
-  color: #eadfbe;
-  font-size: .68em;
-}
-
-.cms-editorial-event {
-  display: block;
-  padding: .8rem 0;
-  color: #f4e9c9 !important;
-  border-top: 1px dashed rgba(234,223,190,.38);
-  text-decoration: none;
-}
-
-.cms-editorial-event:first-of-type {
-  border-top: 0;
-}
-
-.cms-editorial-event time {
-  display: block;
-  margin-bottom: .18rem;
-  color: #eeb456;
-  font: 800 .68rem/1.2 Arial, Helvetica, sans-serif;
-  letter-spacing: .11em;
-  text-transform: uppercase;
-}
-
-.cms-editorial-event strong {
-  display: block;
-  color: inherit !important;
-  font-size: clamp(1rem, 1.7vw, 1.25rem);
-  line-height: 1.08;
-  text-shadow: 0 1px 2px rgba(0,0,0,.72);
-}
-
-.cms-editorial-event:hover strong,
-.cms-editorial-event:focus-visible strong {
-  color: #fff3c5;
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 4px;
-}
-
-.cms-editorial-posts {
-  position: relative;
-  display: grid;
-  grid-template-columns: 1.25fr .75fr;
-  gap: clamp(1.2rem, 3vw, 2.6rem);
-  padding: clamp(1.3rem, 3vw, 2.5rem);
-  background:
-    linear-gradient(rgba(233,221,189,.94), rgba(216,196,155,.96)),
-    repeating-linear-gradient(0deg, transparent 0 23px, rgba(54,39,22,.08) 24px);
-  box-shadow: 0 10px 28px rgba(45,28,12,.25);
-  clip-path: polygon(1% 0, 99% 1.3%, 100% 96%, 73% 98%, 48% 96.7%, 24% 100%, 0 97%);
-}
-
-.cms-editorial-posts::after {
-  content: "FROM THE SCENE";
-  position: absolute;
-  right: -2.1rem;
-  top: 5.5rem;
-  padding: .5rem 2.2rem;
-  color: #f5e8c7;
-  background: var(--red);
-  font: 900 .7rem/1 Arial, Helvetica, sans-serif;
-  letter-spacing: .15em;
-  transform: rotate(90deg);
-}
-
-.cms-editorial-feature-post {
-  text-decoration: none;
-}
-
-.cms-editorial-feature-post img {
-  display: block;
-  width: 100%;
-  aspect-ratio: 1.9 / 1;
-  object-fit: cover;
-  filter: saturate(.68) contrast(1.08);
-  border: 5px solid #1c1a16;
-}
-
-.cms-editorial-post-date {
-  display: block;
-  margin: .85rem 0 .35rem;
-  color: var(--red);
-  font-size: .67rem;
-}
-
-.cms-editorial-feature-post h2 {
-  margin: 0;
-  font-size: clamp(2rem, 4.2vw, 4.25rem);
-  line-height: .91;
-  letter-spacing: -.045em;
-}
-
-.cms-editorial-feature-post:hover h2,
-.cms-editorial-feature-post:focus-visible h2,
-.cms-editorial-secondary-post:hover h3,
-.cms-editorial-secondary-post:focus-visible h3 {
-  color: var(--red);
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 5px;
-}
-
-.cms-editorial-side-posts {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  border-left: 1px solid rgba(27,25,21,.58);
-  padding-left: clamp(1rem, 2.4vw, 2rem);
-}
-
-.cms-editorial-secondary-post {
-  display: block;
-  padding: 1.1rem 0 1.35rem;
-  border-top: 3px double var(--ink);
-  text-decoration: none;
-}
-
-.cms-editorial-secondary-post h3 {
-  margin: 0;
-  font-size: clamp(1.45rem, 2.6vw, 2.5rem);
-  line-height: .96;
-}
-
-.cms-editorial-footer {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 1rem;
+  grid-template-columns: minmax(0, 1.12fr) minmax(17rem, .68fr);
   align-items: center;
-  margin-top: 2.8rem;
-  padding: 1.25rem 0 .25rem;
-  border-top: 2px solid var(--ink);
+  gap: clamp(1.5rem, 5vw, 5rem);
+  padding: clamp(3rem, 7vw, 6.5rem) clamp(1.2rem, 5vw, 4.8rem) clamp(7rem, 11vw, 10rem);
+  overflow: hidden;
+  color: var(--cream);
+  background:
+    linear-gradient(90deg, rgba(7,32,32,.94) 0%, rgba(7,32,32,.76) 47%, rgba(7,32,32,.28) 100%),
+    url("https://www.chattanoogamusicscene.com/wp-content/uploads/2026/08/exec-608acae4-e141-4294-a8a8-5eba3c5c73d8.jpg") center / cover;
+  border-bottom: 10px solid var(--rust);
+}
+.cms-edition-hero::before {
+  content: "WEEKEND  •  STORIES  •  SHOWS";
+  position: absolute; right: -1.5rem; bottom: 1rem;
+  color: rgba(255,245,216,.16);
+  font: 900 clamp(2rem, 5vw, 5rem)/.85 Georgia, serif;
+  letter-spacing: .08em; white-space: nowrap; transform: rotate(-6deg);
+}
+.cms-edition-hero-copy { position: relative; z-index: 3; }
+.cms-edition-kicker {
+  position: relative; display: inline-block; isolation: isolate;
+  margin: 0 0 1.1rem; padding: .5rem 1rem; color: #17100b;
+  font: 900 .78rem/1.2 Arial, sans-serif; letter-spacing: .18em;
+  text-transform: uppercase; transform: rotate(-2deg);
+}
+.cms-edition-kicker::before {
+  content: ""; position: absolute; z-index: -1; inset: -.35rem -.9rem;
+  background: linear-gradient(96deg, #d38d29, #e2aa4d 48%, #bd6627);
+  clip-path: polygon(0 31%, 6% 17%, 18% 22%, 31% 8%, 48% 16%, 63% 4%, 78% 19%, 94% 10%, 100% 35%, 97% 67%, 86% 78%, 69% 71%, 54% 91%, 38% 76%, 22% 88%, 7% 70%, 1% 79%);
+  filter: drop-shadow(5px 5px 0 rgba(159,51,32,.62));
+}
+.cms-edition-hero h1 {
+  max-width: 11ch; margin: 0; color: var(--cream);
+  font: 900 clamp(3.2rem, 7vw, 7rem)/.84 Georgia, serif;
+  letter-spacing: -.04em; text-transform: uppercase; text-wrap: balance;
+  text-shadow: 5px 5px 0 var(--rust), 9px 9px 0 rgba(0,0,0,.3);
+}
+.cms-edition-deck {
+  max-width: 39rem; margin: 1.8rem 0 0;
+  font: 600 clamp(1.04rem, 1.7vw, 1.28rem)/1.58 Arial, sans-serif;
+}
+.cms-edition-photo {
+  position: relative; z-index: 3; margin: 0; padding: .7rem .7rem 2.6rem;
+  color: var(--ink); background: #efe2bf; box-shadow: 16px 19px 0 rgba(159,51,32,.34);
+  transform: rotate(4deg); transition: transform .35s ease;
+  clip-path: polygon(3% 0, 100% 4%, 96% 100%, 0 94%);
+}
+.cms-edition-photo:hover { transform: rotate(1deg) translateY(-7px); }
+.cms-edition-photo::before {
+  content: ""; position: absolute; width: 7rem; height: 1.45rem;
+  left: 50%; top: -.55rem; background: rgba(224,190,115,.72);
+  transform: translateX(-50%) rotate(-5deg);
+}
+.cms-edition-photo img {
+  display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover;
+  filter: sepia(.16) saturate(.78) contrast(1.08);
+}
+.cms-edition-photo figcaption {
+  position: absolute; left: 1rem; right: 1rem; bottom: .65rem;
+  font: 800 .68rem/1.25 Arial, sans-serif; letter-spacing: .08em; text-transform: uppercase;
+}
+.cms-edition-prompt {
+  position: absolute; z-index: 6; left: clamp(1.2rem, 7vw, 6rem); bottom: -2.4rem;
+  width: min(35rem, calc(100% - 2.4rem)); padding: 1.1rem 1.35rem;
+  color: #24160f; background: var(--gold); border: 3px dashed var(--ink);
+  box-shadow: 9px 10px 0 rgba(20,47,45,.34);
+  font: 900 clamp(.82rem, 1.5vw, 1rem)/1.35 Arial, sans-serif;
+  letter-spacing: .08em; text-transform: uppercase; transform: rotate(-1.5deg);
 }
 
-.cms-editorial-footer p {
-  margin: 0;
-  max-width: 55ch;
-  font-size: 1rem;
-  line-height: 1.35;
+.cms-weekend-field {
+  position: relative; isolation: isolate;
+  padding: clamp(7rem, 11vw, 10rem) clamp(1rem, 4vw, 4rem) clamp(6rem, 10vw, 9rem);
 }
+.cms-weekend-field::before {
+  content: "FRIDAY  SATURDAY  SUNDAY";
+  position: absolute; z-index: -1; left: -2rem; top: 45%;
+  color: rgba(159,51,32,.11); font: 900 clamp(3rem, 8vw, 8rem)/.82 Georgia, serif;
+  letter-spacing: .04em; white-space: nowrap; transform: rotate(-11deg);
+}
+.cms-weekend-heading { width: min(100%, 62rem); margin: 0 auto 3.5rem; text-align: center; }
+.cms-weekend-heading p {
+  display: inline-block; margin: 0 0 .75rem; padding: .4rem .8rem;
+  color: var(--cream); background: var(--rust);
+  font: 900 .74rem/1 Arial, sans-serif; letter-spacing: .17em;
+  text-transform: uppercase; transform: rotate(2deg);
+}
+.cms-weekend-heading h2 {
+  max-width: 13ch; margin: 0 auto; color: var(--rust);
+  font: 900 clamp(2.8rem, 6vw, 5.8rem)/.88 Georgia, serif;
+  text-transform: uppercase; text-shadow: 3px 3px 0 rgba(212,154,67,.52);
+  transform: rotate(-1.5deg);
+}
+.cms-weekend-heading .cms-weekend-subhead {
+  display: block; max-width: 45rem; margin: 1.2rem auto 0; padding: 0;
+  color: var(--ink); background: none; font: 600 1rem/1.55 Arial, sans-serif;
+  letter-spacing: 0; text-transform: none; transform: none;
+}
+.cms-weekend-handbills {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(.8rem, 2vw, 1.5rem); max-width: 69rem; margin: 0 auto; align-items: start;
+}
+.cms-day {
+  position: relative; z-index: 3; overflow: hidden; color: var(--cream);
+  background: linear-gradient(rgba(8,31,31,.9), rgba(8,31,31,.94)),
+    url("https://www.chattanoogamusicscene.com/wp-content/uploads/2026/08/chattanooga-current-theme-blank.png") center / cover;
+  border-top: 6px solid var(--gold); box-shadow: 12px 16px 0 rgba(20,47,45,.18);
+  clip-path: polygon(2% 0, 98% 2%, 100% 91%, 94% 100%, 5% 97%, 0 9%);
+  transition: transform .3s ease, filter .3s ease;
+}
+.cms-day:nth-child(1) { transform: rotate(-2.5deg); }
+.cms-day:nth-child(2) { margin-top: 2.5rem; transform: rotate(2deg); }
+.cms-day:nth-child(3) { margin-top: .4rem; transform: rotate(-1deg); }
+.cms-day:hover,
+.cms-day[open] { z-index: 8; filter: drop-shadow(0 18px 11px rgba(20,47,45,.28)); }
+.cms-day:nth-child(1):hover,
+.cms-day:nth-child(1)[open] { transform: rotate(-.5deg) translateY(-6px); }
+.cms-day:nth-child(2):hover,
+.cms-day:nth-child(2)[open] { transform: rotate(.5deg) translateY(-6px); }
+.cms-day:nth-child(3):hover,
+.cms-day:nth-child(3)[open] { transform: rotate(0) translateY(-6px); }
+.cms-day summary {
+  position: relative; display: block; min-height: 13rem;
+  padding: 1.8rem 1.4rem 1.3rem; cursor: pointer; list-style: none;
+}
+.cms-day summary::-webkit-details-marker { display: none; }
+.cms-day summary::after {
+  content: "OPEN HANDBILL  +"; position: absolute; left: 1.4rem; bottom: 1.2rem;
+  color: var(--gold); font: 900 .68rem/1 Arial, sans-serif; letter-spacing: .14em;
+}
+.cms-day[open] summary::after { content: "CLOSE HANDBILL  −"; }
+.cms-day-name {
+  display: block; color: var(--gold); font: 900 clamp(2.1rem, 4vw, 3.7rem)/.86 Georgia, serif;
+  text-transform: uppercase; text-shadow: 3px 3px 0 var(--rust);
+}
+.cms-day-date,
+.cms-day-count {
+  display: block; margin-top: .65rem; color: var(--cream);
+  font: 900 .7rem/1.3 Arial, sans-serif; letter-spacing: .14em; text-transform: uppercase;
+}
+.cms-day-count { color: rgba(255,245,216,.68); }
+.cms-day-events { padding: 0 1.4rem 1.6rem; animation: cmsReveal .32s ease both; }
+.cms-event {
+  display: block; padding: 1rem .1rem; color: var(--cream) !important;
+  border-top: 1px dashed rgba(255,245,216,.38); text-decoration: none;
+}
+.cms-event time {
+  display: block; margin-bottom: .25rem; color: var(--gold);
+  font: 900 .7rem/1.2 Arial, sans-serif; letter-spacing: .13em; text-transform: uppercase;
+}
+.cms-event strong {
+  display: block; color: inherit !important;
+  font: 900 clamp(1.05rem, 1.8vw, 1.3rem)/1.08 Georgia, serif;
+}
+.cms-event::after {
+  content: "OPEN EVENT →"; display: block; margin-top: .45rem;
+  color: rgba(255,245,216,.62); font: 800 .6rem/1 Arial, sans-serif; letter-spacing: .12em;
+}
+.cms-event:hover strong,
+.cms-event:focus-visible strong { color: #ffe5a5 !important; text-decoration: underline; text-underline-offset: 4px; }
 
-.cms-editorial-stamp {
-  display: inline-block;
-  padding: .7rem .9rem;
-  color: var(--red);
-  border: 3px solid var(--red);
-  font-size: .72rem;
-  text-decoration: none;
+.cms-story-field {
+  position: relative; min-height: clamp(53rem, 78vw, 72rem);
+  padding: clamp(4.5rem, 8vw, 7rem) clamp(1rem, 4vw, 4rem); overflow: hidden;
+  background: radial-gradient(circle at 86% 16%, rgba(159,51,32,.15), transparent 18rem),
+    repeating-linear-gradient(86deg, transparent 0 26px, rgba(20,47,45,.04) 27px 28px), #ddc999;
+}
+.cms-story-field::before {
+  content: "FRESH  •  LOCAL  •  READ  •  LISTEN";
+  position: absolute; left: -5rem; top: 48%; color: rgba(20,91,89,.12);
+  font: 900 clamp(4rem, 9vw, 9rem)/.8 Georgia, serif; white-space: nowrap; transform: rotate(-14deg);
+}
+.cms-story-heading { position: relative; z-index: 7; width: min(100%, 62rem); margin: 0 auto; }
+.cms-story-heading p {
+  display: inline-block; margin: 0 0 .75rem; padding: .42rem .75rem;
+  color: var(--cream); background: var(--teal);
+  font: 900 .72rem/1 Arial, sans-serif; letter-spacing: .17em; text-transform: uppercase;
   transform: rotate(-2deg);
 }
-
-.cms-editorial-stamp:hover,
-.cms-editorial-stamp:focus-visible {
-  color: #f3e6c3;
-  background: var(--red);
+.cms-story-heading h2 {
+  max-width: 10ch; margin: 0; color: var(--rust);
+  font: 900 clamp(3rem, 6vw, 6rem)/.86 Georgia, serif; text-transform: uppercase;
+  text-shadow: 3px 3px 0 rgba(255,245,216,.7);
 }
-
-@media (max-width: 800px) {
-  .cms-editorial {
-    padding: 1rem;
-  }
-
-  .cms-editorial-masthead,
-  .cms-editorial-lead,
-  .cms-editorial-posts,
-  .cms-editorial-footer {
-    grid-template-columns: 1fr;
-  }
-
-  .cms-editorial-date {
-    text-align: left;
-    border-left: 0;
-    border-top: 1px solid var(--ink);
-  }
-
-  .cms-editorial-lead-photo {
-    width: min(78%, 27rem);
-    justify-self: center;
-  }
-
-  .cms-editorial-weekend {
-    grid-template-columns: 1fr;
-    margin-inline: 0;
-    transform: none;
-  }
-
-  .cms-editorial-day-column {
-    border-right: 0;
-    border-bottom: 1px solid rgba(234,223,190,.36);
-  }
-
-  .cms-editorial-day-column:last-child {
-    border-bottom: 0;
-  }
-
-  .cms-editorial-side-posts {
-    border-left: 0;
-    border-top: 1px solid rgba(27,25,21,.58);
-    padding: .4rem 0 0;
-  }
-
-  .cms-editorial-posts::after {
-    display: none;
-  }
+.cms-story-wall { position: relative; z-index: 4; max-width: 69rem; min-height: 44rem; margin: 2.5rem auto 0; }
+.cms-story {
+  position: absolute; display: block; color: var(--ink) !important; background: var(--cream);
+  text-decoration: none; box-shadow: 14px 18px 0 rgba(20,47,45,.18);
+  transition: transform .35s ease, filter .35s ease;
 }
+.cms-story:hover,
+.cms-story:focus-visible { z-index: 10 !important; filter: drop-shadow(0 18px 11px rgba(20,47,45,.26)); }
+.cms-story-feature {
+  z-index: 5; left: 1%; top: 1rem; width: 61%; padding: .85rem .85rem 2rem;
+  transform: rotate(-3deg); clip-path: polygon(1% 0, 99% 2%, 100% 95%, 6% 100%, 0 14%);
+}
+.cms-story-feature:hover,
+.cms-story-feature:focus-visible { transform: rotate(-1deg) translateY(-8px); }
+.cms-story-feature img {
+  display: block; width: 100%; aspect-ratio: 1.78 / 1; object-fit: cover;
+  filter: sepia(.16) saturate(.76) contrast(1.1); border: 5px solid var(--ink);
+}
+.cms-story-copy { display: block; padding: 1.1rem .7rem .3rem; }
+.cms-story-date {
+  display: block; color: var(--rust); font: 900 .68rem/1.2 Arial, sans-serif;
+  letter-spacing: .14em; text-transform: uppercase;
+}
+.cms-story h3 { margin: .5rem 0 0; font: 900 clamp(1.65rem, 3.4vw, 3.7rem)/.92 Georgia, serif; }
+.cms-story p { margin: .8rem 0 0; font: 600 .95rem/1.45 Arial, sans-serif; }
+.cms-story:hover h3,
+.cms-story:focus-visible h3 { color: var(--rust); text-decoration: underline; text-underline-offset: 5px; }
+.cms-story-small {
+  width: 42%; padding: 1.6rem 1.45rem 1.8rem;
+  clip-path: polygon(3% 0, 100% 5%, 96% 100%, 0 92%);
+}
+.cms-story-small h3 { font-size: clamp(1.5rem, 2.8vw, 2.75rem); }
+.cms-story-history { z-index: 6; right: 0; top: 5.5rem; background: #e7cf9d; transform: rotate(4deg); }
+.cms-story-history:hover,
+.cms-story-history:focus-visible { transform: rotate(1deg) translateY(-8px); }
+.cms-story-news { z-index: 7; right: 6%; top: 26rem; background: #e7c09a; transform: rotate(-4deg); }
+.cms-story-news:hover,
+.cms-story-news:focus-visible { transform: rotate(-1deg) translateY(-8px); }
+.cms-story-photo-scrap {
+  position: absolute; z-index: 2; right: 18%; bottom: 0; width: 29%; padding: .55rem;
+  background: rgba(239,224,184,.82); box-shadow: 10px 13px 0 rgba(20,47,45,.14);
+  transform: rotate(10deg); opacity: .48; pointer-events: none;
+}
+.cms-story-photo-scrap img { display: block; width: 100%; filter: sepia(.45) contrast(1.18) brightness(.7); }
 
+.cms-edition-join {
+  position: relative; margin: 0 -1% 0 1%; padding: clamp(4rem, 7vw, 6rem) clamp(1.2rem, 6vw, 5.5rem);
+  overflow: hidden; color: var(--cream); background: linear-gradient(105deg, #7f2418, #4a231c 72%);
+  border-block: 9px solid var(--teal); transform: rotate(-.6deg);
+  clip-path: polygon(0 3%, 100% 0, 98% 97%, 2% 100%);
+}
+.cms-edition-join::after {
+  content: "READ  •  GO  •  POST  •  RETURN"; position: absolute; right: -2rem; bottom: -.15em;
+  color: rgba(255,245,216,.08); font: 900 clamp(3rem, 8vw, 8rem)/.8 Georgia, serif;
+  white-space: nowrap; transform: rotate(-4deg);
+}
+.cms-edition-join h2 {
+  position: relative; z-index: 2; max-width: 13ch; margin: 0 0 1rem;
+  font: 900 clamp(2.8rem, 5.5vw, 5.5rem)/.88 Georgia, serif; text-transform: uppercase;
+}
+.cms-edition-join p {
+  position: relative; z-index: 2; max-width: 46rem; font: 600 1.05rem/1.58 Arial, sans-serif;
+}
+.cms-edition-links {
+  position: relative; z-index: 2; display: flex; flex-wrap: wrap;
+  gap: 1rem; margin-top: 1.5rem;
+}
+.cms-edition-links a {
+  display: inline-block; padding: .9rem 1.15rem; color: var(--cream); background: var(--rust);
+  border: 2px solid var(--cream); box-shadow: 5px 5px 0 var(--gold);
+  font: 900 .78rem/1 Arial, sans-serif; letter-spacing: .08em;
+  text-decoration: none; text-transform: uppercase; transform: rotate(-1deg);
+  transition: transform .25s ease, box-shadow .25s ease;
+}
+.cms-edition-links a:nth-child(2) { color: var(--ink); background: var(--paper); transform: rotate(1deg); }
+.cms-edition-links a:hover,
+.cms-edition-links a:focus-visible { transform: translateY(-5px) rotate(0); box-shadow: 8px 10px 0 var(--gold); }
+
+@keyframes cmsReveal { from { opacity: 0; transform: translateY(-.5rem); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 900px) {
+  .cms-edition-hero { grid-template-columns: 1fr .55fr; }
+  .cms-weekend-handbills { grid-template-columns: 1fr 1fr; }
+  .cms-day:nth-child(3) { grid-column: 1 / -1; width: 55%; justify-self: center; }
+  .cms-story-field { min-height: 76rem; }
+  .cms-story-wall { min-height: 58rem; }
+  .cms-story-feature { width: 78%; }
+  .cms-story-small { width: 55%; }
+  .cms-story-history { top: 24rem; }
+  .cms-story-news { top: 41rem; }
+}
+@media (max-width: 620px) {
+  body.page-id-8038 article#post-8038,
+  body.page-id-8038 article#post-8038 .entry-content,
+  .cms-edition { width: 100% !important; max-width: 100% !important; margin: 0 !important; }
+  .cms-edition-hero { display: block; min-height: 0; padding: 3.2rem 1rem 6.5rem; background-position: 58% center; }
+  .cms-edition-hero h1 { max-width: 100%; font-size: clamp(2.7rem, 13vw, 4rem); }
+  .cms-edition-deck { font-size: .98rem; line-height: 1.5; }
+  .cms-edition-photo { width: 76%; margin: 2rem auto 0; transform: rotate(2deg); }
+  .cms-edition-prompt { left: .9rem; bottom: -2rem; width: calc(100% - 1.8rem); }
+  .cms-weekend-field { padding: 6rem .75rem 4.5rem; }
+  .cms-weekend-heading h2 { font-size: clamp(2.4rem, 12vw, 3.5rem); }
+  .cms-weekend-handbills { display: block; }
+  .cms-day,
+  .cms-day:nth-child(1),
+  .cms-day:nth-child(2),
+  .cms-day:nth-child(3) { width: auto; margin: 0 0 1.35rem; transform: rotate(-1deg); }
+  .cms-day:nth-child(even) { transform: rotate(1deg); }
+  .cms-day summary { min-height: 11.5rem; }
+  .cms-story-field { min-height: 0; padding: 3.8rem .7rem 4.5rem; }
+  .cms-story-heading h2 { font-size: clamp(2.5rem, 12vw, 3.7rem); }
+  .cms-story-wall { min-height: 0; }
+  .cms-story,
+  .cms-story-feature,
+  .cms-story-small,
+  .cms-story-history,
+  .cms-story-news { position: relative; inset: auto; width: auto; margin: 0 0 1.45rem; transform: rotate(-1deg); }
+  .cms-story:nth-child(even) { transform: rotate(1deg); }
+  .cms-story-photo-scrap { display: none; }
+  .cms-edition-join { margin: 0; padding: 3.5rem 1rem 4rem; transform: none; }
+  .cms-edition-join h2 { font-size: clamp(2.5rem, 12vw, 3.7rem); }
+  .cms-edition-links a { width: 100%; text-align: center; }
+}
 @media (prefers-reduced-motion: reduce) {
-  .cms-editorial * {
-    scroll-behavior: auto !important;
+  .cms-edition *, .cms-edition *::before, .cms-edition *::after {
+    animation: none !important; scroll-behavior: auto !important; transition-duration: .01ms !important;
   }
 }
 </style>
 
-<main class="cms-editorial" aria-labelledby="cms-editorial-title">
-  <header class="cms-editorial-masthead">
-    <div>
-      <p class="cms-editorial-kicker">Weekend editorial prototype</p>
-      <h1 id="cms-editorial-title">Chattanooga Music Scene</h1>
+<main class="cms-edition" aria-labelledby="cms-edition-title">
+  <header class="cms-edition-hero">
+    <div class="cms-edition-hero-copy">
+      <p class="cms-edition-kicker">Weekend transmission · August 28–30</p>
+      <h1 id="cms-edition-title">This weekend, Chattanooga plays</h1>
+      <p class="cms-edition-deck">Three nights of live music, new stories from the scene, and direct paths into the artists, rooms, and people shaping the city’s sound.</p>
     </div>
-    <p class="cms-editorial-date">August 28–30, 2026<br>Chattanooga, Tennessee</p>
+    <figure class="cms-edition-photo">
+      <img src="https://www.chattanoogamusicscene.com/wp-content/uploads/2026/08/exec-6309ef04-65b0-4900-98b2-3f344283452b-1024x538.png" alt="Collage of Chattanooga musicians, audiences, vintage concert promotion, radio, television, the riverfront and bridge">
+      <figcaption>Chattanooga Music Scene · Weekend edition</figcaption>
+    </figure>
+    <p class="cms-edition-prompt">Pick a night. Open a handbill. Follow an event directly into the scene.</p>
   </header>
 
-  <section class="cms-editorial-lead" aria-labelledby="cms-editorial-lead-title">
-    <div class="cms-editorial-lead-copy">
-      <p class="cms-editorial-section-label">The weekend issue</p>
-      <h2 id="cms-editorial-lead-title">The city’s weekend soundtrack</h2>
-      <p class="cms-editorial-deck">Three nights of Chattanooga listings, fresh music-scene headlines, and a direct path into the people and places making the noise.</p>
-    </div>
-    <figure class="cms-editorial-lead-photo">
-      <img src="https://www.chattanoogamusicscene.com/wp-content/uploads/2026/08/exec-6309ef04-65b0-4900-98b2-3f344283452b-1024x538.png" alt="Collage of Chattanooga musicians, audiences, vintage concert promotion, radio, television, the riverfront and bridge">
-      <figcaption>Chattanooga Music Scene / August 2026</figcaption>
-    </figure>
-  </section>
-
-  <section class="cms-editorial-weekend" aria-label="Selected music listings for August 28 through 30">
-    <div class="cms-editorial-day-column">
-      <h2 class="cms-editorial-day">Friday <span>August 28</span></h2>
-      <a class="cms-editorial-event" href="https://www.chattanoogamusicscene.com/events/the-new-quintet-w-brother-and-the-hayes/">
-        <time datetime="2026-08-28T19:00:00-04:00">7:00 PM</time>
-        <strong>The New Quintet w/ Brother and the Hayes</strong>
-      </a>
-      <a class="cms-editorial-event" href="https://www.chattanoogamusicscene.com/events/jason-lyles-duo/">
-        <time datetime="2026-08-28T19:30:00-04:00">7:30 PM</time>
-        <strong>Jason Lyles Duo</strong>
-      </a>
-      <a class="cms-editorial-event" href="https://www.chattanoogamusicscene.com/events/work-it/">
-        <time datetime="2026-08-28T21:00:00-04:00">9:00 PM</time>
-        <strong>Work It!</strong>
-      </a>
-    </div>
-
-    <div class="cms-editorial-day-column">
-      <h2 class="cms-editorial-day">Saturday <span>August 29</span></h2>
-      <a class="cms-editorial-event" href="https://www.chattanoogamusicscene.com/events/golden-a-k-pop-kids-party/">
-        <time datetime="2026-08-29T11:00:00-04:00">11:00 AM</time>
-        <strong>GOLDEN: A K-Pop Kids Party!</strong>
-      </a>
-      <a class="cms-editorial-event" href="https://www.chattanoogamusicscene.com/events/the-landon-fitzpatrick-band/">
-        <time datetime="2026-08-29T18:00:00-04:00">6:00 PM</time>
-        <strong>The Landon Fitzpatrick Band</strong>
-      </a>
-      <a class="cms-editorial-event" href="https://www.chattanoogamusicscene.com/events/bingo-loco-the-wildest-bingo-party-in-chattanooga/">
-        <time datetime="2026-08-29T19:00:00-04:00">7:00 PM</time>
-        <strong>Bingo Loco</strong>
-      </a>
-    </div>
-
-    <div class="cms-editorial-day-column">
-      <h2 class="cms-editorial-day">Sunday <span>August 30</span></h2>
-      <a class="cms-editorial-event" href="https://www.chattanoogamusicscene.com/events/burnside-exploration-2/">
-        <time datetime="2026-08-30T18:00:00-04:00">6:00 PM</time>
-        <strong>Burnside Exploration 2</strong>
-      </a>
-      <a class="cms-editorial-event" href="https://www.chattanoogamusicscene.com/events/2026-08-30/">
-        <time datetime="2026-08-30">Full day</time>
-        <strong>Open Sunday’s complete calendar</strong>
-      </a>
+  <section class="cms-weekend-field" aria-labelledby="cms-weekend-title">
+    <header class="cms-weekend-heading">
+      <p>Weekend frequency</p>
+      <h2 id="cms-weekend-title">Choose where the night begins</h2>
+      <span class="cms-weekend-subhead">Each handbill opens in place. Every show title leads directly to its event information.</span>
+    </header>
+    <div class="cms-weekend-handbills">
+      <details class="cms-day" open>
+        <summary><span class="cms-day-name">Friday</span><span class="cms-day-date">August 28</span><span class="cms-day-count">Three ways into the night</span></summary>
+        <div class="cms-day-events">
+          <a class="cms-event" href="https://www.chattanoogamusicscene.com/events/the-new-quintet-w-brother-and-the-hayes/"><time datetime="2026-08-28T19:00:00-04:00">7:00 PM</time><strong>The New Quintet w/ Brother and the Hayes</strong></a>
+          <a class="cms-event" href="https://www.chattanoogamusicscene.com/events/jason-lyles-duo/"><time datetime="2026-08-28T19:30:00-04:00">7:30 PM</time><strong>Jason Lyles Duo</strong></a>
+          <a class="cms-event" href="https://www.chattanoogamusicscene.com/events/work-it/"><time datetime="2026-08-28T21:00:00-04:00">9:00 PM</time><strong>Work It!</strong></a>
+        </div>
+      </details>
+      <details class="cms-day">
+        <summary><span class="cms-day-name">Saturday</span><span class="cms-day-date">August 29</span><span class="cms-day-count">From morning movement to late-night noise</span></summary>
+        <div class="cms-day-events">
+          <a class="cms-event" href="https://www.chattanoogamusicscene.com/events/golden-a-k-pop-kids-party/"><time datetime="2026-08-29T11:00:00-04:00">11:00 AM</time><strong>GOLDEN: A K-Pop Kids Party!</strong></a>
+          <a class="cms-event" href="https://www.chattanoogamusicscene.com/events/the-landon-fitzpatrick-band/"><time datetime="2026-08-29T18:00:00-04:00">6:00 PM</time><strong>The Landon Fitzpatrick Band</strong></a>
+          <a class="cms-event" href="https://www.chattanoogamusicscene.com/events/bingo-loco-the-wildest-bingo-party-in-chattanooga/"><time datetime="2026-08-29T19:00:00-04:00">7:00 PM</time><strong>Bingo Loco</strong></a>
+        </div>
+      </details>
+      <details class="cms-day">
+        <summary><span class="cms-day-name">Sunday</span><span class="cms-day-date">August 30</span><span class="cms-day-count">One feature and the full calendar</span></summary>
+        <div class="cms-day-events">
+          <a class="cms-event" href="https://www.chattanoogamusicscene.com/events/burnside-exploration-2/"><time datetime="2026-08-30T18:00:00-04:00">6:00 PM</time><strong>Burnside Exploration 2</strong></a>
+          <a class="cms-event" href="https://www.chattanoogamusicscene.com/events/2026-08-30/"><time datetime="2026-08-30">Full day</time><strong>Open Sunday’s complete calendar</strong></a>
+        </div>
+      </details>
     </div>
   </section>
 
-  <section class="cms-editorial-posts" aria-label="Current Chattanooga Music Scene posts">
-    <a class="cms-editorial-feature-post" href="https://www.chattanoogamusicscene.com/a-little-look-at-whats-new-around-chattanooga-music-scene/">
-      <img src="https://www.chattanoogamusicscene.com/wp-content/uploads/2026/08/exec-6309ef04-65b0-4900-98b2-3f344283452b-1024x538.png" alt="Collage of Chattanooga musicians, audiences, vintage concert promotion, radio, television, the riverfront and bridge">
-      <span class="cms-editorial-post-date">August 9, 2026 · Lead story</span>
-      <h2>A Little Look at What’s New Around Chattanooga Music Scene</h2>
-    </a>
-
-    <div class="cms-editorial-side-posts">
-      <a class="cms-editorial-secondary-post" href="https://www.chattanoogamusicscene.com/do-you-remember-yesterdays-chattanoogas-lost-music-rooms/">
-        <span class="cms-editorial-post-date">August 3, 2026 · Scene history</span>
-        <h3>Do You Remember Yesterday’s? Chattanooga’s Lost Music Rooms</h3>
+  <section class="cms-story-field" aria-labelledby="cms-story-title">
+    <header class="cms-story-heading"><p>Fresh from the scene</p><h2 id="cms-story-title">Stories with somewhere to go</h2></header>
+    <div class="cms-story-wall">
+      <a class="cms-story cms-story-feature" href="https://www.chattanoogamusicscene.com/a-little-look-at-whats-new-around-chattanooga-music-scene/">
+        <img src="https://www.chattanoogamusicscene.com/wp-content/uploads/2026/08/exec-6309ef04-65b0-4900-98b2-3f344283452b-1024x538.png" alt="Collage of Chattanooga musicians, audiences, venues and local history">
+        <span class="cms-story-copy"><span class="cms-story-date">August 9, 2026 · Lead story</span><h3>A Little Look at What’s New Around Chattanooga Music Scene</h3><p>Open the lead clipping and move directly into the latest scene report.</p></span>
       </a>
-      <a class="cms-editorial-secondary-post" href="https://www.chattanoogamusicscene.com/the-last-riff-megadeth-bows-out-with-self-titled-final-album/">
-        <span class="cms-editorial-post-date">January 23, 2026 · Music news</span>
-        <h3>The Last Riff: Megadeth Bows Out with Self-Titled Final Album</h3>
+      <a class="cms-story cms-story-small cms-story-history" href="https://www.chattanoogamusicscene.com/do-you-remember-yesterdays-chattanoogas-lost-music-rooms/">
+        <span class="cms-story-date">August 3, 2026 · Scene history</span><h3>Do You Remember Yesterday’s? Chattanooga’s Lost Music Rooms</h3><p>Trace one of the rooms that helped make Chattanooga’s musical memory.</p>
       </a>
+      <a class="cms-story cms-story-small cms-story-news" href="https://www.chattanoogamusicscene.com/the-last-riff-megadeth-bows-out-with-self-titled-final-album/">
+        <span class="cms-story-date">January 23, 2026 · Music news</span><h3>The Last Riff: Megadeth Bows Out with Self-Titled Final Album</h3><p>Open the music-news clipping for the full story.</p>
+      </a>
+      <span class="cms-story-photo-scrap" aria-hidden="true"><img src="https://www.chattanoogamusicscene.com/wp-content/uploads/2026/08/With-Nod-to-Past-Tomorrow-Building-Charts-Chattanoogas-Future-_-National-Trust-for-Historic-Preservation.jpg" alt=""></span>
     </div>
   </section>
 
-  <footer class="cms-editorial-footer">
-    <p>These are selected listings from the community calendar. Open an event headline for its full details, or add a music listing of your own.</p>
-    <a class="cms-editorial-stamp" href="https://www.chattanoogamusicscene.com/classifieds/place-ad/">Post to the scene</a>
+  <footer class="cms-edition-join">
+    <h2>Don’t just read the scene. Enter it.</h2>
+    <p>Open a show, follow a story, add a listing, or connect with the people making Chattanooga’s music happen.</p>
+    <nav class="cms-edition-links" aria-label="Participate in Chattanooga Music Scene">
+      <a href="https://www.chattanoogamusicscene.com/classifieds/place-ad/">Post to the scene</a>
+      <a href="https://www.chattanoogamusicscene.com/members/">Meet the community</a>
+    </nav>
   </footer>
 </main>
 <!-- /wp:html -->
