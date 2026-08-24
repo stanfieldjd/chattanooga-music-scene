@@ -61,7 +61,7 @@ body.page-id-8038 article#post-8038 .entry-content {
   align-items: center;
   gap: clamp(1.5rem, 5vw, 5rem);
   padding: clamp(3rem, 7vw, 6.5rem) clamp(1.2rem, 5vw, 4.8rem) clamp(7rem, 11vw, 10rem);
-  overflow: hidden;
+  overflow: visible;
   color: var(--cream);
   background:
     linear-gradient(90deg, rgba(7,32,32,.94) 0%, rgba(7,32,32,.76) 47%, rgba(7,32,32,.28) 100%),
@@ -89,11 +89,13 @@ body.page-id-8038 article#post-8038 .entry-content {
   filter: drop-shadow(5px 5px 0 rgba(159,51,32,.62));
 }
 .cms-edition-hero h1 {
-  max-width: 11ch; margin: 0; color: var(--cream);
-  font: 900 clamp(3.2rem, 7vw, 7rem)/.84 Georgia, serif;
+  max-width: none; margin: 0; color: var(--cream);
+  font: 900 clamp(3.2rem, 5.2vw, 5.6rem)/.84 Georgia, serif;
   letter-spacing: -.04em; text-transform: uppercase; text-wrap: balance;
+  overflow-wrap: normal; word-break: keep-all;
   text-shadow: 5px 5px 0 var(--rust), 9px 9px 0 rgba(0,0,0,.3);
 }
+.cms-edition-hero h1 span { display: block; white-space: nowrap; }
 .cms-edition-deck {
   max-width: 39rem; margin: 1.8rem 0 0;
   font: 600 clamp(1.04rem, 1.7vw, 1.28rem)/1.58 Arial, sans-serif;
@@ -180,7 +182,7 @@ body.page-id-8038 article#post-8038 .entry-content {
 .cms-day:nth-child(3)[open] { transform: rotate(0) translateY(-6px); }
 .cms-day summary {
   position: relative; display: block; min-height: 13rem;
-  padding: 1.8rem 1.4rem 1.3rem; cursor: pointer; list-style: none;
+  padding: 1.8rem 1.4rem 3.2rem; cursor: pointer; list-style: none;
 }
 .cms-day summary::-webkit-details-marker { display: none; }
 .cms-day summary::after {
@@ -189,7 +191,8 @@ body.page-id-8038 article#post-8038 .entry-content {
 }
 .cms-day[open] summary::after { content: "CLOSE HANDBILL  −"; }
 .cms-day-name {
-  display: block; color: var(--gold); font: 900 clamp(2.1rem, 4vw, 3.7rem)/.86 Georgia, serif;
+  display: block; color: var(--gold); font: 900 clamp(1.9rem, 3vw, 3rem)/.86 Georgia, serif;
+  letter-spacing: -.03em; overflow-wrap: normal; word-break: keep-all; white-space: nowrap;
   text-transform: uppercase; text-shadow: 3px 3px 0 var(--rust);
 }
 .cms-day-date,
@@ -237,10 +240,12 @@ body.page-id-8038 article#post-8038 .entry-content {
   transform: rotate(-2deg);
 }
 .cms-story-heading h2 {
-  max-width: 10ch; margin: 0; color: var(--rust);
+  max-width: none; margin: 0; color: var(--rust);
   font: 900 clamp(3rem, 6vw, 6rem)/.86 Georgia, serif; text-transform: uppercase;
+  overflow-wrap: normal; word-break: keep-all;
   text-shadow: 3px 3px 0 rgba(255,245,216,.7);
 }
+.cms-story-heading h2 span { display: block; white-space: nowrap; }
 .cms-story-wall { position: relative; z-index: 4; max-width: 69rem; min-height: 44rem; margin: 2.5rem auto 0; }
 .cms-story {
   position: absolute; display: block; color: var(--ink) !important; background: var(--cream);
@@ -336,7 +341,7 @@ body.page-id-8038 article#post-8038 .entry-content {
   body.page-id-8038 article#post-8038 .entry-content,
   .cms-edition { width: 100% !important; max-width: 100% !important; margin: 0 !important; }
   .cms-edition-hero { display: block; min-height: 0; padding: 3.2rem 1rem 6.5rem; background-position: 58% center; }
-  .cms-edition-hero h1 { max-width: 100%; font-size: clamp(2.7rem, 13vw, 4rem); }
+  .cms-edition-hero h1 { max-width: 100%; font-size: clamp(2.2rem, 11vw, 3.5rem); }
   .cms-edition-deck { font-size: .98rem; line-height: 1.5; }
   .cms-edition-photo { width: 76%; margin: 2rem auto 0; transform: rotate(2deg); }
   .cms-edition-prompt { left: .9rem; bottom: -2rem; width: calc(100% - 1.8rem); }
@@ -351,6 +356,7 @@ body.page-id-8038 article#post-8038 .entry-content {
   .cms-day summary { min-height: 11.5rem; }
   .cms-story-field { min-height: 0; padding: 3.8rem .7rem 4.5rem; }
   .cms-story-heading h2 { font-size: clamp(2.5rem, 12vw, 3.7rem); }
+  .cms-story-heading h2 span { white-space: normal; }
   .cms-story-wall { min-height: 0; }
   .cms-story,
   .cms-story-feature,
@@ -374,7 +380,7 @@ body.page-id-8038 article#post-8038 .entry-content {
   <header class="cms-edition-hero">
     <div class="cms-edition-hero-copy">
       <p class="cms-edition-kicker">Weekend transmission · August 28–30</p>
-      <h1 id="cms-edition-title">This weekend, Chattanooga plays</h1>
+      <h1 id="cms-edition-title"><span>This weekend,</span><span>Chattanooga</span><span>plays</span></h1>
       <p class="cms-edition-deck">Three nights of live music, new stories from the scene, and direct paths into the artists, rooms, and people shaping the city’s sound.</p>
     </div>
     <figure class="cms-edition-photo">
@@ -418,7 +424,7 @@ body.page-id-8038 article#post-8038 .entry-content {
   </section>
 
   <section class="cms-story-field" aria-labelledby="cms-story-title">
-    <header class="cms-story-heading"><p>Fresh from the scene</p><h2 id="cms-story-title">Stories with somewhere to go</h2></header>
+    <header class="cms-story-heading"><p>Fresh from the scene</p><h2 id="cms-story-title"><span>Stories with</span><span>somewhere to go</span></h2></header>
     <div class="cms-story-wall">
       <a class="cms-story cms-story-feature" href="https://www.chattanoogamusicscene.com/a-little-look-at-whats-new-around-chattanooga-music-scene/">
         <img src="https://www.chattanoogamusicscene.com/wp-content/uploads/2026/08/exec-6309ef04-65b0-4900-98b2-3f344283452b-1024x538.png" alt="Collage of Chattanooga musicians, audiences, venues and local history">
