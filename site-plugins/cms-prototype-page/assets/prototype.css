@@ -1,0 +1,23 @@
+:root{color-scheme:dark}
+html,body.cms-prototype-page{margin:0!important;min-height:100%;background:#0c0b09!important}
+body.cms-prototype-page{overflow:hidden!important}
+.cms-prototype-page #wpadminbar{z-index:100000}
+.cms-prototype-artwork,.cms-prototype-artwork *{box-sizing:border-box}
+.cms-prototype-artwork{isolation:isolate;position:fixed;z-index:99990;inset:0;overflow:hidden;background:#10100e}
+.admin-bar .cms-prototype-artwork{top:32px}
+.cms-prototype-canvas{position:absolute;left:50%;top:50%;width:max(100vw,177.6833svh);aspect-ratio:1672/941;transform:translate(-50%,-50%)}
+.cms-prototype-collage{position:absolute;z-index:0;inset:0;width:100%;height:100%;pointer-events:none}
+.cms-prototype-navigation{position:absolute;z-index:10;inset:0;pointer-events:none}
+.cms-prototype-letter{position:absolute;display:block;pointer-events:auto;border:0;background:transparent;padding:0;cursor:pointer;text-decoration:none}
+.cms-prototype-letter img{display:block;width:100%;height:100%;user-select:none}
+.cms-prototype-letter:focus-visible{outline:3px solid #fff1a7;outline-offset:4px}
+.cms-prototype-tonight{left:69.677%;top:20.510%;width:11.065%;height:6.589%}
+.cms-prototype-upcoming{left:85.825%;top:6.801%;width:12.859%;height:10.840%}
+.cms-prototype-venues{left:81.340%;top:39.638%;width:11.483%;height:5.526%}
+.cms-prototype-community{left:69.498%;top:61.000%;width:18.062%;height:12.752%}
+.cms-prototype-marketplace{left:75.478%;top:81.509%;width:16.507%;height:8.183%}
+.cms-prototype-skip{position:fixed;z-index:100010;top:1rem;left:1rem;transform:translateY(-180%);background:#fff;color:#111;padding:.7rem 1rem}
+.cms-prototype-skip:focus{transform:none}
+.cms-prototype-visually-hidden{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+@media(max-width:782px){.admin-bar .cms-prototype-artwork{top:46px}}
+
