@@ -8,6 +8,21 @@ function cms_optimize_welcome_page_request() {
 }
 
 /**
+ * Prevent BuddyBoss from printing moderation dialogs on the Welcome page.
+ *
+ * The page has no member controls, so its global Report, Block Member, and
+ * reported-content templates have no valid trigger there.
+ */
+function cms_optimize_welcome_page_markup() {
+	if ( ! cms_optimize_welcome_page_request() ) {
+		return;
+	}
+
+	remove_action( 'wp_footer', 'bb_moderation_content_report_popup' );
+}
+add_action( 'wp', 'cms_optimize_welcome_page_markup', 100 );
+
+/**
  * Remove styles that have no rendered component on the Welcome page.
  */
 function cms_optimize_welcome_page_styles() {
