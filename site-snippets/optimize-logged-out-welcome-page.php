@@ -19,7 +19,6 @@ function cms_optimize_welcome_page_styles() {
 		'bp-nouveau-icons-map',
 		'bp-nouveau-bb-icons',
 		'bp-nouveau',
-		'bcp-frontend',
 		'bp-media-videojs-css',
 		'bp-mentions-css',
 		'events-manager',
