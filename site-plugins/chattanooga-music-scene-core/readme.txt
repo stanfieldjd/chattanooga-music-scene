@@ -1,4 +1,4 @@
-=== Chattanooga Music Scene Core ===
+=== Chattanooga Music Scene Weekend Feature ===
 Contributors: chattanoogamusicscene
 Tags: events, weekend, publishing
 Requires at least: 6.4
