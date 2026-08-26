@@ -140,7 +140,6 @@ function cms_optimize_welcome_page_scripts() {
 		'buddyx-custom',
 		'buddyx-buddypress',
 		'buddyx-color-mode-toggle',
-		'bcp-frontend',
 		'comment-reply',
 		'heartbeat',
 	);
