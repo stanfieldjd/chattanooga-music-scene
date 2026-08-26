@@ -1,0 +1,93 @@
+.cms-weekend-guide {
+	--cms-weekend-ink: #142f2d;
+	--cms-weekend-paper: #f2e3bf;
+	--cms-weekend-rust: #9f3320;
+	--cms-weekend-gold: #d49a43;
+	color: var(--cms-weekend-ink);
+}
+
+.cms-weekend-introduction {
+	font-size: 1.15rem;
+	line-height: 1.65;
+}
+
+.cms-weekend-day {
+	margin: 3rem 0;
+}
+
+.cms-weekend-day > h2 {
+	margin-bottom: 1.25rem;
+	padding-bottom: .55rem;
+	border-bottom: 5px solid var(--cms-weekend-rust);
+	font-family: Georgia, serif;
+}
+
+.cms-weekend-events {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+	gap: 1.25rem;
+}
+
+.cms-weekend-event {
+	overflow: hidden;
+	background: var(--cms-weekend-paper);
+	border: 2px solid var(--cms-weekend-ink);
+	box-shadow: 7px 7px 0 rgba(20, 47, 45, .2);
+}
+
+.cms-weekend-event-image,
+.cms-weekend-event-image img {
+	display: block;
+	width: 100%;
+}
+
+.cms-weekend-event-image img {
+	aspect-ratio: 16 / 9;
+	object-fit: cover;
+}
+
+.cms-weekend-event-copy {
+	padding: 1.1rem;
+}
+
+.cms-weekend-event-time {
+	margin: 0;
+	color: var(--cms-weekend-rust);
+	font-size: .8rem;
+	font-weight: 800;
+	letter-spacing: .08em;
+	text-transform: uppercase;
+}
+
+.cms-weekend-event h3 {
+	margin: .45rem 0;
+	font: 800 1.35rem/1.18 Georgia, serif;
+}
+
+.cms-weekend-event h3 a,
+.cms-weekend-event-details,
+.cms-weekend-calendar-link a {
+	color: inherit;
+}
+
+.cms-weekend-event-location {
+	margin: .4rem 0 .9rem;
+}
+
+.cms-weekend-event-details,
+.cms-weekend-calendar-link a {
+	font-weight: 800;
+	text-decoration-thickness: 2px;
+	text-underline-offset: .2em;
+}
+
+.cms-weekend-closing {
+	margin-top: 2.5rem;
+	padding: 1rem 1.2rem;
+	background: rgba(212, 154, 67, .2);
+	border-left: 6px solid var(--cms-weekend-gold);
+}
+
+.cms-weekend-calendar-link {
+	font-size: 1.05rem;
+}

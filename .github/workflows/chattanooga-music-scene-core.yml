@@ -1,0 +1,25 @@
+name: Chattanooga Music Scene Core
+
+on:
+  push:
+    paths:
+      - "site-plugins/chattanooga-music-scene-core/**"
+      - ".github/workflows/chattanooga-music-scene-core.yml"
+  pull_request:
+    paths:
+      - "site-plugins/chattanooga-music-scene-core/**"
+      - ".github/workflows/chattanooga-music-scene-core.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  php-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "7.4"
+      - name: Check PHP syntax
+        run: find site-plugins/chattanooga-music-scene-core -name '*.php' -print0 | xargs -0 -n1 php -l
