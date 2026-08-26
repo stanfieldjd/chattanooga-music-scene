@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: Chattanooga Music Scene Core
+ * Plugin Name: Chattanooga Music Scene Weekend Feature
  * Description: Site-specific publishing tools for Chattanooga Music Scene.
  * Version: 0.1.0
  * Author: Chattanooga Music Scene
