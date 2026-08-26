@@ -6,6 +6,33 @@
 	color: var(--cms-weekend-ink);
 }
 
+.cms-weekend-scene-feature {
+	margin: 2.5rem 0;
+	padding: clamp(1.25rem, 3vw, 2.5rem);
+	background: #f7efd9;
+	border-top: 8px solid #9f3320;
+	border-bottom: 2px solid #142f2d;
+}
+
+.cms-weekend-feature-kicker {
+	margin: 0 0 .35rem;
+	color: #9f3320;
+	font-size: .78rem;
+	font-weight: 900;
+	letter-spacing: .14em;
+	text-transform: uppercase;
+}
+
+.cms-weekend-scene-feature > header h2 {
+	margin: 0 0 1.5rem;
+	font: 800 clamp(1.8rem, 4vw, 3.2rem)/1.05 Georgia, serif;
+}
+
+.cms-weekend-scene-feature > header h2 a {
+	color: #142f2d;
+	text-decoration: none;
+}
+
 .cms-weekend-introduction {
 	font-size: 1.15rem;
 	line-height: 1.65;

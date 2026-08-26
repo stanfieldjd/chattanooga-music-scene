@@ -7,6 +7,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class CMS_Weekend_Posts {
 	const CRON_HOOK       = 'cms_weekend_publish';
 	const OPTION_SETTINGS = 'cms_weekend_post_settings';
+	const POST_TYPE       = 'cms_weekend_feature';
 	const META_WEEK_KEY   = '_cms_weekend_key';
 	const META_GENERATED  = '_cms_weekend_generated';
 	const NONCE_ACTION    = 'cms_weekend_action';
@@ -23,13 +24,49 @@ final class CMS_Weekend_Posts {
 	}
 
 	private function __construct() {
+		add_action( 'init', array( $this, 'register_post_type' ) );
 		add_filter( 'cron_schedules', array( $this, 'add_weekly_schedule' ) );
+		add_filter( 'publicize_post_types', array( $this, 'enable_jetpack_social' ) );
 		add_action( self::CRON_HOOK, array( $this, 'run_scheduled_publish' ) );
 		add_action( 'admin_menu', array( $this, 'register_admin_page' ) );
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
 		add_action( 'admin_post_cms_weekend_action', array( $this, 'handle_admin_action' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_styles' ) );
 		add_action( 'update_option_' . self::OPTION_SETTINGS, array( $this, 'settings_updated' ), 10, 2 );
+		add_shortcode( 'cms_weekend_feature', array( $this, 'render_scene_feature' ) );
+	}
+
+	public function register_post_type() {
+		register_post_type(
+			self::POST_TYPE,
+			array(
+				'labels' => array(
+					'name'          => __( 'Weekend Features', 'chattanooga-music-scene-core' ),
+					'singular_name' => __( 'Weekend Feature', 'chattanooga-music-scene-core' ),
+					'edit_item'     => __( 'Edit Weekend Feature', 'chattanooga-music-scene-core' ),
+					'view_item'     => __( 'View Weekend Feature', 'chattanooga-music-scene-core' ),
+				),
+				'public'              => true,
+				'show_ui'             => true,
+				'show_in_menu'        => 'tools.php',
+				'show_in_rest'        => true,
+				'exclude_from_search' => true,
+				'has_archive'         => false,
+				'rewrite'             => array( 'slug' => 'weekend-feature' ),
+				'supports'            => array( 'title', 'editor', 'excerpt', 'author', 'thumbnail' ),
+				'menu_icon'           => 'dashicons-calendar-alt',
+			)
+		);
+
+		if ( '1' !== get_option( 'cms_weekend_rewrite_version' ) ) {
+			flush_rewrite_rules( false );
+			update_option( 'cms_weekend_rewrite_version', '1', false );
+		}
+	}
+
+	public function enable_jetpack_social( $post_types ) {
+		$post_types[] = self::POST_TYPE;
+		return array_values( array_unique( $post_types ) );
 	}
 
 	public static function activate() {
@@ -289,7 +326,7 @@ final class CMS_Weekend_Posts {
 	private function find_existing_post( $week_key ) {
 		$posts = get_posts(
 			array(
-				'post_type'      => 'post',
+				'post_type'      => self::POST_TYPE,
 				'post_status'    => array( 'draft', 'pending', 'future', 'publish' ),
 				'posts_per_page' => 1,
 				'fields'         => 'ids',
@@ -326,7 +363,7 @@ final class CMS_Weekend_Posts {
 		$settings = $this->get_settings();
 		$post_data = array(
 			'ID'           => $post_id,
-			'post_type'    => 'post',
+			'post_type'    => self::POST_TYPE,
 			'post_status'  => $status,
 			'post_title'   => $this->post_title( $window ),
 			'post_name'    => 'chattanooga-music-this-weekend-' . $window['key'],
@@ -402,11 +439,30 @@ final class CMS_Weekend_Posts {
 	}
 
 	public function enqueue_styles() {
-		if ( ! is_singular( 'post' ) || ! get_post_meta( get_queried_object_id(), self::META_WEEK_KEY, true ) ) {
+		if ( ! is_singular( self::POST_TYPE ) || ! get_post_meta( get_queried_object_id(), self::META_WEEK_KEY, true ) ) {
 			return;
 		}
 
 		wp_enqueue_style( 'cms-weekend-guide', CMS_CORE_URL . 'assets/weekend-guide.css', array(), CMS_CORE_VERSION );
+	}
+
+	public function render_scene_feature() {
+		$window  = $this->weekend_window();
+		$post_id = $this->find_existing_post( $window['key'] );
+
+		if ( ! $post_id || 'publish' !== get_post_status( $post_id ) ) {
+			return '';
+		}
+
+		wp_enqueue_style( 'cms-weekend-guide', CMS_CORE_URL . 'assets/weekend-guide.css', array(), CMS_CORE_VERSION );
+
+		return sprintf(
+			'<section class="cms-weekend-scene-feature" aria-labelledby="cms-weekend-feature-title"><header><p class="cms-weekend-feature-kicker">%1$s</p><h2 id="cms-weekend-feature-title"><a href="%2$s">%3$s</a></h2></header>%4$s</section>',
+			esc_html__( 'Weekend Feature', 'chattanooga-music-scene-core' ),
+			esc_url( get_permalink( $post_id ) ),
+			esc_html( get_the_title( $post_id ) ),
+			apply_filters( 'the_content', get_post_field( 'post_content', $post_id ) )
+		);
 	}
 
 	public function render_admin_page() {
@@ -421,7 +477,7 @@ final class CMS_Weekend_Posts {
 		$last_run = get_option( 'cms_weekend_last_run', array() );
 		?>
 		<div class="wrap">
-			<h1><?php esc_html_e( 'Chattanooga Weekend Posts', 'chattanooga-music-scene-core' ); ?></h1>
+			<h1><?php esc_html_e( 'Chattanooga Weekend Features', 'chattanooga-music-scene-core' ); ?></h1>
 			<?php settings_errors( self::OPTION_SETTINGS ); ?>
 			<?php if ( isset( $_GET['cms_error'] ) ) : ?>
 				<div class="notice notice-error"><p><?php echo esc_html( rawurldecode( sanitize_text_field( wp_unslash( $_GET['cms_error'] ) ) ) ); ?></p></div>
@@ -436,7 +492,7 @@ final class CMS_Weekend_Posts {
 						)
 					);
 					?>
-					<a href="<?php echo esc_url( get_edit_post_link( absint( $_GET['cms_created'] ) ) ); ?>"><?php esc_html_e( 'Open the post', 'chattanooga-music-scene-core' ); ?></a>
+					<a href="<?php echo esc_url( get_edit_post_link( absint( $_GET['cms_created'] ) ) ); ?>"><?php esc_html_e( 'Open the feature', 'chattanooga-music-scene-core' ); ?></a>
 				</p></div>
 			<?php endif; ?>
 
