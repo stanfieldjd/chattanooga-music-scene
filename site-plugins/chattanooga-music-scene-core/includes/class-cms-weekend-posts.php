@@ -493,6 +493,9 @@ final class CMS_Weekend_Posts {
 		$settings = $this->get_settings();
 		$window   = $this->weekend_window();
 		$events   = $this->get_events( $window );
+		if ( ! empty( $settings['enabled'] ) && ! empty( $settings['publish_time'] ) && ! empty( $settings['post_author'] ) && ! wp_next_scheduled( self::CRON_HOOK ) ) {
+			$this->synchronize_schedule();
+		}
 		$next_run = wp_next_scheduled( self::CRON_HOOK );
 		$last_run = get_option( 'cms_weekend_last_run', array() );
 		?>
