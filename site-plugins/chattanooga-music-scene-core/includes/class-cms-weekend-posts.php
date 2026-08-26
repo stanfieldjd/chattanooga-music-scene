@@ -33,6 +33,7 @@ final class CMS_Weekend_Posts {
 		add_action( 'admin_post_cms_weekend_action', array( $this, 'handle_admin_action' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_styles' ) );
 		add_action( 'update_option_' . self::OPTION_SETTINGS, array( $this, 'settings_updated' ), 10, 2 );
+		add_filter( 'the_content', array( $this, 'inject_scene_feature' ), 20 );
 		add_shortcode( 'cms_weekend_feature', array( $this, 'render_scene_feature' ) );
 	}
 
@@ -449,8 +450,9 @@ final class CMS_Weekend_Posts {
 	public function render_scene_feature() {
 		$window  = $this->weekend_window();
 		$post_id = $this->find_existing_post( $window['key'] );
+		$preview = current_user_can( 'publish_posts' ) && isset( $_GET['cms_weekend_preview'] ) && '1' === sanitize_text_field( wp_unslash( $_GET['cms_weekend_preview'] ) );
 
-		if ( ! $post_id || 'publish' !== get_post_status( $post_id ) ) {
+		if ( ! $post_id || ( 'publish' !== get_post_status( $post_id ) && ! $preview ) ) {
 			return '';
 		}
 
@@ -461,8 +463,26 @@ final class CMS_Weekend_Posts {
 			esc_html__( 'Weekend Feature', 'chattanooga-music-scene-core' ),
 			esc_url( get_permalink( $post_id ) ),
 			esc_html( get_the_title( $post_id ) ),
-			apply_filters( 'the_content', get_post_field( 'post_content', $post_id ) )
+			do_shortcode( get_post_field( 'post_content', $post_id ) )
 		);
+	}
+
+	public function inject_scene_feature( $content ) {
+		if ( is_admin() || ! is_page( 'scene' ) || ! in_the_loop() || ! is_main_query() ) {
+			return $content;
+		}
+
+		$feature = $this->render_scene_feature();
+		if ( '' === $feature ) {
+			return $content;
+		}
+
+		$pattern = '/(<section\b[^>]*class="[^"]*\bscene-art-hero\b[^"]*"[^>]*>.*?<\/section>)/s';
+		if ( ! preg_match( $pattern, $content ) ) {
+			return $content;
+		}
+
+		return preg_replace( $pattern, '$1' . $feature, $content, 1 );
 	}
 
 	public function render_admin_page() {
