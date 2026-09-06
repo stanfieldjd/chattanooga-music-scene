@@ -321,6 +321,7 @@ final class CMS_Weekend_Posts {
 		$end   = $window['end'];
 		$range = $start->format( 'F j' ) . ( $start->format( 'F' ) === $end->format( 'F' ) ? '–' . $end->format( 'j' ) : '–' . $end->format( 'F j' ) );
 
+		/* translators: %s: weekend date range. */
 		return sprintf( __( 'Chattanooga Music This Weekend: %s', 'chattanooga-music-scene-core' ), $range );
 	}
 
@@ -370,6 +371,7 @@ final class CMS_Weekend_Posts {
 			'post_name'    => 'chattanooga-music-this-weekend-' . $window['key'],
 			'post_content' => $this->build_post_content( $events, $window ),
 			'post_excerpt' => sprintf(
+				/* translators: 1: weekend start date, 2: weekend end date. */
 				__( 'Live music happening across Chattanooga from %1$s through %2$s. Open the weekend guide and choose your stage.', 'chattanooga-music-scene-core' ),
 				$window['start']->format( 'F j' ),
 				$window['end']->format( 'F j' )
@@ -472,17 +474,26 @@ final class CMS_Weekend_Posts {
 			return $content;
 		}
 
+		if ( false !== strpos( $content, '[cms_weekend_feature]' ) ) {
+			return $content;
+		}
+
 		$feature = $this->render_scene_feature();
 		if ( '' === $feature ) {
 			return $content;
 		}
 
-		$pattern = '/(<section\b[^>]*class="[^"]*\bscene-art-hero\b[^"]*"[^>]*>.*?<\/section>)/s';
-		if ( ! preg_match( $pattern, $content ) ) {
+		$current_pattern = '/<section\b[^>]*class="[^"]*\bcms-current\b[^"]*"[^>]*>.*?<\/section>/s';
+		if ( preg_match( $current_pattern, $content ) ) {
+			return preg_replace( $current_pattern, $feature, $content, 1 );
+		}
+
+		$hero_pattern = '/(<section\b[^>]*class="[^"]*\b(?:scene-art-hero|cms-hero)\b[^"]*"[^>]*>.*?<\/section>)/s';
+		if ( ! preg_match( $hero_pattern, $content ) ) {
 			return $content;
 		}
 
-		return preg_replace( $pattern, '$1' . $feature, $content, 1 );
+		return preg_replace( $hero_pattern, '$1' . $feature, $content, 1 );
 	}
 
 	public function render_admin_page() {
@@ -509,6 +520,7 @@ final class CMS_Weekend_Posts {
 					<?php
 					echo esc_html(
 						sprintf(
+							/* translators: 1: generated post status, 2: number of events included. */
 							__( 'The %1$s weekend guide was generated with %2$d events.', 'chattanooga-music-scene-core' ),
 							isset( $_GET['cms_status'] ) ? sanitize_key( wp_unslash( $_GET['cms_status'] ) ) : 'draft',
 							absint( $_GET['cms_count'] )
@@ -526,6 +538,7 @@ final class CMS_Weekend_Posts {
 					if ( is_wp_error( $events ) ) {
 						echo esc_html( $events->get_error_message() );
 					} else {
+						/* translators: %d: number of published events found for the weekend window. */
 						echo esc_html( sprintf( _n( '%d published event found.', '%d published events found.', count( $events ), 'chattanooga-music-scene-core' ), count( $events ) ) );
 					}
 					?>
@@ -589,7 +602,12 @@ final class CMS_Weekend_Posts {
 			<h2><?php esc_html_e( 'Scheduler status', 'chattanooga-music-scene-core' ); ?></h2>
 			<p><?php echo $next_run ? esc_html( wp_date( 'l, F j, Y \a\t g:i a T', $next_run, wp_timezone() ) ) : esc_html__( 'Automatic publishing is disabled.', 'chattanooga-music-scene-core' ); ?></p>
 			<?php if ( ! empty( $last_run['time'] ) ) : ?>
-				<p><?php echo esc_html( sprintf( __( 'Last run: %1$s — %2$s', 'chattanooga-music-scene-core' ), $last_run['time'], ! empty( $last_run['ok'] ) ? __( 'successful', 'chattanooga-music-scene-core' ) : (string) $last_run['result'] ) ); ?></p>
+				<p><?php echo esc_html( sprintf(
+					/* translators: 1: last scheduled run time, 2: run result. */
+					__( 'Last run: %1$s — %2$s', 'chattanooga-music-scene-core' ),
+					$last_run['time'],
+					! empty( $last_run['ok'] ) ? __( 'successful', 'chattanooga-music-scene-core' ) : (string) $last_run['result']
+				) ); ?></p>
 			<?php endif; ?>
 		</div>
 		<?php
