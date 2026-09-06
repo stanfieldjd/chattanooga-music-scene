@@ -269,6 +269,9 @@ final class CMS_Weekend_Posts {
 			if ( ! $start ) {
 				continue;
 			}
+			if ( $start < $window['start'] || $start > $window['end'] ) {
+				continue;
+			}
 			$groups[ $start->format( 'Y-m-d' ) ][] = $event;
 		}
 
@@ -314,6 +317,15 @@ final class CMS_Weekend_Posts {
 		<?php
 
 		return trim( ob_get_clean() );
+	}
+
+	private function live_weekend_content( array $window ) {
+		$events = $this->get_events( $window );
+		if ( is_wp_error( $events ) ) {
+			return $events;
+		}
+
+		return $this->build_post_content( $events, $window );
 	}
 
 	private function post_title( array $window ) {
@@ -460,17 +472,37 @@ final class CMS_Weekend_Posts {
 
 		wp_enqueue_style( 'cms-weekend-guide', CMS_CORE_URL . 'assets/weekend-guide.css', array(), '0.2.0' );
 
+		$live_content = $this->live_weekend_content( $window );
+		$guide        = is_wp_error( $live_content ) ? do_shortcode( get_post_field( 'post_content', $post_id ) ) : $live_content;
+
 		return sprintf(
 			'<section class="cms-weekend-scene-feature" aria-labelledby="cms-weekend-feature-title"><header><p class="cms-weekend-feature-kicker">%1$s</p><h2 id="cms-weekend-feature-title"><a href="%2$s">%3$s</a></h2></header>%4$s</section>',
 			esc_html__( 'Weekend Feature', 'chattanooga-music-scene-core' ),
 			esc_url( get_permalink( $post_id ) ),
 			esc_html( get_the_title( $post_id ) ),
-			do_shortcode( get_post_field( 'post_content', $post_id ) )
+			$guide
 		);
 	}
 
 	public function inject_scene_feature( $content ) {
-		if ( is_admin() || ! is_page( 'scene' ) || ! in_the_loop() || ! is_main_query() ) {
+		if ( is_admin() || ! in_the_loop() || ! is_main_query() ) {
+			return $content;
+		}
+
+		if ( is_singular( self::POST_TYPE ) ) {
+			$post_id  = get_queried_object_id();
+			$week_key = get_post_meta( $post_id, self::META_WEEK_KEY, true );
+			$window   = $this->weekend_window();
+
+			if ( $week_key !== $window['key'] ) {
+				return $content;
+			}
+
+			$live_content = $this->live_weekend_content( $window );
+			return is_wp_error( $live_content ) ? $content : $live_content;
+		}
+
+		if ( ! is_page( 'scene' ) ) {
 			return $content;
 		}
 
