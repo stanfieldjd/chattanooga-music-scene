@@ -21,6 +21,7 @@ require_once CMSA_DIR . 'includes/class-cmsa-audit.php';
 require_once CMSA_DIR . 'includes/class-cmsa-backups.php';
 require_once CMSA_DIR . 'includes/class-cmsa-health.php';
 require_once CMSA_DIR . 'includes/class-cmsa-updates.php';
+require_once CMSA_DIR . 'includes/class-cmsa-lifecycle.php';
 require_once CMSA_DIR . 'includes/class-cmsa-abilities.php';
 require_once CMSA_DIR . 'includes/class-cmsa-plugin.php';
 
