@@ -1,0 +1,14 @@
+{
+  "source_commit": "0b34773ebc8073cb657477770b34cabc280f5892",
+  "files": {
+    "plugin/chattanooga-cms-admin.php": "7eebf281948a9e615824d353436a5f3056b191e6",
+    "plugin/readme.txt": "7769b7de9911138614815e94a82f424e94894900",
+    "plugin/includes/class-cmsa-abilities.php": "b43cda2a64a6c3af2524bade8d4e89258bf349e9",
+    "plugin/includes/class-cmsa-audit.php": "ae360bc1769651e49330ac246af2481b7dabe38f",
+    "plugin/includes/class-cmsa-backups.php": "51a22fd0fe70c5e48d03cb8f2f6deb77f4541cbc",
+    "plugin/includes/class-cmsa-health.php": "5b43cf90f09778aa347ba53bd9eccd34dc0cc70e",
+    "plugin/includes/class-cmsa-lifecycle.php": "b3502c38e6c2227607363f8e9ed381f91ad5ed41",
+    "plugin/includes/class-cmsa-plugin.php": "19f07615419fdf9c34804c5106df4cd54c6a1883",
+    "plugin/includes/class-cmsa-updates.php": "260cfed269549231dff02137f652f9ee8eb35558"
+  }
+}

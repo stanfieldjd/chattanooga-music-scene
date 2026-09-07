@@ -13,10 +13,14 @@
       "branch": "feature/chattanooga-cms-admin",
       "head_sha": "0b34773ebc8073cb657477770b34cabc280f5892",
       "source_path": "site-plugins/chattanooga-cms-admin",
-      "state": "source_validated_not_deployed",
+      "state": "workbench_lab_pending_ci",
       "validation": {
-        "php_7_4_syntax": "passed",
-        "workflow_run_id": 34115195808
+        "source_php_7_4_syntax": "passed",
+        "source_workflow_run_id": 34115195808,
+        "lab_path": "workbench/labs/chattanooga-cms-admin",
+        "lab_source_mirror": "exact_git_blobs",
+        "lab_php_targets": ["7.4", "8.2"],
+        "runtime_wordpress_7_1": "not_run"
       }
     },
     {

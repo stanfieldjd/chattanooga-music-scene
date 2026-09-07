@@ -16,9 +16,12 @@ Last verified: 2026-09-07
 - Branch: `feature/chattanooga-cms-admin`
 - Verified source checkpoint: `0b34773ebc8073cb657477770b34cabc280f5892`
 - Path: `site-plugins/chattanooga-cms-admin`
-- Validation: PHP 7.4 syntax workflow passed.
+- Source validation: PHP 7.4 syntax workflow passed.
+- Workbench lab: `workbench/labs/chattanooga-cms-admin`
+- Lab source mirror: exact Git-blob mirror of the verified source checkpoint.
+- Lab validation targets: PHP 7.4 + PHP 8.2, source-blob integrity, architecture/security scan, stubbed Abilities registration.
 - Production state: not merged to `main`; not installed on Chattanooga Music Scene.
-- Next gate: runtime integration and live WordPress ability discovery after an authorized deployment path exists.
+- Runtime-dependent capabilities remain UNKNOWN/CONDITIONAL until WordPress 7.1 probes and controlled execution tests pass.
 
 ### Chattanooga Music Scene Weekend Feature
 
@@ -33,4 +36,4 @@ The workbench does not cache live WordPress state as authoritative. Before plugi
 
 ## Current engineering principle
 
-Source work, deployment, and live verification are separate states. A successful GitHub commit or CI run does not establish installation, deployment, activation, or correct live behavior.
+Source work, lab evidence, deployment, and live verification are separate states. A successful GitHub commit or CI run does not establish installation, deployment, activation, MCP discovery, or correct live behavior.

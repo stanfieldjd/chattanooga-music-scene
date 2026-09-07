@@ -1,0 +1,32 @@
+name: CMS Admin Workbench Lab
+
+on:
+  push:
+    branches:
+      - workbench/mars
+    paths:
+      - "workbench/labs/chattanooga-cms-admin/**"
+      - ".github/workflows/cmsa-workbench-lab.yml"
+  pull_request:
+    paths:
+      - "workbench/labs/chattanooga-cms-admin/**"
+      - ".github/workflows/cmsa-workbench-lab.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  lab:
+    name: PHP ${{ matrix.php }} lab
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ["7.4", "8.2"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+      - name: Run CMS Admin workbench lab
+        run: bash workbench/labs/chattanooga-cms-admin/scripts/run-lab.sh
