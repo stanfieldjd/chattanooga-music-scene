@@ -13,7 +13,7 @@
       "branch": "feature/chattanooga-cms-admin",
       "head_sha": "0b34773ebc8073cb657477770b34cabc280f5892",
       "source_path": "site-plugins/chattanooga-cms-admin",
-      "state": "workbench_storage_unavailable_verified_deterministic_update_pending",
+      "state": "workbench_deterministic_update_verified_partial_write_active",
       "validation": {
         "source_php_7_4_syntax": "passed",
         "source_workflow_run_id": 34115195808,
@@ -23,10 +23,10 @@
         "lab_php_7_4": "passed",
         "lab_php_8_2": "passed",
         "reference_wordpress_7_1": "passed",
-        "reference_lab_run_id": 34165355234,
-        "reference_test_commit": "7b6e25b4a1103f260fdf36237482d9e7c7787934",
-        "reference_artifact_id": 10033988433,
-        "reference_artifact_sha256": "bea034a0a86a3de8ed85208cf61a059a996ae64ff45eaae3cfefd640479d28df",
+        "reference_lab_run_id": 34166093601,
+        "reference_test_commit": "04139cb2cc8da95af1e79cf6bb50f08062c2b77a",
+        "reference_artifact_id": 10034214148,
+        "reference_artifact_sha256": "da9258afb3694f6a10c2854c8d963b207fa1bdbd7e49c2dd22745ed48d5a4aa6",
         "real_registry_expected_abilities": 24,
         "real_registry_result": "passed",
         "permission_matrix": "passed_24_abilities_10_capabilities",
@@ -49,7 +49,8 @@
         "multisite_run_id": 34164758622,
         "corrupt_incomplete_backup_rejection": "passed_checksum_corruption_missing_file_fail_closed_target_unchanged",
         "storage_unavailable": "passed_all_configured_backup_paths_unwritable_backup_not_created",
-        "deterministic_plugin_update_edges": "not_run",
+        "deterministic_plugin_update_edges": "passed_no_update_blocked_local_v1_to_v2_malformed_fail_closed_exact_active_v1_rollback",
+        "partial_write_integrity": "active_failing_test_pending",
         "dreamhost_read_only_probe": "not_run",
         "chattanooga_mcp_discovery": "not_run"
       }

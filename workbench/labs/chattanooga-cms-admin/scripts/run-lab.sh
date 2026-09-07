@@ -11,6 +11,7 @@ find "$ROOT/plugin" "$ROOT/candidate" "$ROOT/tests" "$ROOT/probes" -type f -name
 
 php "$ROOT/tests/source-manifest-test.php"
 php "$ROOT/tests/source-shape-test.php"
+php "$ROOT/tests/backup-write-integrity-test.php"
 php "$ROOT/tests/security-test.php"
 php "$ROOT/tests/privacy-boundary-test.php"
 php "$ROOT/tests/registration-test.php"

@@ -10,7 +10,7 @@ Evidence states:
 - `UNKNOWN` — insufficient evidence for the target environment.
 - `NOT_YET_IMPLEMENTED` — intentionally not present in the current maintenance-layer candidate.
 
-Latest complete single-site/full-regression evidence: CMS Admin Workbench Lab run `34165355234`, commit `7b6e25b4a1103f260fdf36237482d9e7c7787934`, artifact `10033988433`, SHA-256 `bea034a0a86a3de8ed85208cf61a059a996ae64ff45eaae3cfefd640479d28df`. Real multisite evidence: CMS Admin Multisite Lab run `34164758622`.
+Latest complete single-site/full-regression evidence: CMS Admin Workbench Lab run `34166093601`, commit `04139cb2cc8da95af1e79cf6bb50f08062c2b77a`, artifact `10034214148`, SHA-256 `da9258afb3694f6a10c2854c8d963b207fa1bdbd7e49c2dd22745ed48d5a4aa6`. Real multisite evidence: CMS Admin Multisite Lab run `34164758622`.
 
 | Capability | Current state | Evidence / remaining gate |
 | --- | --- | --- |
@@ -52,8 +52,8 @@ Latest complete single-site/full-regression evidence: CMS Admin Workbench Lab ru
 | WP Super Cache clearing | CONDITIONAL | WP Super Cache absent in reference runtime; Chattanooga-specific verification required. |
 | Corrupt/incomplete backup rejection | REFERENCE_VERIFIED | Corrupted component, missing component archive, and corrupted DB snapshot were rejected before restore with target unchanged. |
 | Storage unavailable handling | REFERENCE_VERIFIED | Run `34165355234`: all configured backup paths non-writable; `cmsa_backup_directory`; backup not created; complete downstream regression green. |
-| Partial-write/disk-space failure handling | CONDITIONAL | Remains pending. |
-| Deterministic plugin update edge cases | CONDITIONAL | Active gate: no-update, local v1→v2 package, malformed-package rollback. |
+| Partial-write/disk-space failure handling | CONDITIONAL | Active failing-test gate: progressive partial writes must be completed exactly and stalled writes must fail without accepting truncated database output. |
+| Deterministic plugin update edge cases | REFERENCE_VERIFIED | Run `34166093601`: no-update blocked, local v1→v2 succeeded with activation preserved, malformed package failed closed and exact active v1 rollback was verified. |
 | Chattanooga/DreamHost filesystem behavior | UNKNOWN | Requires read-only live capability probe before deployment/mutation. |
 | Chattanooga MCP discovery | UNKNOWN | Requires separately authorized installation/activation and actual transport discovery. |
 | WooCommerce-specific update/migration/network behavior | UNKNOWN | Needs dedicated disposable WooCommerce tests. |
@@ -63,4 +63,4 @@ Latest complete single-site/full-regression evidence: CMS Admin Workbench Lab ru
 
 ## Current gate
 
-Registration, permissions, REST isolation, backup/restore, corrupt/missing rollback rejection, unavailable-storage handling, package privacy, error redaction, plugin/theme lifecycle and updates, core update/rollback, and both single-site and real multisite cache branches are reference-verified. The active workbench gate is deterministic local plugin update edge behavior, followed by partial-write/disk-space failure handling. DreamHost behavior, live installation, actual MCP discovery, WooCommerce-specific behavior, production-scale backup performance, private transport replacement, and broader site-administration abilities remain unproven.
+Registration, permissions, REST isolation, backup/restore, corrupt/missing rollback rejection, unavailable-storage handling, deterministic local plugin update edges, package privacy, error redaction, plugin/theme lifecycle and updates, core update/rollback, and both single-site and real multisite cache branches are reference-verified. The active workbench gate is partial-write/disk-space backup failure handling. DreamHost behavior, live installation, actual MCP discovery, WooCommerce-specific behavior, production-scale backup performance, private transport replacement, and broader site-administration abilities remain unproven.

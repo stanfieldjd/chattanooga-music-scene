@@ -17,7 +17,7 @@ Status: PASS
 - Register category/all 24 abilities and retrieve them through real registry.
 
 ## Gate 2 — Backup primitives and fail-closed restore
-Status: PARTIAL PASS
+Status: PARTIAL PASS / ACTIVE
 Passed:
 - database backup + SHA-256 verification;
 - plugin component exact-byte restore;
@@ -29,8 +29,10 @@ Passed:
 - corrupted database snapshot rejection without database mutation;
 - all configured backup paths unavailable/read-only returns `cmsa_backup_directory` and creates no backup.
 Evidence: runs `34165007012` and `34165355234`.
-Still required:
-- partial-write/disk-space failure handling.
+Active now:
+- partial/stalled database-backup stream writes must be detected;
+- incomplete output must not be treated as a successful backup;
+- partial-write handling must remain compatible with PHP 7.4.
 
 ## Gate 3 — Permission, exposure, and error model
 Status: PASS
@@ -49,16 +51,14 @@ Status: PASS
 - Theme auto-update enable/disable persistence and original-state restoration.
 
 ## Gate 5 — Update engine
-Status: PARTIAL PASS / ACTIVE
-Passed:
-- real WordPress.org plugin update with rollback backup;
-- Twenty Twenty-One 1.8 -> 2.9 theme update and exact rollback;
-- forced plugin post-update validation failure and exact automatic rollback.
-Active now:
-- deterministic local plugin v1 fixture;
-- explicit no-update case must return `cmsa_plugin_no_update`;
-- synthetic local v2 package must update v1→v2 and preserve activation;
-- malformed synthetic package must return `cmsa_plugin_update_failed` and restore exact v1 files from rollback backup.
+Status: PASS
+Evidence: CMS Admin Workbench Lab run `34166093601`, commit `04139cb2cc8da95af1e79cf6bb50f08062c2b77a`.
+- Real WordPress.org plugin update with rollback backup passed.
+- Twenty Twenty-One 1.8 -> 2.9 theme update and exact rollback passed.
+- Forced plugin post-update validation failure and exact automatic rollback passed.
+- Deterministic local v1 fixture returns `cmsa_plugin_no_update` when no update is offered.
+- Synthetic local v2 package updates v1→v2 and preserves activation.
+- Malformed synthetic package fails closed and restores exact active v1 files from the verified rollback backup. The exact candidate-owned error can be either updater failure or post-update version verification depending on where WordPress surfaces the malformed package; rollback success and exact restored state are mandatory.
 
 ## Gate 6 — Core update/rollback
 Status: PASS

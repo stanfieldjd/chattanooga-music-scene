@@ -1,6 +1,6 @@
 # Task: Chattanooga CMS Admin Runtime Integration
 
-Status: REFERENCE_STORAGE_FAILURE_VERIFIED — DETERMINISTIC_UPDATE + PARTIAL_WRITE + DREAMHOST/MCP PENDING
+Status: REFERENCE_DETERMINISTIC_UPDATE_VERIFIED — PARTIAL_WRITE + DREAMHOST/MCP PENDING
 
 ## Objective
 
@@ -29,12 +29,14 @@ Develop Chattanooga CMS Admin through an isolated engineering lab, determine whi
 - Verified source checkpoint: `0b34773ebc8073cb657477770b34cabc280f5892`.
 - Source PHP 7.4 syntax workflow passed at GitHub Actions run `34115195808`.
 - Immutable workbench baseline reuses the exact source Git blobs.
-- Latest complete single-site/full-regression execution: CMS Admin Workbench Lab run `34165355234`, test commit `7b6e25b4a1103f260fdf36237482d9e7c7787934`.
-- Runtime capability artifact id `10033988433`, SHA-256 `bea034a0a86a3de8ed85208cf61a059a996ae64ff45eaae3cfefd640479d28df`.
+- Latest complete single-site/full-regression execution: CMS Admin Workbench Lab run `34166093601`, test commit `04139cb2cc8da95af1e79cf6bb50f08062c2b77a`.
+- Runtime capability artifact id `10034214148`, SHA-256 `da9258afb3694f6a10c2854c8d963b207fa1bdbd7e49c2dd22745ed48d5a4aa6`.
 - Real WordPress 7.1 multisite cache execution: run `34164758622`; exact cache result `object-cache,wordpress-blog-cache`.
 - Corrupt/missing rollback material gate passed: `corrupt-backup-rejection-cli: PASS component=checksum-rejected missing=fail-closed database=checksum-rejected target=unchanged`.
 - Unavailable-storage fault gate passed in run `34165355234`: `storage-failure-cli: PASS all-backup-paths=unwritable backup=not-created`.
-- The complete downstream redaction, package privacy, plugin/theme update rollback, core backup/restore, normal core update, and forced core rollback chain stayed green after storage failure injection.
+- Deterministic plugin update gate passed in run `34166093601`: explicit no-update rejection, local v1→v2 success with activation preserved, and malformed synthetic package failure with exact active v1 rollback.
+- The malformed synthetic package can fail either in WordPress's upgrader phase or the candidate's post-update version-verification phase; the required invariant is fail-closed behavior with a verified rollback backup and exact active v1 restoration.
+- The complete downstream redaction, package privacy, plugin/theme update rollback, core backup/restore, normal core update, and forced core rollback chain stayed green after the deterministic update gate.
 - Source has not been merged to `main` and has not been installed on Chattanooga Music Scene.
 
 ## Workbench gates
@@ -61,10 +63,10 @@ Completed:
 - [x] Execute the cache branch in a real WordPress 7.1 multisite installation with network activation and verify `wordpress-blog-cache`.
 - [x] Reject corrupted/missing rollback material before restore with target state unchanged.
 - [x] Make every configured backup path non-writable and verify backup creation fails closed with no backup created.
+- [x] Verify deterministic local plugin update edge cases: no-update, v1→v2 success, malformed-package exact rollback.
 
 Pending workbench/runtime tests:
 
-- [ ] Deterministic local plugin update fixture: no-update behavior, v1→v2 success, malformed-package automatic rollback.
 - [ ] Partial-write/disk-space backup failure handling.
 - [ ] DreamHost/Chattanooga read-only capability probe.
 - [ ] Actual Chattanooga MCP discovery of the registered abilities.
@@ -87,6 +89,7 @@ Pending workbench/runtime tests:
 - Actual MCP transport may expose/filter metadata differently than the WordPress registry.
 - Backup storage capacity/permissions may differ on DreamHost.
 - Package privacy evidence covers the exercised WordPress.org operations only; WooCommerce-specific or unrelated plugin traffic remains separate.
+- Current database dump code is being fault-tested for partial/stalled stream writes before its storage-integrity gate can be considered complete.
 
 ## Rollback point
 
@@ -109,3 +112,4 @@ NOT_DEPLOYED
 - 2026-09-07: Error-output redaction passed after fault injection exposed and repaired raw plugin-API and database diagnostics.
 - 2026-09-07: Expanded theme lifecycle and real multisite cache branches passed.
 - 2026-09-07: Corrupt/missing backup material and fully unavailable backup storage both failed closed in real WordPress reference runs.
+- 2026-09-07: Deterministic local plugin update edge cases passed in full regression run `34166093601`; the initial malformed-package assertion was corrected from an implementation-specific error-code expectation to the actual fail-closed + exact-rollback invariant.

@@ -19,13 +19,13 @@ Last verified: 2026-09-07
 - Workbench lab: `workbench/labs/chattanooga-cms-admin`
 - Immutable lab baseline: exact Git-blob mirror of the verified source checkpoint.
 - Mutable coding candidate: `workbench/labs/chattanooga-cms-admin/candidate`.
-- Latest complete single-site/full regression: run `34165355234` on commit `7b6e25b4a1103f260fdf36237482d9e7c7787934`; artifact `10033988433`, SHA-256 `bea034a0a86a3de8ed85208cf61a059a996ae64ff45eaae3cfefd640479d28df`.
+- Latest complete single-site/full regression: run `34166093601` on commit `04139cb2cc8da95af1e79cf6bb50f08062c2b77a`; artifact `10034214148`, SHA-256 `da9258afb3694f6a10c2854c8d963b207fa1bdbd7e49c2dd22745ed48d5a4aa6`.
 - Real multisite cache execution: run `34164758622`; exact cache result `object-cache,wordpress-blog-cache`.
 - Backup fail-closed evidence: corrupted/missing rollback material is rejected before restore with target state unchanged, and all configured backup paths being non-writable returns failure before backup creation.
-- Exact unavailable-storage result: `storage-failure-cli: PASS all-backup-paths=unwritable backup=not-created`.
-- Passed: PHP 7.4/8.2, real WordPress 7.1 activation and 24-ability registry, permission/REST isolation, DB backup/restore and numeric PK fidelity, plugin/theme lifecycle and rollback, package privacy, error redaction, theme switch/return and auto-update policy, plugin/theme updates, core update/rollback, single-site cache, real multisite cache, corrupt/missing rollback rejection, and unavailable-storage rejection.
-- Active workbench gate: deterministic local plugin update edge cases — no-update, v1→v2 success, malformed package rollback.
-- Remaining after that: partial-write/disk-space backup failure; DreamHost read-only preflight; actual Chattanooga MCP discovery; broader typed site-administration abilities.
+- Deterministic plugin-update edge evidence: no-update is rejected, local v1→v2 succeeds with activation preserved, and malformed local package failure restores exact active v1 state from the verified rollback backup.
+- Passed: PHP 7.4/8.2, real WordPress 7.1 activation and 24-ability registry, permission/REST isolation, DB backup/restore and numeric PK fidelity, plugin/theme lifecycle and rollback, package privacy, error redaction, theme switch/return and auto-update policy, plugin/theme updates, deterministic plugin update edges, core update/rollback, single-site cache, real multisite cache, corrupt/missing rollback rejection, and unavailable-storage rejection.
+- Active workbench gate: partial/stalled backup-write integrity. The current database dump writer is being tested for incomplete stream writes before that storage-integrity path can be promoted.
+- Remaining after that: DreamHost read-only preflight; actual Chattanooga MCP discovery; broader typed site-administration abilities.
 - Production state: not merged to `main`; not installed on Chattanooga Music Scene.
 
 ### Chattanooga Music Scene Weekend Feature
