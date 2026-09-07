@@ -45,3 +45,12 @@ Append-only record of material workbench state changes. Do not rewrite prior ent
 - Added a WordPress core rollback probe that created and verified a core+database snapshot, deliberately mutated `wp-includes/version.php`, `readme.html`, and a database sentinel, then restored the snapshot and verified both file hashes and the database value returned exactly.
 - CMS Admin Workbench Lab run `34160856274` passed PHP 7.4, PHP 8.2, and the complete disposable WordPress 7.1 runtime job, including the new theme-update rollback and core-backup/restore steps.
 - Core upgrader execution remains untested. DreamHost filesystem behavior and actual Chattanooga MCP discovery remain unverified production gates.
+
+## 2026-09-07 — Ability permission matrix and REST isolation
+
+- Added real WordPress capability isolation testing at commit `39d699cbf6415427a0c1a5ae29eed327a43e6a78`.
+- CMS Admin Workbench Lab run `34161223016` denied all 24 abilities anonymously, allowed all 24 to an administrator, and isolated them across exactly 10 required WordPress capabilities with no cross-capability grants.
+- The runtime enumerated six WordPress Abilities REST routes: namespace, categories, category detail, ability list, ability detail, and ability run.
+- Candidate abilities marked `show_in_rest=false` did not appear in the REST ability collection. Direct GET/POST probes for `chattanooga-cms-admin/get-health` did not expose or execute the candidate ability.
+- The complete regression suite remained green after the permission/REST gate: PHP 7.4, PHP 8.2, plugin lifecycle, theme lifecycle, database restore, WordPress.org plugin update, theme update rollback, core backup/restore, and health/cache all passed.
+- Runtime capability artifact id `10032670494` was uploaded with ZIP SHA-256 `8fdbe0d203ffc3980de8a115a0c1f7f6a1bee450942586684048044cc9c7ae33`.

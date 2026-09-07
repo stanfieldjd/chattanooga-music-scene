@@ -1,6 +1,6 @@
 # Task: Chattanooga CMS Admin Runtime Integration
 
-Status: REFERENCE_ROLLBACK_RUNTIME_VERIFIED — PERMISSION/REST + DREAMHOST/MCP PENDING
+Status: REFERENCE_PERMISSION_REST_VERIFIED — CORE UPDATE/FAILURE + DREAMHOST/MCP PENDING
 
 ## Objective
 
@@ -29,15 +29,17 @@ Develop Chattanooga CMS Admin through an isolated engineering lab, determine whi
 - Verified source checkpoint: `0b34773ebc8073cb657477770b34cabc280f5892`.
 - Source PHP 7.4 syntax workflow passed at GitHub Actions run `34115195808`.
 - Immutable workbench baseline reuses the exact source Git blobs.
-- Current reference execution: CMS Admin Workbench Lab run `34160856274`, test commit `32f1db5b36f1c8c5bfb94bb725bb474adaabdb81`.
+- Current reference execution: CMS Admin Workbench Lab run `34161223016`, test commit `39d699cbf6415427a0c1a5ae29eed327a43e6a78`.
 - Candidate passed PHP 7.4 and PHP 8.2 lab gates.
 - Disposable real WordPress 7.1 accepted and activated the candidate.
 - All expected 24 abilities were found through WordPress's actual ability registry after lifecycle execution.
+- Real permission testing denied all 24 abilities anonymously, allowed all 24 for administrator, and isolated them across 10 intended WordPress capabilities.
+- Real WordPress Abilities REST routes were enumerated; candidate abilities marked `show_in_rest=false` did not leak through the collection or direct GET/POST probes.
 - Database backup creation, SHA-256 verification, and sentinel restore passed.
 - Plugin component backup/restore and lifecycle rollback passed.
 - Theme deletion/restore passed.
 - Real WordPress.org plugin installation, activation/deactivation, and plugin update transaction passed.
-- Real theme update from Twenty Twenty-One 1.8 to the offered release passed, followed by verified rollback to version 1.8 with exact `style.css` byte fidelity.
+- Real theme update from Twenty Twenty-One 1.8 to 2.9 passed, followed by verified rollback to version 1.8 with exact `style.css` byte fidelity.
 - WordPress core+database backup creation and verification passed, followed by deliberate core/root/database mutation and exact restore verification.
 - Source has not been merged to `main` and has not been installed on Chattanooga Music Scene.
 
@@ -52,6 +54,8 @@ Completed:
 - [x] Install and activate candidate on disposable WordPress 7.1.
 - [x] Verify native Abilities API functions in real WordPress 7.1.
 - [x] Verify all 24 abilities through WordPress's real registry.
+- [x] Verify all 24 ability permission callbacks against anonymous, administrator, and capability-isolated users.
+- [x] Verify candidate REST isolation under WordPress Abilities REST controllers.
 - [x] Verify database backup + checksum.
 - [x] Verify database sentinel restore.
 - [x] Verify controlled plugin component rollback.
@@ -62,11 +66,11 @@ Completed:
 
 Pending workbench/runtime tests:
 
-- [ ] Permission matrix by WordPress capability/role.
-- [ ] Candidate-specific REST exposure verification.
 - [ ] Core updater transaction with controlled rollback behavior.
 - [ ] Forced-failure update rollback path.
+- [ ] Error-output secret/credential redaction regression test.
 - [ ] WordPress.org package request privacy capture.
+- [ ] Explicit switch-theme and theme auto-update lifecycle probes.
 - [ ] Multisite cache branch.
 - [ ] DreamHost/Chattanooga read-only capability probe.
 - [ ] Actual Chattanooga MCP discovery of the registered abilities.
@@ -85,7 +89,7 @@ Pending workbench/runtime tests:
 ## Risk set
 
 - Reference GitHub filesystem behavior does not prove DreamHost behavior.
-- WP-CLI does not automatically fire the Abilities registration lifecycle in the tested context; the reference registry test explicitly invokes the lifecycle in the disposable process.
+- WP-CLI does not automatically fire the Abilities registration lifecycle in the tested context; reference tests explicitly invoke the lifecycle in the disposable process.
 - Actual MCP transport may expose/filter metadata differently than the WordPress registry.
 - Backup storage capacity/permissions may differ on DreamHost.
 - Package lookup/update operations can make network requests; payload/privacy capture remains required.
@@ -108,4 +112,5 @@ NOT_DEPLOYED
 - 2026-09-07: Workbench lab established with immutable baseline, mutable candidate, static/stub tests, and capability matrix.
 - 2026-09-07: Disposable WordPress 7.1 proved core Abilities/upgrader/filesystem APIs are present and all 24 candidate abilities register in the real registry.
 - 2026-09-07: Database backup/checksum and controlled plugin component rollback passed in the reference runtime.
-- 2026-09-07: Database restore, theme rollback, WordPress.org package transactions, theme update rollback, and core+database backup/restore fidelity passed in the reference runtime; latest evidence run `34160856274`.
+- 2026-09-07: Database restore, theme rollback, WordPress.org package transactions, theme update rollback, and core+database backup/restore fidelity passed in the reference runtime.
+- 2026-09-07: Permission isolation and REST isolation passed for all 24 abilities in CMS Admin Workbench Lab run `34161223016`.

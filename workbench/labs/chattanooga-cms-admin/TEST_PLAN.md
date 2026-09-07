@@ -29,63 +29,76 @@ Status: PARTIAL PASS
 Passed:
 - database backup creation;
 - SHA-256 backup verification;
-- plugin component archive;
-- deliberate fixture mutation;
-- component restore with exact-byte verification.
+- plugin component archive and exact-byte restore;
+- database sentinel restore;
+- theme fixture deletion/restore fidelity;
+- WordPress core + database snapshot creation and verification;
+- deliberate core/root/database mutation followed by exact restore.
 
 Still required:
-- database sentinel restore;
-- theme fixture backup/restore;
-- WordPress core snapshot creation and verification;
-- controlled core-file restore in disposable runtime;
 - incomplete/corrupt backup rejection tests;
 - disk-space and partial-write failure handling.
 
 ## Gate 3 — Permission and exposure model
 
-Status: PENDING
+Status: PARTIAL PASS
 
-- Test administrator permission success.
-- Test lower-privilege users against each capability class.
-- Confirm destructive abilities require their intended WordPress capabilities.
-- Enumerate WordPress Abilities REST routes after registration and prove `show_in_rest=false` prevents unintended candidate execution through REST.
-- Confirm error outputs do not disclose credentials/secrets.
+Passed in real WordPress 7.1:
+- all 24 abilities denied anonymously;
+- all 24 abilities allowed for an administrator;
+- all 24 abilities isolated across exactly 10 intended WordPress capabilities with no cross-capability grants;
+- six WordPress Abilities REST routes enumerated;
+- `show_in_rest=false` candidate abilities absent from the REST collection;
+- direct GET/POST probes did not expose or execute `chattanooga-cms-admin/get-health`.
+
+Still required:
+- dedicated error-output secret/credential redaction regression tests.
 
 ## Gate 4 — Lifecycle operations
 
-Status: API PRESENCE VERIFIED; EXECUTION PENDING
+Status: PARTIAL PASS
 
-Using disposable fixture plugins/themes only:
-- activate/deactivate fixture;
-- auto-update policy add/remove;
-- delete fixture only after verified rollback archive;
-- restore deleted fixture;
-- switch to fixture theme and return to original test theme;
-- delete fixture theme after rollback proof.
+Passed with disposable fixtures:
+- plugin activate/deactivate;
+- plugin auto-update policy add/remove;
+- backup-protected plugin deletion and restore;
+- backup-protected theme deletion and restore.
+
+Still required:
+- explicit switch-theme transaction and return-to-original-theme verification;
+- theme auto-update policy add/remove verification if not covered by a later combined lifecycle probe.
 
 ## Gate 5 — Update engine
 
-Status: PENDING
+Status: PARTIAL PASS
 
-- Build local v1/v2 fixture plugin packages.
-- Seed or intercept WordPress update metadata deterministically.
-- Update v1 -> v2 through candidate update engine.
-- Verify pre-update backup.
-- Verify post-update version.
-- Force validation failure and prove automatic rollback.
-- Repeat for theme update.
-- Test no-update-available behavior and malformed package behavior.
+Passed:
+- actual WordPress.org plugin update through candidate with verified pre-update rollback backup;
+- actual Twenty Twenty-One 1.8 -> 2.9 theme update through candidate;
+- post-update version verification;
+- exact theme rollback to 1.8 with `style.css` SHA-256 fidelity.
+
+Still required:
+- deterministic local v1/v2 update fixtures independent of current WordPress.org versions;
+- forced validation/update failure with proof of automatic rollback;
+- no-update-available behavior;
+- malformed package behavior.
 
 ## Gate 6 — Core update/rollback
 
-Status: API PRESENCE VERIFIED; EXECUTION PENDING
+Status: PARTIAL PASS
 
-- Use disposable WordPress version pair only.
-- Create core + DB rollback snapshot and verify checksums.
-- Exercise controlled core upgrader path.
-- Verify version and site bootstrap.
-- Exercise controlled rollback to original snapshot.
-- Confirm `wp-content` and `wp-config.php` remain outside unintended core replacement.
+Passed:
+- create core + DB rollback snapshot and verify checksums;
+- deliberately mutate `wp-includes/version.php`, `readme.html`, and a database sentinel;
+- restore verified core snapshot;
+- verify exact file hashes and database value returned;
+- preserve `wp-content` and `wp-config.php` outside the core archive/restore set by construction.
+
+Still required:
+- controlled `Core_Upgrader` transaction using a disposable WordPress version pair;
+- post-update WordPress bootstrap/version verification;
+- automatic rollback behavior when a core update validation fails.
 
 ## Gate 7 — Package-network/privacy surface
 
@@ -128,4 +141,4 @@ Requires separate production authorization and rollback transaction.
 
 ## Rule for new coding
 
-Every candidate change must identify the failing/desired test first when practical, modify only `candidate/`, run the complete applicable gate set, and update the capability matrix. A candidate is never promoted because it merely compiles.
+Every candidate change must identify the failing/desired test first when practical, modify only `candidate/` when product source must change, run the complete applicable gate set, and update the capability matrix. A candidate is never promoted because it merely compiles.
