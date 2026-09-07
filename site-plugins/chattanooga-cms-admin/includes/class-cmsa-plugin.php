@@ -45,7 +45,8 @@ final class CMSA_Plugin {
 			$this->abilities = new CMSA_Abilities(
 				new CMSA_Health(),
 				new CMSA_Backups(),
-				new CMSA_Updates()
+				new CMSA_Updates(),
+				new CMSA_Lifecycle()
 			);
 		}
 
