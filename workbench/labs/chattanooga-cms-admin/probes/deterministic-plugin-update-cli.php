@@ -177,32 +177,20 @@ if ( ! is_wp_error( $malformed ) ) {
 	fwrite( STDERR, 'deterministic-plugin-update-cli: malformed package returned non-error result type=' . gettype( $malformed ) . "\n" );
 	exit( 1 );
 }
-if ( 'cmsa_plugin_update_failed' !== $malformed->get_error_code() ) {
-	$diagnostic_data = $malformed->get_error_data();
-	$data_keys = is_array( $diagnostic_data ) ? implode( ',', array_map( 'strval', array_keys( $diagnostic_data ) ) ) : 'none';
-	$rolled_back = is_array( $diagnostic_data ) && ! empty( $diagnostic_data['rolled_back'] ) ? 'true' : 'false';
-	$rollback_failed = is_array( $diagnostic_data ) && ! empty( $diagnostic_data['rollback_failed'] ) ? 'true' : 'false';
-	fwrite(
-		STDERR,
-		sprintf(
-			"deterministic-plugin-update-cli: malformed result code=%s data_keys=%s rolled_back=%s rollback_failed=%s\n",
-			$malformed->get_error_code(),
-			$data_keys,
-			$rolled_back,
-			$rollback_failed
-		)
-	);
+$malformed_code = $malformed->get_error_code();
+if ( ! in_array( $malformed_code, array( 'cmsa_plugin_update_failed', 'cmsa_plugin_version_verify' ), true ) ) {
+	fwrite( STDERR, 'deterministic-plugin-update-cli: malformed package escaped the expected fail-closed update boundary code=' . $malformed_code . "\n" );
 	exit( 1 );
 }
 $error_data = $malformed->get_error_data();
-if ( ! is_array( $error_data ) || empty( $error_data['backup_id'] ) || empty( $error_data['rolled_back'] ) ) {
+if ( ! is_array( $error_data ) || empty( $error_data['backup_id'] ) || empty( $error_data['rolled_back'] ) || ! empty( $error_data['rollback_failed'] ) ) {
 	fwrite( STDERR, "deterministic-plugin-update-cli: malformed package failure did not report successful rollback.\n" );
 	exit( 1 );
 }
 wp_clean_plugins_cache( true );
 $plugins_restored = get_plugins();
-if ( '1.0.0' !== ( $plugins_restored[ $plugin ]['Version'] ?? '' ) || ! is_file( $state_file ) || "v1\n" !== file_get_contents( $state_file ) ) {
-	fwrite( STDERR, "deterministic-plugin-update-cli: malformed package rollback did not restore exact v1 fixture.\n" );
+if ( '1.0.0' !== ( $plugins_restored[ $plugin ]['Version'] ?? '' ) || ! is_file( $state_file ) || "v1\n" !== file_get_contents( $state_file ) || ! is_plugin_active( $plugin ) ) {
+	fwrite( STDERR, "deterministic-plugin-update-cli: malformed package rollback did not restore exact active v1 fixture.\n" );
 	exit( 1 );
 }
 
@@ -212,6 +200,7 @@ remove_filter( 'pre_set_site_transient_update_plugins', $transient_filter, PHP_I
 @unlink( $bad_zip );
 
 printf(
-	"deterministic-plugin-update-cli: PASS no-update=blocked update=1.0.0->2.0.0 malformed=rolled-back backup=%s\n",
+	"deterministic-plugin-update-cli: PASS no-update=blocked update=1.0.0->2.0.0 malformed=%s rollback=exact-active-v1 backup=%s\n",
+	$malformed_code,
 	$error_data['backup_id']
 );
