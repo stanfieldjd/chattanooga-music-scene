@@ -173,8 +173,25 @@ if ( ! is_plugin_active( $plugin ) ) {
 $mode = 'bad';
 delete_site_transient( 'update_plugins' );
 $malformed = $updates->update_plugin( $plugin, '1.0.0' );
-if ( ! is_wp_error( $malformed ) || 'cmsa_plugin_update_failed' !== $malformed->get_error_code() ) {
-	fwrite( STDERR, "deterministic-plugin-update-cli: malformed package did not produce cmsa_plugin_update_failed.\n" );
+if ( ! is_wp_error( $malformed ) ) {
+	fwrite( STDERR, 'deterministic-plugin-update-cli: malformed package returned non-error result type=' . gettype( $malformed ) . "\n" );
+	exit( 1 );
+}
+if ( 'cmsa_plugin_update_failed' !== $malformed->get_error_code() ) {
+	$diagnostic_data = $malformed->get_error_data();
+	$data_keys = is_array( $diagnostic_data ) ? implode( ',', array_map( 'strval', array_keys( $diagnostic_data ) ) ) : 'none';
+	$rolled_back = is_array( $diagnostic_data ) && ! empty( $diagnostic_data['rolled_back'] ) ? 'true' : 'false';
+	$rollback_failed = is_array( $diagnostic_data ) && ! empty( $diagnostic_data['rollback_failed'] ) ? 'true' : 'false';
+	fwrite(
+		STDERR,
+		sprintf(
+			"deterministic-plugin-update-cli: malformed result code=%s data_keys=%s rolled_back=%s rollback_failed=%s\n",
+			$malformed->get_error_code(),
+			$data_keys,
+			$rolled_back,
+			$rollback_failed
+		)
+	);
 	exit( 1 );
 }
 $error_data = $malformed->get_error_data();
