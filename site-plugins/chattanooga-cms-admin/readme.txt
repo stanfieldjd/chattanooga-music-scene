@@ -23,6 +23,7 @@ Read/inspection:
 * chattanooga-cms-admin/list-themes
 * chattanooga-cms-admin/list-backups
 * chattanooga-cms-admin/verify-backup
+* chattanooga-cms-admin/get-audit-log
 
 Maintenance:
 * chattanooga-cms-admin/create-backup
@@ -32,9 +33,15 @@ Maintenance:
 * chattanooga-cms-admin/install-plugin
 * chattanooga-cms-admin/activate-plugin
 * chattanooga-cms-admin/deactivate-plugin
+* chattanooga-cms-admin/set-plugin-auto-update
 * chattanooga-cms-admin/install-theme
 * chattanooga-cms-admin/switch-theme
+* chattanooga-cms-admin/set-theme-auto-update
 * chattanooga-cms-admin/clear-cache
+
+Destructive lifecycle operations:
+* chattanooga-cms-admin/delete-plugin
+* chattanooga-cms-admin/delete-theme
 
 Rollback:
 * chattanooga-cms-admin/restore-component-backup
@@ -49,13 +56,17 @@ Database snapshots are written as deterministic SQL containing table definitions
 
 Plugin and theme updates require a verified component rollback archive before the updater runs. WordPress core updates require a verified core-file and database rollback snapshot.
 
+Plugin and theme deletion also require a verified component rollback archive. Chattanooga CMS Admin refuses to delete itself, and refuses to delete the active theme or the active theme's parent.
+
 == Security ==
 
 Every ability uses a WordPress capability check. No ability uses __return_true for administrative access.
 
-Abilities are marked public for authenticated AI/MCP discovery but show_in_rest is disabled. Destructive operations are registered as separate abilities and annotated as destructive.
+Abilities are marked public for authenticated AI/MCP discovery while direct REST execution is disabled. Destructive operations are registered as separate abilities and annotated as destructive.
 
 No generic shell, arbitrary SQL, arbitrary PHP execution, or arbitrary filesystem command ability is provided.
+
+The local audit log stores administrative action metadata but intentionally does not duplicate member records, passwords, tokens, or arbitrary request payloads.
 
 == Changelog ==
 
@@ -65,5 +76,8 @@ No generic shell, arbitrary SQL, arbitrary PHP execution, or arbitrary filesyste
 * Transactional plugin, theme, and core update operations.
 * WordPress.org plugin/theme installation.
 * Plugin activation/deactivation and theme switching.
+* Backup-protected plugin/theme deletion.
+* Plugin/theme auto-update policy controls.
 * Cache and health inspection.
+* Local administrative audit retrieval.
 * Explicit rollback abilities.
