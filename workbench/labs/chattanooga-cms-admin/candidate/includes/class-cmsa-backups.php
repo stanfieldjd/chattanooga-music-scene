@@ -387,19 +387,25 @@ final class CMSA_Backups {
 			return new WP_Error( 'cmsa_database_file', 'Could not create database backup file.' );
 		}
 
-		fwrite( $handle, "SET FOREIGN_KEY_CHECKS=0;\n" );
+		if ( ! $this->write_stream_all( $handle, "SET FOREIGN_KEY_CHECKS=0;\n" ) ) {
+			fclose( $handle );
+			@unlink( $path );
+			return new WP_Error( 'cmsa_database_write', 'Database backup write did not complete.' );
+		}
 		$tables = $wpdb->get_col( 'SHOW TABLES' );
 		foreach ( $tables as $table ) {
 			$identifier = '`' . str_replace( '`', '``', $table ) . '`';
 			$create = $wpdb->get_row( 'SHOW CREATE TABLE ' . $identifier, ARRAY_N );
 			if ( ! $create || empty( $create[1] ) ) {
 				fclose( $handle );
+				@unlink( $path );
 				return new WP_Error( 'cmsa_database_schema', 'Could not read a database table schema.' );
 			}
 
 			$column_definitions = $wpdb->get_results( 'SHOW COLUMNS FROM ' . $identifier, ARRAY_A );
 			if ( ! is_array( $column_definitions ) || empty( $column_definitions ) ) {
 				fclose( $handle );
+				@unlink( $path );
 				return new WP_Error( 'cmsa_database_columns', 'Could not read database column definitions.' );
 			}
 			$numeric_columns = array();
@@ -412,7 +418,11 @@ final class CMSA_Backups {
 				}
 			}
 
-			fwrite( $handle, "DROP TABLE IF EXISTS {$identifier};\n" . $create[1] . ";\n" );
+			if ( ! $this->write_stream_all( $handle, "DROP TABLE IF EXISTS {$identifier};\n" . $create[1] . ";\n" ) ) {
+				fclose( $handle );
+				@unlink( $path );
+				return new WP_Error( 'cmsa_database_write', 'Database backup write did not complete.' );
+			}
 
 			$offset = 0;
 			$limit = 250;
@@ -429,6 +439,7 @@ final class CMSA_Backups {
 							$numeric_value = (string) $value;
 							if ( ! is_numeric( $numeric_value ) ) {
 								fclose( $handle );
+								@unlink( $path );
 								return new WP_Error( 'cmsa_database_numeric', 'Database backup encountered an invalid numeric-column value.' );
 							}
 							$values[] = $numeric_value;
@@ -438,13 +449,39 @@ final class CMSA_Backups {
 							$values[] = '0x' . bin2hex( (string) $value );
 						}
 					}
-					fwrite( $handle, 'INSERT INTO ' . $identifier . ' (' . implode( ',', $columns ) . ') VALUES (' . implode( ',', $values ) . ");\n" );
+					$statement = 'INSERT INTO ' . $identifier . ' (' . implode( ',', $columns ) . ') VALUES (' . implode( ',', $values ) . ");\n";
+					if ( ! $this->write_stream_all( $handle, $statement ) ) {
+						fclose( $handle );
+						@unlink( $path );
+						return new WP_Error( 'cmsa_database_write', 'Database backup write did not complete.' );
+					}
 				}
 				$offset += $limit;
 			} while ( count( $rows ) === $limit );
 		}
-		fwrite( $handle, "SET FOREIGN_KEY_CHECKS=1;\n" );
-		fclose( $handle );
+		if ( ! $this->write_stream_all( $handle, "SET FOREIGN_KEY_CHECKS=1;\n" ) || ! fflush( $handle ) ) {
+			fclose( $handle );
+			@unlink( $path );
+			return new WP_Error( 'cmsa_database_write', 'Database backup write did not complete.' );
+		}
+		if ( ! fclose( $handle ) ) {
+			@unlink( $path );
+			return new WP_Error( 'cmsa_database_write', 'Database backup file could not be finalized.' );
+		}
+		return true;
+	}
+
+	private function write_stream_all( $handle, $contents ) {
+		$contents = (string) $contents;
+		$length = strlen( $contents );
+		$offset = 0;
+		while ( $offset < $length ) {
+			$written = @fwrite( $handle, substr( $contents, $offset ) );
+			if ( false === $written || 0 === $written ) {
+				return false;
+			}
+			$offset += $written;
+		}
 		return true;
 	}
 
@@ -605,8 +642,14 @@ final class CMSA_Backups {
 			return $directory;
 		}
 		$path = trailingslashit( $directory ) . sanitize_file_name( $meta['id'] ) . self::META_SUFFIX;
-		if ( false === @file_put_contents( $path, wp_json_encode( $meta, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ), LOCK_EX ) ) {
-			return new WP_Error( 'cmsa_backup_meta', 'Could not write backup metadata.' );
+		$payload = wp_json_encode( $meta, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
+		if ( false === $payload ) {
+			return new WP_Error( 'cmsa_backup_meta', 'Could not encode backup metadata.' );
+		}
+		$written = @file_put_contents( $path, $payload, LOCK_EX );
+		if ( false === $written || strlen( $payload ) !== $written ) {
+			@unlink( $path );
+			return new WP_Error( 'cmsa_backup_meta', 'Could not write complete backup metadata.' );
 		}
 		return true;
 	}
