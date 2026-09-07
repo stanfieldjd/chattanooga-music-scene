@@ -31,8 +31,9 @@ if ( is_wp_error( $cache ) || empty( $cache['cleared'] ) || empty( $cache['metho
 	exit( 1 );
 }
 
-if ( ! in_array( 'wordpress-object-state', $cache['methods'], true ) ) {
-	fwrite( STDERR, "health-cache-cli: WordPress object-state cleanup was not reported.\n" );
+$wordpress_cache_method = is_multisite() ? 'wordpress-blog-cache' : 'wordpress-options-cache';
+if ( ! in_array( $wordpress_cache_method, $cache['methods'], true ) ) {
+	fwrite( STDERR, "health-cache-cli: WordPress cache invalidation method was not reported.\n" );
 	exit( 1 );
 }
 
