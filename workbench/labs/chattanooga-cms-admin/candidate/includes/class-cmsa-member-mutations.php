@@ -38,19 +38,6 @@ final class CMSA_Member_Mutations {
 		);
 		$changed = false;
 
-		if ( array_key_exists( 'email', $input ) ) {
-			$email = sanitize_email( (string) $input['email'] );
-			if ( '' === $email || ! is_email( $email ) ) {
-				return new WP_Error( 'cmsa_member_profile_email', 'A valid member email address is required.' );
-			}
-			$existing = email_exists( $email );
-			if ( $existing && (int) $existing !== $id ) {
-				return new WP_Error( 'cmsa_member_profile_email_exists', 'That email address is already assigned to another member.' );
-			}
-			$update['user_email'] = $email;
-			$target['email'] = $email;
-			$changed = $changed || $email !== (string) $user->user_email;
-		}
 		if ( array_key_exists( 'display_name', $input ) ) {
 			$display_name = sanitize_text_field( (string) $input['display_name'] );
 			if ( '' === $display_name ) {
@@ -167,7 +154,6 @@ final class CMSA_Member_Mutations {
 		$result = wp_update_user(
 			array(
 				'ID'           => (int) $id,
-				'user_email'   => $previous['email'],
 				'display_name' => $previous['display_name'],
 				'user_url'     => $previous['url'],
 			)

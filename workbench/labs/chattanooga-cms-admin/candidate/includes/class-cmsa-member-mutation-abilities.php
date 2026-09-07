@@ -15,12 +15,11 @@ final class CMSA_Member_Mutation_Abilities {
 		$this->register_ability(
 			'update-member-profile',
 			'Update member profile',
-			'Updates selected core member profile fields after exact profile-state validation. Password and arbitrary metadata operations are outside this ability.',
+			'Updates selected non-credential core member profile fields after exact profile-state validation. Account email, password, and arbitrary metadata changes are outside this ability.',
 			$this->object_schema(
 				array(
 					'id'                     => array( 'type' => 'integer', 'minimum' => 1 ),
 					'expected_profile_state' => array( 'type' => 'string', 'minLength' => 64, 'maxLength' => 64 ),
-					'email'                  => array( 'type' => 'string' ),
 					'display_name'           => array( 'type' => 'string' ),
 					'url'                    => array( 'type' => 'string' ),
 				),

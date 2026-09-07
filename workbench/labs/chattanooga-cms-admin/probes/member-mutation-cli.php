@@ -5,6 +5,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit( 1 );
 }
 
+$mail_attempts = 0;
+$mail_guard = static function ( $return, $atts ) use ( &$mail_attempts ) {
+	$mail_attempts++;
+	return false;
+};
+add_filter( 'pre_wp_mail', $mail_guard, 10, 2 );
+
 $admin = get_user_by( 'login', 'admin' );
 if ( ! $admin ) {
 	fwrite( STDERR, "member-mutation-cli: administrator fixture missing.\n" );
@@ -52,17 +59,32 @@ if ( is_wp_error( $unchanged ) || $initial_profile_state !== $unchanged['member'
 	exit( 1 );
 }
 
-$updated_email = $login . '.updated@example.invalid';
+$email_attempt = $mutations->update_profile(
+	array(
+		'id'                     => $id,
+		'expected_profile_state' => $initial_profile_state,
+		'email'                  => $login . '.forbidden@example.invalid',
+	)
+);
+if ( ! is_wp_error( $email_attempt ) || 'cmsa_member_profile_no_change' !== $email_attempt->get_error_code() ) {
+	fwrite( STDERR, "member-mutation-cli: account email escaped the selected-profile boundary.\n" );
+	exit( 1 );
+}
+$email_unchanged = $members->get_member( $id );
+if ( is_wp_error( $email_unchanged ) || $initial_email !== $email_unchanged['member']['email'] || $initial_profile_state !== $email_unchanged['member']['profile_state'] ) {
+	fwrite( STDERR, "member-mutation-cli: rejected email mutation changed target.\n" );
+	exit( 1 );
+}
+
 $profile_update = $mutations->update_profile(
 	array(
 		'id'                     => $id,
 		'expected_profile_state' => $initial_profile_state,
-		'email'                  => $updated_email,
 		'display_name'           => 'CMSA Updated',
 		'url'                    => 'https://example.invalid/updated',
 	)
 );
-if ( is_wp_error( $profile_update ) || empty( $profile_update['updated'] ) || $updated_email !== $profile_update['member']['email'] || 'CMSA Updated' !== $profile_update['member']['display_name'] || 'https://example.invalid/updated' !== $profile_update['member']['url'] || $initial_profile_state === $profile_update['member']['profile_state'] ) {
+if ( is_wp_error( $profile_update ) || empty( $profile_update['updated'] ) || $initial_email !== $profile_update['member']['email'] || 'CMSA Updated' !== $profile_update['member']['display_name'] || 'https://example.invalid/updated' !== $profile_update['member']['url'] || $initial_profile_state === $profile_update['member']['profile_state'] ) {
 	fwrite( STDERR, "member-mutation-cli: profile update/readback failed.\n" );
 	exit( 1 );
 }
@@ -172,5 +194,10 @@ if ( is_wp_error( $after_role_fault ) || $before_role_fault['roles_state'] !== $
 
 require_once ABSPATH . 'wp-admin/includes/user.php';
 wp_delete_user( $id );
+remove_filter( 'pre_wp_mail', $mail_guard, 10 );
+if ( 0 !== $mail_attempts ) {
+	fwrite( STDERR, "member-mutation-cli: member mutation attempted an email notification.\n" );
+	exit( 1 );
+}
 
-echo "member-mutation-cli: PASS profile=conflict-update-rollback roles=conflict-replace-invalid-self-rollback protected-surfaces=absent\n";
+echo "member-mutation-cli: PASS profile=conflict-update-rollback-email-rejected roles=conflict-replace-invalid-self-rollback notifications=absent protected-surfaces=absent\n";
