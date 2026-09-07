@@ -76,11 +76,11 @@ Passed:
 - actual WordPress.org plugin update through candidate with verified pre-update rollback backup;
 - actual Twenty Twenty-One 1.8 -> 2.9 theme update through candidate;
 - post-update version verification;
-- exact theme rollback to 1.8 with `style.css` SHA-256 fidelity.
+- exact theme rollback to 1.8 with `style.css` SHA-256 fidelity;
+- forced plugin post-update validation mismatch with proof of automatic rollback to exact version/file state.
 
 Still required:
 - deterministic local v1/v2 update fixtures independent of current WordPress.org versions;
-- forced validation/update failure with proof of automatic rollback;
 - no-update-available behavior;
 - malformed package behavior.
 
@@ -93,11 +93,12 @@ Passed:
 - deliberately mutate `wp-includes/version.php`, `readme.html`, and a database sentinel;
 - restore verified core snapshot;
 - verify exact file hashes and database value returned;
-- preserve `wp-content` and `wp-config.php` outside the core archive/restore set by construction.
+- preserve `wp-content` and `wp-config.php` outside the core archive/restore set by construction;
+- move only the disposable runtime to WordPress 7.0 after the 7.1 regression suite;
+- run `CMSA_Updates::update_core()` through a real `Core_Upgrader` transaction;
+- verify candidate update 7.0 -> 7.1, valid pre-update rollback snapshot, post-update WordPress bootstrap, unchanged `wp-config.php`, unchanged `wp-content` sentinel, unchanged database sentinel, and candidate plugin activation.
 
 Still required:
-- controlled `Core_Upgrader` transaction using a disposable WordPress version pair;
-- post-update WordPress bootstrap/version verification;
 - automatic rollback behavior when a core update validation fails.
 
 ## Gate 7 — Package-network/privacy surface

@@ -63,3 +63,14 @@ Append-only record of material workbench state changes. Do not rewrite prior ent
 - The restored Classic Editor version returned to 1.6 and the main-file SHA-256 exactly matched the pre-update file.
 - CMS Admin Workbench Lab run `34161501638` passed the forced rollback step and the complete downstream regression suite.
 - Runtime capability artifact id `10032758991` was uploaded with SHA-256 `545293ebd672297f218b1e4ced92ed4f352b59e42253c2af87ded792f6eb5bcf`.
+
+## 2026-09-07 — Core updater transaction
+
+- Added an actual `Core_Upgrader` transaction probe at commit `37839c3a95b21394dab139b31a5d22d12e41676d`.
+- The disposable runtime was moved to WordPress 7.0 only after the earlier WordPress 7.1 regression gates completed, then the candidate itself was asked to perform the currently offered core update.
+- `CMSA_Updates::update_core()` created and verified a pre-update core+database rollback snapshot and upgraded WordPress from 7.0 to 7.1.
+- Post-update verification confirmed the on-disk version was 7.1, `wp-config.php` was byte-identical, a `wp-content` sentinel was byte-identical, a database sentinel was unchanged, the site still bootstrapped, and Chattanooga CMS Admin remained active.
+- CMS Admin Workbench Lab run `34161768634` passed PHP 7.4, PHP 8.2, the full disposable WordPress regression suite, and the core update transaction.
+- Exact transaction output: `core-update-cli: PASS from=7.0 to=7.1 ... config=unchanged wp-content=unchanged database=unchanged plugin=active`.
+- Runtime capability artifact id `10032846544` was uploaded with SHA-256 `ac6892ba1fe16d9483608366fd36c50128e843a8f5d6375c101f1422ef7656a7`.
+- The core automatic rollback path on a deliberately failed core update remains unverified and is the next core-specific fault-injection gate.

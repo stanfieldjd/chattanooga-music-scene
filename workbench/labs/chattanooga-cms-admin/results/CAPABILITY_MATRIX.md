@@ -4,13 +4,13 @@ Evidence states:
 
 - `SOURCE_PRESENT` — implementation exists in the workbench candidate source.
 - `STUB_VERIFIED` — executed successfully under the workbench WordPress stubs.
-- `REFERENCE_VERIFIED` — executed successfully in a disposable real WordPress 7.1 / PHP 8.2 reference runtime in GitHub Actions.
+- `REFERENCE_VERIFIED` — executed successfully in a disposable real WordPress reference runtime in GitHub Actions.
 - `CONDITIONAL` — source/API exists but the exact operation or Chattanooga/DreamHost condition is not execution-verified.
 - `REJECTED` — intentionally excluded from the architecture.
 - `UNKNOWN` — insufficient evidence for the target environment.
 - `NOT_YET_IMPLEMENTED` — intentionally not present in the current maintenance-layer candidate.
 
-Latest full reference runtime evidence: CMS Admin Workbench Lab run `34161223016`, source checkpoint `39d699cbf6415427a0c1a5ae29eed327a43e6a78`. PHP 7.4, PHP 8.2, and the disposable WordPress 7.1 / PHP 8.2.33 / MySQL 8.0.46 runtime all passed. Runtime capability artifact: `cmsa-runtime-capabilities`, artifact id `10032670494`, SHA-256 digest `8fdbe0d203ffc3980de8a115a0c1f7f6a1bee450942586684048044cc9c7ae33`.
+Latest full reference runtime evidence: CMS Admin Workbench Lab run `34161768634`, source checkpoint `37839c3a95b21394dab139b31a5d22d12e41676d`. PHP 7.4, PHP 8.2, and the disposable WordPress 7.1 / PHP 8.2.33 / MySQL 8.0.46 regression runtime all passed. The core transaction phase then moved only that disposable fixture to WordPress 7.0 and the candidate upgraded it back to 7.1. Runtime capability artifact: `cmsa-runtime-capabilities`, artifact id `10032846544`, SHA-256 digest `ac6892ba1fe16d9483608366fd36c50128e843a8f5d6375c101f1422ef7656a7`.
 
 | Capability | Current state | Evidence / remaining gate |
 | --- | --- | --- |
@@ -31,7 +31,7 @@ Latest full reference runtime evidence: CMS Admin Workbench Lab run `34161223016
 | Generic arbitrary SQL ability | REJECTED | No generic SQL execution ability exists; database operations are bounded backup/restore operations. |
 | Direct candidate HTTP/vendor calls | REJECTED | Privacy-boundary test rejects `wp_remote_get`, `wp_remote_post`, `wp_remote_request`, direct cURL/socket transports, and literal external URLs in candidate PHP. |
 | Direct candidate member enumeration/access | REJECTED | Privacy-boundary test rejects `get_users`, `WP_User_Query`, direct user-meta access, `$wpdb->users`, credential fields, and WordPress secret constants. This is a candidate-source contract, not a claim that WordPress core or unrelated plugins never make network calls. |
-| `WP_Filesystem` | REFERENCE_VERIFIED | Available in disposable WordPress 7.1; DreamHost filesystem method/credentials remain UNKNOWN. |
+| `WP_Filesystem` | REFERENCE_VERIFIED | Available in disposable WordPress; DreamHost filesystem method/credentials remain UNKNOWN. |
 | `ZipArchive` | REFERENCE_VERIFIED | Available in disposable PHP 8.2.33; Chattanooga's live PHP extension state must still be probed. |
 | `wp_mkdir_p`, `unzip_file`, `copy_dir` | REFERENCE_VERIFIED | Available and exercised in the reference WordPress runtime. |
 | Plugin directory writability | REFERENCE_VERIFIED | Writable in reference runtime; DreamHost target remains UNKNOWN. |
@@ -39,14 +39,15 @@ Latest full reference runtime evidence: CMS Admin Workbench Lab run `34161223016
 | Backup directory outside WordPress web root | REFERENCE_VERIFIED | Preferred parent-directory backup path was created/writable in reference runtime. DreamHost remains UNKNOWN. |
 | `Plugin_Upgrader` | REFERENCE_VERIFIED | Class available and actual plugin update transaction passed. |
 | `Theme_Upgrader` | REFERENCE_VERIFIED | Class available and an actual Twenty Twenty-One update transaction passed. |
-| `Core_Upgrader` | REFERENCE_VERIFIED | Class available; actual core updater execution remains CONDITIONAL. |
+| `Core_Upgrader` | REFERENCE_VERIFIED | Class available and an actual candidate-controlled WordPress 7.0 -> 7.1 core update transaction passed. |
 | `plugins_api()` / `themes_api()` | REFERENCE_VERIFIED | Functions available and WordPress.org package retrieval was exercised. Their network behavior is WordPress core behavior, not a third-party management service. |
 | Candidate plugin activation/deactivation controls | REFERENCE_VERIFIED | Classic Widgets was installed through the candidate, activated, verified active, deactivated, and verified inactive. |
 | Plugin auto-update policy control | REFERENCE_VERIFIED | Disposable fixture plugin auto-update was enabled, verified, disabled, and verified. |
 | Backup-protected plugin deletion | REFERENCE_VERIFIED | Disposable fixture plugin was backed up, checksum-verified, deleted through `CMSA_Lifecycle`, then restored. |
 | Plugin rollback fidelity | REFERENCE_VERIFIED | Fixture `state.txt` SHA-256 after restore exactly matched the pre-delete SHA-256. |
+| Forced plugin validation rollback | REFERENCE_VERIFIED | A real Classic Editor update package was installed while only the advertised target version was deliberately mismatched; candidate validation failed as intended, automatic rollback reported success, and version 1.6 plus the exact pre-update main-file SHA-256 were restored. |
 | Theme deletion/rollback | REFERENCE_VERIFIED | Disposable theme fixture was backup-protected, deleted, restored, and its `state.txt` SHA-256 matched the pre-delete state. |
-| Local database backup creation | REFERENCE_VERIFIED | Real WordPress 7.1 / MySQL 8 database dump created successfully. |
+| Local database backup creation | REFERENCE_VERIFIED | Real WordPress / MySQL database dump created successfully. |
 | Backup SHA-256 verification | REFERENCE_VERIFIED | Database, component, and core rollback artifacts passed checksum verification. |
 | Plugin component rollback archive | REFERENCE_VERIFIED | Fixture plugin archive creation, verification, mutation/deletion, restoration, and byte-fidelity test passed. |
 | Database restore | REFERENCE_VERIFIED | Sentinel option was backed up, mutated, database restored, and direct database read matched the backed-up value. Empty-string serialization defect was repaired and regression-tested. |
@@ -60,8 +61,9 @@ Latest full reference runtime evidence: CMS Admin Workbench Lab run `34161223016
 | Actual WordPress.org plugin update | REFERENCE_VERIFIED | Classic Editor was prepared at 1.6, candidate updated it to 1.7.0, version advancement was verified, and a rollback backup id was returned. |
 | Actual WordPress.org theme installation | REFERENCE_VERIFIED | Candidate installed Twenty Twenty-One and WordPress verified the theme exists. |
 | Actual theme update transaction | REFERENCE_VERIFIED | Twenty Twenty-One 1.8 was updated through `CMSA_Updates::update_theme()` to 2.9, the rollback archive verified, and rollback returned the theme to 1.8 with exact `style.css` SHA-256 fidelity. |
-| WordPress core update transaction | CONDITIONAL | `Core_Upgrader` is present; no disposable core updater execution has yet been completed. |
+| WordPress core update transaction | REFERENCE_VERIFIED | After the full 7.1 regression suite, only the disposable fixture was moved to WordPress 7.0. `CMSA_Updates::update_core()` created and verified a rollback snapshot, upgraded to 7.1, and a fresh bootstrap check confirmed the site remained installed and the candidate remained active. `wp-config.php`, `wp-content`, and database sentinels were unchanged. |
 | Core backup/restore fidelity | REFERENCE_VERIFIED | Core archive and database snapshot were verified, core/root files and DB were deliberately mutated, and restoration returned exact pre-mutation hashes/values. |
+| Core automatic rollback on update failure | CONDITIONAL | The core success transaction and independent core restore fidelity are proven, but a deliberately failed core update has not yet exercised `rollback_core_error()`. |
 | Chattanooga/DreamHost filesystem behavior | UNKNOWN | Requires a read-only live capability probe before deployment/mutation. |
 | Chattanooga MCP discovery of the 24 abilities | UNKNOWN | Requires plugin installation/activation and actual transport discovery in a separately authorized production phase. |
 | WooCommerce-specific update/migration behavior | UNKNOWN | Needs dedicated disposable WooCommerce migration/update tests before production use. |
@@ -85,4 +87,4 @@ The first WordPress.org update fixture asked for nonexistent Classic Editor `1.6
 
 ## Current gate
 
-The workbench establishes that the maintenance-layer candidate loads on WordPress 7.1; all 24 registered abilities enforce their intended capability boundaries; candidate abilities remain isolated from WordPress's REST execution surface; and the tested backup/restore, lifecycle, health/cache, plugin update, theme update, and core rollback paths operate in a disposable reference environment. It does **not** establish DreamHost filesystem behavior, live Chattanooga installation, actual MCP discovery, core updater execution, forced-failure automatic rollback, multisite behavior, WP Super Cache integration, WooCommerce migrations, production-scale backup performance, private MCP transport replacement, or the broader member/content/event/commerce administration surface. Those remain explicit gates rather than assumptions.
+The workbench establishes that the maintenance-layer candidate loads on WordPress 7.1; all 24 registered abilities enforce their intended capability boundaries; candidate abilities remain isolated from WordPress's REST execution surface; and the tested backup/restore, lifecycle, health/cache, plugin update, plugin automatic rollback, theme update, core update, and core restore paths operate in a disposable reference environment. It does **not** establish DreamHost filesystem behavior, live Chattanooga installation, actual MCP discovery, core automatic rollback after a deliberately failed core update, package-request privacy capture, multisite behavior, WP Super Cache integration, WooCommerce migrations, production-scale backup performance, private MCP transport replacement, or the broader member/content/event/commerce administration surface. Those remain explicit gates rather than assumptions.
