@@ -129,6 +129,22 @@ jobs:
         run: |
           set -euo pipefail
           php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/wordpress-org-package-cli.php" --path=/tmp/wordpress
+      - name: Prepare legacy theme update fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar theme install twentytwentyone --version=1.8 --path=/tmp/wordpress --force
+          test "$(php /tmp/wp-cli.phar theme get twentytwentyone --field=version --path=/tmp/wordpress)" = "1.8"
+      - name: Verify theme update and rollback fidelity
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/theme-update-rollback-cli.php" --path=/tmp/wordpress
+      - name: Verify WordPress core backup and restore fidelity
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/core-backup-restore-cli.php" --path=/tmp/wordpress
       - name: Verify health reporting and cache control
         shell: bash
         run: |
