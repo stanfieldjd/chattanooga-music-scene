@@ -1,0 +1,86 @@
+name: Mars Next Chat Handoff
+
+on:
+  push:
+    branches:
+      - workbench/mars
+    paths:
+      - ".github/workflows/workbench-handoff.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch source branches
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git fetch origin feature/chattanooga-cms-admin:refs/remotes/origin/feature/chattanooga-cms-admin
+
+      - name: Build handoff bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p handoff/workbench-snapshot handoff/cms-admin-feature
+
+          cp -R workbench/. handoff/workbench-snapshot/
+          cp .github/workflows/workbench-integrity.yml handoff/workbench-integrity.yml
+          cp .github/workflows/cmsa-workbench-lab.yml handoff/cmsa-workbench-lab.yml
+          cp .github/workflows/workbench-handoff.yml handoff/workbench-handoff.yml
+
+          git archive --format=tar origin/feature/chattanooga-cms-admin \
+            site-plugins/chattanooga-cms-admin \
+            .github/workflows/chattanooga-cms-admin.yml \
+            | tar -xf - -C handoff/cms-admin-feature
+
+          cat > handoff/HANDOFF.md <<EOF
+          # Mars Chattanooga Music Scene Handoff
+
+          Generated from GitHub for continuation in the next ChatGPT conversation.
+
+          ## Exact repository state
+
+          - Repository: stanfieldjd/chattanooga-music-scene
+          - Workbench branch: workbench/mars
+          - Workbench commit: $(git rev-parse HEAD)
+          - Main commit: $(git rev-parse origin/main)
+          - CMS Admin branch: feature/chattanooga-cms-admin
+          - CMS Admin commit: $(git rev-parse origin/feature/chattanooga-cms-admin)
+
+          ## Resume order
+
+          1. Read workbench-snapshot/README.md.
+          2. Read workbench-snapshot/STATUS.md.
+          3. Read workbench-snapshot/TASK_QUEUE.md.
+          4. Read workbench-snapshot/state/current.json.
+          5. Read the exact governing Ledger from the user's files before material work.
+          6. Re-verify GitHub branch heads before making changes.
+          7. Continue from the latest verified task position; do not infer production state from CI.
+
+          ## Contents
+
+          - workbench-snapshot/ — complete Mars workbench at the packaged commit.
+          - cms-admin-feature/ — current source-controlled Chattanooga CMS Admin feature branch files.
+          - cmsa-workbench-lab.yml — reference WordPress 7.1 laboratory workflow.
+          - workbench-integrity.yml — workbench integrity workflow.
+          - workbench-handoff.yml — reproducible handoff packaging workflow.
+          EOF
+
+          find handoff -type f -print0 | sort -z | xargs -0 sha256sum > handoff/SHA256SUMS.txt
+
+      - name: Upload next-chat handoff
+        uses: actions/upload-artifact@v4
+        with:
+          name: mars-next-chat-handoff
+          path: handoff/
+          if-no-files-found: error
+          retention-days: 30
