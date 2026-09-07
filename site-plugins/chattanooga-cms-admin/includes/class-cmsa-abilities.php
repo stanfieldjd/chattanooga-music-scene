@@ -8,11 +8,13 @@ final class CMSA_Abilities {
 	private $health;
 	private $backups;
 	private $updates;
+	private $lifecycle;
 
-	public function __construct( CMSA_Health $health, CMSA_Backups $backups, CMSA_Updates $updates ) {
+	public function __construct( CMSA_Health $health, CMSA_Backups $backups, CMSA_Updates $updates, CMSA_Lifecycle $lifecycle ) {
 		$this->health = $health;
 		$this->backups = $backups;
 		$this->updates = $updates;
+		$this->lifecycle = $lifecycle;
 	}
 
 	public function register() {
@@ -21,6 +23,15 @@ final class CMSA_Abilities {
 		$this->register_ability( 'list-plugins', 'List plugins', 'Returns installed plugins, activation state, versions, auto-update state, and offered updates.', null, array( $this->updates, 'list_plugins' ), 'manage_options', true, false, false );
 		$this->register_ability( 'list-themes', 'List themes', 'Returns installed themes, active state, versions, auto-update state, and offered updates.', null, array( $this->updates, 'list_themes' ), 'manage_options', true, false, false );
 		$this->register_ability( 'list-backups', 'List local backups', 'Lists locally stored Chattanooga CMS Admin rollback snapshots and their metadata.', null, array( $this->backups, 'list_backups' ), 'manage_options', true, false, true );
+
+		$this->register_ability(
+			'get-audit-log',
+			'Get local audit log',
+			'Returns recent local Chattanooga CMS Admin administrative audit entries. The audit log intentionally excludes member records and secrets.',
+			$this->object_schema( array( 'limit' => array( 'type' => 'integer', 'minimum' => 1, 'maximum' => 500, 'default' => 100 ) ) ),
+			function ( $input ) { return CMSA_Audit::read( isset( $input['limit'] ) ? $input['limit'] : 100 ); },
+			'manage_options', true, false, true
+		);
 
 		$this->register_ability(
 			'create-backup',
@@ -126,6 +137,30 @@ final class CMSA_Abilities {
 		);
 
 		$this->register_ability(
+			'delete-plugin',
+			'Delete plugin with rollback backup',
+			'Creates and verifies a local plugin rollback archive, deactivates the plugin when necessary, deletes it, and verifies removal. Chattanooga CMS Admin cannot delete itself.',
+			$this->object_schema( array( 'plugin' => array( 'type' => 'string', 'minLength' => 1 ) ), array( 'plugin' ) ),
+			function ( $input ) { return $this->lifecycle->delete_plugin( $input['plugin'] ); },
+			'delete_plugins', false, true, false
+		);
+
+		$this->register_ability(
+			'set-plugin-auto-update',
+			'Set plugin auto-update policy',
+			'Enables or disables WordPress automatic updates for one installed plugin and verifies the stored policy.',
+			$this->object_schema(
+				array(
+					'plugin'  => array( 'type' => 'string', 'minLength' => 1 ),
+					'enabled' => array( 'type' => 'boolean' ),
+				),
+				array( 'plugin', 'enabled' )
+			),
+			function ( $input ) { return $this->lifecycle->set_plugin_auto_update( $input['plugin'], $input['enabled'] ); },
+			'update_plugins', false, false, true
+		);
+
+		$this->register_ability(
 			'install-theme',
 			'Install WordPress.org theme',
 			'Installs a theme package obtained from the official WordPress.org theme API by slug. It does not switch the active theme.',
@@ -141,6 +176,30 @@ final class CMSA_Abilities {
 			$this->object_schema( array( 'stylesheet' => array( 'type' => 'string', 'minLength' => 1 ) ), array( 'stylesheet' ) ),
 			function ( $input ) { return $this->updates->switch_theme( $input['stylesheet'] ); },
 			'switch_themes', false, true, false
+		);
+
+		$this->register_ability(
+			'delete-theme',
+			'Delete theme with rollback backup',
+			'Creates and verifies a local theme rollback archive before deleting an inactive theme. The active theme and active parent are protected.',
+			$this->object_schema( array( 'stylesheet' => array( 'type' => 'string', 'minLength' => 1 ) ), array( 'stylesheet' ) ),
+			function ( $input ) { return $this->lifecycle->delete_theme( $input['stylesheet'] ); },
+			'delete_themes', false, true, false
+		);
+
+		$this->register_ability(
+			'set-theme-auto-update',
+			'Set theme auto-update policy',
+			'Enables or disables WordPress automatic updates for one installed theme and verifies the stored policy.',
+			$this->object_schema(
+				array(
+					'stylesheet' => array( 'type' => 'string', 'minLength' => 1 ),
+					'enabled'    => array( 'type' => 'boolean' ),
+				),
+				array( 'stylesheet', 'enabled' )
+			),
+			function ( $input ) { return $this->lifecycle->set_theme_auto_update( $input['stylesheet'], $input['enabled'] ); },
+			'update_themes', false, false, true
 		);
 
 		$this->register_ability( 'clear-cache', 'Clear site cache', 'Clears WP Super Cache when available, the WordPress object cache, and WordPress blog object state.', null, array( $this->health, 'clear_cache' ), 'manage_options', false, false, false );
