@@ -75,12 +75,12 @@ if ( false !== $stalled ) {
 
 $source = file_get_contents( $lab . '/candidate/includes/class-cmsa-backups.php' );
 $dump_start = strpos( $source, 'private function dump_database' );
-$restore_start = strpos( $source, 'private function restore_database_file' );
-if ( false === $dump_start || false === $restore_start || $restore_start <= $dump_start ) {
+$helper_start = strpos( $source, 'private function write_stream_all', $dump_start );
+if ( false === $dump_start || false === $helper_start || $helper_start <= $dump_start ) {
 	fwrite( STDERR, "backup-write-integrity-test: could not isolate database dump implementation.\n" );
 	exit( 1 );
 }
-$dump_source = substr( $source, $dump_start, $restore_start - $dump_start );
+$dump_source = substr( $source, $dump_start, $helper_start - $dump_start );
 if ( false !== strpos( $dump_source, 'fwrite(' ) ) {
 	fwrite( STDERR, "backup-write-integrity-test: database dump still contains unchecked raw fwrite calls.\n" );
 	exit( 1 );
