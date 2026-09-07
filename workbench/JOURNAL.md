@@ -74,3 +74,14 @@ Append-only record of material workbench state changes. Do not rewrite prior ent
 - Exact transaction output: `core-update-cli: PASS from=7.0 to=7.1 ... config=unchanged wp-content=unchanged database=unchanged plugin=active`.
 - Runtime capability artifact id `10032846544` was uploaded with SHA-256 `ac6892ba1fe16d9483608366fd36c50128e843a8f5d6375c101f1422ef7656a7`.
 - The core automatic rollback path on a deliberately failed core update remains unverified and is the next core-specific fault-injection gate.
+
+## 2026-09-07 — Forced core rollback and numeric database serialization repair
+
+- Added a forced post-core validation mismatch probe at commit `481c9213faa4037f9caaa27100cc8e3e413e4051` after the normal core-updater transaction was already proven.
+- The first fault-injection run `34162636544` exposed a real database-backup defect during rollback: numeric primary keys had been serialized as binary `0x...` literals, and a larger `wp_options.option_id` created during the update was coerced by MySQL into an overflowing integer value, producing a duplicate-primary-key restore failure.
+- Repaired the serializer at the cause in commit `ec585e6fb3d5952e342a2931a63a782ceaa5c461`: database column definitions are inspected and numeric SQL columns are now emitted as validated numeric literals, while null, empty-string, and binary/string values retain their distinct safe encodings.
+- Added a database restore regression at commit `c0a54be38ed087d3b428eaa8e76d4ba7fdcaacb6` that verifies both sentinel value restoration and exact numeric `option_id` identity across backup/restore.
+- CMS Admin Workbench Lab run `34162917097` passed PHP 7.4, PHP 8.2, the complete WordPress regression chain, numeric database-ID fidelity, the normal core update transaction, and the previously failing forced-core rollback path.
+- Forced-core evidence: `forced-core-update-rollback-cli: PASS attempted=7.1 rollback=7.0 ... core=exact database=restored config=unchanged wp-content=unchanged plugin=active`.
+- Runtime capability artifact id `10033217958` was uploaded with SHA-256 `e5a033888454e7f583bb50cf39716874e593c0b2dc02058d16f0884b32055ae9`.
+- DreamHost behavior, actual Chattanooga MCP discovery, and WordPress.org package-request privacy remain unverified and separate from this reference-runtime proof.

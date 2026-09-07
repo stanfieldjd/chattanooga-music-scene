@@ -1,6 +1,6 @@
 # Task: Chattanooga CMS Admin Runtime Integration
 
-Status: REFERENCE_CORE_UPDATE_VERIFIED — CORE FAILURE + PRIVACY + DREAMHOST/MCP PENDING
+Status: REFERENCE_CORE_FAILURE_ROLLBACK_VERIFIED — PRIVACY + DREAMHOST/MCP PENDING
 
 ## Objective
 
@@ -29,13 +29,13 @@ Develop Chattanooga CMS Admin through an isolated engineering lab, determine whi
 - Verified source checkpoint: `0b34773ebc8073cb657477770b34cabc280f5892`.
 - Source PHP 7.4 syntax workflow passed at GitHub Actions run `34115195808`.
 - Immutable workbench baseline reuses the exact source Git blobs.
-- Current reference execution: CMS Admin Workbench Lab run `34161768634`, test commit `37839c3a95b21394dab139b31a5d22d12e41676d`.
+- Current reference execution: CMS Admin Workbench Lab run `34162917097`, test commit `c0a54be38ed087d3b428eaa8e76d4ba7fdcaacb6`.
 - Candidate passed PHP 7.4 and PHP 8.2 lab gates.
 - Disposable real WordPress 7.1 accepted and activated the candidate.
 - All expected 24 abilities were found through WordPress's actual ability registry after lifecycle execution.
 - Real permission testing denied all 24 abilities anonymously, allowed all 24 for administrator, and isolated them across 10 intended WordPress capabilities.
 - Real WordPress Abilities REST routes were enumerated; candidate abilities marked `show_in_rest=false` did not leak through the collection or direct GET/POST probes.
-- Database backup creation, SHA-256 verification, and sentinel restore passed.
+- Database backup creation, SHA-256 verification, sentinel restore, and exact numeric `option_id` identity passed.
 - Plugin component backup/restore and lifecycle rollback passed.
 - Theme deletion/restore passed.
 - Real WordPress.org plugin installation, activation/deactivation, and plugin update transaction passed.
@@ -43,6 +43,8 @@ Develop Chattanooga CMS Admin through an isolated engineering lab, determine whi
 - WordPress core+database backup creation and verification passed, followed by deliberate core/root/database mutation and exact restore verification.
 - Forced plugin post-update validation failure triggered automatic rollback; Classic Editor returned to version 1.6 with exact pre-update main-file SHA-256 fidelity.
 - An actual candidate `Core_Upgrader` transaction advanced the disposable site from WordPress 7.0 to 7.1 while preserving `wp-config.php`, `wp-content`, database sentinel state, site bootstrap, and plugin activation; the pre-update rollback snapshot remained valid.
+- A deliberately forced core post-update validation failure triggered `rollback_core_error()` and restored exact WordPress 7.0 core state and database state while preserving `wp-config.php`, `wp-content`, and plugin activation.
+- The first forced-core run exposed numeric database-column serialization overflow; the serializer was repaired using database schema-aware numeric literal handling and regression-tested.
 - Source has not been merged to `main` and has not been installed on Chattanooga Music Scene.
 
 ## Workbench gates
@@ -59,7 +61,7 @@ Completed:
 - [x] Verify all 24 ability permission callbacks against anonymous, administrator, and capability-isolated users.
 - [x] Verify candidate REST isolation under WordPress Abilities REST controllers.
 - [x] Verify database backup + checksum.
-- [x] Verify database sentinel restore.
+- [x] Verify database sentinel restore and numeric primary-key identity.
 - [x] Verify controlled plugin component rollback.
 - [x] Verify theme component deletion/restore fidelity.
 - [x] Verify WordPress.org plugin install/activate/deactivate/update transaction.
@@ -67,14 +69,15 @@ Completed:
 - [x] Verify core+database snapshot creation and exact core/database restore fidelity.
 - [x] Force a plugin post-update validation failure and prove automatic rollback restores exact pre-update state.
 - [x] Execute a candidate-controlled WordPress core update from 7.0 to 7.1 and verify rollback snapshot, version, bootstrap, configuration, content, database, and plugin state.
+- [x] Force core post-update validation failure and prove automatic rollback restores exact core/database state while preserving configuration/content/plugin state.
 
 Pending workbench/runtime tests:
 
-- [ ] Core forced-failure automatic rollback path.
 - [ ] Error-output secret/credential redaction regression test.
 - [ ] WordPress.org package request privacy capture.
 - [ ] Explicit switch-theme and theme auto-update lifecycle probes.
 - [ ] Multisite cache branch.
+- [ ] Incomplete/corrupt backup rejection and storage failure handling.
 - [ ] DreamHost/Chattanooga read-only capability probe.
 - [ ] Actual Chattanooga MCP discovery of the registered abilities.
 - [ ] Broader content/member/event/commerce/site-specific typed abilities from `ROADMAP.md`.
@@ -96,7 +99,7 @@ Pending workbench/runtime tests:
 - Actual MCP transport may expose/filter metadata differently than the WordPress registry.
 - Backup storage capacity/permissions may differ on DreamHost.
 - Package lookup/update operations can make network requests; payload/privacy capture remains required.
-- Core automatic rollback after an intentionally failed core update remains unverified.
+- Reference rollback behavior does not prove production storage capacity, filesystem permissions, or production-scale performance.
 
 ## Rollback point
 
@@ -119,3 +122,4 @@ NOT_DEPLOYED
 - 2026-09-07: Permission isolation and REST isolation passed for all 24 abilities in CMS Admin Workbench Lab run `34161223016`.
 - 2026-09-07: Forced plugin validation-failure automatic rollback passed in CMS Admin Workbench Lab run `34161501638`.
 - 2026-09-07: Candidate-controlled WordPress core update 7.0 -> 7.1 passed in CMS Admin Workbench Lab run `34161768634`.
+- 2026-09-07: Numeric database serialization repair, numeric primary-key restore fidelity, and forced core automatic rollback passed in CMS Admin Workbench Lab run `34162917097`.
