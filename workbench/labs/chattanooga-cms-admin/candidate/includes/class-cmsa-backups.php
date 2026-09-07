@@ -407,7 +407,13 @@ final class CMSA_Backups {
 					$values = array();
 					foreach ( $row as $column => $value ) {
 						$columns[] = '`' . str_replace( '`', '``', $column ) . '`';
-						$values[] = null === $value ? 'NULL' : '0x' . bin2hex( (string) $value );
+						if ( null === $value ) {
+							$values[] = 'NULL';
+						} elseif ( '' === (string) $value ) {
+							$values[] = "''";
+						} else {
+							$values[] = '0x' . bin2hex( (string) $value );
+						}
 					}
 					fwrite( $handle, 'INSERT INTO ' . $identifier . ' (' . implode( ',', $columns ) . ') VALUES (' . implode( ',', $values ) . ");\n" );
 				}
