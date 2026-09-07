@@ -396,6 +396,22 @@ final class CMSA_Backups {
 				fclose( $handle );
 				return new WP_Error( 'cmsa_database_schema', 'Could not read schema for table ' . $table . '.' );
 			}
+
+			$column_definitions = $wpdb->get_results( 'SHOW COLUMNS FROM ' . $identifier, ARRAY_A );
+			if ( ! is_array( $column_definitions ) || empty( $column_definitions ) ) {
+				fclose( $handle );
+				return new WP_Error( 'cmsa_database_columns', 'Could not read column definitions for table ' . $table . '.' );
+			}
+			$numeric_columns = array();
+			foreach ( $column_definitions as $definition ) {
+				if ( empty( $definition['Field'] ) || empty( $definition['Type'] ) ) {
+					continue;
+				}
+				if ( preg_match( '/^(?:tinyint|smallint|mediumint|int|integer|bigint|decimal|numeric|float|double|real|year)\b/i', (string) $definition['Type'] ) ) {
+					$numeric_columns[ $definition['Field'] ] = true;
+				}
+			}
+
 			fwrite( $handle, "DROP TABLE IF EXISTS {$identifier};\n" . $create[1] . ";\n" );
 
 			$offset = 0;
@@ -409,6 +425,13 @@ final class CMSA_Backups {
 						$columns[] = '`' . str_replace( '`', '``', $column ) . '`';
 						if ( null === $value ) {
 							$values[] = 'NULL';
+						} elseif ( isset( $numeric_columns[ $column ] ) ) {
+							$numeric_value = (string) $value;
+							if ( ! is_numeric( $numeric_value ) ) {
+								fclose( $handle );
+								return new WP_Error( 'cmsa_database_numeric', 'Database backup encountered a non-numeric value in numeric column ' . $table . '.' . $column . '.' );
+							}
+							$values[] = $numeric_value;
 						} elseif ( '' === (string) $value ) {
 							$values[] = "''";
 						} else {
