@@ -10,7 +10,7 @@ Evidence states:
 - `UNKNOWN` — insufficient evidence for the target environment.
 - `NOT_YET_IMPLEMENTED` — intentionally not present in the current maintenance-layer candidate.
 
-Latest complete single-site/full-regression evidence: CMS Admin Workbench Lab run `34166093601`, commit `04139cb2cc8da95af1e79cf6bb50f08062c2b77a`, artifact `10034214148`, SHA-256 `da9258afb3694f6a10c2854c8d963b207fa1bdbd7e49c2dd22745ed48d5a4aa6`. Real multisite evidence: CMS Admin Multisite Lab run `34164758622`.
+Latest complete single-site/full-regression evidence: CMS Admin Workbench Lab run `34166835095`, commit `286a8d15d905b60380b5173cb084fabfd7c3ce43`, artifact `10034438937`, SHA-256 `24ee7663f8ec92d6e0c7bf99b59c5790587f31f1e0e7ab9cfebc81a7a6c9cbc1`. Latest multisite regression: run `34166835071` on the same candidate commit.
 
 | Capability | Current state | Evidence / remaining gate |
 | --- | --- | --- |
@@ -20,13 +20,13 @@ Latest complete single-site/full-regression evidence: CMS Admin Workbench Lab ru
 | WordPress 7.1 activation | REFERENCE_VERIFIED | Candidate activated successfully in disposable WordPress 7.1. |
 | Native Abilities API | REFERENCE_VERIFIED | `wp_register_ability()` and category API exist in real WordPress 7.1. |
 | CMS Admin category + 24 abilities | REFERENCE_VERIFIED | Category and all expected 24 abilities registered and retrieved through the real registry. |
-| MCP discovery metadata | SOURCE_PRESENT | Candidate declares MCP exposure metadata; actual Chattanooga transport discovery remains UNKNOWN. |
+| MCP discovery metadata | SOURCE_PRESENT | Candidate declares MCP exposure metadata; actual Chattanooga transport discovery remains UNKNOWN until installation/runtime authorization. |
 | Central capability/permission callbacks | REFERENCE_VERIFIED | All 24 denied anonymously, all 24 allowed for administrator, isolated across exactly 10 intended capabilities. |
 | WordPress Abilities REST isolation | REFERENCE_VERIFIED | Candidate `show_in_rest=false` abilities absent from collection and direct execution probes failed closed. |
 | Candidate-owned generic REST routes | REJECTED | Static test rejects direct custom REST execution surface. |
 | Arbitrary shell/PHP/SQL execution | REJECTED | Static checks reject generic shell, PHP eval/code execution, and generic SQL ability surfaces. |
 | Direct candidate HTTP/vendor calls | REJECTED | Candidate source has no direct outbound transport; WordPress core package APIs are separately tested. |
-| Direct candidate member enumeration/access | REJECTED | Candidate source contract rejects direct user enumeration/meta/credential/secret access. |
+| Direct candidate member enumeration/access | REJECTED | Current maintenance-layer source contract rejects direct user enumeration/meta/credential/secret access. |
 | WordPress package-request privacy | REFERENCE_VERIFIED | Five disposable marker classes absent across 12 captured package requests; only WordPress.org API/download hosts observed. |
 | Error-output sensitive-marker redaction | REFERENCE_VERIFIED | Fault injection and repair verified plugin API, updater rollback, and DB restore public errors do not contain seeded markers. |
 | `WP_Filesystem`, `ZipArchive`, core copy/unzip primitives | REFERENCE_VERIFIED | Available and exercised in reference runtime; DreamHost behavior remains UNKNOWN. |
@@ -48,12 +48,13 @@ Latest complete single-site/full-regression evidence: CMS Admin Workbench Lab ru
 | Normal core update transaction | REFERENCE_VERIFIED | 7.0 -> 7.1 passed with config/content/database/plugin state preserved. |
 | Forced core automatic rollback | REFERENCE_VERIFIED | Deliberate post-update validation failure restored exact 7.0 core/database state. |
 | Single-site cache clearing | REFERENCE_VERIFIED | `object-cache,wordpress-options-cache` path passed. |
-| Multisite cache branch | REFERENCE_VERIFIED | Real WordPress 7.1 network install + candidate network activation passed; exact result `object-cache,wordpress-blog-cache` in run `34164758622`. |
+| Multisite cache branch | REFERENCE_VERIFIED | Latest real WordPress 7.1 multisite regression passed at run `34166835071`. |
 | WP Super Cache clearing | CONDITIONAL | WP Super Cache absent in reference runtime; Chattanooga-specific verification required. |
 | Corrupt/incomplete backup rejection | REFERENCE_VERIFIED | Corrupted component, missing component archive, and corrupted DB snapshot were rejected before restore with target unchanged. |
-| Storage unavailable handling | REFERENCE_VERIFIED | Run `34165355234`: all configured backup paths non-writable; `cmsa_backup_directory`; backup not created; complete downstream regression green. |
-| Partial-write/disk-space failure handling | CONDITIONAL | Active failing-test gate: progressive partial writes must be completed exactly and stalled writes must fail without accepting truncated database output. |
-| Deterministic plugin update edge cases | REFERENCE_VERIFIED | Run `34166093601`: no-update blocked, local v1→v2 succeeded with activation preserved, malformed package failed closed and exact active v1 rollback was verified. |
+| Storage unavailable handling | REFERENCE_VERIFIED | All configured backup paths non-writable caused fail-closed backup refusal with no backup created. |
+| Partial/stalled database write handling | REFERENCE_VERIFIED | Failing-first test exposed missing enforcement; complete-write helper now finishes progressive short writes, rejects stalled writes, and removes incomplete SQL. |
+| Component/core archive finalization handling | REFERENCE_VERIFIED | Failing-first test exposed unchecked ZIP close; both archive writers now fail closed on finalization or zero-byte output and remove incomplete archives. |
+| Deterministic plugin update edge cases | REFERENCE_VERIFIED | No-update blocked, local v1→v2 succeeded with activation preserved, malformed package failed closed and exact active v1 rollback was verified. |
 | Chattanooga/DreamHost filesystem behavior | UNKNOWN | Requires read-only live capability probe before deployment/mutation. |
 | Chattanooga MCP discovery | UNKNOWN | Requires separately authorized installation/activation and actual transport discovery. |
 | WooCommerce-specific update/migration/network behavior | UNKNOWN | Needs dedicated disposable WooCommerce tests. |
@@ -63,4 +64,4 @@ Latest complete single-site/full-regression evidence: CMS Admin Workbench Lab ru
 
 ## Current gate
 
-Registration, permissions, REST isolation, backup/restore, corrupt/missing rollback rejection, unavailable-storage handling, deterministic local plugin update edges, package privacy, error redaction, plugin/theme lifecycle and updates, core update/rollback, and both single-site and real multisite cache branches are reference-verified. The active workbench gate is partial-write/disk-space backup failure handling. DreamHost behavior, live installation, actual MCP discovery, WooCommerce-specific behavior, production-scale backup performance, private transport replacement, and broader site-administration abilities remain unproven.
+The system-maintenance candidate is reference-verified across registration, permissions, REST isolation, backup/restore, backup corruption rejection, unavailable storage, partial/stalled writes, archive finalization, deterministic update edges, package privacy, error redaction, plugin/theme lifecycle and updates, core update/rollback, and single-site/multisite cache behavior. The next gate is Chattanooga/DreamHost read-only preflight. Live installation, actual candidate MCP discovery, WooCommerce-specific behavior, production-scale backup performance, private transport replacement, and broader site-administration abilities remain unproven.

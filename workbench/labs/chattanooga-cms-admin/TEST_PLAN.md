@@ -17,8 +17,8 @@ Status: PASS
 - Register category/all 24 abilities and retrieve them through real registry.
 
 ## Gate 2 — Backup primitives and fail-closed restore
-Status: PARTIAL PASS / ACTIVE
-Passed:
+Status: PASS in disposable reference runtime
+Evidence: runs `34165007012`, `34165355234`, `34166633321`, and `34166835095`.
 - database backup + SHA-256 verification;
 - plugin component exact-byte restore;
 - database sentinel restore and numeric primary-key identity;
@@ -27,12 +27,13 @@ Passed:
 - corrupted component archive rejection without target mutation;
 - missing component archive rejection;
 - corrupted database snapshot rejection without database mutation;
-- all configured backup paths unavailable/read-only returns `cmsa_backup_directory` and creates no backup.
-Evidence: runs `34165007012` and `34165355234`.
-Active now:
-- partial/stalled database-backup stream writes must be detected;
-- incomplete output must not be treated as a successful backup;
-- partial-write handling must remain compatible with PHP 7.4.
+- all configured backup paths unavailable/read-only returns `cmsa_backup_directory` and creates no backup;
+- progressive short writes are completed exactly;
+- stalled writes fail rather than accepting truncated database output;
+- partial database output is removed when writing/finalization fails;
+- component and core ZIP finalization failure is checked and incomplete/zero-byte archive output is removed;
+- exact static/behavioral closure output: `backup-write-integrity-test: PASS progressive-partials=completed stalled-write=rejected database-dump=guarded archives=finalization-guarded`.
+DreamHost capacity/ownership/filesystem behavior remains a separate Gate 9 fact.
 
 ## Gate 3 — Permission, exposure, and error model
 Status: PASS
@@ -52,13 +53,13 @@ Status: PASS
 
 ## Gate 5 — Update engine
 Status: PASS
-Evidence: CMS Admin Workbench Lab run `34166093601`, commit `04139cb2cc8da95af1e79cf6bb50f08062c2b77a`.
+Evidence includes full run `34166835095`.
 - Real WordPress.org plugin update with rollback backup passed.
 - Twenty Twenty-One 1.8 -> 2.9 theme update and exact rollback passed.
 - Forced plugin post-update validation failure and exact automatic rollback passed.
 - Deterministic local v1 fixture returns `cmsa_plugin_no_update` when no update is offered.
 - Synthetic local v2 package updates v1→v2 and preserves activation.
-- Malformed synthetic package fails closed and restores exact active v1 files from the verified rollback backup. The exact candidate-owned error can be either updater failure or post-update version verification depending on where WordPress surfaces the malformed package; rollback success and exact restored state are mandatory.
+- Malformed synthetic package fails closed and restores exact active v1 files from the verified rollback backup.
 
 ## Gate 6 — Core update/rollback
 Status: PASS
@@ -68,23 +69,23 @@ Status: PASS
 - Post-update bootstrap and preservation of config/content/database/plugin state.
 - Deliberate post-update validation mismatch and exact automatic rollback.
 - Schema-aware numeric DB serialization repair regression.
+- Full regression remained green after database/ZIP storage-integrity repairs.
 
 ## Gate 7 — Package-network/privacy surface
 Status: PASS for exercised WordPress.org package operations
 - Five disposable private-marker classes scanned in raw, URL-encoded, and base64 forms.
-- Run `34163308270` captured 12 requests; only `api.wordpress.org` and `downloads.wordpress.org` were observed.
-- No seeded private marker appeared in any captured request.
+- 12 requests observed only to WordPress.org API/download hosts in the privacy capture gate.
+- No seeded private marker appeared in captured request material.
 
 ## Gate 8 — Multisite cache execution
 Status: PASS
-Evidence: CMS Admin Multisite Lab run `34164758622`.
+Latest evidence: CMS Admin Multisite Lab run `34166835071`, candidate commit `286a8d15d905b60380b5173cb084fabfd7c3ce43`.
 - Real WordPress 7.1 multisite network installed.
 - Candidate network activation verified.
-- Exact output: `health-cache-cli: PASS methods=object-cache,wordpress-blog-cache`.
-- No mocked `is_multisite()` behavior was used.
+- Multisite cache branch remained green after the storage-integrity repairs.
 
 ## Gate 9 — Chattanooga/DreamHost read-only preflight
-Status: NOT RUN
+Status: NEXT / NOT YET COMPLETE
 No mutation at this gate.
 - WordPress/PHP exact versions.
 - Abilities API availability.
@@ -95,7 +96,8 @@ No mutation at this gate.
 - disk-space feasibility for backup sizes.
 - WP Super Cache functions.
 - file-modification policy constants.
-- existing MCP transport's ability discovery behavior.
+- existing MCP transport's observable discovery behavior.
+Only facts actually exposed by the current connected WordPress/DreamHost surface may be marked verified; unavailable server-level facts remain UNKNOWN.
 
 ## Gate 10 — Chattanooga installation/runtime
 Status: NOT AUTHORIZED BY WORKBENCH TESTING ALONE

@@ -19,13 +19,14 @@ Last verified: 2026-09-07
 - Workbench lab: `workbench/labs/chattanooga-cms-admin`
 - Immutable lab baseline: exact Git-blob mirror of the verified source checkpoint.
 - Mutable coding candidate: `workbench/labs/chattanooga-cms-admin/candidate`.
-- Latest complete single-site/full regression: run `34166093601` on commit `04139cb2cc8da95af1e79cf6bb50f08062c2b77a`; artifact `10034214148`, SHA-256 `da9258afb3694f6a10c2854c8d963b207fa1bdbd7e49c2dd22745ed48d5a4aa6`.
-- Real multisite cache execution: run `34164758622`; exact cache result `object-cache,wordpress-blog-cache`.
-- Backup fail-closed evidence: corrupted/missing rollback material is rejected before restore with target state unchanged, and all configured backup paths being non-writable returns failure before backup creation.
+- Latest complete single-site/full regression: run `34166835095` on commit `286a8d15d905b60380b5173cb084fabfd7c3ce43`; artifact `10034438937`, SHA-256 `24ee7663f8ec92d6e0c7bf99b59c5790587f31f1e0e7ab9cfebc81a7a6c9cbc1`.
+- Latest real multisite regression: run `34166835071` on the same candidate checkpoint.
+- Backup fail-closed evidence now includes checksum corruption, missing rollback material, all backup locations unavailable, progressive/stalled database writes, and component/core ZIP finalization failure.
+- Storage repairs: database backup writes must complete every byte or abort/remove incomplete SQL; backup metadata must be written completely; component/core ZIP close failure or zero-byte output is rejected and removed.
 - Deterministic plugin-update edge evidence: no-update is rejected, local v1→v2 succeeds with activation preserved, and malformed local package failure restores exact active v1 state from the verified rollback backup.
-- Passed: PHP 7.4/8.2, real WordPress 7.1 activation and 24-ability registry, permission/REST isolation, DB backup/restore and numeric PK fidelity, plugin/theme lifecycle and rollback, package privacy, error redaction, theme switch/return and auto-update policy, plugin/theme updates, deterministic plugin update edges, core update/rollback, single-site cache, real multisite cache, corrupt/missing rollback rejection, and unavailable-storage rejection.
-- Active workbench gate: partial/stalled backup-write integrity. The current database dump writer is being tested for incomplete stream writes before that storage-integrity path can be promoted.
-- Remaining after that: DreamHost read-only preflight; actual Chattanooga MCP discovery; broader typed site-administration abilities.
+- Passed: PHP 7.4/8.2, real WordPress 7.1 activation and 24-ability registry, permission/REST isolation, DB backup/restore and numeric PK fidelity, plugin/theme lifecycle and rollback, package privacy, error redaction, theme switch/return and auto-update policy, plugin/theme updates, deterministic plugin update edges, core update/rollback, single-site cache, real multisite cache, corrupt/missing rollback rejection, unavailable-storage rejection, partial-write integrity, and archive-finalization integrity.
+- Next workbench/runtime gate: Chattanooga/DreamHost read-only preflight using only facts exposed by the connected environment; unavailable server-level facts remain UNKNOWN.
+- Remaining after preflight: separately authorized candidate installation/MCP discovery and broader typed site-administration abilities.
 - Production state: not merged to `main`; not installed on Chattanooga Music Scene.
 
 ### Chattanooga Music Scene Weekend Feature

@@ -1,6 +1,6 @@
 # Task: Chattanooga CMS Admin Runtime Integration
 
-Status: REFERENCE_DETERMINISTIC_UPDATE_VERIFIED — PARTIAL_WRITE + DREAMHOST/MCP PENDING
+Status: REFERENCE_MAINTENANCE_VERIFIED — DREAMHOST/MCP + TYPED_ADMIN PENDING
 
 ## Objective
 
@@ -29,14 +29,16 @@ Develop Chattanooga CMS Admin through an isolated engineering lab, determine whi
 - Verified source checkpoint: `0b34773ebc8073cb657477770b34cabc280f5892`.
 - Source PHP 7.4 syntax workflow passed at GitHub Actions run `34115195808`.
 - Immutable workbench baseline reuses the exact source Git blobs.
-- Latest complete single-site/full-regression execution: CMS Admin Workbench Lab run `34166093601`, test commit `04139cb2cc8da95af1e79cf6bb50f08062c2b77a`.
-- Runtime capability artifact id `10034214148`, SHA-256 `da9258afb3694f6a10c2854c8d963b207fa1bdbd7e49c2dd22745ed48d5a4aa6`.
-- Real WordPress 7.1 multisite cache execution: run `34164758622`; exact cache result `object-cache,wordpress-blog-cache`.
+- Latest complete single-site/full-regression execution: CMS Admin Workbench Lab run `34166835095`, test commit `286a8d15d905b60380b5173cb084fabfd7c3ce43`.
+- Runtime capability artifact id `10034438937`, SHA-256 `24ee7663f8ec92d6e0c7bf99b59c5790587f31f1e0e7ab9cfebc81a7a6c9cbc1`.
+- Latest real WordPress 7.1 multisite regression: run `34166835071`, same candidate checkpoint.
 - Corrupt/missing rollback material gate passed: `corrupt-backup-rejection-cli: PASS component=checksum-rejected missing=fail-closed database=checksum-rejected target=unchanged`.
 - Unavailable-storage fault gate passed in run `34165355234`: `storage-failure-cli: PASS all-backup-paths=unwritable backup=not-created`.
-- Deterministic plugin update gate passed in run `34166093601`: explicit no-update rejection, local v1→v2 success with activation preserved, and malformed synthetic package failure with exact active v1 rollback.
-- The malformed synthetic package can fail either in WordPress's upgrader phase or the candidate's post-update version-verification phase; the required invariant is fail-closed behavior with a verified rollback backup and exact active v1 restoration.
-- The complete downstream redaction, package privacy, plugin/theme update rollback, core backup/restore, normal core update, and forced core rollback chain stayed green after the deterministic update gate.
+- Deterministic plugin update edge gate passed in run `34166093601`: no-update rejection, local v1→v2 success with activation preserved, and malformed-package exact active-v1 rollback.
+- Partial/stalled stream-write fault injection exposed missing complete-write enforcement; the database writer was repaired to write all bytes or fail and delete incomplete SQL output.
+- Archive-finalization fault injection exposed unchecked `ZipArchive::close()` results; component and core archive writers now fail closed and remove incomplete/zero-byte archives.
+- Exact storage-integrity closure output in the PHP 7.4 lab: `backup-write-integrity-test: PASS progressive-partials=completed stalled-write=rejected database-dump=guarded archives=finalization-guarded`.
+- PHP 7.4, PHP 8.2, the complete WordPress 7.1 single-site regression, and the real multisite regression all passed after the storage repairs.
 - Source has not been merged to `main` and has not been installed on Chattanooga Music Scene.
 
 ## Workbench gates
@@ -64,12 +66,13 @@ Completed:
 - [x] Reject corrupted/missing rollback material before restore with target state unchanged.
 - [x] Make every configured backup path non-writable and verify backup creation fails closed with no backup created.
 - [x] Verify deterministic local plugin update edge cases: no-update, v1→v2 success, malformed-package exact rollback.
+- [x] Detect progressive/stalled database stream writes; complete all bytes or fail and remove incomplete output.
+- [x] Detect component/core ZIP finalization failure and reject missing/zero-byte output before metadata is accepted.
 
 Pending workbench/runtime tests:
 
-- [ ] Partial-write/disk-space backup failure handling.
 - [ ] DreamHost/Chattanooga read-only capability probe.
-- [ ] Actual Chattanooga MCP discovery of the registered abilities.
+- [ ] Actual Chattanooga MCP discovery of the registered abilities after separately authorized installation/activation.
 - [ ] Broader content/member/event/commerce/site-specific typed abilities from `ROADMAP.md`.
 
 ## Runtime mutation set — future separately authorized phase
@@ -85,11 +88,10 @@ Pending workbench/runtime tests:
 ## Risk set
 
 - Reference GitHub filesystem behavior does not prove DreamHost behavior.
+- Actual free disk capacity, filesystem method, ownership/permissions, and backup parent writability remain live-environment facts.
 - WP-CLI registration lifecycle behavior differs from normal web bootstrap and is explicitly invoked in disposable tests where required.
 - Actual MCP transport may expose/filter metadata differently than the WordPress registry.
-- Backup storage capacity/permissions may differ on DreamHost.
 - Package privacy evidence covers the exercised WordPress.org operations only; WooCommerce-specific or unrelated plugin traffic remains separate.
-- Current database dump code is being fault-tested for partial/stalled stream writes before its storage-integrity gate can be considered complete.
 
 ## Rollback point
 
@@ -108,8 +110,8 @@ NOT_DEPLOYED
 - 2026-09-07: Workbench lab established with immutable baseline, mutable candidate, static/stub tests, and capability matrix.
 - 2026-09-07: Real WordPress 7.1 registration, permissions, REST isolation, backup/restore, lifecycle, update, and rollback gates advanced through repeated full regression runs.
 - 2026-09-07: Numeric database serialization defect found by forced-core rollback, repaired at the serializer, and exact numeric primary-key restore fidelity proven.
-- 2026-09-07: WordPress package-network privacy gate passed with 12 captured requests limited to WordPress.org API/download hosts and seeded private markers absent.
-- 2026-09-07: Error-output redaction passed after fault injection exposed and repaired raw plugin-API and database diagnostics.
+- 2026-09-07: WordPress package-network privacy and public error-redaction gates passed.
 - 2026-09-07: Expanded theme lifecycle and real multisite cache branches passed.
 - 2026-09-07: Corrupt/missing backup material and fully unavailable backup storage both failed closed in real WordPress reference runs.
-- 2026-09-07: Deterministic local plugin update edge cases passed in full regression run `34166093601`; the initial malformed-package assertion was corrected from an implementation-specific error-code expectation to the actual fail-closed + exact-rollback invariant.
+- 2026-09-07: Deterministic local plugin update edge cases passed in full regression run `34166093601`.
+- 2026-09-07: Partial database-write and ZIP-finalization defects were exposed by failing-first tests, repaired at the storage writers, and closed by full regression run `34166835095` plus multisite run `34166835071`.
