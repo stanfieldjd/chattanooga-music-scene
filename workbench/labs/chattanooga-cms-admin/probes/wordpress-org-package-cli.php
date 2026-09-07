@@ -50,18 +50,18 @@ if ( ! isset( $plugins[ $legacy_plugin ] ) ) {
 	exit( 1 );
 }
 $before = $plugins[ $legacy_plugin ]['Version'];
-if ( '1.6.0' !== $before ) {
-	fwrite( STDERR, "wordpress-org-package-cli: expected Classic Editor 1.6.0 precondition, found {$before}.\n" );
+if ( '1.6' !== $before ) {
+	fwrite( STDERR, "wordpress-org-package-cli: expected Classic Editor 1.6 precondition, found {$before}.\n" );
 	exit( 1 );
 }
 
-$updated = $updates->update_plugin( $legacy_plugin, '1.6.0' );
+$updated = $updates->update_plugin( $legacy_plugin, '1.6' );
 if ( is_wp_error( $updated ) || empty( $updated['updated'] ) || empty( $updated['version'] ) ) {
 	$message = is_wp_error( $updated ) ? $updated->get_error_message() : 'plugin update did not report success';
 	fwrite( STDERR, "wordpress-org-package-cli: controlled plugin update failed: {$message}\n" );
 	exit( 1 );
 }
-if ( version_compare( $updated['version'], '1.6.0', '<=' ) ) {
+if ( version_compare( $updated['version'], '1.6', '<=' ) ) {
 	fwrite( STDERR, "wordpress-org-package-cli: plugin version did not advance.\n" );
 	exit( 1 );
 }
