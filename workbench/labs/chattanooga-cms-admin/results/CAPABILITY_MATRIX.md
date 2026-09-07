@@ -11,9 +11,10 @@ Evidence states:
 - `UNKNOWN` — insufficient evidence for the target environment.
 - `NOT_YET_IMPLEMENTED` — intentionally not present in the current candidate.
 
-Latest full maintenance evidence: CMS Admin Workbench Lab run `34168314554`, candidate commit `b5ba61e0f435624a6f834566a3fa85ede13221f7`, artifact `10034902046`, SHA-256 `ebf4f3e668d0e73dd19a539732570b1d7cd66d7b8c34c31921da2c7222f20b95`.
-Latest bounded content evidence: CMS Admin Content Layer Lab run `34168314548`.
-Current-candidate multisite source evidence: run `34168247940`.
+Latest full maintenance evidence: CMS Admin Workbench Lab run `34168825545`, candidate commit `2f299aa743f82f03888954dc1beec9ad1bafb999`, artifact `10035054428`, SHA-256 `3af7c6d621fafe7146cd825da165f655f313e7ef922ff4e22a336c85fc900e06`.
+Latest bounded content/status evidence: CMS Admin Content Layer Lab run `34168825779`.
+Current-candidate multisite evidence: run `34168825541`.
+Workbench integrity: run `34168825835`.
 
 | Capability | Current state | Evidence / remaining gate |
 | --- | --- | --- |
@@ -21,10 +22,12 @@ Current-candidate multisite source evidence: run `34168247940`.
 | Candidate PHP 8.2 compatibility | REFERENCE_VERIFIED | Full maintenance and content labs passed. |
 | WordPress 7.1 activation | REFERENCE_VERIFIED | Candidate activates in disposable single-site and multisite runtimes. |
 | Native Abilities API | REFERENCE_VERIFIED | `wp_register_ability()` and category API exercised in real WordPress 7.1. |
-| CMS Admin category + 38 current abilities | REFERENCE_VERIFIED | 24 maintenance + 14 content abilities registered; content run output `PASS (38 abilities)`. |
+| CMS Admin category + 40 current abilities | REFERENCE_VERIFIED | 24 maintenance + 14 CRUD/revision + 2 status abilities; registration output `PASS (40 abilities)`. |
 | Maintenance permission matrix | REFERENCE_VERIFIED | 24 maintenance abilities isolated across 10 WordPress capabilities. |
-| Content coarse permission matrix | REFERENCE_VERIFIED | 14 content abilities: anonymous denied, administrator allowed, post-only limited user isolated from page abilities. |
+| Content CRUD coarse permission matrix | REFERENCE_VERIFIED | 14 content abilities: anonymous denied, administrator allowed, post-only limited user isolated from page abilities. |
 | Content object-level authorization | REFERENCE_VERIFIED | Limited user can read own post but not another author's post and cannot read page without page authority. |
+| Status ability coarse permissions | REFERENCE_VERIFIED | Anonymous denied, administrator gets post/page, limited edit-post user gets post only. |
+| Publish authority enforcement | REFERENCE_VERIFIED | Edit-only user may move own post to pending but cannot publish/private/schedule without `publish_posts`; analogous page service uses `publish_pages`. |
 | WordPress Abilities REST isolation | REFERENCE_VERIFIED | Candidate namespace remains hidden from direct REST execution/collection exposure. |
 | MCP discovery metadata | SOURCE_PRESENT | Current candidate declares MCP discovery metadata; live candidate discovery awaits deployment. |
 | Candidate-owned generic REST routes | REJECTED | Static gate rejects direct generic REST execution surface. |
@@ -41,18 +44,23 @@ Current-candidate multisite source evidence: run `34168247940`.
 | Theme updater/lifecycle | REFERENCE_VERIFIED | Install/update/switch/auto-update/delete+rollback gates passed. |
 | Core update + automatic rollback | REFERENCE_VERIFIED | 7.0→7.1 plus deliberate validation failure exact rollback passed. |
 | Single-site cache clearing | REFERENCE_VERIFIED | Object/options cache path passed. |
-| Multisite cache branch | REFERENCE_VERIFIED | Current candidate source network-activated and cache probe passed in run `34168247940`. |
+| Multisite cache branch | REFERENCE_VERIFIED | Current 40-ability source network-activated and cache probe passed in run `34168825541`. |
 | Post list/get | REFERENCE_VERIFIED | Bounded list/search/status and object-level read exercised. |
 | Page list/get | REFERENCE_VERIFIED | Bounded page query and object-level read exercised. |
-| Draft post creation | REFERENCE_VERIFIED | Candidate forces draft; no publish path in this ability. |
+| Draft post creation | REFERENCE_VERIFIED | Candidate forces draft. |
 | Draft page creation + parent validation | REFERENCE_VERIFIED | Child page created with validated parent relationship. |
 | Post/page optimistic concurrency | REFERENCE_VERIFIED | Stale `post_modified_gmt` fails closed without mutation. |
 | Post/page update rollback revision | REFERENCE_VERIFIED | Native WordPress pre-update revision created and validated. |
 | Post/page revision restore | REFERENCE_VERIFIED | Target-owned revision restored after conflict check with rollback revision for pre-restore state. |
 | Post/page trash + restore | REFERENCE_VERIFIED | Recoverable lifecycle exercised; no permanent-delete path in this slice. |
-| Unrelated content isolation | REFERENCE_VERIFIED | Control sentinel unchanged across content transaction suite. |
-| Publish/unpublish/schedule/private/pending transitions | NOT_YET_IMPLEMENTED | Next bounded Layer B sub-gate. |
-| Taxonomy/category/tag administration | NOT_YET_IMPLEMENTED | Needs typed term/relationship contracts and tests. |
+| Post/page pending transition | REFERENCE_VERIFIED | Draft→pending exercised for posts and pages. |
+| Post/page publish transition | REFERENCE_VERIFIED | Publish authority enforced; post/page publish exercised. |
+| Post private transition | REFERENCE_VERIFIED | Pending→private exercised under publisher authority. |
+| Post scheduling | REFERENCE_VERIFIED | Publish→future with explicit UTC date verified; future→publish-now date normalization verified. |
+| Status optimistic concurrency | REFERENCE_VERIFIED | Both stale modified timestamp and stale expected status fail closed. |
+| Status verification rollback path | SOURCE_PRESENT | Exact prior status/date rollback is implemented for verification/readback failures; normal successful and denial paths are runtime-verified. Deliberate post-write verification fault injection can be added if needed before promotion. |
+| Unrelated content isolation | REFERENCE_VERIFIED | Control sentinel unchanged across CRUD/revision/status transaction suites. |
+| Taxonomy/category/tag administration | NOT_YET_IMPLEMENTED | Active next bounded Layer B gate. |
 | Media + featured-image administration | NOT_YET_IMPLEMENTED | Needs file/type/relationship gates. |
 | Permanent content deletion | NOT_YET_IMPLEMENTED | Requires separate explicit destructive contract and tests. |
 | Member/account administration | NOT_YET_IMPLEMENTED | Separate Layer C with privacy/role/profile contracts. |
@@ -72,4 +80,4 @@ Current-candidate multisite source evidence: run `34168247940`.
 
 ## Current gate
 
-System maintenance and the first bounded post/page content slice are reference-verified. The non-mutating Chattanooga preflight is partially verified with remaining server-level storage/filesystem facts explicitly unknown. Next engineering work should extend Layer B through separately tested status transitions, taxonomy relationships, and media relationships while production deployment/MCP discovery remains a separate authorization boundary.
+System maintenance, bounded post/page CRUD/revision, and bounded publication-status transitions are reference-verified. The active engineering gate is taxonomy/category/tag relationships. The non-mutating Chattanooga preflight remains partial, and production deployment/MCP discovery remains a separate authorization boundary.

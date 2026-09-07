@@ -1,6 +1,6 @@
 # Task: Chattanooga CMS Admin Runtime Integration
 
-Status: REFERENCE_MAINTENANCE_AND_CONTENT_SLICE_VERIFIED — LIVE PREFLIGHT PARTIAL / MCP DEPLOYMENT PENDING
+Status: REFERENCE_MAINTENANCE_CONTENT_AND_STATUS_VERIFIED — TAXONOMY NEXT / LIVE PREFLIGHT PARTIAL / MCP DEPLOYMENT PENDING
 
 ## Objective
 
@@ -20,22 +20,21 @@ Develop Chattanooga CMS Admin through an isolated engineering lab, determine whi
 - `main` is not a mutation target for lab work.
 - `feature/chattanooga-cms-admin` is not modified by lab experiments.
 - Existing Chattanooga Music Scene content and member records are not mutation targets for lab/runtime preflight testing.
-- The existing Weekend Feature plugin is not part of this task.
 - Existing MCP transport is not removed as an incidental operation.
-- No production plugin/theme/core update is bundled into workbench validation.
+- No production plugin/theme/core/content mutation is bundled into workbench validation.
 
 ## Current evidence
 
 - Verified source checkpoint: `0b34773ebc8073cb657477770b34cabc280f5892`.
-- Current workbench content candidate: `b5ba61e0f435624a6f834566a3fa85ede13221f7`.
-- Full maintenance regression: CMS Admin Workbench Lab run `34168314554`; PHP 7.4, PHP 8.2, and complete WordPress 7.1 runtime all passed.
-- Runtime artifact: id `10034902046`, SHA-256 `ebf4f3e668d0e73dd19a539732570b1d7cd66d7b8c34c31921da2c7222f20b95`.
-- Dedicated Layer B content regression: CMS Admin Content Layer Lab run `34168314548`.
-- Content registration result: `wordpress-ability-registration: PASS (38 abilities)` — 24 maintenance plus 14 post/page abilities.
-- Content permission result: `content-permission-cli: PASS abilities=14 limited=post-only object-scope=verified`.
-- Content transaction result: `content-transaction-cli: PASS post=draft-conflict-update-revision-trash-restore page=parent-update-trash-restore unrelated=unchanged`.
-- Real WordPress 7.1 multisite network activation for the same candidate source passed in run `34168247940`.
-- Workbench integrity passed in run `34168314530`.
+- Current status-transition candidate: `2f299aa743f82f03888954dc1beec9ad1bafb999`.
+- Full maintenance regression: run `34168825545`; PHP 7.4, PHP 8.2, and complete disposable WordPress 7.1 runtime all passed.
+- Runtime artifact: id `10035054428`, SHA-256 `3af7c6d621fafe7146cd825da165f655f313e7ef922ff4e22a336c85fc900e06`.
+- Dedicated content regression: run `34168825779`.
+- Real registry result: `wordpress-ability-registration: PASS (40 abilities)` — 24 maintenance + 14 post/page CRUD/revision abilities + 2 publication-status abilities.
+- Status coarse permission result: `content-status-permission-cli: PASS anonymous=denied admin=post,page limited=post-only`.
+- Status transaction result: `content-status-cli: PASS conflicts=timestamp,status post=pending-private-publish-future-publish page=pending-publish-draft limited=publish-denied unrelated=unchanged`.
+- Real WordPress 7.1 multisite source compatibility: run `34168825541`, passed.
+- Workbench integrity: run `34168825835`, passed.
 - Source has not been merged to `main` and has not been installed on Chattanooga Music Scene.
 
 ## Maintenance gates completed
@@ -58,26 +57,38 @@ Develop Chattanooga CMS Admin through an isolated engineering lab, determine whi
 
 ## Layer B — bounded WordPress content administration
 
-Reference-verified first slice:
+Reference-verified CRUD/revision slice:
 
 - [x] List posts/pages with bounded pagination/search/status filters.
 - [x] Object-level get for posts/pages.
-- [x] Draft-only post/page creation; no implicit publishing.
+- [x] Draft-only post/page creation.
 - [x] Conflict-checked title/content/excerpt updates using exact `post_modified_gmt`.
 - [x] Native WordPress revision rollback point before updates.
 - [x] Restore a target-owned revision after conflict validation.
-- [x] Trash and restore posts/pages; no permanent-delete path in this slice.
+- [x] Trash and restore posts/pages; no permanent-delete path.
 - [x] Page parent validation and preservation.
 - [x] Author scoping for users without `edit_others_*` authority.
 - [x] Unrelated-content sentinel remains unchanged through transactions.
 
-Not yet implemented/tested in Layer B:
+Reference-verified publication/status slice:
 
-- [ ] Publish/unpublish/schedule/private/pending status transitions.
-- [ ] Permanent content deletion.
-- [ ] Taxonomy/category/tag assignment and term lifecycle.
+- [x] Exact timestamp and expected-status conflict checks before transition.
+- [x] Draft -> pending.
+- [x] Pending -> private with publish authority.
+- [x] Private -> publish.
+- [x] Publish -> scheduled future with explicit UTC timestamp.
+- [x] Scheduled future -> publish-now with date normalization.
+- [x] Page draft -> pending -> publish -> draft.
+- [x] Users with edit authority but without publish authority may submit pending but cannot publish/private/schedule.
+- [x] Verification failure path contains automatic prior status/date rollback.
+- [x] Unrelated-content sentinel remains unchanged.
+
+Next Layer B workbench sub-gates:
+
+- [ ] Taxonomy/category/tag list/get/create/update/delete and post/page relationship assignment/removal with exact target validation and rollback semantics.
 - [ ] Media upload/replace/delete and featured-image relationships.
-- [ ] Menus/navigation and bounded site-option administration.
+- [ ] Permanent content deletion only with a separately tested explicit destructive contract.
+- [ ] Menus/navigation and bounded site-option administration where required.
 - [ ] Comments/moderation if required.
 
 ## Chattanooga/DreamHost read-only preflight
@@ -88,9 +99,9 @@ Partially verified through the existing connected WordPress surface, with no mut
 - PHP `8.2.30`.
 - MySQL `8.0.41`.
 - WordPress root, `wp-content`, uploads, plugins, themes, and MU-plugins reported writable.
-- WP Super Cache is active and `WP_CACHE` is enabled.
+- WP Super Cache active and `WP_CACHE` enabled.
 - Existing MCP transport exposed 311 current abilities.
-- No `chattanooga-cms-admin/*` abilities were present, consistent with the candidate not being deployed.
+- No `chattanooga-cms-admin/*` abilities were present, consistent with candidate not being deployed.
 
 Still UNKNOWN from the current live read-only surface:
 
@@ -103,7 +114,7 @@ Still UNKNOWN from the current live read-only surface:
 
 - [ ] Establish a separately authorized installation and rollback transaction for the exact validated candidate.
 - [ ] Install/activate candidate on Chattanooga Music Scene only after that rollback point exists.
-- [ ] Discover the candidate abilities through the actual Chattanooga MCP transport.
+- [ ] Discover candidate abilities through the actual Chattanooga MCP transport.
 - [ ] Run candidate health inventory and verify a local production rollback backup before live maintenance mutations.
 - [ ] Continue broader typed administration layers from `ROADMAP.md` in disposable workbench fixtures first.
 
@@ -112,7 +123,7 @@ Still UNKNOWN from the current live read-only surface:
 - Reference GitHub filesystem behavior does not prove all DreamHost filesystem/storage behavior.
 - Actual free disk capacity, filesystem method, ZipArchive, and preferred backup-parent writability remain live-environment facts.
 - Actual MCP transport may expose/filter metadata differently than the WordPress registry.
-- Layer B currently covers only bounded post/page draft/update/revision/trash/restore operations; publishing, taxonomy/media, member, event, and commerce operations require separate contracts and tests.
+- Layer B status transitions are reference-verified but taxonomy/media/permanent-delete remain separate contracts and tests.
 - Package privacy evidence covers the exercised WordPress.org operations only; unrelated plugins and WooCommerce-specific traffic remain separate.
 
 ## Rollback point
@@ -130,6 +141,6 @@ NOT_DEPLOYED
 
 - 2026-09-07: Maintenance layer advanced through registration, permissions, backup/restore, update/rollback, privacy, redaction, storage-integrity, and multisite gates.
 - 2026-09-07: Read-only Chattanooga preflight confirmed WordPress/PHP/MySQL versions, relevant WordPress directory writability, WP Super Cache presence, and current MCP discovery surface; unavailable server-level facts remain unknown.
-- 2026-09-07: Added bounded Layer B post/page service and 14 typed abilities. A syntax defect in the new permission probe was corrected without changing candidate product source.
-- 2026-09-07: Layer B run `34168314548` passed all 38 ability registration, content permission/object scoping, draft/conflict/revision/trash/restore, page-parent, and unrelated-content tests.
-- 2026-09-07: Full maintenance run `34168314554` and multisite run `34168247940` remained green with the Layer B candidate.
+- 2026-09-07: Bounded post/page CRUD/revision slice passed dedicated content, full maintenance, multisite, and integrity regressions.
+- 2026-09-07: Added `set-post-status` and `set-page-status` as separate typed abilities with exact timestamp/status conflict checks, publish capability enforcement, scheduling validation, and automatic prior-state rollback on verification failure.
+- 2026-09-07: Status run `34168825779` passed 40-ability registration, status permission isolation, post/page publication transitions, non-publisher denial, and unrelated-content isolation; maintenance run `34168825545`, multisite run `34168825541`, and integrity run `34168825835` remained green.
