@@ -59,6 +59,7 @@ if ( is_wp_error( $user_id ) ) {
 $user = new WP_User( $user_id );
 $user->set_role( 'subscriber' );
 clean_user_cache( $user_id );
+wp_set_current_user( 0 );
 wp_set_current_user( $user_id );
 foreach ( $abilities as $name => $ability ) {
 	if ( $allowed( $ability ) ) {
@@ -67,8 +68,10 @@ foreach ( $abilities as $name => $ability ) {
 	}
 }
 
+$user = new WP_User( $user_id );
 $user->add_cap( 'list_users', true );
 clean_user_cache( $user_id );
+wp_set_current_user( 0 );
 wp_set_current_user( $user_id );
 foreach ( $abilities as $name => $ability ) {
 	if ( ! $allowed( $ability ) ) {
