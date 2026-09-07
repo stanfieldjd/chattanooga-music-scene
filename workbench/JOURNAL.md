@@ -54,3 +54,12 @@ Append-only record of material workbench state changes. Do not rewrite prior ent
 - Candidate abilities marked `show_in_rest=false` did not appear in the REST ability collection. Direct GET/POST probes for `chattanooga-cms-admin/get-health` did not expose or execute the candidate ability.
 - The complete regression suite remained green after the permission/REST gate: PHP 7.4, PHP 8.2, plugin lifecycle, theme lifecycle, database restore, WordPress.org plugin update, theme update rollback, core backup/restore, and health/cache all passed.
 - Runtime capability artifact id `10032670494` was uploaded with ZIP SHA-256 `8fdbe0d203ffc3980de8a115a0c1f7f6a1bee450942586684048044cc9c7ae33`.
+
+## 2026-09-07 — Forced update validation rollback
+
+- Added a deliberate post-update validation mismatch probe at commit `a34d8e260778762d434cf91e10fde7932f704df2`.
+- The probe reset Classic Editor to 1.6, preserved its exact main-file SHA-256, retained the real WordPress.org update package, and changed only the advertised target version seen by the candidate to force post-install validation failure.
+- `CMSA_Updates::update_plugin()` returned the expected validation error and reported automatic rollback success rather than accepting the mismatched post-update state.
+- The restored Classic Editor version returned to 1.6 and the main-file SHA-256 exactly matched the pre-update file.
+- CMS Admin Workbench Lab run `34161501638` passed the forced rollback step and the complete downstream regression suite.
+- Runtime capability artifact id `10032758991` was uploaded with SHA-256 `545293ebd672297f218b1e4ced92ed4f352b59e42253c2af87ded792f6eb5bcf`.
