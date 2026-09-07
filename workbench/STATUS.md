@@ -16,15 +16,15 @@ Last verified: 2026-09-07
 - Branch: `feature/chattanooga-cms-admin`
 - Verified source checkpoint: `0b34773ebc8073cb657477770b34cabc280f5892`
 - Path: `site-plugins/chattanooga-cms-admin`
-- Source validation: PHP 7.4 syntax workflow passed.
 - Workbench lab: `workbench/labs/chattanooga-cms-admin`
 - Immutable lab baseline: exact Git-blob mirror of the verified source checkpoint.
 - Mutable coding candidate: `workbench/labs/chattanooga-cms-admin/candidate`.
-- Reference runtime: disposable WordPress 7.1 + PHP 8.2 + MySQL 8.0 in GitHub Actions.
-- Latest execution evidence: CMS Admin Workbench Lab run `34118396822` on commit `76f7f8a05f07014b13712b011cfec9fb69d0b666`.
-- Passed: PHP 7.4/8.2 lab, source integrity, security/architecture scan, 24-ability stub registration, candidate activation on real WordPress 7.1, 24-ability real registry verification, database backup/checksum, controlled plugin component backup/mutation/restore.
+- Latest complete reference runtime: CMS Admin Workbench Lab run `34164417137` on commit `f52ee6431fb0111ea5e9499466a2f04fe034aa71`.
+- Runtime artifact: `10033701473`, SHA-256 `e74eef622406878219d6cbd89d429befbfae2b2fe93d02771b1de013686a2712`.
+- Passed: PHP 7.4/8.2, real WordPress 7.1 activation and 24-ability registry, permission isolation, REST isolation, database backup/restore including numeric primary-key fidelity, plugin/theme lifecycle and rollback, plugin/theme updates, package-network privacy, error-output sensitive-marker redaction, candidate-controlled theme switch/return, plugin/theme auto-update state persistence, core backup/restore, normal core update, forced plugin rollback, forced core rollback, and single-site cache invalidation.
+- Active workbench gate: real WordPress 7.1 multisite cache execution.
+- Remaining after multisite: corrupt/incomplete backup rejection and storage-failure handling; deterministic local update/no-update/malformed-package fixtures; DreamHost read-only preflight; actual Chattanooga MCP discovery; broader typed site-administration abilities.
 - Production state: not merged to `main`; not installed on Chattanooga Music Scene.
-- Remaining runtime gates: DreamHost filesystem/policy probe, actual Chattanooga MCP discovery, permission matrix, REST exposure verification, database/core restore tests, update transactions, package-network privacy capture, and broader content/member/event/commerce ability implementation.
 
 ### Chattanooga Music Scene Weekend Feature
 

@@ -1,6 +1,6 @@
 # Task: Chattanooga CMS Admin Runtime Integration
 
-Status: REFERENCE_PACKAGE_PRIVACY_VERIFIED — REDACTION + LIFECYCLE + MULTISITE + DREAMHOST/MCP PENDING
+Status: REFERENCE_REDACTION_AND_THEME_LIFECYCLE_VERIFIED — MULTISITE + BACKUP_FAILURE + DREAMHOST/MCP PENDING
 
 ## Objective
 
@@ -29,15 +29,18 @@ Develop Chattanooga CMS Admin through an isolated engineering lab, determine whi
 - Verified source checkpoint: `0b34773ebc8073cb657477770b34cabc280f5892`.
 - Source PHP 7.4 syntax workflow passed at GitHub Actions run `34115195808`.
 - Immutable workbench baseline reuses the exact source Git blobs.
-- Current reference execution: CMS Admin Workbench Lab run `34163308270`, test commit `df1ef39ea8dd76d61f20136150d269f3ffd74845`.
+- Latest complete reference execution: CMS Admin Workbench Lab run `34164417137`, test commit `f52ee6431fb0111ea5e9499466a2f04fe034aa71`.
+- Runtime capability artifact id `10033701473`, SHA-256 `e74eef622406878219d6cbd89d429befbfae2b2fe93d02771b1de013686a2712`.
 - Candidate passed PHP 7.4 and PHP 8.2 lab gates.
 - Disposable real WordPress 7.1 accepted and activated the candidate.
 - All expected 24 abilities were found through WordPress's actual ability registry after lifecycle execution.
-- Real permission testing denied all 24 abilities anonymously, allowed all 24 for administrator, and isolated them across 10 intended WordPress capabilities.
+- Real permission testing denied all 24 abilities anonymously, allowed all 24 to an administrator, and isolated them across 10 intended WordPress capabilities.
 - Candidate abilities marked `show_in_rest=false` did not leak through the WordPress Abilities REST collection or direct GET/POST probes.
 - Database backup/checksum, sentinel restore, and exact numeric `option_id` identity passed.
 - Plugin component rollback, theme deletion/restore, plugin update, theme update/rollback, core update, core exact restore, forced plugin rollback, and forced core rollback passed.
 - Package-network privacy capture exercised candidate WordPress.org package operations with five disposable private-marker classes. Across 12 captured HTTP requests, only `api.wordpress.org` and `downloads.wordpress.org` appeared and no private marker was present in raw, URL-encoded, or base64 form.
+- Error-output fault injection first exposed raw plugin-API and MySQL restore diagnostics in run `34163733148`; candidate error boundaries were repaired at commit `a21e834b7c866c696dd34015e223f099c1dd1f3d`, then run `34164107475` passed plugin-API, plugin-updater, and database-restore marker redaction with rollback preserved.
+- Expanded theme lifecycle passed in run `34164417137`: delete/restore fidelity, candidate-controlled switch to `cmsa-lab-theme`, auto-update enable/disable persistence, return to the original theme, and restoration of the original auto-update state.
 - Source has not been merged to `main` and has not been installed on Chattanooga Music Scene.
 
 ## Workbench gates
@@ -59,12 +62,12 @@ Completed:
 - [x] Execute candidate-controlled WordPress core update 7.0 -> 7.1 and preserve configuration/content/database/plugin state.
 - [x] Force core post-update validation failure and prove automatic exact core/database rollback.
 - [x] Capture candidate-triggered WordPress package requests and prove seeded member/private-content/order/credential/backup markers are absent; observed hosts were limited to WordPress.org API/download endpoints.
+- [x] Fault-inject upstream errors and prove public error outputs redact seeded sensitive markers while preserving rollback state.
+- [x] Verify theme switch/return and theme auto-update enable/disable persistence with original state restoration.
 
 Pending workbench/runtime tests:
 
-- [ ] Error-output secret/credential redaction regression test.
-- [ ] Explicit switch-theme and theme auto-update lifecycle probes.
-- [ ] Multisite cache branch.
+- [ ] Multisite cache branch in a real disposable WordPress multisite runtime.
 - [ ] Incomplete/corrupt backup rejection and storage failure handling.
 - [ ] Deterministic local update fixtures, no-update behavior, and malformed-package behavior.
 - [ ] DreamHost/Chattanooga read-only capability probe.
@@ -84,11 +87,11 @@ Pending workbench/runtime tests:
 ## Risk set
 
 - Reference GitHub filesystem behavior does not prove DreamHost behavior.
-- WP-CLI registration lifecycle behavior differs from normal web bootstrap and is explicitly invoked in the disposable tests.
+- WP-CLI registration lifecycle behavior differs from normal web bootstrap and is explicitly invoked in disposable tests where required.
 - Actual MCP transport may expose/filter metadata differently than the WordPress registry.
 - Backup storage capacity/permissions may differ on DreamHost.
 - Package privacy evidence covers the exercised WordPress.org operations only; WooCommerce-specific or unrelated plugin traffic remains separate.
-- Error strings/data may still carry upstream diagnostic detail until the dedicated redaction gate is proven.
+- Multisite cache behavior remains unproven until the dedicated multisite job passes.
 
 ## Rollback point
 
@@ -109,3 +112,5 @@ NOT_DEPLOYED
 - 2026-09-07: Numeric database serialization defect found by forced-core rollback, repaired at the serializer, and exact numeric primary-key restore fidelity proven.
 - 2026-09-07: Candidate-controlled core update and forced core automatic rollback passed.
 - 2026-09-07: WordPress package-network privacy gate passed in run `34163308270`: 12 requests, only `api.wordpress.org` and `downloads.wordpress.org`, five private-marker classes absent.
+- 2026-09-07: Error-output redaction passed in run `34164107475` after fault injection exposed and repaired raw plugin-API and database diagnostics.
+- 2026-09-07: Expanded theme lifecycle passed in run `34164417137`, including switch/return and theme auto-update state restoration.

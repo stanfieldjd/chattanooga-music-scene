@@ -29,25 +29,28 @@ Still required:
 - disk-space and partial-write/storage-failure handling.
 
 ## Gate 3 — Permission, exposure, and error model
-Status: PARTIAL PASS
+Status: PASS
 Passed:
 - all 24 abilities denied anonymous and allowed administrator;
 - exact isolation across 10 intended WordPress capabilities;
 - six WordPress Abilities REST routes enumerated;
-- candidate `show_in_rest=false` abilities absent from REST collection and direct execution probes failed closed.
-Still required:
-- dedicated error-output secret/credential redaction regression test, including upstream error detail/data.
+- candidate `show_in_rest=false` abilities absent from REST collection and direct execution probes failed closed;
+- dedicated sensitive-marker error-output regression passed for plugin API, plugin updater rollback, and database restore after fault injection exposed and the candidate repaired raw upstream diagnostics.
+Evidence:
+- failing fault-injection run `34163733148`;
+- repair commit `a21e834b7c866c696dd34015e223f099c1dd1f3d`;
+- passing full regression run `34164107475`.
 
 ## Gate 4 — Lifecycle operations
-Status: PARTIAL PASS
+Status: PASS
 Passed:
 - plugin activate/deactivate;
 - plugin auto-update enable/disable;
 - backup-protected plugin deletion/restore;
-- backup-protected theme deletion/restore.
-Still required:
-- explicit switch-theme and return-to-original-theme transaction;
-- theme auto-update enable/disable verification.
+- backup-protected theme deletion/restore;
+- explicit candidate-controlled switch to the disposable fixture theme and return to the original theme;
+- theme auto-update enable/disable persistence and restoration of the original policy state.
+Evidence: run `34164417137`, commit `f52ee6431fb0111ea5e9499466a2f04fe034aa71`.
 
 ## Gate 5 — Update engine
 Status: PARTIAL PASS
@@ -81,7 +84,14 @@ Status: PASS for exercised WordPress.org package operations
 - Full downstream regression suite remained green.
 Caveat: this does not establish privacy behavior for unrelated plugins, WooCommerce-specific operations, or live Chattanooga traffic.
 
-## Gate 8 — Chattanooga/DreamHost read-only preflight
+## Gate 8 — Multisite cache execution
+Status: RUNNING / NOT YET VERIFIED
+- Use a real disposable WordPress 7.1 multisite installation.
+- Network-activate the candidate plugin.
+- Reuse `health-cache-cli.php` without mocking `is_multisite()`.
+- Require the multisite branch to report `wordpress-blog-cache` and complete without the single-site fallback.
+
+## Gate 9 — Chattanooga/DreamHost read-only preflight
 Status: NOT RUN
 No mutation at this gate.
 - WordPress/PHP exact versions.
@@ -95,7 +105,7 @@ No mutation at this gate.
 - file-modification policy constants.
 - existing MCP transport's ability discovery behavior.
 
-## Gate 9 — Chattanooga installation/runtime
+## Gate 10 — Chattanooga installation/runtime
 Status: NOT AUTHORIZED BY WORKBENCH TESTING ALONE
 Requires separate production authorization and rollback transaction.
 - install exact validated candidate package;

@@ -96,3 +96,22 @@ Append-only record of material workbench state changes. Do not rewrite prior ent
 - PHP 7.4, PHP 8.2, all 24 ability gates, numeric database restore fidelity, plugin/theme transactions, normal core update, and forced core rollback all remained green after the instrumentation.
 - Runtime capability artifact id `10033342899` was uploaded with SHA-256 `4bb738234ee27cdb12b98d67cc4cd2cc92574626eba29b6add296ca76fd26501`.
 - This proves the exercised WordPress.org package operations in the disposable reference runtime did not transmit the seeded private markers; it is not a claim about unrelated plugins, WooCommerce-specific traffic, or the live Chattanooga environment.
+
+## 2026-09-07 — Error-output redaction fault injection and repair
+
+- Added a deliberate sensitive-marker error probe at commit `ede8a3599df196e0fc1987b8af0639af7f992efb` without first changing the candidate implementation.
+- CMS Admin Workbench Lab run `34163733148` failed the new gate with `plugin_api_error_leaked_marker` and `database_restore_error_leaked_marker`, proving raw upstream plugin-API and MySQL restore diagnostics crossed the public error boundary.
+- Repaired the error boundary at commit `a21e834b7c866c696dd34015e223f099c1dd1f3d`: installer/updater/rollback/filesystem/lifecycle/core/database paths now return bounded candidate-owned public errors and safe rollback/state metadata instead of upstream diagnostic strings.
+- CMS Admin Workbench Lab run `34164107475` passed PHP 7.4, PHP 8.2, the full WordPress regression chain, and the new redaction gate.
+- Exact closure output: `error-redaction-cli: PASS boundaries=plugin-api,plugin-updater,database-restore marker=absent rollback=verified`.
+- Runtime capability artifact id `10033608695` was uploaded with SHA-256 `bcb15f9090f4a4180fa43a9dbe9e5c2b27350042f912af16af39be4e717065c9`.
+
+## 2026-09-07 — Expanded theme lifecycle transaction
+
+- Extended the existing theme lifecycle probe at commit `f52ee6431fb0111ea5e9499466a2f04fe034aa71` rather than adding a duplicate lifecycle path.
+- The probe retained backup-protected theme deletion/restore and added candidate-controlled switch to `cmsa-lab-theme`, persistent theme auto-update enable/disable verification, return to the original active theme, and restoration of the original auto-update policy state.
+- CMS Admin Workbench Lab run `34164417137` passed PHP 7.4, PHP 8.2, the expanded lifecycle step, redaction regression, package privacy, plugin/theme update rollback, core backup/restore, normal core update, and forced core rollback.
+- Exact lifecycle output: `theme-lifecycle-cli: PASS backup=theme-20260907-214842-itg8t3ot switch=cmsa-lab-theme return=twentytwentyfive auto_update=enable-disable restored=disabled`.
+- Error redaction remained green in the same run: `error-redaction-cli: PASS boundaries=plugin-api,plugin-updater,database-restore marker=absent rollback=verified`.
+- Runtime capability artifact id `10033701473` was uploaded with SHA-256 `e74eef622406878219d6cbd89d429befbfae2b2fe93d02771b1de013686a2712`.
+- The next active workbench gate is real WordPress multisite execution of the health/cache branch; single-site proof is not being substituted for multisite evidence.
