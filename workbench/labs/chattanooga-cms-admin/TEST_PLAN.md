@@ -16,41 +16,36 @@ Status: PASS
 - Verify native Abilities API.
 - Register category/all 24 abilities and retrieve them through real registry.
 
-## Gate 2 — Backup primitives
-Status: PARTIAL PASS
+## Gate 2 — Backup primitives and fail-closed restore
+Status: PARTIAL PASS / ACTIVE
 Passed:
 - database backup + SHA-256 verification;
 - plugin component exact-byte restore;
 - database sentinel restore and numeric primary-key identity;
 - theme deletion/restore fidelity;
 - core + database snapshot and exact deliberate-mutation restore.
-Still required:
-- incomplete/corrupt backup rejection;
+Active now:
+- corrupted component archive rejection without target mutation;
+- missing component archive rejection;
+- corrupted database snapshot rejection without database mutation.
+Still required after corruption/missing-file gate:
 - disk-space and partial-write/storage-failure handling.
 
 ## Gate 3 — Permission, exposure, and error model
 Status: PASS
-Passed:
-- all 24 abilities denied anonymous and allowed administrator;
-- exact isolation across 10 intended WordPress capabilities;
-- six WordPress Abilities REST routes enumerated;
-- candidate `show_in_rest=false` abilities absent from REST collection and direct execution probes failed closed;
-- dedicated sensitive-marker error-output regression passed for plugin API, plugin updater rollback, and database restore after fault injection exposed and the candidate repaired raw upstream diagnostics.
-Evidence:
-- failing fault-injection run `34163733148`;
-- repair commit `a21e834b7c866c696dd34015e223f099c1dd1f3d`;
-- passing full regression run `34164107475`.
+- All 24 abilities denied anonymous and allowed administrator.
+- Exact isolation across 10 intended WordPress capabilities.
+- Candidate `show_in_rest=false` abilities absent from REST collection and direct execution probes failed closed.
+- Sensitive-marker error-output regression passed for plugin API, plugin updater rollback, and database restore after candidate repair.
 
 ## Gate 4 — Lifecycle operations
 Status: PASS
-Passed:
-- plugin activate/deactivate;
-- plugin auto-update enable/disable;
-- backup-protected plugin deletion/restore;
-- backup-protected theme deletion/restore;
-- explicit candidate-controlled switch to the disposable fixture theme and return to the original theme;
-- theme auto-update enable/disable persistence and restoration of the original policy state.
-Evidence: run `34164417137`, commit `f52ee6431fb0111ea5e9499466a2f04fe034aa71`.
+- Plugin activate/deactivate.
+- Plugin auto-update enable/disable.
+- Backup-protected plugin deletion/restore.
+- Backup-protected theme deletion/restore.
+- Candidate-controlled switch to the fixture theme and return to original theme.
+- Theme auto-update enable/disable persistence and original-state restoration.
 
 ## Gate 5 — Update engine
 Status: PARTIAL PASS
@@ -65,31 +60,26 @@ Still required:
 
 ## Gate 6 — Core update/rollback
 Status: PASS
-Passed:
-- verified core+DB rollback snapshot;
-- exact independent core/database restore;
-- candidate-controlled real `Core_Upgrader` 7.0 -> 7.1 transaction;
-- post-update bootstrap and preservation of config/content/database/plugin state;
-- deliberate post-update validation mismatch;
-- `rollback_core_error()` exact WordPress 7.0 core/database restore with config/content/plugin state preserved;
-- schema-aware numeric DB serialization repair after the first fault-injection run exposed integer overflow/coercion.
+- Verified core+DB rollback snapshot.
+- Exact independent core/database restore.
+- Candidate-controlled real `Core_Upgrader` 7.0 -> 7.1 transaction.
+- Post-update bootstrap and preservation of config/content/database/plugin state.
+- Deliberate post-update validation mismatch and exact automatic rollback.
+- Schema-aware numeric DB serialization repair regression.
 
 ## Gate 7 — Package-network/privacy surface
 Status: PASS for exercised WordPress.org package operations
-- Seeded five disposable private-marker classes: member email, private content, order-like data, credential-like data, and backup content.
-- Captured WordPress HTTP requests during candidate plugin/theme package operations.
-- Scanned URL and arguments for raw, URL-encoded, and base64 marker forms.
+- Five disposable private-marker classes scanned in raw, URL-encoded, and base64 forms.
 - Run `34163308270` captured 12 requests; only `api.wordpress.org` and `downloads.wordpress.org` were observed.
 - No seeded private marker appeared in any captured request.
-- Full downstream regression suite remained green.
-Caveat: this does not establish privacy behavior for unrelated plugins, WooCommerce-specific operations, or live Chattanooga traffic.
 
 ## Gate 8 — Multisite cache execution
-Status: RUNNING / NOT YET VERIFIED
-- Use a real disposable WordPress 7.1 multisite installation.
-- Network-activate the candidate plugin.
-- Reuse `health-cache-cli.php` without mocking `is_multisite()`.
-- Require the multisite branch to report `wordpress-blog-cache` and complete without the single-site fallback.
+Status: PASS
+Evidence: CMS Admin Multisite Lab run `34164758622`, commit `a81c962c007163698de13b2d9b4f8bfe7bfcac7c`.
+- Real WordPress 7.1 multisite network installed.
+- Candidate network activation verified.
+- Exact output: `health-cache-cli: PASS methods=object-cache,wordpress-blog-cache`.
+- No mocked `is_multisite()` behavior was used.
 
 ## Gate 9 — Chattanooga/DreamHost read-only preflight
 Status: NOT RUN

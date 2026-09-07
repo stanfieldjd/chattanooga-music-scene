@@ -124,6 +124,11 @@ jobs:
         run: |
           set -euo pipefail
           php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/database-restore-cli.php" --path=/tmp/wordpress
+      - name: Verify corrupt and missing backup rejection
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/corrupt-backup-rejection-cli.php" --path=/tmp/wordpress
       - name: Prepare legacy plugin update fixture
         shell: bash
         run: |

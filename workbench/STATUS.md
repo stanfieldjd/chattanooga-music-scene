@@ -19,23 +19,22 @@ Last verified: 2026-09-07
 - Workbench lab: `workbench/labs/chattanooga-cms-admin`
 - Immutable lab baseline: exact Git-blob mirror of the verified source checkpoint.
 - Mutable coding candidate: `workbench/labs/chattanooga-cms-admin/candidate`.
-- Latest complete reference runtime: CMS Admin Workbench Lab run `34164417137` on commit `f52ee6431fb0111ea5e9499466a2f04fe034aa71`.
-- Runtime artifact: `10033701473`, SHA-256 `e74eef622406878219d6cbd89d429befbfae2b2fe93d02771b1de013686a2712`.
-- Passed: PHP 7.4/8.2, real WordPress 7.1 activation and 24-ability registry, permission isolation, REST isolation, database backup/restore including numeric primary-key fidelity, plugin/theme lifecycle and rollback, plugin/theme updates, package-network privacy, error-output sensitive-marker redaction, candidate-controlled theme switch/return, plugin/theme auto-update state persistence, core backup/restore, normal core update, forced plugin rollback, forced core rollback, and single-site cache invalidation.
-- Active workbench gate: real WordPress 7.1 multisite cache execution.
-- Remaining after multisite: corrupt/incomplete backup rejection and storage-failure handling; deterministic local update/no-update/malformed-package fixtures; DreamHost read-only preflight; actual Chattanooga MCP discovery; broader typed site-administration abilities.
+- Latest complete single-site/full regression: run `34164758599` on commit `a81c962c007163698de13b2d9b4f8bfe7bfcac7c`; artifact `10033803387`, SHA-256 `c3ca4bec92448b3b46f19e225dd81b9b2e0343fb07025a82d6ce0beb1fca6787`.
+- Real multisite cache execution: run `34164758622` on the same commit; WordPress 7.1 multisite installed, candidate network-activated, and cache result was `object-cache,wordpress-blog-cache`.
+- Passed: PHP 7.4/8.2, real WordPress 7.1 activation and 24-ability registry, permission/REST isolation, DB backup/restore and numeric PK fidelity, plugin/theme lifecycle and rollback, package privacy, error redaction, theme switch/return and auto-update policy, plugin/theme updates, core update/rollback, single-site cache, and real multisite cache.
+- Active workbench gate: corrupted/missing rollback material must be rejected before restore without mutating the target.
+- Remaining after that: storage/partial-write failure handling; deterministic local update/no-update/malformed-package fixtures; DreamHost read-only preflight; actual Chattanooga MCP discovery; broader typed site-administration abilities.
 - Production state: not merged to `main`; not installed on Chattanooga Music Scene.
 
 ### Chattanooga Music Scene Weekend Feature
 
 - Source path: `site-plugins/chattanooga-music-scene-core`
 - Source version on verified baseline: `0.2.1`
-- Packaging workflow is present on `main`.
 - Production state must be verified independently before any deployment claim.
 
 ## Site-operation state
 
-The workbench does not cache live WordPress state as authoritative. Before plugin updates, theme updates, event cleanup, venue repair, taxonomy changes, member administration, or other live mutations, query Chattanooga Music Scene again and treat that result as the current site position.
+The workbench does not cache live WordPress state as authoritative. Before live mutations, query Chattanooga Music Scene again and treat that result as the current site position.
 
 ## Current engineering principle
 
