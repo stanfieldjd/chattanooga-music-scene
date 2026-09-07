@@ -90,4 +90,20 @@ if ( false === strpos( $dump_source, '$this->write_stream_all(' ) ) {
 	exit( 1 );
 }
 
-echo "backup-write-integrity-test: PASS progressive-partials=completed stalled-write=rejected database-dump=guarded\n";
+$zip_start = strpos( $source, 'private function zip_directory' );
+$core_zip_start = strpos( $source, 'private function zip_core_files', $zip_start );
+$protect_start = strpos( $source, 'private static function protect_directory', $core_zip_start );
+if ( false === $zip_start || false === $core_zip_start || false === $protect_start ) {
+	fwrite( STDERR, "backup-write-integrity-test: could not isolate archive implementations.\n" );
+	exit( 1 );
+}
+$component_zip_source = substr( $source, $zip_start, $core_zip_start - $zip_start );
+$core_zip_source = substr( $source, $core_zip_start, $protect_start - $core_zip_start );
+foreach ( array( 'component' => $component_zip_source, 'core' => $core_zip_source ) as $label => $archive_source ) {
+	if ( false === strpos( $archive_source, 'if ( ! $zip->close() )' ) || false === strpos( $archive_source, '@unlink( $destination )' ) ) {
+		fwrite( STDERR, "backup-write-integrity-test: {$label} archive finalization failure is not fail-closed.\n" );
+		exit( 1 );
+	}
+}
+
+echo "backup-write-integrity-test: PASS progressive-partials=completed stalled-write=rejected database-dump=guarded archives=finalization-guarded\n";
