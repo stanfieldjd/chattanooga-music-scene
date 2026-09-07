@@ -1,0 +1,60 @@
+name: Chattanooga CMS Admin
+
+on:
+  push:
+    paths:
+      - "site-plugins/chattanooga-cms-admin/**"
+      - ".github/workflows/chattanooga-cms-admin.yml"
+  pull_request:
+    paths:
+      - "site-plugins/chattanooga-cms-admin/**"
+      - ".github/workflows/chattanooga-cms-admin.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  php-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "7.4"
+      - name: Check PHP syntax
+        run: find site-plugins/chattanooga-cms-admin -name '*.php' -print0 | xargs -0 -n1 php -l
+
+  package:
+    needs: php-syntax
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read plugin version
+        id: version
+        shell: bash
+        run: |
+          version="$(sed -n "s/.*CMSA_VERSION', '\([^']*\)'.*/\1/p" site-plugins/chattanooga-cms-admin/chattanooga-cms-admin.php)"
+          if [ -z "$version" ]; then
+            echo "Could not read CMSA_VERSION." >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Build WordPress plugin ZIP
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          mkdir -p build/chattanooga-cms-admin
+          cp -R site-plugins/chattanooga-cms-admin/. build/chattanooga-cms-admin/
+          (
+            cd build
+            zip -qr "../chattanooga-cms-admin-${VERSION}.zip" chattanooga-cms-admin
+          )
+      - name: Upload installable plugin artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: chattanooga-cms-admin-${{ steps.version.outputs.version }}
+          path: chattanooga-cms-admin-${{ steps.version.outputs.version }}.zip
+          if-no-files-found: error
+          retention-days: 30
