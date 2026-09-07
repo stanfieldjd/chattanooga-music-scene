@@ -25,9 +25,11 @@ require_once CMSA_DIR . 'includes/class-cmsa-updates.php';
 require_once CMSA_DIR . 'includes/class-cmsa-lifecycle.php';
 require_once CMSA_DIR . 'includes/class-cmsa-content.php';
 require_once CMSA_DIR . 'includes/class-cmsa-content-status.php';
+require_once CMSA_DIR . 'includes/class-cmsa-content-taxonomy.php';
 require_once CMSA_DIR . 'includes/class-cmsa-abilities.php';
 require_once CMSA_DIR . 'includes/class-cmsa-content-abilities.php';
 require_once CMSA_DIR . 'includes/class-cmsa-content-status-abilities.php';
+require_once CMSA_DIR . 'includes/class-cmsa-content-taxonomy-abilities.php';
 require_once CMSA_DIR . 'includes/class-cmsa-plugin.php';
 
 CMSA_Plugin::instance();

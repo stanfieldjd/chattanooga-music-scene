@@ -1,0 +1,14 @@
+[
+  "chattanooga-cms-admin/list-categories",
+  "chattanooga-cms-admin/get-category",
+  "chattanooga-cms-admin/create-category",
+  "chattanooga-cms-admin/update-category",
+  "chattanooga-cms-admin/list-tags",
+  "chattanooga-cms-admin/get-tag",
+  "chattanooga-cms-admin/create-tag",
+  "chattanooga-cms-admin/update-tag",
+  "chattanooga-cms-admin/assign-post-categories",
+  "chattanooga-cms-admin/remove-post-categories",
+  "chattanooga-cms-admin/assign-post-tags",
+  "chattanooga-cms-admin/remove-post-tags"
+]

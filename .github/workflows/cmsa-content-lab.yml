@@ -68,6 +68,11 @@ jobs:
         run: |
           set -euo pipefail
           php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/content-status-permission-cli.php" --path=/tmp/wordpress
+      - name: Verify taxonomy ability permissions
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/content-taxonomy-permission-cli.php" --path=/tmp/wordpress
       - name: Verify bounded post and page transactions
         shell: bash
         run: |
@@ -78,3 +83,8 @@ jobs:
         run: |
           set -euo pipefail
           php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/content-status-cli.php" --path=/tmp/wordpress
+      - name: Verify taxonomy term and relationship transactions
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/content-taxonomy-cli.php" --path=/tmp/wordpress
