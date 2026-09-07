@@ -8,7 +8,7 @@ do_action( 'wp_abilities_api_categories_init' );
 do_action( 'wp_abilities_api_init' );
 
 $expected = array();
-foreach ( array( 'expected-abilities.json', 'expected-content-abilities.json' ) as $fixture ) {
+foreach ( array( 'expected-abilities.json', 'expected-content-abilities.json', 'expected-content-status-abilities.json' ) as $fixture ) {
 	$items = json_decode( file_get_contents( $lab . '/fixtures/' . $fixture ), true );
 	if ( ! is_array( $items ) ) {
 		fwrite( STDERR, "Could not read expected ability fixture {$fixture}.\n" );
