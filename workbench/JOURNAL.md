@@ -85,3 +85,14 @@ Append-only record of material workbench state changes. Do not rewrite prior ent
 - Forced-core evidence: `forced-core-update-rollback-cli: PASS attempted=7.1 rollback=7.0 ... core=exact database=restored config=unchanged wp-content=unchanged plugin=active`.
 - Runtime capability artifact id `10033217958` was uploaded with SHA-256 `e5a033888454e7f583bb50cf39716874e593c0b2dc02058d16f0884b32055ae9`.
 - DreamHost behavior, actual Chattanooga MCP discovery, and WordPress.org package-request privacy remain unverified and separate from this reference-runtime proof.
+
+## 2026-09-07 — WordPress package-network privacy capture
+
+- Added request-level privacy instrumentation at commit `df1ef39ea8dd76d61f20136150d269f3ffd74845` around the candidate's WordPress.org plugin/theme package operations.
+- Seeded five disposable representative private-marker classes: member email, private content, order-like data, credential-like data, and local backup content.
+- Scanned captured WordPress HTTP request URLs and arguments for raw, URL-encoded, and base64 forms of every marker while persisting only safe request metadata.
+- CMS Admin Workbench Lab run `34163308270` captured 12 package-related requests. Only `api.wordpress.org` and `downloads.wordpress.org` were observed, and none of the five private-marker classes appeared in any captured request.
+- Exact privacy result: `privacy_requests=12 hosts=api.wordpress.org,downloads.wordpress.org private_markers=absent`.
+- PHP 7.4, PHP 8.2, all 24 ability gates, numeric database restore fidelity, plugin/theme transactions, normal core update, and forced core rollback all remained green after the instrumentation.
+- Runtime capability artifact id `10033342899` was uploaded with SHA-256 `4bb738234ee27cdb12b98d67cc4cd2cc92574626eba29b6add296ca76fd26501`.
+- This proves the exercised WordPress.org package operations in the disposable reference runtime did not transmit the seeded private markers; it is not a claim about unrelated plugins, WooCommerce-specific traffic, or the live Chattanooga environment.

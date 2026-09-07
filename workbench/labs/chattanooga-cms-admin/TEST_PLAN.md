@@ -3,9 +3,7 @@
 Tests are ordered so that a failure in a lower-risk prerequisite blocks higher-risk operations. Disposable GitHub/WordPress fixtures are used before any Chattanooga runtime test.
 
 ## Gate 0 — Source and architecture
-
 Status: PASS
-
 - Immutable baseline Git blob verification.
 - PHP 7.4 and PHP 8.2 lint.
 - No arbitrary shell/PHP/SQL execution surface.
@@ -13,112 +11,79 @@ Status: PASS
 - Exact expected ability manifest.
 
 ## Gate 1 — Real WordPress 7.1 registration
-
-Status: PASS in reference runtime
-
-- Install and activate candidate in disposable WordPress 7.1.
-- Verify native Abilities API functions.
-- Execute Abilities lifecycle and verify category/all 24 abilities through registry getters.
+Status: PASS
+- Install and activate candidate.
+- Verify native Abilities API.
+- Register category/all 24 abilities and retrieve them through real registry.
 
 ## Gate 2 — Backup primitives
-
 Status: PARTIAL PASS
-
 Passed:
-- database backup creation and SHA-256 verification;
-- plugin component archive and exact-byte restore;
-- database sentinel restore;
-- exact numeric primary-key identity across database restore;
-- theme fixture deletion/restore fidelity;
-- WordPress core + database snapshot creation and verification;
-- deliberate core/root/database mutation followed by exact restore.
-
+- database backup + SHA-256 verification;
+- plugin component exact-byte restore;
+- database sentinel restore and numeric primary-key identity;
+- theme deletion/restore fidelity;
+- core + database snapshot and exact deliberate-mutation restore.
 Still required:
-- incomplete/corrupt backup rejection tests;
-- disk-space and partial-write failure handling.
+- incomplete/corrupt backup rejection;
+- disk-space and partial-write/storage-failure handling.
 
-## Gate 3 — Permission and exposure model
-
+## Gate 3 — Permission, exposure, and error model
 Status: PARTIAL PASS
-
-Passed in real WordPress 7.1:
-- all 24 abilities denied anonymously;
-- all 24 abilities allowed for administrator;
-- all 24 abilities isolated across exactly 10 intended capabilities with no cross-capability grants;
+Passed:
+- all 24 abilities denied anonymous and allowed administrator;
+- exact isolation across 10 intended WordPress capabilities;
 - six WordPress Abilities REST routes enumerated;
-- `show_in_rest=false` candidate abilities absent from REST collection;
-- direct GET/POST probes did not expose or execute `chattanooga-cms-admin/get-health`.
-
+- candidate `show_in_rest=false` abilities absent from REST collection and direct execution probes failed closed.
 Still required:
-- dedicated error-output secret/credential redaction regression tests.
+- dedicated error-output secret/credential redaction regression test, including upstream error detail/data.
 
 ## Gate 4 — Lifecycle operations
-
 Status: PARTIAL PASS
-
-Passed with disposable fixtures:
+Passed:
 - plugin activate/deactivate;
-- plugin auto-update policy add/remove;
-- backup-protected plugin deletion and restore;
-- backup-protected theme deletion and restore.
-
+- plugin auto-update enable/disable;
+- backup-protected plugin deletion/restore;
+- backup-protected theme deletion/restore.
 Still required:
-- explicit switch-theme transaction and return-to-original-theme verification;
-- theme auto-update policy add/remove verification.
+- explicit switch-theme and return-to-original-theme transaction;
+- theme auto-update enable/disable verification.
 
 ## Gate 5 — Update engine
-
 Status: PARTIAL PASS
-
 Passed:
-- actual WordPress.org plugin update with verified pre-update rollback backup;
-- actual Twenty Twenty-One 1.8 -> 2.9 theme update;
-- post-update version verification;
-- exact theme rollback to 1.8 with `style.css` SHA-256 fidelity;
-- forced plugin post-update validation mismatch with automatic exact rollback.
-
+- real WordPress.org plugin update with rollback backup;
+- Twenty Twenty-One 1.8 -> 2.9 theme update and exact rollback;
+- forced plugin post-update validation failure and exact automatic rollback.
 Still required:
-- deterministic local v1/v2 update fixtures independent of current WordPress.org versions;
+- deterministic local v1/v2 fixtures independent of WordPress.org current versions;
 - no-update-available behavior;
-- malformed package behavior.
+- malformed-package behavior.
 
 ## Gate 6 — Core update/rollback
-
-Status: PASS in reference runtime
-
+Status: PASS
 Passed:
-- create core + DB rollback snapshot and verify checksums;
-- deliberately mutate `wp-includes/version.php`, `readme.html`, and database sentinel;
-- restore verified core snapshot with exact files/database;
-- preserve `wp-content` and `wp-config.php` outside core archive/restore set;
-- move only disposable runtime to WordPress 7.0 after 7.1 regression suite;
-- run `CMSA_Updates::update_core()` through real `Core_Upgrader` transaction;
-- verify candidate update 7.0 -> 7.1, valid rollback snapshot, bootstrap, unchanged config/content/database sentinel, and plugin activation;
-- deliberately force post-update version validation failure after a real 7.1 package install;
-- execute `rollback_core_error()` and verify exact WordPress 7.0 core restore, database restore, unchanged `wp-config.php`, unchanged `wp-content`, and candidate plugin active.
-
-Defect found and repaired during this gate:
-- numeric database columns were initially byte-hex serialized, which could overflow integer primary keys on restore after update-created rows;
-- serializer now uses schema-aware validated numeric literals;
-- exact numeric `option_id` restoration and full forced-core rollback passed in run `34162917097`.
+- verified core+DB rollback snapshot;
+- exact independent core/database restore;
+- candidate-controlled real `Core_Upgrader` 7.0 -> 7.1 transaction;
+- post-update bootstrap and preservation of config/content/database/plugin state;
+- deliberate post-update validation mismatch;
+- `rollback_core_error()` exact WordPress 7.0 core/database restore with config/content/plugin state preserved;
+- schema-aware numeric DB serialization repair after the first fault-injection run exposed integer overflow/coercion.
 
 ## Gate 7 — Package-network/privacy surface
-
-Status: PENDING
-
-- Instrument WordPress HTTP request arguments for `plugins_api()` and `themes_api()` and package-download calls reached through candidate operations.
-- Record only safe destination/method/field-name evidence; do not persist private request values in artifacts.
-- Seed unique private markers representing member email, private content, order-like data, credential material, and backup contents.
-- Prove none of those private markers enter package lookup/download requests.
-- Confirm destinations are expected WordPress-owned package/API endpoints for the exercised operations.
-- Keep direct candidate vendor telemetry prohibited.
+Status: PASS for exercised WordPress.org package operations
+- Seeded five disposable private-marker classes: member email, private content, order-like data, credential-like data, and backup content.
+- Captured WordPress HTTP requests during candidate plugin/theme package operations.
+- Scanned URL and arguments for raw, URL-encoded, and base64 marker forms.
+- Run `34163308270` captured 12 requests; only `api.wordpress.org` and `downloads.wordpress.org` were observed.
+- No seeded private marker appeared in any captured request.
+- Full downstream regression suite remained green.
+Caveat: this does not establish privacy behavior for unrelated plugins, WooCommerce-specific operations, or live Chattanooga traffic.
 
 ## Gate 8 — Chattanooga/DreamHost read-only preflight
-
 Status: NOT RUN
-
 No mutation at this gate.
-
 - WordPress/PHP exact versions.
 - Abilities API availability.
 - ZipArchive.
@@ -131,11 +96,8 @@ No mutation at this gate.
 - existing MCP transport's ability discovery behavior.
 
 ## Gate 9 — Chattanooga installation/runtime
-
 Status: NOT AUTHORIZED BY WORKBENCH TESTING ALONE
-
 Requires separate production authorization and rollback transaction.
-
 - install exact validated candidate package;
 - activate;
 - discover all expected abilities through actual AI transport;
@@ -144,5 +106,4 @@ Requires separate production authorization and rollback transaction.
 - perform only separately authorized live mutations.
 
 ## Rule for new coding
-
 Every candidate change must identify the failing/desired test first when practical, modify only `candidate/` when product source must change, run the complete applicable gate set, and update the capability matrix. A candidate is never promoted because it merely compiles.
