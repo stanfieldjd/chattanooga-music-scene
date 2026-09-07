@@ -1,178 +1,103 @@
 # Chattanooga CMS Admin Workbench Test Plan
 
-Tests are ordered so that a failure in a lower-risk prerequisite blocks higher-risk operations. Disposable GitHub/WordPress fixtures are used before any Chattanooga runtime mutation.
+Tests are ordered so lower-risk prerequisites block higher-risk operations. Disposable WordPress fixtures are required before any Chattanooga mutation.
 
 ## Gate 0 — Source and architecture
 Status: PASS
-- Immutable baseline Git blob verification.
-- PHP 7.4 and PHP 8.2 lint.
-- No arbitrary shell/PHP/SQL execution surface.
-- No custom direct REST route registration.
-- Exact expected ability manifests.
+- Immutable baseline verification; PHP 7.4/8.2 lint.
+- No arbitrary shell/PHP/SQL, generic candidate REST route, or direct candidate vendor transport.
+- Ability manifests are aggregated automatically.
+- Privacy boundary rejects credential/session/usermeta access and isolates `WP_User_Query` to the typed member service.
 
 ## Gate 1 — Real WordPress 7.1 registration
 Status: PASS
-- Install and activate candidate.
-- Verify native Abilities API.
-- Register category and all current 40 abilities: 24 maintenance + 14 bounded post/page CRUD/revision + 2 publication-status abilities.
-- Latest registration evidence: content run `34168825779`, `wordpress-ability-registration: PASS (40 abilities)`.
+- Current registry total: 56 abilities = 24 maintenance + 14 CRUD/revision + 2 status + 12 taxonomy + 4 member-read.
+- Evidence: content run `34170460924`, `wordpress-ability-registration: PASS (56 abilities)`.
 
-## Gate 2 — Backup primitives and fail-closed restore
-Status: PASS in disposable reference runtime
-- database backup + SHA-256 verification;
-- plugin/theme/core rollback material and exact restore;
-- numeric primary-key database fidelity;
-- corrupt/missing material rejection before target mutation;
-- all backup locations unavailable fails before backup creation;
-- progressive short writes complete exactly;
-- stalled writes fail and incomplete SQL is removed;
-- component/core ZIP finalization failure or zero-byte output is rejected and removed.
-Latest full regression: `34168825545`.
-
-## Gate 3 — Permission, exposure, and error model
+## Gate 2 — Backup/restore integrity
 Status: PASS
-Maintenance:
-- 24 maintenance abilities denied anonymous and allowed administrator.
-- Exact isolation across 10 intended maintenance capabilities.
-Content CRUD/revision:
-- 14 post/page abilities denied anonymous and allowed administrator.
-- Limited user with only post edit/delete capabilities receives only post-level ability access.
-- Object-level checks prevent access to another author's post without `edit_others_posts`.
-Status transitions:
-- set-post-status and set-page-status denied anonymous and allowed administrator.
-- Limited edit-post user sees post status ability but not page status ability.
-- Execution separately requires `publish_posts` / `publish_pages` for publish, private, and future states.
-Exposure/error boundaries:
-- Candidate abilities remain `show_in_rest=false` and absent from direct REST execution surface.
-- Sensitive-marker error-output regression remains green.
-Evidence: maintenance run `34168825545`; content run `34168825779`.
+- Database/component/theme/core backup and exact restore.
+- Numeric primary-key fidelity.
+- Corrupt/missing material rejected before mutation.
+- All backup locations unavailable fails closed.
+- Progressive writes complete; stalled writes fail and incomplete SQL is removed.
+- ZIP close failure/zero-byte output rejected and incomplete archive removed.
+Evidence: maintenance run `34170460953`.
 
-## Gate 4 — Lifecycle operations
+## Gate 3 — Permission, exposure and error model
 Status: PASS
-- Plugin activate/deactivate.
-- Plugin auto-update enable/disable.
-- Backup-protected plugin deletion/restore.
-- Backup-protected theme deletion/restore.
-- Theme switch/return.
-- Theme auto-update enable/disable with original state restoration.
+- 24 maintenance abilities isolated across intended WordPress capabilities.
+- 14 content abilities: anonymous denied; administrator allowed; post-only limited user isolated from page abilities; object-level ownership checks enforced.
+- Status abilities enforce target-specific publish authority.
+- 12 taxonomy abilities enforce taxonomy/object capabilities and relationship authority.
+- 4 member-read abilities require `list_users`; anonymous/subscriber denied unless capability explicitly granted.
+- Candidate remains `show_in_rest=false`; bounded/redacted public error model remains green.
 
-## Gate 5 — Update engine
+## Gate 4 — Lifecycle/update/core/privacy/cache
 Status: PASS
-- Real WordPress.org plugin update with rollback backup.
-- Theme update and exact rollback.
-- Forced plugin post-update validation failure and exact automatic rollback.
-- Deterministic no-update, local v1→v2, malformed-package fail-closed exact rollback.
-Latest full evidence: `34168825545`.
+- Plugin/theme lifecycle, updates and rollback.
+- Core 7.0→7.1 transaction and deliberate failure rollback.
+- WordPress.org package privacy markers absent.
+- Single-site and real WordPress 7.1 multisite cache branches passed.
+Evidence: maintenance `34170460953`, multisite `34170324597`.
 
-## Gate 6 — Core update/rollback
+## Gate 5 — Post/page CRUD/revision
 Status: PASS
-- Core+DB rollback snapshot.
-- Exact independent restore.
-- Candidate-controlled 7.0 -> 7.1 core transaction.
-- Configuration/content/database/plugin preservation.
-- Deliberate validation mismatch and automatic exact core/database rollback.
-Latest full evidence: `34168825545`.
+- Bounded list/get, draft create, exact modified-time conflicts, update revision, revision restore, trash/restore, parent validation, author scope, unrelated-content isolation.
+Exact output remains `content-transaction-cli: PASS post=draft-conflict-update-revision-trash-restore page=parent-update-trash-restore unrelated=unchanged`.
 
-## Gate 7 — Package-network/privacy surface
-Status: PASS for exercised WordPress.org package operations
-- Seeded private markers absent from captured WordPress.org API/download requests.
-- No direct candidate vendor transport.
-- Public upstream errors bounded/redacted.
-
-## Gate 8 — Multisite cache execution
+## Gate 6 — Publication/status
 Status: PASS
-- Real WordPress 7.1 multisite network installation and candidate network activation.
-- Cache branch verified.
-- Current 40-ability candidate source remained compatible in run `34168825541`.
+- Exact expected timestamp/status.
+- draft/pending/private/publish/future transitions.
+- explicit future UTC scheduling and publish-now normalization.
+- publish capability enforcement and rollback path.
+Exact output remains `content-status-cli: PASS conflicts=timestamp,status post=pending-private-publish-future-publish page=pending-publish-draft limited=publish-denied unrelated=unchanged`.
 
-## Gate 9 — Bounded WordPress content CRUD/revision
+## Gate 7 — Taxonomy/category/tag
 Status: PASS
-Evidence: content run `34168825779` and full run `34168825545`.
+- `category` and `post_tag` only.
+- bounded list/get/create/update; duplicate/parent validation; term state token conflicts.
+- deliberate term update mismatch rolls back.
+- post term relationships require exact expected sets.
+- default category preserved; stale relationship conflicts rejected; deliberate relationship corruption rolls back.
+- page taxonomy relationship rejected when unsupported; unrelated content unchanged.
+Evidence: taxonomy source `443bfd3d1bf27c10291185f6f594195ccf3849df`, content run lineage ending in `34170460924`.
+- Term deletion remains a separate destructive gate.
 
-Read/create/update behavior:
-- bounded post/page list with page/per_page/search/status filters;
-- object-level post/page read;
-- draft-only creation;
-- page-parent validation;
-- exact `post_modified_gmt` optimistic-concurrency check;
-- stale update fails closed without changing content;
-- native WordPress revision rollback point before mutation;
-- post/page title/content/excerpt update verification;
-- target-owned revision restore with pre-restore rollback revision.
-
-Lifecycle/isolation behavior:
-- trash and restore only; permanent deletion remains absent;
-- author-scoped listing when user cannot edit others' content;
-- page parent relationship preserved;
-- unrelated control content remains unchanged.
-
-Exact outputs:
-- `content-permission-cli: PASS abilities=14 limited=post-only object-scope=verified`
-- `content-transaction-cli: PASS post=draft-conflict-update-revision-trash-restore page=parent-update-trash-restore unrelated=unchanged`
-
-## Gate 10 — Publication/status transitions
+## Gate 8 — Member/account read administration
 Status: PASS
-Evidence: content run `34168825779`, candidate commit `2f299aa743f82f03888954dc1beec9ad1bafb999`.
+- Four read-only abilities: list-members, get-member, list-member-roles, get-member-roles.
+- permission result: `member-permission-cli: PASS abilities=4 anonymous=denied admin=allowed list_users=required`.
+- transaction result: `member-read-cli: PASS list=bounded search=email role=verified detail=bounded roles=verified credentials=absent`.
+- list response omits email; detail response uses explicit allowlist.
+- no password, activation key, session token, arbitrary usermeta, whole WP_User export, or direct users-table access.
+- all runtime data is disposable dummy-user data.
+Evidence: content run `34170460924`; static/full maintenance run `34170460953`.
 
-Contract:
-- exact `expected_modified_gmt` and `expected_status` are mandatory;
-- supported target states are draft, pending, publish, private, future;
-- trash must be restored before publication-state mutation;
-- publish/private/future require target-specific WordPress publish capability;
-- future requires an explicit valid future UTC timestamp;
-- transition output is read back and verified;
-- verification/readback failure attempts exact rollback of prior status/date/date_gmt.
-
-Runtime coverage:
-- stale timestamp rejected with status unchanged;
-- stale status rejected with status unchanged;
-- post: draft -> pending -> private -> publish -> future -> publish-now;
-- page: draft -> pending -> publish -> draft;
-- limited edit-only user: pending allowed, publish denied and status remains pending;
-- unrelated control post unchanged.
-
-Exact outputs:
-- `content-status-permission-cli: PASS anonymous=denied admin=post,page limited=post-only`
-- `content-status-cli: PASS conflicts=timestamp,status post=pending-private-publish-future-publish page=pending-publish-draft limited=publish-denied unrelated=unchanged`
-
-## Gate 11 — Taxonomy relationships
+## Gate 9 — Member profile/role mutation
 Status: ACTIVE NEXT
-Planned bounded contract:
-- registered taxonomy whitelist only (`category`, `post_tag`) for this first taxonomy slice;
-- list/get terms;
-- create/update terms with duplicate/parent validation;
-- assign/remove terms to posts/pages only when the taxonomy is registered to that object type;
-- exact before/after relationship verification;
-- relationship rollback on verification failure;
-- term deletion only after separately proving relationship consequences and default-category behavior;
-- no arbitrary taxonomy or metadata writes.
+Planned contract:
+- disposable dummy users only;
+- selected standard profile fields only, with explicit expected-before state token;
+- exact role-state token and target role validation;
+- actor must hold appropriate user-management authority;
+- readback verification after every mutation;
+- automatic rollback to exact prior profile/role state on verification failure;
+- no password/reset, arbitrary protected metadata, session-token operations, account deletion, or notification side effects in this gate.
 
-## Gate 12 — Chattanooga/DreamHost read-only preflight
+## Gate 10 — Events Manager administration
+Status: DISCOVERED / NOT IMPLEMENTED
+- Existing Chattanooga transport read-only discovery confirmed typed event/location/booking/ticket/category/tag contracts.
+- Build disposable adapter fixtures from verified Events Manager model before any live mutation.
+
+## Chattanooga/DreamHost read-only preflight
 Status: PARTIAL PASS / NON-MUTATING
-Verified through current connected WordPress surface:
-- WordPress 7.1;
-- PHP 8.2.30;
-- MySQL 8.0.41;
-- WordPress root, wp-content, uploads, plugins, themes, and MU-plugins writable;
-- WP Super Cache active and WP_CACHE enabled;
-- existing MCP surface discoverable with 311 abilities;
-- candidate abilities absent because candidate is not deployed.
+Verified: WordPress 7.1, PHP 8.2.30, MySQL 8.0.41, relevant WordPress directory writability, WP Super Cache active, current MCP surface. Unknown: free disk capacity, filesystem method, live ZipArchive, outside-web-root backup parent writability.
 
-Still UNKNOWN through current surface:
-- free disk capacity / production backup-size feasibility;
-- WordPress filesystem method;
-- direct live ZipArchive availability;
-- outside-web-root preferred backup parent writability.
-
-## Gate 13 — Chattanooga installation/runtime
+## Production installation/runtime
 Status: NOT AUTHORIZED BY WORKBENCH TESTING ALONE
-Requires separate production authorization and rollback transaction.
-- install exact validated candidate package;
-- activate;
-- discover expected abilities through actual AI transport;
-- run health inventory;
-- create and verify local backup;
-- perform only separately authorized live mutations.
+Requires separate production rollback point, exact candidate installation/activation, actual candidate MCP discovery, local production backup verification, then only explicitly authorized live mutations.
 
 ## Rule for new coding
-Every candidate change must identify the failing/desired test first when practical, modify only `candidate/` when product source must change, run the complete applicable gate set, and update the capability matrix. A candidate is never promoted because it merely compiles.
+Every candidate change must identify the desired/failing test where practical, preserve typed boundaries, run all applicable regressions, and update evidence. Compiling alone is never promotion evidence.
