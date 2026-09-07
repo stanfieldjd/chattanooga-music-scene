@@ -2,8 +2,8 @@
 /**
  * Read-only Chattanooga CMS Admin runtime capability probe.
  *
- * Intended to be loaded inside an authenticated WordPress runtime. It does not
- * create files, update options, call external services, or read member records.
+ * Load inside WordPress. It does not create files, update options, call external
+ * services, or read member records.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -27,10 +27,27 @@ if ( ! function_exists( 'cmsa_workbench_runtime_capabilities' ) ) {
 			}
 		}
 
+		$defined = get_defined_functions();
+		$ability_functions = array();
+		foreach ( isset( $defined['user'] ) ? $defined['user'] : array() as $function ) {
+			if ( false !== stripos( $function, 'abilit' ) ) {
+				$ability_functions[] = $function;
+			}
+		}
+		sort( $ability_functions );
+
+		$ability_classes = array();
+		foreach ( get_declared_classes() as $class ) {
+			if ( false !== stripos( $class, 'abilit' ) ) {
+				$ability_classes[] = $class;
+			}
+		}
+		sort( $ability_classes );
+
 		$parent_backup = trailingslashit( dirname( ABSPATH ) ) . 'chattanooga-cms-admin-backups';
 		$content_backup = trailingslashit( WP_CONTENT_DIR ) . 'chattanooga-cms-admin-backups';
 
-		$result = array(
+		return array(
 			'probe' => array(
 				'read_only' => true,
 				'generated_at' => gmdate( 'c' ),
@@ -43,8 +60,10 @@ if ( ! function_exists( 'cmsa_workbench_runtime_capabilities' ) ) {
 			'abilities_api' => array(
 				'wp_register_ability' => function_exists( 'wp_register_ability' ),
 				'wp_register_ability_category' => function_exists( 'wp_register_ability_category' ),
-				'wp_abilities_api_init_hook' => function_exists( 'has_action' ) ? (bool) has_action( 'wp_abilities_api_init' ) : null,
-				'wp_abilities_api_categories_init_hook' => function_exists( 'has_action' ) ? (bool) has_action( 'wp_abilities_api_categories_init' ) : null,
+				'wp_abilities_api_init_fired' => function_exists( 'did_action' ) ? (int) did_action( 'wp_abilities_api_init' ) : null,
+				'wp_abilities_api_categories_init_fired' => function_exists( 'did_action' ) ? (int) did_action( 'wp_abilities_api_categories_init' ) : null,
+				'defined_functions' => $ability_functions,
+				'declared_classes' => $ability_classes,
 			),
 			'filesystem' => array(
 				'WP_Filesystem' => function_exists( 'WP_Filesystem' ),
@@ -92,7 +111,5 @@ if ( ! function_exists( 'cmsa_workbench_runtime_capabilities' ) ) {
 				'wp_remote_post' => function_exists( 'wp_remote_post' ),
 			),
 		);
-
-		return $result;
 	}
 }
