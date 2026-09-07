@@ -10,7 +10,7 @@ Evidence states:
 - `UNKNOWN` — insufficient evidence for the target environment.
 - `NOT_YET_IMPLEMENTED` — intentionally not present in the current maintenance-layer candidate.
 
-Latest complete single-site/full-regression evidence: CMS Admin Workbench Lab run `34164758599`, commit `a81c962c007163698de13b2d9b4f8bfe7bfcac7c`, artifact `10033803387`, SHA-256 `c3ca4bec92448b3b46f19e225dd81b9b2e0343fb07025a82d6ce0beb1fca6787`. Real multisite evidence: CMS Admin Multisite Lab run `34164758622` on the same commit.
+Latest complete single-site/full-regression evidence: CMS Admin Workbench Lab run `34165007012`, commit `a42e0be1e4fb52c48aee0617078a0f43d53f7ae3`, artifact `10033890050`, SHA-256 `d47cb1d77e97f8cddda5825f924dfd1f9b50e14698a9de5d87dc69e55c50abf5`. Real multisite evidence: CMS Admin Multisite Lab run `34164758622` on commit `a81c962c007163698de13b2d9b4f8bfe7bfcac7c`.
 
 | Capability | Current state | Evidence / remaining gate |
 | --- | --- | --- |
@@ -50,8 +50,9 @@ Latest complete single-site/full-regression evidence: CMS Admin Workbench Lab ru
 | Single-site cache clearing | REFERENCE_VERIFIED | `object-cache,wordpress-options-cache` path passed. |
 | Multisite cache branch | REFERENCE_VERIFIED | Real WordPress 7.1 network install + candidate network activation passed; exact result `object-cache,wordpress-blog-cache` in run `34164758622`. |
 | WP Super Cache clearing | CONDITIONAL | WP Super Cache absent in reference runtime; Chattanooga-specific verification required. |
-| Corrupt/incomplete backup rejection | CONDITIONAL | Dedicated corruption/missing-file fail-closed probe is now being added to the full runtime chain. |
-| Storage failure handling | CONDITIONAL | Disk-space/partial-write failure injection remains pending after corruption/missing-file rejection. |
+| Corrupt/incomplete backup rejection | REFERENCE_VERIFIED | Run `34165007012` rejected corrupted component archive, missing component archive, and corrupted DB snapshot before restore; exact output confirms target unchanged. |
+| Storage unavailable handling | CONDITIONAL | Dedicated all-storage-unwritable fault probe is the active workbench gate. |
+| Partial-write/disk-space failure handling | CONDITIONAL | Remains pending after storage-availability gate. |
 | Chattanooga/DreamHost filesystem behavior | UNKNOWN | Requires read-only live capability probe before deployment/mutation. |
 | Chattanooga MCP discovery | UNKNOWN | Requires separately authorized installation/activation and actual transport discovery. |
 | WooCommerce-specific update/migration/network behavior | UNKNOWN | Needs dedicated disposable WooCommerce tests. |
@@ -61,4 +62,4 @@ Latest complete single-site/full-regression evidence: CMS Admin Workbench Lab ru
 
 ## Current gate
 
-Registration, permissions, REST isolation, backup/restore, package privacy, error redaction, plugin/theme lifecycle and updates, core update/rollback, and both single-site and real multisite cache branches are reference-verified. The active workbench gate is fail-closed rejection of corrupted/missing rollback material, followed by storage-failure handling and deterministic local update-edge fixtures. DreamHost behavior, live installation, actual MCP discovery, WooCommerce-specific behavior, production-scale backup performance, private transport replacement, and broader site-administration abilities remain unproven.
+Registration, permissions, REST isolation, backup/restore, corrupt/missing rollback rejection, package privacy, error redaction, plugin/theme lifecycle and updates, core update/rollback, and both single-site and real multisite cache branches are reference-verified. The active workbench gate is unavailable-backup-storage failure handling, followed by partial-write/disk-space behavior and deterministic local update-edge fixtures. DreamHost behavior, live installation, actual MCP discovery, WooCommerce-specific behavior, production-scale backup performance, private transport replacement, and broader site-administration abilities remain unproven.

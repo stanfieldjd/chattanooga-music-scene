@@ -1,6 +1,6 @@
 # Task: Chattanooga CMS Admin Runtime Integration
 
-Status: REFERENCE_MULTISITE_VERIFIED — BACKUP_FAILURE + DETERMINISTIC_UPDATE + DREAMHOST/MCP PENDING
+Status: REFERENCE_CORRUPT_BACKUP_REJECTION_VERIFIED — STORAGE_FAILURE + DETERMINISTIC_UPDATE + DREAMHOST/MCP PENDING
 
 ## Objective
 
@@ -29,13 +29,13 @@ Develop Chattanooga CMS Admin through an isolated engineering lab, determine whi
 - Verified source checkpoint: `0b34773ebc8073cb657477770b34cabc280f5892`.
 - Source PHP 7.4 syntax workflow passed at GitHub Actions run `34115195808`.
 - Immutable workbench baseline reuses the exact source Git blobs.
-- Latest complete single-site/full-regression execution: CMS Admin Workbench Lab run `34164758599`, test commit `a81c962c007163698de13b2d9b4f8bfe7bfcac7c`.
-- Runtime capability artifact id `10033803387`, SHA-256 `c3ca4bec92448b3b46f19e225dd81b9b2e0343fb07025a82d6ce0beb1fca6787`.
-- Real WordPress 7.1 multisite cache execution: CMS Admin Multisite Lab run `34164758622` on the same commit.
+- Latest complete single-site/full-regression execution: CMS Admin Workbench Lab run `34165007012`, test commit `a42e0be1e4fb52c48aee0617078a0f43d53f7ae3`.
+- Runtime capability artifact id `10033890050`, SHA-256 `d47cb1d77e97f8cddda5825f924dfd1f9b50e14698a9de5d87dc69e55c50abf5`.
+- Real WordPress 7.1 multisite cache execution: CMS Admin Multisite Lab run `34164758622` on commit `a81c962c007163698de13b2d9b4f8bfe7bfcac7c`.
 - Exact multisite evidence: `multisite-bootstrap: PASS`, `multisite-network-activation: PASS`, and `health-cache-cli: PASS methods=object-cache,wordpress-blog-cache`.
-- Candidate passed PHP 7.4 and PHP 8.2 lab gates.
-- Disposable real WordPress 7.1 accepted and activated the candidate; all expected 24 abilities were found through the actual ability registry.
-- Permission isolation, REST isolation, database backup/restore including numeric primary-key identity, plugin/theme lifecycle and rollback, plugin/theme updates, package-network privacy, error-output redaction, theme switch/return, auto-update state persistence, core backup/restore, normal core update, forced plugin rollback, forced core rollback, single-site cache invalidation, and real multisite cache invalidation are reference-verified.
+- Corrupt/missing rollback material gate passed in run `34165007012`: corrupted component archive, missing component archive, and corrupted database snapshot all failed closed before restore; target state remained unchanged.
+- Exact backup-rejection output: `corrupt-backup-rejection-cli: PASS component=checksum-rejected missing=fail-closed database=checksum-rejected target=unchanged`.
+- Candidate passed PHP 7.4 and PHP 8.2 lab gates and the complete downstream package/update/core rollback chain after the new backup-rejection test.
 - Source has not been merged to `main` and has not been installed on Chattanooga Music Scene.
 
 ## Workbench gates
@@ -60,10 +60,12 @@ Completed:
 - [x] Fault-inject upstream errors and prove public error outputs redact seeded sensitive markers while preserving rollback state.
 - [x] Verify theme switch/return and theme auto-update enable/disable persistence with original state restoration.
 - [x] Execute the cache branch in a real WordPress 7.1 multisite installation with network activation and verify `wordpress-blog-cache`.
+- [x] Reject corrupted component archives, missing component archives, and corrupted database snapshots before restore with target state unchanged.
 
 Pending workbench/runtime tests:
 
-- [ ] Incomplete/corrupt backup rejection and storage failure handling.
+- [ ] All configured backup storage paths unavailable/read-only must fail before backup creation.
+- [ ] Partial-write/disk-space failure handling.
 - [ ] Deterministic local update fixtures, no-update behavior, and malformed-package behavior.
 - [ ] DreamHost/Chattanooga read-only capability probe.
 - [ ] Actual Chattanooga MCP discovery of the registered abilities.
@@ -107,4 +109,5 @@ NOT_DEPLOYED
 - 2026-09-07: WordPress package-network privacy gate passed with 12 captured requests limited to WordPress.org API/download hosts and seeded private markers absent.
 - 2026-09-07: Error-output redaction passed after fault injection exposed and repaired raw plugin-API and database diagnostics.
 - 2026-09-07: Expanded theme lifecycle passed, including switch/return and theme auto-update state restoration.
-- 2026-09-07: Real WordPress 7.1 multisite installation and network activation passed; cache clearing returned `object-cache,wordpress-blog-cache` in run `34164758622`.
+- 2026-09-07: Real WordPress 7.1 multisite installation/network activation passed and cache clearing returned `object-cache,wordpress-blog-cache`.
+- 2026-09-07: Corrupted/missing component and database rollback material was rejected before restore in run `34165007012`; full downstream regression remained green.

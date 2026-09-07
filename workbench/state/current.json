@@ -13,7 +13,7 @@
       "branch": "feature/chattanooga-cms-admin",
       "head_sha": "0b34773ebc8073cb657477770b34cabc280f5892",
       "source_path": "site-plugins/chattanooga-cms-admin",
-      "state": "workbench_multisite_verified_corrupt_backup_gate_pending",
+      "state": "workbench_corrupt_backup_rejection_verified_storage_gate_pending",
       "validation": {
         "source_php_7_4_syntax": "passed",
         "source_workflow_run_id": 34115195808,
@@ -23,10 +23,10 @@
         "lab_php_7_4": "passed",
         "lab_php_8_2": "passed",
         "reference_wordpress_7_1": "passed",
-        "reference_lab_run_id": 34164758599,
-        "reference_test_commit": "a81c962c007163698de13b2d9b4f8bfe7bfcac7c",
-        "reference_artifact_id": 10033803387,
-        "reference_artifact_sha256": "c3ca4bec92448b3b46f19e225dd81b9b2e0343fb07025a82d6ce0beb1fca6787",
+        "reference_lab_run_id": 34165007012,
+        "reference_test_commit": "a42e0be1e4fb52c48aee0617078a0f43d53f7ae3",
+        "reference_artifact_id": 10033890050,
+        "reference_artifact_sha256": "d47cb1d77e97f8cddda5825f924dfd1f9b50e14698a9de5d87dc69e55c50abf5",
         "real_registry_expected_abilities": 24,
         "real_registry_result": "passed",
         "permission_matrix": "passed_24_abilities_10_capabilities",
@@ -47,7 +47,8 @@
         "theme_lifecycle_expanded": "passed_delete_restore_switch_return_auto_update_enable_disable_restore",
         "multisite_cache": "passed_real_wordpress_7_1_network_activation_object_cache_wordpress_blog_cache",
         "multisite_run_id": 34164758622,
-        "corrupt_incomplete_backup_rejection": "not_run",
+        "corrupt_incomplete_backup_rejection": "passed_checksum_corruption_missing_file_fail_closed_target_unchanged",
+        "storage_unavailable": "not_run",
         "dreamhost_read_only_probe": "not_run",
         "chattanooga_mcp_discovery": "not_run"
       }

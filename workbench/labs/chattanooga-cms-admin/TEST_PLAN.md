@@ -23,13 +23,15 @@ Passed:
 - plugin component exact-byte restore;
 - database sentinel restore and numeric primary-key identity;
 - theme deletion/restore fidelity;
-- core + database snapshot and exact deliberate-mutation restore.
+- core + database snapshot and exact deliberate-mutation restore;
+- corrupted component archive rejected before restore with target unchanged;
+- missing component archive rejected before restore;
+- corrupted database snapshot rejected before restore with database sentinel unchanged.
+Evidence: run `34165007012`; exact output `corrupt-backup-rejection-cli: PASS component=checksum-rejected missing=fail-closed database=checksum-rejected target=unchanged`.
 Active now:
-- corrupted component archive rejection without target mutation;
-- missing component archive rejection;
-- corrupted database snapshot rejection without database mutation.
-Still required after corruption/missing-file gate:
-- disk-space and partial-write/storage-failure handling.
+- all configured backup storage paths unavailable/read-only must return `cmsa_backup_directory` and create no backup.
+Still required after storage-availability gate:
+- partial-write/disk-space failure handling.
 
 ## Gate 3 — Permission, exposure, and error model
 Status: PASS
