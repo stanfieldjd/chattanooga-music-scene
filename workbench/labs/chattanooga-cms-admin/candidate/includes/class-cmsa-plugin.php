@@ -12,12 +12,12 @@ final class CMSA_Plugin {
 	private $content_status_abilities;
 	private $content_taxonomy_abilities;
 	private $member_abilities;
+	private $member_mutation_abilities;
 
 	public static function instance() {
 		if ( null === self::$instance ) {
 			self::$instance = new self();
 		}
-
 		return self::$instance;
 	}
 
@@ -30,7 +30,6 @@ final class CMSA_Plugin {
 		if ( ! function_exists( 'wp_register_ability_category' ) ) {
 			return;
 		}
-
 		wp_register_ability_category(
 			'chattanooga-cms-admin',
 			array(
@@ -46,12 +45,7 @@ final class CMSA_Plugin {
 		}
 
 		if ( ! $this->abilities ) {
-			$this->abilities = new CMSA_Abilities(
-				new CMSA_Health(),
-				new CMSA_Backups(),
-				new CMSA_Updates(),
-				new CMSA_Lifecycle()
-			);
+			$this->abilities = new CMSA_Abilities( new CMSA_Health(), new CMSA_Backups(), new CMSA_Updates(), new CMSA_Lifecycle() );
 		}
 		if ( ! $this->content_abilities || ! $this->content_status_abilities || ! $this->content_taxonomy_abilities ) {
 			$content = new CMSA_Content();
@@ -59,8 +53,10 @@ final class CMSA_Plugin {
 			$this->content_status_abilities = new CMSA_Content_Status_Abilities( new CMSA_Content_Status( $content ) );
 			$this->content_taxonomy_abilities = new CMSA_Content_Taxonomy_Abilities( new CMSA_Content_Taxonomy( $content ) );
 		}
-		if ( ! $this->member_abilities ) {
-			$this->member_abilities = new CMSA_Member_Abilities( new CMSA_Members() );
+		if ( ! $this->member_abilities || ! $this->member_mutation_abilities ) {
+			$members = new CMSA_Members();
+			$this->member_abilities = new CMSA_Member_Abilities( $members );
+			$this->member_mutation_abilities = new CMSA_Member_Mutation_Abilities( new CMSA_Member_Mutations( $members ) );
 		}
 
 		$this->abilities->register();
@@ -68,5 +64,6 @@ final class CMSA_Plugin {
 		$this->content_status_abilities->register();
 		$this->content_taxonomy_abilities->register();
 		$this->member_abilities->register();
+		$this->member_mutation_abilities->register();
 	}
 }

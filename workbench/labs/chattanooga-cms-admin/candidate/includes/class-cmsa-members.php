@@ -92,28 +92,46 @@ final class CMSA_Members {
 			return new WP_Error( 'cmsa_member_not_found', 'The requested member was not found.' );
 		}
 
-		$roles = array_values( array_map( 'sanitize_key', (array) $user->roles ) );
-		sort( $roles, SORT_STRING );
-
 		return array(
-			'id'    => (int) $user->ID,
-			'roles' => $roles,
+			'id'          => (int) $user->ID,
+			'roles'       => $this->roles_for( $user ),
+			'roles_state' => $this->roles_state( $user ),
 		);
 	}
 
-	private function normalize_member( WP_User $user, $include_email ) {
-		$roles = array_values( array_map( 'sanitize_key', (array) $user->roles ) );
-		sort( $roles, SORT_STRING );
+	public function profile_state( WP_User $user ) {
+		$payload = array(
+			'id'           => (int) $user->ID,
+			'email'        => (string) $user->user_email,
+			'display_name' => (string) $user->display_name,
+			'url'          => (string) $user->user_url,
+		);
+		return hash( 'sha256', wp_json_encode( $payload ) );
+	}
 
+	public function roles_state( WP_User $user ) {
+		return hash( 'sha256', wp_json_encode( $this->roles_for( $user ) ) );
+	}
+
+	public function roles_for( WP_User $user ) {
+		$roles = array_values( array_unique( array_map( 'sanitize_key', (array) $user->roles ) ) );
+		sort( $roles, SORT_STRING );
+		return $roles;
+	}
+
+	private function normalize_member( WP_User $user, $include_detail ) {
 		$member = array(
 			'id'             => (int) $user->ID,
 			'username'       => sanitize_user( (string) $user->user_login, true ),
 			'display_name'   => sanitize_text_field( (string) $user->display_name ),
 			'registered_gmt' => sanitize_text_field( (string) $user->user_registered ),
-			'roles'          => $roles,
+			'roles'          => $this->roles_for( $user ),
 		);
-		if ( $include_email ) {
+		if ( $include_detail ) {
 			$member['email'] = sanitize_email( (string) $user->user_email );
+			$member['url'] = esc_url_raw( (string) $user->user_url );
+			$member['profile_state'] = $this->profile_state( $user );
+			$member['roles_state'] = $this->roles_state( $user );
 		}
 
 		return $member;

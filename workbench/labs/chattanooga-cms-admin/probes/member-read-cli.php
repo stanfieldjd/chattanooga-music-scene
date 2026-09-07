@@ -66,13 +66,13 @@ if ( ! is_wp_error( $invalid_role ) || 'cmsa_member_role_invalid' !== $invalid_r
 }
 
 $detail = $members->get_member( $id_a );
-if ( is_wp_error( $detail ) || (int) $detail['member']['id'] !== (int) $id_a || $email_a !== $detail['member']['email'] || array( 'subscriber' ) !== $detail['member']['roles'] ) {
-	fwrite( STDERR, "member-read-cli: bounded member detail failed.\n" );
+if ( is_wp_error( $detail ) || (int) $detail['member']['id'] !== (int) $id_a || $email_a !== $detail['member']['email'] || array( 'subscriber' ) !== $detail['member']['roles'] || 64 !== strlen( $detail['member']['profile_state'] ) || 64 !== strlen( $detail['member']['roles_state'] ) ) {
+	fwrite( STDERR, "member-read-cli: bounded member detail/state failed.\n" );
 	exit( 1 );
 }
 $detail_keys = array_keys( $detail['member'] );
 sort( $detail_keys, SORT_STRING );
-$expected_detail_keys = array( 'display_name', 'email', 'id', 'registered_gmt', 'roles', 'username' );
+$expected_detail_keys = array( 'display_name', 'email', 'id', 'profile_state', 'registered_gmt', 'roles', 'roles_state', 'url', 'username' );
 sort( $expected_detail_keys, SORT_STRING );
 if ( $detail_keys !== $expected_detail_keys ) {
 	fwrite( STDERR, "member-read-cli: member detail exposed an unexpected field.\n" );
@@ -89,8 +89,8 @@ if ( ! in_array( 'subscriber', $role_slugs, true ) || ! in_array( 'editor', $rol
 	exit( 1 );
 }
 $member_roles = $members->get_member_roles( $id_b );
-if ( is_wp_error( $member_roles ) || (int) $member_roles['id'] !== (int) $id_b || array( 'editor' ) !== $member_roles['roles'] ) {
-	fwrite( STDERR, "member-read-cli: member role read failed.\n" );
+if ( is_wp_error( $member_roles ) || (int) $member_roles['id'] !== (int) $id_b || array( 'editor' ) !== $member_roles['roles'] || 64 !== strlen( $member_roles['roles_state'] ) ) {
+	fwrite( STDERR, "member-read-cli: member role state read failed.\n" );
 	exit( 1 );
 }
 
@@ -112,4 +112,4 @@ require_once ABSPATH . 'wp-admin/includes/user.php';
 wp_delete_user( $id_a );
 wp_delete_user( $id_b );
 
-echo "member-read-cli: PASS list=bounded search=email role=verified detail=bounded roles=verified credentials=absent\n";
+echo "member-read-cli: PASS list=bounded search=email role=verified detail=bounded states=verified credentials=absent\n";
