@@ -123,7 +123,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          php /tmp/wp-cli.phar plugin install classic-editor --version=1.6.0 --path=/tmp/wordpress --force
+          php /tmp/wp-cli.phar plugin install classic-editor --version=1.6 --path=/tmp/wordpress --force
       - name: Verify WordPress.org package transactions
         shell: bash
         run: |
