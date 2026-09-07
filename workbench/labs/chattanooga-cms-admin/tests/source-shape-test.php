@@ -8,6 +8,7 @@ $registrars = array(
 	file_get_contents( $lab . '/candidate/includes/class-cmsa-content-abilities.php' ),
 	file_get_contents( $lab . '/candidate/includes/class-cmsa-content-status-abilities.php' ),
 	file_get_contents( $lab . '/candidate/includes/class-cmsa-content-taxonomy-abilities.php' ),
+	file_get_contents( $lab . '/candidate/includes/class-cmsa-member-abilities.php' ),
 );
 
 $required_header_fragments = array(
@@ -23,7 +24,7 @@ foreach ( $required_header_fragments as $fragment ) {
 	}
 }
 
-foreach ( array( 'class-cmsa-errors.php', 'class-cmsa-audit.php', 'class-cmsa-backups.php', 'class-cmsa-health.php', 'class-cmsa-updates.php', 'class-cmsa-lifecycle.php', 'class-cmsa-content.php', 'class-cmsa-content-status.php', 'class-cmsa-content-taxonomy.php', 'class-cmsa-abilities.php', 'class-cmsa-content-abilities.php', 'class-cmsa-content-status-abilities.php', 'class-cmsa-content-taxonomy-abilities.php', 'class-cmsa-plugin.php' ) as $required_include ) {
+foreach ( array( 'class-cmsa-errors.php', 'class-cmsa-audit.php', 'class-cmsa-backups.php', 'class-cmsa-health.php', 'class-cmsa-updates.php', 'class-cmsa-lifecycle.php', 'class-cmsa-content.php', 'class-cmsa-content-status.php', 'class-cmsa-content-taxonomy.php', 'class-cmsa-members.php', 'class-cmsa-abilities.php', 'class-cmsa-content-abilities.php', 'class-cmsa-content-status-abilities.php', 'class-cmsa-content-taxonomy-abilities.php', 'class-cmsa-member-abilities.php', 'class-cmsa-plugin.php' ) as $required_include ) {
 	if ( false === strpos( $plugin, $required_include ) ) {
 		fwrite( STDERR, "Plugin bootstrap does not load {$required_include}.\n" );
 		exit( 1 );
@@ -41,9 +42,9 @@ if ( false === strpos( $coordinator, "function_exists( 'wp_register_ability' )" 
 	fwrite( STDERR, "Abilities API availability guard is missing.\n" );
 	exit( 1 );
 }
-foreach ( array( 'new CMSA_Content()', 'new CMSA_Content_Abilities', 'new CMSA_Content_Status', 'new CMSA_Content_Status_Abilities', 'new CMSA_Content_Taxonomy', 'new CMSA_Content_Taxonomy_Abilities' ) as $wiring ) {
+foreach ( array( 'new CMSA_Content()', 'new CMSA_Content_Abilities', 'new CMSA_Content_Status', 'new CMSA_Content_Status_Abilities', 'new CMSA_Content_Taxonomy', 'new CMSA_Content_Taxonomy_Abilities', 'new CMSA_Members()', 'new CMSA_Member_Abilities' ) as $wiring ) {
 	if ( false === strpos( $coordinator, $wiring ) ) {
-		fwrite( STDERR, "Content coordinator wiring missing: {$wiring}.\n" );
+		fwrite( STDERR, "Coordinator wiring missing: {$wiring}.\n" );
 		exit( 1 );
 	}
 }

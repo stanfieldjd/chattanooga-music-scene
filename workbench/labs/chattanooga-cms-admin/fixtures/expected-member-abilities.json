@@ -1,0 +1,6 @@
+[
+  "chattanooga-cms-admin/list-members",
+  "chattanooga-cms-admin/get-member",
+  "chattanooga-cms-admin/list-member-roles",
+  "chattanooga-cms-admin/get-member-roles"
+]

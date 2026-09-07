@@ -11,6 +11,7 @@ final class CMSA_Plugin {
 	private $content_abilities;
 	private $content_status_abilities;
 	private $content_taxonomy_abilities;
+	private $member_abilities;
 
 	public static function instance() {
 		if ( null === self::$instance ) {
@@ -58,10 +59,14 @@ final class CMSA_Plugin {
 			$this->content_status_abilities = new CMSA_Content_Status_Abilities( new CMSA_Content_Status( $content ) );
 			$this->content_taxonomy_abilities = new CMSA_Content_Taxonomy_Abilities( new CMSA_Content_Taxonomy( $content ) );
 		}
+		if ( ! $this->member_abilities ) {
+			$this->member_abilities = new CMSA_Member_Abilities( new CMSA_Members() );
+		}
 
 		$this->abilities->register();
 		$this->content_abilities->register();
 		$this->content_status_abilities->register();
 		$this->content_taxonomy_abilities->register();
+		$this->member_abilities->register();
 	}
 }
