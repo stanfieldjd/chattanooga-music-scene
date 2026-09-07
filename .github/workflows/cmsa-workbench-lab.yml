@@ -134,6 +134,17 @@ jobs:
         run: |
           set -euo pipefail
           php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/wordpress-org-package-cli.php" --path=/tmp/wordpress
+      - name: Reset legacy plugin for forced rollback probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar plugin install classic-editor --version=1.6 --path=/tmp/wordpress --force
+          test "$(php /tmp/wp-cli.phar plugin get classic-editor --field=version --path=/tmp/wordpress)" = "1.6"
+      - name: Verify forced plugin update rollback
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/forced-update-rollback-cli.php" --path=/tmp/wordpress
       - name: Prepare legacy theme update fixture
         shell: bash
         run: |
