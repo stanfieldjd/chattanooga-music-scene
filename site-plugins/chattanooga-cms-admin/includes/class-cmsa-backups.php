@@ -125,6 +125,49 @@ final class CMSA_Backups {
 		return $meta;
 	}
 
+	public function create_core_backup() {
+		$directory = self::get_storage_directory();
+		if ( is_wp_error( $directory ) ) {
+			return $directory;
+		}
+
+		$id = $this->new_id( 'core' );
+		$sql_path = trailingslashit( $directory ) . $id . '-database.sql';
+		$zip_path = trailingslashit( $directory ) . $id . '-core.zip';
+
+		$result = $this->dump_database( $sql_path );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		$core_manifest = $this->zip_core_files( $zip_path );
+		if ( is_wp_error( $core_manifest ) ) {
+			@unlink( $sql_path );
+			return $core_manifest;
+		}
+
+		$meta = array(
+			'id'             => $id,
+			'type'           => 'core',
+			'scope'          => 'core-and-database',
+			'created_at'     => gmdate( 'c' ),
+			'wordpress'      => get_bloginfo( 'version' ),
+			'root_files'     => $core_manifest,
+			'files'          => array(
+				$this->file_descriptor( $sql_path ),
+				$this->file_descriptor( $zip_path ),
+			),
+		);
+
+		$written = $this->write_meta( $meta );
+		if ( is_wp_error( $written ) ) {
+			return $written;
+		}
+
+		CMSA_Audit::record( 'create-core-backup', 'wordpress-core', 'success', array( 'backup_id' => $id ) );
+		return $meta;
+	}
+
 	public function list_backups() {
 		$directory = self::get_storage_directory();
 		if ( is_wp_error( $directory ) ) {
@@ -193,10 +236,7 @@ final class CMSA_Backups {
 			return new WP_Error( 'cmsa_restore_verify', 'Backup verification failed; restore was not attempted.' );
 		}
 
-		if ( ! function_exists( 'WP_Filesystem' ) ) {
-			require_once ABSPATH . 'wp-admin/includes/file.php';
-		}
-		WP_Filesystem();
+		$this->load_filesystem_api();
 		global $wp_filesystem;
 		if ( ! $wp_filesystem ) {
 			return new WP_Error( 'cmsa_filesystem', 'WordPress filesystem access is unavailable.' );
@@ -228,7 +268,6 @@ final class CMSA_Backups {
 			return new WP_Error( 'cmsa_restore_delete', 'Could not remove the current component before rollback.' );
 		}
 
-		require_once ABSPATH . 'wp-admin/includes/file.php';
 		$result = copy_dir( $source, $destination );
 		$wp_filesystem->delete( $temp, true );
 		if ( is_wp_error( $result ) ) {
@@ -237,6 +276,108 @@ final class CMSA_Backups {
 
 		CMSA_Audit::record( 'restore-component-backup', $meta['target'], 'success', array( 'backup_id' => $id ) );
 		return array( 'restored' => true, 'backup_id' => $id, 'target' => $meta['target'] );
+	}
+
+	public function restore_database_backup( $id ) {
+		$meta = $this->read_meta( $id );
+		if ( is_wp_error( $meta ) ) {
+			return $meta;
+		}
+
+		$verification = $this->verify_backup( $id );
+		if ( is_wp_error( $verification ) || empty( $verification['valid'] ) ) {
+			return new WP_Error( 'cmsa_restore_verify', 'Backup verification failed; database restore was not attempted.' );
+		}
+
+		$sql_path = $this->find_file_by_suffix( $meta, '-database.sql' );
+		if ( ! $sql_path ) {
+			return new WP_Error( 'cmsa_database_missing', 'This backup does not contain a database snapshot.' );
+		}
+
+		$result = $this->restore_database_file( $sql_path );
+		if ( is_wp_error( $result ) ) {
+			CMSA_Audit::record( 'restore-database-backup', $id, 'failed' );
+			return $result;
+		}
+
+		CMSA_Audit::record( 'restore-database-backup', $id, 'success' );
+		return array( 'restored' => true, 'backup_id' => $id, 'database' => true );
+	}
+
+	public function restore_core_backup( $id ) {
+		$meta = $this->read_meta( $id );
+		if ( is_wp_error( $meta ) ) {
+			return $meta;
+		}
+		if ( 'core' !== $meta['type'] ) {
+			return new WP_Error( 'cmsa_core_restore_type', 'Backup is not a WordPress core rollback snapshot.' );
+		}
+
+		$verification = $this->verify_backup( $id );
+		if ( is_wp_error( $verification ) || empty( $verification['valid'] ) ) {
+			return new WP_Error( 'cmsa_restore_verify', 'Core backup verification failed; restore was not attempted.' );
+		}
+
+		$directory = self::get_storage_directory();
+		$archive = $this->find_file_by_suffix( $meta, '-core.zip' );
+		if ( ! $archive ) {
+			return new WP_Error( 'cmsa_core_archive_missing', 'Core rollback archive is missing.' );
+		}
+
+		$this->load_filesystem_api();
+		global $wp_filesystem;
+		if ( ! $wp_filesystem ) {
+			return new WP_Error( 'cmsa_filesystem', 'WordPress filesystem access is unavailable.' );
+		}
+
+		$temp = trailingslashit( $directory ) . 'restore-core-' . wp_generate_password( 12, false, false );
+		if ( ! wp_mkdir_p( $temp ) ) {
+			return new WP_Error( 'cmsa_restore_temp', 'Could not create core restore staging directory.' );
+		}
+		$result = unzip_file( $archive, $temp );
+		if ( is_wp_error( $result ) ) {
+			$wp_filesystem->delete( $temp, true );
+			return $result;
+		}
+
+		$source = trailingslashit( $temp ) . 'wordpress-core';
+		if ( ! is_dir( $source . '/wp-admin' ) || ! is_dir( $source . '/wp-includes' ) ) {
+			$wp_filesystem->delete( $temp, true );
+			return new WP_Error( 'cmsa_core_layout', 'Core rollback archive layout is invalid.' );
+		}
+
+		if ( ! $wp_filesystem->delete( ABSPATH . 'wp-admin', true ) || ! $wp_filesystem->delete( ABSPATH . 'wp-includes', true ) ) {
+			$wp_filesystem->delete( $temp, true );
+			return new WP_Error( 'cmsa_core_delete', 'Could not clear current WordPress core directories.' );
+		}
+
+		$result = copy_dir( $source . '/wp-admin', ABSPATH . 'wp-admin' );
+		if ( is_wp_error( $result ) ) {
+			$wp_filesystem->delete( $temp, true );
+			return $result;
+		}
+		$result = copy_dir( $source . '/wp-includes', ABSPATH . 'wp-includes' );
+		if ( is_wp_error( $result ) ) {
+			$wp_filesystem->delete( $temp, true );
+			return $result;
+		}
+
+		foreach ( isset( $meta['root_files'] ) ? $meta['root_files'] : array() as $root_file ) {
+			$root_file = basename( $root_file );
+			if ( ! $wp_filesystem->copy( $source . '/' . $root_file, ABSPATH . $root_file, true, FS_CHMOD_FILE ) ) {
+				$wp_filesystem->delete( $temp, true );
+				return new WP_Error( 'cmsa_core_copy', 'Could not restore core root file ' . $root_file . '.' );
+			}
+		}
+
+		$wp_filesystem->delete( $temp, true );
+		$db_result = $this->restore_database_backup( $id );
+		if ( is_wp_error( $db_result ) ) {
+			return $db_result;
+		}
+
+		CMSA_Audit::record( 'restore-core-backup', 'wordpress-core', 'success', array( 'backup_id' => $id ) );
+		return array( 'restored' => true, 'backup_id' => $id, 'core' => true, 'database' => true );
 	}
 
 	private function dump_database( $path ) {
@@ -266,7 +407,7 @@ final class CMSA_Backups {
 					$values = array();
 					foreach ( $row as $column => $value ) {
 						$columns[] = '`' . str_replace( '`', '``', $column ) . '`';
-						$values[] = null === $value ? 'NULL' : $wpdb->prepare( '%s', (string) $value );
+						$values[] = null === $value ? 'NULL' : '0x' . bin2hex( (string) $value );
 					}
 					fwrite( $handle, 'INSERT INTO ' . $identifier . ' (' . implode( ',', $columns ) . ') VALUES (' . implode( ',', $values ) . ");\n" );
 				}
@@ -275,6 +416,37 @@ final class CMSA_Backups {
 		}
 		fwrite( $handle, "SET FOREIGN_KEY_CHECKS=1;\n" );
 		fclose( $handle );
+		return true;
+	}
+
+	private function restore_database_file( $path ) {
+		global $wpdb;
+		$handle = @fopen( $path, 'rb' );
+		if ( ! $handle ) {
+			return new WP_Error( 'cmsa_database_read', 'Could not open database backup file.' );
+		}
+
+		$statement = '';
+		while ( false !== ( $line = fgets( $handle ) ) ) {
+			$statement .= $line;
+			if ( ';' !== substr( rtrim( $line ), -1 ) ) {
+				continue;
+			}
+
+			$sql = trim( $statement );
+			$statement = '';
+			if ( '' === $sql ) {
+				continue;
+			}
+
+			$result = $wpdb->query( $sql );
+			if ( false === $result ) {
+				fclose( $handle );
+				return new WP_Error( 'cmsa_database_restore_query', 'Database restore failed: ' . $wpdb->last_error );
+			}
+		}
+		fclose( $handle );
+		wp_cache_flush();
 		return true;
 	}
 
@@ -321,6 +493,55 @@ final class CMSA_Backups {
 
 		$zip->close();
 		return true;
+	}
+
+	private function zip_core_files( $destination ) {
+		if ( ! class_exists( 'ZipArchive' ) ) {
+			return new WP_Error( 'cmsa_ziparchive', 'PHP ZipArchive is required for WordPress core rollback archives.' );
+		}
+
+		$zip = new ZipArchive();
+		if ( true !== $zip->open( $destination, ZipArchive::CREATE | ZipArchive::OVERWRITE ) ) {
+			return new WP_Error( 'cmsa_zip_open', 'Could not create WordPress core rollback archive.' );
+		}
+
+		$zip->addEmptyDir( 'wordpress-core' );
+		foreach ( array( 'wp-admin', 'wp-includes' ) as $directory ) {
+			$source = ABSPATH . $directory;
+			$iterator = new RecursiveIteratorIterator(
+				new RecursiveDirectoryIterator( $source, FilesystemIterator::SKIP_DOTS ),
+				RecursiveIteratorIterator::SELF_FIRST
+			);
+			foreach ( $iterator as $item ) {
+				$real = wp_normalize_path( $item->getPathname() );
+				$relative = ltrim( substr( $real, strlen( wp_normalize_path( ABSPATH ) ) ), '/' );
+				$local = 'wordpress-core/' . $relative;
+				if ( $item->isDir() ) {
+					$zip->addEmptyDir( $local );
+				} elseif ( $item->isFile() ) {
+					$zip->addFile( $real, $local );
+				}
+			}
+		}
+
+		$root_files = array();
+		foreach ( glob( ABSPATH . '*.php' ) ?: array() as $path ) {
+			$name = basename( $path );
+			if ( 'index.php' === $name || 'xmlrpc.php' === $name || 0 === strpos( $name, 'wp-' ) ) {
+				$root_files[] = $name;
+				$zip->addFile( $path, 'wordpress-core/' . $name );
+			}
+		}
+		foreach ( array( 'license.txt', 'readme.html' ) as $name ) {
+			if ( is_file( ABSPATH . $name ) ) {
+				$root_files[] = $name;
+				$zip->addFile( ABSPATH . $name, 'wordpress-core/' . $name );
+			}
+		}
+
+		$zip->close();
+		sort( $root_files );
+		return $root_files;
 	}
 
 	private static function protect_directory( $directory ) {
@@ -376,5 +597,27 @@ final class CMSA_Backups {
 			return new WP_Error( 'cmsa_backup_meta_invalid', 'Backup metadata is invalid.' );
 		}
 		return $data;
+	}
+
+	private function find_file_by_suffix( array $meta, $suffix ) {
+		$directory = self::get_storage_directory();
+		if ( is_wp_error( $directory ) ) {
+			return false;
+		}
+		foreach ( isset( $meta['files'] ) ? $meta['files'] : array() as $file ) {
+			$name = basename( $file['name'] );
+			if ( substr( $name, -strlen( $suffix ) ) === $suffix ) {
+				$path = trailingslashit( $directory ) . $name;
+				return is_file( $path ) ? $path : false;
+			}
+		}
+		return false;
+	}
+
+	private function load_filesystem_api() {
+		if ( ! function_exists( 'WP_Filesystem' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/file.php';
+		}
+		WP_Filesystem();
 	}
 }
