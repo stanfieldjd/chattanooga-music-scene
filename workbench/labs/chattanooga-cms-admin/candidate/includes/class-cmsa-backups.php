@@ -557,7 +557,14 @@ final class CMSA_Backups {
 			}
 		}
 
-		$zip->close();
+		if ( ! $zip->close() ) {
+			@unlink( $destination );
+			return new WP_Error( 'cmsa_zip_finalize', 'Could not finalize rollback archive.' );
+		}
+		if ( ! is_file( $destination ) || 0 === (int) filesize( $destination ) ) {
+			@unlink( $destination );
+			return new WP_Error( 'cmsa_zip_finalize', 'Rollback archive was not written completely.' );
+		}
 		return true;
 	}
 
@@ -605,7 +612,14 @@ final class CMSA_Backups {
 			}
 		}
 
-		$zip->close();
+		if ( ! $zip->close() ) {
+			@unlink( $destination );
+			return new WP_Error( 'cmsa_zip_finalize', 'Could not finalize WordPress core rollback archive.' );
+		}
+		if ( ! is_file( $destination ) || 0 === (int) filesize( $destination ) ) {
+			@unlink( $destination );
+			return new WP_Error( 'cmsa_zip_finalize', 'WordPress core rollback archive was not written completely.' );
+		}
 		sort( $root_files );
 		return $root_files;
 	}
