@@ -10,7 +10,7 @@ Evidence states:
 - `UNKNOWN` — insufficient evidence for the target environment.
 - `NOT_YET_IMPLEMENTED` — intentionally not present in the current maintenance-layer candidate.
 
-Latest complete single-site/full-regression evidence: CMS Admin Workbench Lab run `34165007012`, commit `a42e0be1e4fb52c48aee0617078a0f43d53f7ae3`, artifact `10033890050`, SHA-256 `d47cb1d77e97f8cddda5825f924dfd1f9b50e14698a9de5d87dc69e55c50abf5`. Real multisite evidence: CMS Admin Multisite Lab run `34164758622` on commit `a81c962c007163698de13b2d9b4f8bfe7bfcac7c`.
+Latest complete single-site/full-regression evidence: CMS Admin Workbench Lab run `34165355234`, commit `7b6e25b4a1103f260fdf36237482d9e7c7787934`, artifact `10033988433`, SHA-256 `bea034a0a86a3de8ed85208cf61a059a996ae64ff45eaae3cfefd640479d28df`. Real multisite evidence: CMS Admin Multisite Lab run `34164758622`.
 
 | Capability | Current state | Evidence / remaining gate |
 | --- | --- | --- |
@@ -50,9 +50,10 @@ Latest complete single-site/full-regression evidence: CMS Admin Workbench Lab ru
 | Single-site cache clearing | REFERENCE_VERIFIED | `object-cache,wordpress-options-cache` path passed. |
 | Multisite cache branch | REFERENCE_VERIFIED | Real WordPress 7.1 network install + candidate network activation passed; exact result `object-cache,wordpress-blog-cache` in run `34164758622`. |
 | WP Super Cache clearing | CONDITIONAL | WP Super Cache absent in reference runtime; Chattanooga-specific verification required. |
-| Corrupt/incomplete backup rejection | REFERENCE_VERIFIED | Run `34165007012` rejected corrupted component archive, missing component archive, and corrupted DB snapshot before restore; exact output confirms target unchanged. |
-| Storage unavailable handling | CONDITIONAL | Dedicated all-storage-unwritable fault probe is the active workbench gate. |
-| Partial-write/disk-space failure handling | CONDITIONAL | Remains pending after storage-availability gate. |
+| Corrupt/incomplete backup rejection | REFERENCE_VERIFIED | Corrupted component, missing component archive, and corrupted DB snapshot were rejected before restore with target unchanged. |
+| Storage unavailable handling | REFERENCE_VERIFIED | Run `34165355234`: all configured backup paths non-writable; `cmsa_backup_directory`; backup not created; complete downstream regression green. |
+| Partial-write/disk-space failure handling | CONDITIONAL | Remains pending. |
+| Deterministic plugin update edge cases | CONDITIONAL | Active gate: no-update, local v1→v2 package, malformed-package rollback. |
 | Chattanooga/DreamHost filesystem behavior | UNKNOWN | Requires read-only live capability probe before deployment/mutation. |
 | Chattanooga MCP discovery | UNKNOWN | Requires separately authorized installation/activation and actual transport discovery. |
 | WooCommerce-specific update/migration/network behavior | UNKNOWN | Needs dedicated disposable WooCommerce tests. |
@@ -62,4 +63,4 @@ Latest complete single-site/full-regression evidence: CMS Admin Workbench Lab ru
 
 ## Current gate
 
-Registration, permissions, REST isolation, backup/restore, corrupt/missing rollback rejection, package privacy, error redaction, plugin/theme lifecycle and updates, core update/rollback, and both single-site and real multisite cache branches are reference-verified. The active workbench gate is unavailable-backup-storage failure handling, followed by partial-write/disk-space behavior and deterministic local update-edge fixtures. DreamHost behavior, live installation, actual MCP discovery, WooCommerce-specific behavior, production-scale backup performance, private transport replacement, and broader site-administration abilities remain unproven.
+Registration, permissions, REST isolation, backup/restore, corrupt/missing rollback rejection, unavailable-storage handling, package privacy, error redaction, plugin/theme lifecycle and updates, core update/rollback, and both single-site and real multisite cache branches are reference-verified. The active workbench gate is deterministic local plugin update edge behavior, followed by partial-write/disk-space failure handling. DreamHost behavior, live installation, actual MCP discovery, WooCommerce-specific behavior, production-scale backup performance, private transport replacement, and broader site-administration abilities remain unproven.

@@ -19,12 +19,13 @@ Last verified: 2026-09-07
 - Workbench lab: `workbench/labs/chattanooga-cms-admin`
 - Immutable lab baseline: exact Git-blob mirror of the verified source checkpoint.
 - Mutable coding candidate: `workbench/labs/chattanooga-cms-admin/candidate`.
-- Latest complete single-site/full regression: run `34165007012` on commit `a42e0be1e4fb52c48aee0617078a0f43d53f7ae3`; artifact `10033890050`, SHA-256 `d47cb1d77e97f8cddda5825f924dfd1f9b50e14698a9de5d87dc69e55c50abf5`.
-- Real multisite cache execution: run `34164758622` on commit `a81c962c007163698de13b2d9b4f8bfe7bfcac7c`; WordPress 7.1 multisite installed, candidate network-activated, and cache result was `object-cache,wordpress-blog-cache`.
-- Corrupt/incomplete backup rejection: run `34165007012` passed corrupted component checksum rejection, missing component archive rejection, and corrupted database checksum rejection before restore, with targets unchanged.
-- Passed: PHP 7.4/8.2, real WordPress 7.1 activation and 24-ability registry, permission/REST isolation, DB backup/restore and numeric PK fidelity, plugin/theme lifecycle and rollback, package privacy, error redaction, theme switch/return and auto-update policy, plugin/theme updates, core update/rollback, single-site cache, real multisite cache, and corrupt/missing rollback fail-closed behavior.
-- Active workbench gate: all configured backup storage paths unavailable/read-only must fail before backup creation.
-- Remaining after that: partial-write/disk-space behavior; deterministic local update/no-update/malformed-package fixtures; DreamHost read-only preflight; actual Chattanooga MCP discovery; broader typed site-administration abilities.
+- Latest complete single-site/full regression: run `34165355234` on commit `7b6e25b4a1103f260fdf36237482d9e7c7787934`; artifact `10033988433`, SHA-256 `bea034a0a86a3de8ed85208cf61a059a996ae64ff45eaae3cfefd640479d28df`.
+- Real multisite cache execution: run `34164758622`; exact cache result `object-cache,wordpress-blog-cache`.
+- Backup fail-closed evidence: corrupted/missing rollback material is rejected before restore with target state unchanged, and all configured backup paths being non-writable returns failure before backup creation.
+- Exact unavailable-storage result: `storage-failure-cli: PASS all-backup-paths=unwritable backup=not-created`.
+- Passed: PHP 7.4/8.2, real WordPress 7.1 activation and 24-ability registry, permission/REST isolation, DB backup/restore and numeric PK fidelity, plugin/theme lifecycle and rollback, package privacy, error redaction, theme switch/return and auto-update policy, plugin/theme updates, core update/rollback, single-site cache, real multisite cache, corrupt/missing rollback rejection, and unavailable-storage rejection.
+- Active workbench gate: deterministic local plugin update edge cases — no-update, v1→v2 success, malformed package rollback.
+- Remaining after that: partial-write/disk-space backup failure; DreamHost read-only preflight; actual Chattanooga MCP discovery; broader typed site-administration abilities.
 - Production state: not merged to `main`; not installed on Chattanooga Music Scene.
 
 ### Chattanooga Music Scene Weekend Feature

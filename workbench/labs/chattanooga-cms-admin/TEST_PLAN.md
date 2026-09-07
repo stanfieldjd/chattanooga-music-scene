@@ -17,20 +17,19 @@ Status: PASS
 - Register category/all 24 abilities and retrieve them through real registry.
 
 ## Gate 2 — Backup primitives and fail-closed restore
-Status: PARTIAL PASS / ACTIVE
+Status: PARTIAL PASS
 Passed:
 - database backup + SHA-256 verification;
 - plugin component exact-byte restore;
 - database sentinel restore and numeric primary-key identity;
 - theme deletion/restore fidelity;
 - core + database snapshot and exact deliberate-mutation restore;
-- corrupted component archive rejected before restore with target unchanged;
-- missing component archive rejected before restore;
-- corrupted database snapshot rejected before restore with database sentinel unchanged.
-Evidence: run `34165007012`; exact output `corrupt-backup-rejection-cli: PASS component=checksum-rejected missing=fail-closed database=checksum-rejected target=unchanged`.
-Active now:
-- all configured backup storage paths unavailable/read-only must return `cmsa_backup_directory` and create no backup.
-Still required after storage-availability gate:
+- corrupted component archive rejection without target mutation;
+- missing component archive rejection;
+- corrupted database snapshot rejection without database mutation;
+- all configured backup paths unavailable/read-only returns `cmsa_backup_directory` and creates no backup.
+Evidence: runs `34165007012` and `34165355234`.
+Still required:
 - partial-write/disk-space failure handling.
 
 ## Gate 3 — Permission, exposure, and error model
@@ -50,15 +49,16 @@ Status: PASS
 - Theme auto-update enable/disable persistence and original-state restoration.
 
 ## Gate 5 — Update engine
-Status: PARTIAL PASS
+Status: PARTIAL PASS / ACTIVE
 Passed:
 - real WordPress.org plugin update with rollback backup;
 - Twenty Twenty-One 1.8 -> 2.9 theme update and exact rollback;
 - forced plugin post-update validation failure and exact automatic rollback.
-Still required:
-- deterministic local v1/v2 fixtures independent of WordPress.org current versions;
-- no-update-available behavior;
-- malformed-package behavior.
+Active now:
+- deterministic local plugin v1 fixture;
+- explicit no-update case must return `cmsa_plugin_no_update`;
+- synthetic local v2 package must update v1→v2 and preserve activation;
+- malformed synthetic package must return `cmsa_plugin_update_failed` and restore exact v1 files from rollback backup.
 
 ## Gate 6 — Core update/rollback
 Status: PASS
@@ -77,7 +77,7 @@ Status: PASS for exercised WordPress.org package operations
 
 ## Gate 8 — Multisite cache execution
 Status: PASS
-Evidence: CMS Admin Multisite Lab run `34164758622`, commit `a81c962c007163698de13b2d9b4f8bfe7bfcac7c`.
+Evidence: CMS Admin Multisite Lab run `34164758622`.
 - Real WordPress 7.1 multisite network installed.
 - Candidate network activation verified.
 - Exact output: `health-cache-cli: PASS methods=object-cache,wordpress-blog-cache`.
