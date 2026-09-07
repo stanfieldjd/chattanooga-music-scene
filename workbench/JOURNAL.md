@@ -37,3 +37,11 @@ Append-only record of material workbench state changes. Do not rewrite prior ent
 - Restored the component from the rollback archive and verified the original fixture bytes returned exactly.
 - Recorded reference runtime evidence at CMS Admin Workbench Lab run `34118396822`, test commit `76f7f8a05f07014b13712b011cfec9fb69d0b666`.
 - Kept DreamHost/Chattanooga production state, actual MCP discovery, database/core restore, update transactions, and broader site-administration abilities explicitly unresolved.
+
+## 2026-09-07 — Theme update rollback and core rollback fidelity
+
+- Advanced `workbench/mars` to test commit `32f1db5b36f1c8c5bfb94bb725bb474adaabdb81` without modifying `main` or `feature/chattanooga-cms-admin`.
+- Added a disposable Twenty Twenty-One 1.8 fixture, updated it through `CMSA_Updates::update_theme()`, verified the rollback archive, restored it, and verified both the original 1.8 version and exact `style.css` SHA-256 returned.
+- Added a WordPress core rollback probe that created and verified a core+database snapshot, deliberately mutated `wp-includes/version.php`, `readme.html`, and a database sentinel, then restored the snapshot and verified both file hashes and the database value returned exactly.
+- CMS Admin Workbench Lab run `34160856274` passed PHP 7.4, PHP 8.2, and the complete disposable WordPress 7.1 runtime job, including the new theme-update rollback and core-backup/restore steps.
+- Core upgrader execution remains untested. DreamHost filesystem behavior and actual Chattanooga MCP discovery remain unverified production gates.
