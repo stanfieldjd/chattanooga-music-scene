@@ -56,8 +56,14 @@ final class CMSA_Health {
 			$actions[] = 'object-cache';
 		}
 
-		clean_blog_cache( get_current_blog_id() );
-		$actions[] = 'wordpress-object-state';
+		if ( is_multisite() && function_exists( 'clean_blog_cache' ) ) {
+			clean_blog_cache( get_current_blog_id() );
+			$actions[] = 'wordpress-blog-cache';
+		} else {
+			wp_cache_delete( 'alloptions', 'options' );
+			wp_cache_delete( 'notoptions', 'options' );
+			$actions[] = 'wordpress-options-cache';
+		}
 
 		CMSA_Audit::record( 'clear-cache', 'site', 'success', array( 'methods' => implode( ',', array_unique( $actions ) ) ) );
 
