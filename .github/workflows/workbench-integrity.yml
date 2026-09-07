@@ -1,0 +1,24 @@
+name: Mars Workbench Integrity
+
+on:
+  push:
+    branches:
+      - "workbench/mars"
+    paths:
+      - "workbench/**"
+      - ".github/workflows/workbench-integrity.yml"
+  pull_request:
+    paths:
+      - "workbench/**"
+      - ".github/workflows/workbench-integrity.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  integrity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate workbench structure
+        run: bash workbench/scripts/check-workbench.sh

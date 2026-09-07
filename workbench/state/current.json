@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "repository": "stanfieldjd/chattanooga-music-scene",
+  "workbench_branch": "workbench/mars",
+  "baseline": {
+    "branch": "main",
+    "sha": "d3167ab8d084523c63d22004955d781962e41623",
+    "verified_at": "2026-09-07"
+  },
+  "workstreams": [
+    {
+      "id": "chattanooga-cms-admin",
+      "branch": "feature/chattanooga-cms-admin",
+      "head_sha": "0b34773ebc8073cb657477770b34cabc280f5892",
+      "source_path": "site-plugins/chattanooga-cms-admin",
+      "state": "source_validated_not_deployed",
+      "validation": {
+        "php_7_4_syntax": "passed",
+        "workflow_run_id": 34115195808
+      }
+    },
+    {
+      "id": "weekend-feature",
+      "branch": "main",
+      "head_sha": "d3167ab8d084523c63d22004955d781962e41623",
+      "source_path": "site-plugins/chattanooga-music-scene-core",
+      "source_version": "0.2.1",
+      "state": "source_on_main_live_state_requires_verification"
+    }
+  ],
+  "live_state_policy": "refresh_before_action",
+  "production_claim_policy": "source_or_ci_success_never_implies_live_deployment"
+}
