@@ -8,6 +8,7 @@ final class CMSA_Plugin {
 	private static $instance;
 
 	private $abilities;
+	private $content_abilities;
 
 	public static function instance() {
 		if ( null === self::$instance ) {
@@ -49,7 +50,11 @@ final class CMSA_Plugin {
 				new CMSA_Lifecycle()
 			);
 		}
+		if ( ! $this->content_abilities ) {
+			$this->content_abilities = new CMSA_Content_Abilities( new CMSA_Content() );
+		}
 
 		$this->abilities->register();
+		$this->content_abilities->register();
 	}
 }

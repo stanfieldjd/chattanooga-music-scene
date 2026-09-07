@@ -1,0 +1,16 @@
+[
+  "chattanooga-cms-admin/list-posts",
+  "chattanooga-cms-admin/get-post",
+  "chattanooga-cms-admin/create-post-draft",
+  "chattanooga-cms-admin/update-post",
+  "chattanooga-cms-admin/trash-post",
+  "chattanooga-cms-admin/restore-post",
+  "chattanooga-cms-admin/restore-post-revision",
+  "chattanooga-cms-admin/list-pages",
+  "chattanooga-cms-admin/get-page",
+  "chattanooga-cms-admin/create-page-draft",
+  "chattanooga-cms-admin/update-page",
+  "chattanooga-cms-admin/trash-page",
+  "chattanooga-cms-admin/restore-page",
+  "chattanooga-cms-admin/restore-page-revision"
+]

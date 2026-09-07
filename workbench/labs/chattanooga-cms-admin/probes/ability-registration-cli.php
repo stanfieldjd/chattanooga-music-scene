@@ -6,10 +6,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 $lab = dirname( __DIR__ );
-$expected = json_decode( file_get_contents( $lab . '/fixtures/expected-abilities.json' ), true );
-if ( ! is_array( $expected ) ) {
-	fwrite( STDERR, "Could not read expected ability fixture.\n" );
-	exit( 1 );
+$expected = array();
+foreach ( array( 'expected-abilities.json', 'expected-content-abilities.json' ) as $fixture ) {
+	$items = json_decode( file_get_contents( $lab . '/fixtures/' . $fixture ), true );
+	if ( ! is_array( $items ) ) {
+		fwrite( STDERR, "Could not read expected ability fixture {$fixture}.\n" );
+		exit( 1 );
+	}
+	$expected = array_merge( $expected, $items );
 }
 
 if ( 0 === did_action( 'wp_abilities_api_categories_init' ) ) {

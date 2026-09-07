@@ -23,7 +23,9 @@ require_once CMSA_DIR . 'includes/class-cmsa-backups.php';
 require_once CMSA_DIR . 'includes/class-cmsa-health.php';
 require_once CMSA_DIR . 'includes/class-cmsa-updates.php';
 require_once CMSA_DIR . 'includes/class-cmsa-lifecycle.php';
+require_once CMSA_DIR . 'includes/class-cmsa-content.php';
 require_once CMSA_DIR . 'includes/class-cmsa-abilities.php';
+require_once CMSA_DIR . 'includes/class-cmsa-content-abilities.php';
 require_once CMSA_DIR . 'includes/class-cmsa-plugin.php';
 
 CMSA_Plugin::instance();
