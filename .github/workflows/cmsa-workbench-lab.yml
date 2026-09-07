@@ -181,6 +181,21 @@ jobs:
           test "$(php /tmp/wp-cli.phar core version --path=/tmp/wordpress)" != "7.0"
           php /tmp/wp-cli.phar core is-installed --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin is-active chattanooga-cms-admin --path=/tmp/wordpress
+      - name: Reset legacy core for forced rollback probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar core update --version=7.0 --force --path=/tmp/wordpress
+          test "$(php /tmp/wp-cli.phar core version --path=/tmp/wordpress)" = "7.0"
+          php /tmp/wp-cli.phar plugin is-active chattanooga-cms-admin --path=/tmp/wordpress
+      - name: Verify forced core update rollback
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/forced-core-update-rollback-cli.php" --path=/tmp/wordpress
+          test "$(php /tmp/wp-cli.phar core version --path=/tmp/wordpress)" = "7.0"
+          php /tmp/wp-cli.phar core is-installed --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin is-active chattanooga-cms-admin --path=/tmp/wordpress
       - name: Upload runtime capability evidence
         uses: actions/upload-artifact@v4
         with:
