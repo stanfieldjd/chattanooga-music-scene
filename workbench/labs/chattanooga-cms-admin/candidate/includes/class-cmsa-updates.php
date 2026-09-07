@@ -120,31 +120,31 @@ final class CMSA_Updates {
 		$upgrader = new Plugin_Upgrader( new Automatic_Upgrader_Skin() );
 		$result = $upgrader->upgrade( $plugin, array( 'clear_update_cache' => true ) );
 		if ( is_wp_error( $result ) || false === $result ) {
-			return $this->rollback_error( 'cmsa_plugin_update_failed', 'Plugin update failed.', $backup['id'], is_wp_error( $result ) ? $result->get_error_message() : '' );
+			return $this->rollback_error( 'cmsa_plugin_update_failed', 'Plugin update failed.', $backup['id'] );
 		}
 
 		wp_clean_plugins_cache( true );
 		$plugins_after = get_plugins();
 		$after_version = isset( $plugins_after[ $plugin ] ) ? $plugins_after[ $plugin ]['Version'] : null;
 		if ( $after_version !== $target_version ) {
-			return $this->rollback_error( 'cmsa_plugin_version_verify', 'Plugin post-update version verification failed.', $backup['id'], (string) $after_version );
+			return $this->rollback_error( 'cmsa_plugin_version_verify', 'Plugin post-update version verification failed.', $backup['id'] );
 		}
 
 		if ( $was_active && ! is_plugin_active( $plugin ) ) {
 			$activation = activate_plugin( $plugin, '', is_multisite() && is_plugin_active_for_network( $plugin ), true );
 			if ( is_wp_error( $activation ) ) {
-				return $this->rollback_error( 'cmsa_plugin_activation_verify', 'Plugin did not remain active after update.', $backup['id'], $activation->get_error_message() );
+				return $this->rollback_error( 'cmsa_plugin_activation_verify', 'Plugin did not remain active after update.', $backup['id'] );
 			}
 		}
 
 		CMSA_Audit::record( 'update-plugin', $plugin, 'success', array( 'from' => $plugins[ $plugin ]['Version'], 'to' => $after_version, 'backup_id' => $backup['id'] ) );
 		return array(
-			'updated'         => true,
-			'plugin'          => $plugin,
-			'previous_version'=> $plugins[ $plugin ]['Version'],
-			'version'         => $after_version,
-			'backup_id'       => $backup['id'],
-			'reload_required' => true,
+			'updated'          => true,
+			'plugin'           => $plugin,
+			'previous_version' => $plugins[ $plugin ]['Version'],
+			'version'          => $after_version,
+			'backup_id'        => $backup['id'],
+			'reload_required'  => true,
 		);
 	}
 
@@ -177,13 +177,13 @@ final class CMSA_Updates {
 		$upgrader = new Theme_Upgrader( new Automatic_Upgrader_Skin() );
 		$result = $upgrader->upgrade( $stylesheet, array( 'clear_update_cache' => true ) );
 		if ( is_wp_error( $result ) || false === $result ) {
-			return $this->rollback_error( 'cmsa_theme_update_failed', 'Theme update failed.', $backup['id'], is_wp_error( $result ) ? $result->get_error_message() : '' );
+			return $this->rollback_error( 'cmsa_theme_update_failed', 'Theme update failed.', $backup['id'] );
 		}
 
 		wp_clean_themes_cache( true );
 		$after_version = wp_get_theme( $stylesheet )->get( 'Version' );
 		if ( $after_version !== $target_version ) {
-			return $this->rollback_error( 'cmsa_theme_version_verify', 'Theme post-update version verification failed.', $backup['id'], (string) $after_version );
+			return $this->rollback_error( 'cmsa_theme_version_verify', 'Theme post-update version verification failed.', $backup['id'] );
 		}
 
 		CMSA_Audit::record( 'update-theme', $stylesheet, 'success', array( 'from' => $before_version, 'to' => $after_version, 'backup_id' => $backup['id'] ) );
@@ -226,12 +226,12 @@ final class CMSA_Updates {
 		$upgrader = new Core_Upgrader( new Automatic_Upgrader_Skin() );
 		$result = $upgrader->upgrade( $selected );
 		if ( is_wp_error( $result ) || false === $result ) {
-			return $this->rollback_core_error( 'cmsa_core_update_failed', 'WordPress core update failed.', $backup['id'], is_wp_error( $result ) ? $result->get_error_message() : '' );
+			return $this->rollback_core_error( 'cmsa_core_update_failed', 'WordPress core update failed.', $backup['id'] );
 		}
 
 		$after_version = $this->read_core_version();
 		if ( $after_version !== $selected->version ) {
-			return $this->rollback_core_error( 'cmsa_core_version_verify', 'WordPress core post-update version verification failed.', $backup['id'], (string) $after_version );
+			return $this->rollback_core_error( 'cmsa_core_version_verify', 'WordPress core post-update version verification failed.', $backup['id'] );
 		}
 
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
@@ -251,15 +251,18 @@ final class CMSA_Updates {
 		$this->load_plugin_api();
 		$slug = sanitize_key( $slug );
 		$api = plugins_api( 'plugin_information', array( 'slug' => $slug, 'fields' => array( 'sections' => false ) ) );
-		if ( is_wp_error( $api ) || empty( $api->download_link ) ) {
-			return is_wp_error( $api ) ? $api : new WP_Error( 'cmsa_plugin_package', 'WordPress.org did not return an installable plugin package.' );
+		if ( is_wp_error( $api ) ) {
+			return CMSA_Errors::external( 'cmsa_plugin_package_lookup', 'WordPress.org plugin information could not be retrieved.' );
+		}
+		if ( empty( $api->download_link ) ) {
+			return new WP_Error( 'cmsa_plugin_package', 'WordPress.org did not return an installable plugin package.' );
 		}
 
 		require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
 		$upgrader = new Plugin_Upgrader( new Automatic_Upgrader_Skin() );
 		$result = $upgrader->install( $api->download_link );
 		if ( is_wp_error( $result ) || false === $result ) {
-			return is_wp_error( $result ) ? $result : new WP_Error( 'cmsa_plugin_install', 'Plugin installation failed.' );
+			return CMSA_Errors::external( 'cmsa_plugin_install', 'Plugin installation failed.' );
 		}
 
 		$plugin = $upgrader->plugin_info();
@@ -277,7 +280,7 @@ final class CMSA_Updates {
 		}
 		$result = activate_plugin( $plugin, '', (bool) $network_wide, true );
 		if ( is_wp_error( $result ) ) {
-			return $result;
+			return CMSA_Errors::external( 'cmsa_plugin_activation', 'Plugin activation failed.' );
 		}
 		if ( ! is_plugin_active( $plugin ) && ! ( is_multisite() && is_plugin_active_for_network( $plugin ) ) ) {
 			return new WP_Error( 'cmsa_plugin_activation_verify', 'Plugin activation did not persist.' );
@@ -303,14 +306,17 @@ final class CMSA_Updates {
 		require_once ABSPATH . 'wp-admin/includes/theme.php';
 		$slug = sanitize_key( $slug );
 		$api = themes_api( 'theme_information', array( 'slug' => $slug, 'fields' => array( 'sections' => false ) ) );
-		if ( is_wp_error( $api ) || empty( $api->download_link ) ) {
-			return is_wp_error( $api ) ? $api : new WP_Error( 'cmsa_theme_package', 'WordPress.org did not return an installable theme package.' );
+		if ( is_wp_error( $api ) ) {
+			return CMSA_Errors::external( 'cmsa_theme_package_lookup', 'WordPress.org theme information could not be retrieved.' );
+		}
+		if ( empty( $api->download_link ) ) {
+			return new WP_Error( 'cmsa_theme_package', 'WordPress.org did not return an installable theme package.' );
 		}
 		require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
 		$upgrader = new Theme_Upgrader( new Automatic_Upgrader_Skin() );
 		$result = $upgrader->install( $api->download_link );
 		if ( is_wp_error( $result ) || false === $result ) {
-			return is_wp_error( $result ) ? $result : new WP_Error( 'cmsa_theme_install', 'Theme installation failed.' );
+			return CMSA_Errors::external( 'cmsa_theme_install', 'Theme installation failed.' );
 		}
 		wp_clean_themes_cache( true );
 		$theme = wp_get_theme( $slug );
@@ -335,36 +341,18 @@ final class CMSA_Updates {
 		return array( 'switched' => true, 'previous_theme' => $previous, 'theme' => $stylesheet );
 	}
 
-	private function rollback_error( $code, $message, $backup_id, $detail = '' ) {
+	private function rollback_error( $code, $message, $backup_id ) {
 		$rollback = $this->backups->restore_component_backup( $backup_id );
 		$rolled_back = ! is_wp_error( $rollback );
 		CMSA_Audit::record( 'automatic-component-rollback', $backup_id, $rolled_back ? 'success' : 'failed' );
-		return new WP_Error(
-			$code,
-			$message,
-			array(
-				'detail'      => $detail,
-				'backup_id'   => $backup_id,
-				'rolled_back' => $rolled_back,
-				'rollback_error' => is_wp_error( $rollback ) ? $rollback->get_error_message() : null,
-			)
-		);
+		return CMSA_Errors::rollback( $code, $message, $backup_id, $rollback );
 	}
 
-	private function rollback_core_error( $code, $message, $backup_id, $detail = '' ) {
+	private function rollback_core_error( $code, $message, $backup_id ) {
 		$rollback = $this->backups->restore_core_backup( $backup_id );
 		$rolled_back = ! is_wp_error( $rollback );
 		CMSA_Audit::record( 'automatic-core-rollback', 'wordpress-core', $rolled_back ? 'success' : 'failed', array( 'backup_id' => $backup_id ) );
-		return new WP_Error(
-			$code,
-			$message,
-			array(
-				'detail'         => $detail,
-				'backup_id'      => $backup_id,
-				'rolled_back'    => $rolled_back,
-				'rollback_error' => is_wp_error( $rollback ) ? $rollback->get_error_message() : null,
-			)
-		);
+		return CMSA_Errors::rollback( $code, $message, $backup_id, $rollback );
 	}
 
 	private function refresh_updates() {

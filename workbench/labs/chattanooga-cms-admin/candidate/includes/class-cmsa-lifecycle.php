@@ -48,15 +48,7 @@ final class CMSA_Lifecycle {
 			if ( ! is_wp_error( $rollback ) && $was_active ) {
 				activate_plugin( $plugin, '', $was_network_active, true );
 			}
-			return new WP_Error(
-				'cmsa_plugin_delete_failed',
-				'Plugin deletion failed and rollback was attempted.',
-				array(
-					'backup_id'      => $backup['id'],
-					'rolled_back'    => ! is_wp_error( $rollback ),
-					'rollback_error' => is_wp_error( $rollback ) ? $rollback->get_error_message() : null,
-				)
-			);
+			return CMSA_Errors::rollback( 'cmsa_plugin_delete_failed', 'Plugin deletion failed and rollback was attempted.', $backup['id'], $rollback );
 		}
 
 		CMSA_Audit::record( 'delete-plugin', $plugin, 'success', array( 'backup_id' => $backup['id'] ) );
@@ -89,15 +81,7 @@ final class CMSA_Lifecycle {
 		wp_clean_themes_cache( true );
 		if ( is_wp_error( $result ) || false === $result || wp_get_theme( $stylesheet )->exists() ) {
 			$rollback = $this->backups->restore_component_backup( $backup['id'] );
-			return new WP_Error(
-				'cmsa_theme_delete_failed',
-				'Theme deletion failed and rollback was attempted.',
-				array(
-					'backup_id'      => $backup['id'],
-					'rolled_back'    => ! is_wp_error( $rollback ),
-					'rollback_error' => is_wp_error( $rollback ) ? $rollback->get_error_message() : null,
-				)
-			);
+			return CMSA_Errors::rollback( 'cmsa_theme_delete_failed', 'Theme deletion failed and rollback was attempted.', $backup['id'], $rollback );
 		}
 
 		CMSA_Audit::record( 'delete-theme', $stylesheet, 'success', array( 'backup_id' => $backup['id'] ) );

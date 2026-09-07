@@ -18,7 +18,7 @@ foreach ( $required_header_fragments as $fragment ) {
 	}
 }
 
-foreach ( array( 'class-cmsa-audit.php', 'class-cmsa-backups.php', 'class-cmsa-health.php', 'class-cmsa-updates.php', 'class-cmsa-lifecycle.php', 'class-cmsa-abilities.php', 'class-cmsa-plugin.php' ) as $required_include ) {
+foreach ( array( 'class-cmsa-errors.php', 'class-cmsa-audit.php', 'class-cmsa-backups.php', 'class-cmsa-health.php', 'class-cmsa-updates.php', 'class-cmsa-lifecycle.php', 'class-cmsa-abilities.php', 'class-cmsa-plugin.php' ) as $required_include ) {
 	if ( false === strpos( $plugin, $required_include ) ) {
 		fwrite( STDERR, "Plugin bootstrap does not load {$required_include}.\n" );
 		exit( 1 );

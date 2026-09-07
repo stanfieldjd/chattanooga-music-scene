@@ -254,7 +254,7 @@ final class CMSA_Backups {
 		$result = unzip_file( $archive, $temp );
 		if ( is_wp_error( $result ) ) {
 			$wp_filesystem->delete( $temp, true );
-			return $result;
+			return CMSA_Errors::external( 'cmsa_restore_unpack', 'Could not unpack the verified rollback archive.' );
 		}
 
 		$source = trailingslashit( $temp ) . sanitize_file_name( $meta['folder'] );
@@ -271,7 +271,7 @@ final class CMSA_Backups {
 		$result = copy_dir( $source, $destination );
 		$wp_filesystem->delete( $temp, true );
 		if ( is_wp_error( $result ) ) {
-			return $result;
+			return CMSA_Errors::external( 'cmsa_restore_copy', 'Could not restore the verified component archive.' );
 		}
 
 		CMSA_Audit::record( 'restore-component-backup', $meta['target'], 'success', array( 'backup_id' => $id ) );
@@ -337,7 +337,7 @@ final class CMSA_Backups {
 		$result = unzip_file( $archive, $temp );
 		if ( is_wp_error( $result ) ) {
 			$wp_filesystem->delete( $temp, true );
-			return $result;
+			return CMSA_Errors::external( 'cmsa_core_unpack', 'Could not unpack the verified core rollback archive.' );
 		}
 
 		$source = trailingslashit( $temp ) . 'wordpress-core';
@@ -354,19 +354,19 @@ final class CMSA_Backups {
 		$result = copy_dir( $source . '/wp-admin', ABSPATH . 'wp-admin' );
 		if ( is_wp_error( $result ) ) {
 			$wp_filesystem->delete( $temp, true );
-			return $result;
+			return CMSA_Errors::external( 'cmsa_core_copy', 'Could not restore WordPress core files.' );
 		}
 		$result = copy_dir( $source . '/wp-includes', ABSPATH . 'wp-includes' );
 		if ( is_wp_error( $result ) ) {
 			$wp_filesystem->delete( $temp, true );
-			return $result;
+			return CMSA_Errors::external( 'cmsa_core_copy', 'Could not restore WordPress core files.' );
 		}
 
 		foreach ( isset( $meta['root_files'] ) ? $meta['root_files'] : array() as $root_file ) {
 			$root_file = basename( $root_file );
 			if ( ! $wp_filesystem->copy( $source . '/' . $root_file, ABSPATH . $root_file, true, FS_CHMOD_FILE ) ) {
 				$wp_filesystem->delete( $temp, true );
-				return new WP_Error( 'cmsa_core_copy', 'Could not restore core root file ' . $root_file . '.' );
+				return new WP_Error( 'cmsa_core_copy', 'Could not restore a WordPress core root file.' );
 			}
 		}
 
@@ -394,13 +394,13 @@ final class CMSA_Backups {
 			$create = $wpdb->get_row( 'SHOW CREATE TABLE ' . $identifier, ARRAY_N );
 			if ( ! $create || empty( $create[1] ) ) {
 				fclose( $handle );
-				return new WP_Error( 'cmsa_database_schema', 'Could not read schema for table ' . $table . '.' );
+				return new WP_Error( 'cmsa_database_schema', 'Could not read a database table schema.' );
 			}
 
 			$column_definitions = $wpdb->get_results( 'SHOW COLUMNS FROM ' . $identifier, ARRAY_A );
 			if ( ! is_array( $column_definitions ) || empty( $column_definitions ) ) {
 				fclose( $handle );
-				return new WP_Error( 'cmsa_database_columns', 'Could not read column definitions for table ' . $table . '.' );
+				return new WP_Error( 'cmsa_database_columns', 'Could not read database column definitions.' );
 			}
 			$numeric_columns = array();
 			foreach ( $column_definitions as $definition ) {
@@ -429,7 +429,7 @@ final class CMSA_Backups {
 							$numeric_value = (string) $value;
 							if ( ! is_numeric( $numeric_value ) ) {
 								fclose( $handle );
-								return new WP_Error( 'cmsa_database_numeric', 'Database backup encountered a non-numeric value in numeric column ' . $table . '.' . $column . '.' );
+								return new WP_Error( 'cmsa_database_numeric', 'Database backup encountered an invalid numeric-column value.' );
 							}
 							$values[] = $numeric_value;
 						} elseif ( '' === (string) $value ) {
@@ -471,7 +471,7 @@ final class CMSA_Backups {
 			$result = $wpdb->query( $sql );
 			if ( false === $result ) {
 				fclose( $handle );
-				return new WP_Error( 'cmsa_database_restore_query', 'Database restore failed: ' . $wpdb->last_error );
+				return CMSA_Errors::external( 'cmsa_database_restore_query', 'Database restore failed while applying the verified snapshot.' );
 			}
 		}
 		fclose( $handle );
