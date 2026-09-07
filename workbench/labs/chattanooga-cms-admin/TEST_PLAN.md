@@ -1,6 +1,6 @@
 # Chattanooga CMS Admin Workbench Test Plan
 
-Tests are ordered so that a failure in a lower-risk prerequisite blocks higher-risk operations. Disposable GitHub/WordPress fixtures are used before any Chattanooga runtime test.
+Tests are ordered so that a failure in a lower-risk prerequisite blocks higher-risk operations. Disposable GitHub/WordPress fixtures are used before any Chattanooga runtime mutation.
 
 ## Gate 0 — Source and architecture
 Status: PASS
@@ -8,39 +8,41 @@ Status: PASS
 - PHP 7.4 and PHP 8.2 lint.
 - No arbitrary shell/PHP/SQL execution surface.
 - No custom direct REST route registration.
-- Exact expected ability manifest.
+- Exact expected ability manifests.
 
 ## Gate 1 — Real WordPress 7.1 registration
 Status: PASS
 - Install and activate candidate.
 - Verify native Abilities API.
-- Register category/all 24 abilities and retrieve them through real registry.
+- Register category and all current 38 abilities: 24 maintenance + 14 bounded post/page abilities.
+- Latest registration evidence: run `34168314548`, `wordpress-ability-registration: PASS (38 abilities)`.
 
 ## Gate 2 — Backup primitives and fail-closed restore
 Status: PASS in disposable reference runtime
-Evidence: runs `34165007012`, `34165355234`, `34166633321`, and `34166835095`.
 - database backup + SHA-256 verification;
-- plugin component exact-byte restore;
-- database sentinel restore and numeric primary-key identity;
-- theme deletion/restore fidelity;
-- core + database snapshot and exact deliberate-mutation restore;
-- corrupted component archive rejection without target mutation;
-- missing component archive rejection;
-- corrupted database snapshot rejection without database mutation;
-- all configured backup paths unavailable/read-only returns `cmsa_backup_directory` and creates no backup;
-- progressive short writes are completed exactly;
-- stalled writes fail rather than accepting truncated database output;
-- partial database output is removed when writing/finalization fails;
-- component and core ZIP finalization failure is checked and incomplete/zero-byte archive output is removed;
-- exact static/behavioral closure output: `backup-write-integrity-test: PASS progressive-partials=completed stalled-write=rejected database-dump=guarded archives=finalization-guarded`.
-DreamHost capacity/ownership/filesystem behavior remains a separate Gate 9 fact.
+- plugin/theme/core rollback material and exact restore;
+- numeric primary-key database fidelity;
+- corrupt/missing material rejection before target mutation;
+- all backup locations unavailable fails before backup creation;
+- progressive short writes complete exactly;
+- stalled writes fail and incomplete SQL is removed;
+- component/core ZIP finalization failure or zero-byte output is rejected and removed.
+Latest full regression: `34168314554`.
 
 ## Gate 3 — Permission, exposure, and error model
 Status: PASS
-- All 24 abilities denied anonymous and allowed administrator.
-- Exact isolation across 10 intended WordPress capabilities.
-- Candidate `show_in_rest=false` abilities absent from REST collection and direct execution probes failed closed.
-- Sensitive-marker error-output regression passed for plugin API, plugin updater rollback, and database restore after candidate repair.
+Maintenance:
+- 24 maintenance abilities denied anonymous and allowed administrator.
+- Exact isolation across 10 intended maintenance capabilities.
+Content slice:
+- 14 post/page abilities denied anonymous and allowed administrator.
+- Limited user with only post edit/delete capabilities receives only post-level ability access.
+- Object-level checks prevent access to another author's post without `edit_others_posts`.
+- Page access remains denied without page capabilities.
+Exposure/error boundaries:
+- Candidate abilities remain `show_in_rest=false` and absent from direct REST execution surface.
+- Sensitive-marker error-output regression remains green.
+Evidence: maintenance run `34168314554`; content run `34168314548`.
 
 ## Gate 4 — Lifecycle operations
 Status: PASS
@@ -48,63 +50,96 @@ Status: PASS
 - Plugin auto-update enable/disable.
 - Backup-protected plugin deletion/restore.
 - Backup-protected theme deletion/restore.
-- Candidate-controlled switch to the fixture theme and return to original theme.
-- Theme auto-update enable/disable persistence and original-state restoration.
+- Theme switch/return.
+- Theme auto-update enable/disable with original state restoration.
 
 ## Gate 5 — Update engine
 Status: PASS
-Evidence includes full run `34166835095`.
-- Real WordPress.org plugin update with rollback backup passed.
-- Twenty Twenty-One 1.8 -> 2.9 theme update and exact rollback passed.
-- Forced plugin post-update validation failure and exact automatic rollback passed.
-- Deterministic local v1 fixture returns `cmsa_plugin_no_update` when no update is offered.
-- Synthetic local v2 package updates v1→v2 and preserves activation.
-- Malformed synthetic package fails closed and restores exact active v1 files from the verified rollback backup.
+- Real WordPress.org plugin update with rollback backup.
+- Theme update and exact rollback.
+- Forced plugin post-update validation failure and exact automatic rollback.
+- Deterministic no-update, local v1→v2, malformed-package fail-closed exact rollback.
+Latest full evidence: `34168314554`.
 
 ## Gate 6 — Core update/rollback
 Status: PASS
-- Verified core+DB rollback snapshot.
-- Exact independent core/database restore.
-- Candidate-controlled real `Core_Upgrader` 7.0 -> 7.1 transaction.
-- Post-update bootstrap and preservation of config/content/database/plugin state.
-- Deliberate post-update validation mismatch and exact automatic rollback.
-- Schema-aware numeric DB serialization repair regression.
-- Full regression remained green after database/ZIP storage-integrity repairs.
+- Core+DB rollback snapshot.
+- Exact independent restore.
+- Candidate-controlled 7.0 -> 7.1 core transaction.
+- Configuration/content/database/plugin preservation.
+- Deliberate validation mismatch and automatic exact core/database rollback.
+Latest full evidence: `34168314554`.
 
 ## Gate 7 — Package-network/privacy surface
 Status: PASS for exercised WordPress.org package operations
-- Five disposable private-marker classes scanned in raw, URL-encoded, and base64 forms.
-- 12 requests observed only to WordPress.org API/download hosts in the privacy capture gate.
-- No seeded private marker appeared in captured request material.
+- Seeded private markers absent from captured WordPress.org API/download requests.
+- No direct candidate vendor transport.
+- Public upstream errors bounded/redacted.
 
 ## Gate 8 — Multisite cache execution
 Status: PASS
-Latest evidence: CMS Admin Multisite Lab run `34166835071`, candidate commit `286a8d15d905b60380b5173cb084fabfd7c3ce43`.
-- Real WordPress 7.1 multisite network installed.
-- Candidate network activation verified.
-- Multisite cache branch remained green after the storage-integrity repairs.
+- Real WordPress 7.1 multisite network installation and candidate network activation.
+- Cache branch verified.
+- Layer B candidate source remained compatible with multisite network activation in run `34168247940`.
 
-## Gate 9 — Chattanooga/DreamHost read-only preflight
-Status: NEXT / NOT YET COMPLETE
-No mutation at this gate.
-- WordPress/PHP exact versions.
-- Abilities API availability.
-- ZipArchive.
-- WordPress filesystem method.
-- plugin/theme/wp-content writability.
-- preferred backup directory parent writability.
-- disk-space feasibility for backup sizes.
-- WP Super Cache functions.
-- file-modification policy constants.
-- existing MCP transport's observable discovery behavior.
-Only facts actually exposed by the current connected WordPress/DreamHost surface may be marked verified; unavailable server-level facts remain UNKNOWN.
+## Gate 9 — Bounded WordPress content administration
+Status: PASS for first post/page slice
+Evidence: CMS Admin Content Layer Lab run `34168314548`, candidate commit `b5ba61e0f435624a6f834566a3fa85ede13221f7`.
 
-## Gate 10 — Chattanooga installation/runtime
+Registration:
+- 14 explicit content abilities added separately from the 24 maintenance abilities.
+
+Read/create/update behavior:
+- bounded post/page list with page/per_page/search/status filters;
+- object-level post/page read;
+- draft-only creation;
+- page-parent validation;
+- exact `post_modified_gmt` optimistic-concurrency check;
+- stale update fails closed without changing content;
+- native WordPress revision rollback point before mutation;
+- post/page title/content/excerpt update verification;
+- target-owned revision restore with pre-restore rollback revision.
+
+Lifecycle/isolation behavior:
+- trash and restore only; permanent deletion is not in this slice;
+- author-scoped listing when user cannot edit others' content;
+- page parent relationship preserved;
+- unrelated control content remains unchanged.
+
+Exact outputs:
+- `content-permission-cli: PASS abilities=14 limited=post-only object-scope=verified`
+- `content-transaction-cli: PASS post=draft-conflict-update-revision-trash-restore page=parent-update-trash-restore unrelated=unchanged`
+
+Next content sub-gates:
+- publish/unpublish/schedule/private/pending transitions;
+- taxonomy/category/tag assignment and lifecycle;
+- media and featured-image relationships;
+- permanent deletion only with a separately tested explicit contract;
+- menus/navigation/options/comments where actually required.
+
+## Gate 10 — Chattanooga/DreamHost read-only preflight
+Status: PARTIAL PASS / NON-MUTATING
+Verified through current connected WordPress surface:
+- WordPress 7.1;
+- PHP 8.2.30;
+- MySQL 8.0.41;
+- WordPress root, wp-content, uploads, plugins, themes, and MU-plugins writable;
+- WP Super Cache active and WP_CACHE enabled;
+- existing MCP surface discoverable with 311 abilities;
+- candidate abilities absent because candidate is not deployed.
+
+Still UNKNOWN through current surface:
+- free disk capacity / production backup-size feasibility;
+- WordPress filesystem method;
+- direct live ZipArchive availability;
+- outside-web-root preferred backup parent writability.
+
+## Gate 11 — Chattanooga installation/runtime
 Status: NOT AUTHORIZED BY WORKBENCH TESTING ALONE
 Requires separate production authorization and rollback transaction.
 - install exact validated candidate package;
 - activate;
-- discover all expected abilities through actual AI transport;
+- discover expected abilities through actual AI transport;
 - run health inventory;
 - create and verify local backup;
 - perform only separately authorized live mutations.

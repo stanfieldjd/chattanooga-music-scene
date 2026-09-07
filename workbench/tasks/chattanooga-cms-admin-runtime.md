@@ -1,6 +1,6 @@
 # Task: Chattanooga CMS Admin Runtime Integration
 
-Status: REFERENCE_MAINTENANCE_VERIFIED — DREAMHOST/MCP + TYPED_ADMIN PENDING
+Status: REFERENCE_MAINTENANCE_AND_CONTENT_SLICE_VERIFIED — LIVE PREFLIGHT PARTIAL / MCP DEPLOYMENT PENDING
 
 ## Objective
 
@@ -24,74 +24,96 @@ Develop Chattanooga CMS Admin through an isolated engineering lab, determine whi
 - Existing MCP transport is not removed as an incidental operation.
 - No production plugin/theme/core update is bundled into workbench validation.
 
-## Evidence
+## Current evidence
 
 - Verified source checkpoint: `0b34773ebc8073cb657477770b34cabc280f5892`.
-- Source PHP 7.4 syntax workflow passed at GitHub Actions run `34115195808`.
-- Immutable workbench baseline reuses the exact source Git blobs.
-- Latest complete single-site/full-regression execution: CMS Admin Workbench Lab run `34166835095`, test commit `286a8d15d905b60380b5173cb084fabfd7c3ce43`.
-- Runtime capability artifact id `10034438937`, SHA-256 `24ee7663f8ec92d6e0c7bf99b59c5790587f31f1e0e7ab9cfebc81a7a6c9cbc1`.
-- Latest real WordPress 7.1 multisite regression: run `34166835071`, same candidate checkpoint.
-- Corrupt/missing rollback material gate passed: `corrupt-backup-rejection-cli: PASS component=checksum-rejected missing=fail-closed database=checksum-rejected target=unchanged`.
-- Unavailable-storage fault gate passed in run `34165355234`: `storage-failure-cli: PASS all-backup-paths=unwritable backup=not-created`.
-- Deterministic plugin update edge gate passed in run `34166093601`: no-update rejection, local v1→v2 success with activation preserved, and malformed-package exact active-v1 rollback.
-- Partial/stalled stream-write fault injection exposed missing complete-write enforcement; the database writer was repaired to write all bytes or fail and delete incomplete SQL output.
-- Archive-finalization fault injection exposed unchecked `ZipArchive::close()` results; component and core archive writers now fail closed and remove incomplete/zero-byte archives.
-- Exact storage-integrity closure output in the PHP 7.4 lab: `backup-write-integrity-test: PASS progressive-partials=completed stalled-write=rejected database-dump=guarded archives=finalization-guarded`.
-- PHP 7.4, PHP 8.2, the complete WordPress 7.1 single-site regression, and the real multisite regression all passed after the storage repairs.
+- Current workbench content candidate: `b5ba61e0f435624a6f834566a3fa85ede13221f7`.
+- Full maintenance regression: CMS Admin Workbench Lab run `34168314554`; PHP 7.4, PHP 8.2, and complete WordPress 7.1 runtime all passed.
+- Runtime artifact: id `10034902046`, SHA-256 `ebf4f3e668d0e73dd19a539732570b1d7cd66d7b8c34c31921da2c7222f20b95`.
+- Dedicated Layer B content regression: CMS Admin Content Layer Lab run `34168314548`.
+- Content registration result: `wordpress-ability-registration: PASS (38 abilities)` — 24 maintenance plus 14 post/page abilities.
+- Content permission result: `content-permission-cli: PASS abilities=14 limited=post-only object-scope=verified`.
+- Content transaction result: `content-transaction-cli: PASS post=draft-conflict-update-revision-trash-restore page=parent-update-trash-restore unrelated=unchanged`.
+- Real WordPress 7.1 multisite network activation for the same candidate source passed in run `34168247940`.
+- Workbench integrity passed in run `34168314530`.
 - Source has not been merged to `main` and has not been installed on Chattanooga Music Scene.
 
-## Workbench gates
+## Maintenance gates completed
 
-Completed:
+- [x] Exact immutable source Git blob identities.
+- [x] PHP 7.4 and PHP 8.2 compatibility.
+- [x] No arbitrary shell/PHP/SQL execution surface and no candidate-owned generic REST route.
+- [x] 24 maintenance abilities in real WordPress registry.
+- [x] Maintenance permission matrix and REST isolation.
+- [x] Database/component/theme/core backup and exact rollback paths.
+- [x] Plugin/theme lifecycle and WordPress.org update/install transactions.
+- [x] Normal core update 7.0 -> 7.1 and forced core rollback.
+- [x] Package-network privacy and public error redaction.
+- [x] Single-site and multisite cache behavior.
+- [x] Corrupt/missing rollback material rejection.
+- [x] Fully unavailable backup storage rejection.
+- [x] Deterministic plugin update edges.
+- [x] Progressive/stalled database write enforcement.
+- [x] Component/core ZIP finalization enforcement.
 
-- [x] Verify immutable source Git blob identities.
-- [x] PHP lint on 7.4 and 8.2.
-- [x] Reject arbitrary shell/PHP execution primitives and direct custom REST route registration.
-- [x] Verify expected 24 abilities under WordPress stubs and real WordPress registry.
-- [x] Verify all 24 ability permission callbacks against anonymous, administrator, and capability-isolated users.
-- [x] Verify candidate REST isolation.
-- [x] Verify database backup/checksum, database restore, and numeric primary-key identity.
-- [x] Verify controlled plugin and theme component rollback.
-- [x] Verify WordPress.org plugin install/activate/deactivate/update transaction.
-- [x] Verify theme update transaction and exact rollback fidelity.
-- [x] Verify core+database snapshot and exact restore fidelity.
-- [x] Force plugin validation failure and prove automatic exact rollback.
-- [x] Execute candidate-controlled WordPress core update 7.0 -> 7.1 and preserve configuration/content/database/plugin state.
-- [x] Force core post-update validation failure and prove automatic exact core/database rollback.
-- [x] Capture candidate-triggered WordPress package requests and prove seeded private markers are absent.
-- [x] Fault-inject upstream errors and prove public error outputs redact seeded sensitive markers while preserving rollback state.
-- [x] Verify theme switch/return and theme auto-update enable/disable persistence with original state restoration.
-- [x] Execute the cache branch in a real WordPress 7.1 multisite installation with network activation and verify `wordpress-blog-cache`.
-- [x] Reject corrupted/missing rollback material before restore with target state unchanged.
-- [x] Make every configured backup path non-writable and verify backup creation fails closed with no backup created.
-- [x] Verify deterministic local plugin update edge cases: no-update, v1→v2 success, malformed-package exact rollback.
-- [x] Detect progressive/stalled database stream writes; complete all bytes or fail and remove incomplete output.
-- [x] Detect component/core ZIP finalization failure and reject missing/zero-byte output before metadata is accepted.
+## Layer B — bounded WordPress content administration
 
-Pending workbench/runtime tests:
+Reference-verified first slice:
 
-- [ ] DreamHost/Chattanooga read-only capability probe.
-- [ ] Actual Chattanooga MCP discovery of the registered abilities after separately authorized installation/activation.
-- [ ] Broader content/member/event/commerce/site-specific typed abilities from `ROADMAP.md`.
+- [x] List posts/pages with bounded pagination/search/status filters.
+- [x] Object-level get for posts/pages.
+- [x] Draft-only post/page creation; no implicit publishing.
+- [x] Conflict-checked title/content/excerpt updates using exact `post_modified_gmt`.
+- [x] Native WordPress revision rollback point before updates.
+- [x] Restore a target-owned revision after conflict validation.
+- [x] Trash and restore posts/pages; no permanent-delete path in this slice.
+- [x] Page parent validation and preservation.
+- [x] Author scoping for users without `edit_others_*` authority.
+- [x] Unrelated-content sentinel remains unchanged through transactions.
 
-## Runtime mutation set — future separately authorized phase
+Not yet implemented/tested in Layer B:
 
-1. Establish an authorized installation path for the exact validated candidate/package.
-2. Create/verify a production rollback point.
-3. Install and activate Chattanooga CMS Admin.
-4. Discover registered `chattanooga-cms-admin/*` abilities through the actual AI transport.
-5. Run read-only health/runtime inventory.
-6. Create and verify a local backup.
-7. Perform only separately authorized live mutations.
+- [ ] Publish/unpublish/schedule/private/pending status transitions.
+- [ ] Permanent content deletion.
+- [ ] Taxonomy/category/tag assignment and term lifecycle.
+- [ ] Media upload/replace/delete and featured-image relationships.
+- [ ] Menus/navigation and bounded site-option administration.
+- [ ] Comments/moderation if required.
+
+## Chattanooga/DreamHost read-only preflight
+
+Partially verified through the existing connected WordPress surface, with no mutation:
+
+- WordPress `7.1`.
+- PHP `8.2.30`.
+- MySQL `8.0.41`.
+- WordPress root, `wp-content`, uploads, plugins, themes, and MU-plugins reported writable.
+- WP Super Cache is active and `WP_CACHE` is enabled.
+- Existing MCP transport exposed 311 current abilities.
+- No `chattanooga-cms-admin/*` abilities were present, consistent with the candidate not being deployed.
+
+Still UNKNOWN from the current live read-only surface:
+
+- free disk capacity / production backup-size feasibility;
+- WordPress filesystem method;
+- direct live `ZipArchive` availability;
+- preferred outside-web-root backup parent writability.
+
+## Pending runtime/deployment gates
+
+- [ ] Establish a separately authorized installation and rollback transaction for the exact validated candidate.
+- [ ] Install/activate candidate on Chattanooga Music Scene only after that rollback point exists.
+- [ ] Discover the candidate abilities through the actual Chattanooga MCP transport.
+- [ ] Run candidate health inventory and verify a local production rollback backup before live maintenance mutations.
+- [ ] Continue broader typed administration layers from `ROADMAP.md` in disposable workbench fixtures first.
 
 ## Risk set
 
-- Reference GitHub filesystem behavior does not prove DreamHost behavior.
-- Actual free disk capacity, filesystem method, ownership/permissions, and backup parent writability remain live-environment facts.
-- WP-CLI registration lifecycle behavior differs from normal web bootstrap and is explicitly invoked in disposable tests where required.
+- Reference GitHub filesystem behavior does not prove all DreamHost filesystem/storage behavior.
+- Actual free disk capacity, filesystem method, ZipArchive, and preferred backup-parent writability remain live-environment facts.
 - Actual MCP transport may expose/filter metadata differently than the WordPress registry.
-- Package privacy evidence covers the exercised WordPress.org operations only; WooCommerce-specific or unrelated plugin traffic remains separate.
+- Layer B currently covers only bounded post/page draft/update/revision/trash/restore operations; publishing, taxonomy/media, member, event, and commerce operations require separate contracts and tests.
+- Package privacy evidence covers the exercised WordPress.org operations only; unrelated plugins and WooCommerce-specific traffic remain separate.
 
 ## Rollback point
 
@@ -106,12 +128,8 @@ NOT_DEPLOYED
 
 ## Result journal
 
-- 2026-09-07: Source built and PHP 7.4 syntax validation passed.
-- 2026-09-07: Workbench lab established with immutable baseline, mutable candidate, static/stub tests, and capability matrix.
-- 2026-09-07: Real WordPress 7.1 registration, permissions, REST isolation, backup/restore, lifecycle, update, and rollback gates advanced through repeated full regression runs.
-- 2026-09-07: Numeric database serialization defect found by forced-core rollback, repaired at the serializer, and exact numeric primary-key restore fidelity proven.
-- 2026-09-07: WordPress package-network privacy and public error-redaction gates passed.
-- 2026-09-07: Expanded theme lifecycle and real multisite cache branches passed.
-- 2026-09-07: Corrupt/missing backup material and fully unavailable backup storage both failed closed in real WordPress reference runs.
-- 2026-09-07: Deterministic local plugin update edge cases passed in full regression run `34166093601`.
-- 2026-09-07: Partial database-write and ZIP-finalization defects were exposed by failing-first tests, repaired at the storage writers, and closed by full regression run `34166835095` plus multisite run `34166835071`.
+- 2026-09-07: Maintenance layer advanced through registration, permissions, backup/restore, update/rollback, privacy, redaction, storage-integrity, and multisite gates.
+- 2026-09-07: Read-only Chattanooga preflight confirmed WordPress/PHP/MySQL versions, relevant WordPress directory writability, WP Super Cache presence, and current MCP discovery surface; unavailable server-level facts remain unknown.
+- 2026-09-07: Added bounded Layer B post/page service and 14 typed abilities. A syntax defect in the new permission probe was corrected without changing candidate product source.
+- 2026-09-07: Layer B run `34168314548` passed all 38 ability registration, content permission/object scoping, draft/conflict/revision/trash/restore, page-parent, and unrelated-content tests.
+- 2026-09-07: Full maintenance run `34168314554` and multisite run `34168247940` remained green with the Layer B candidate.
