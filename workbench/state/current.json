@@ -13,14 +13,27 @@
       "branch": "feature/chattanooga-cms-admin",
       "head_sha": "0b34773ebc8073cb657477770b34cabc280f5892",
       "source_path": "site-plugins/chattanooga-cms-admin",
-      "state": "workbench_lab_pending_ci",
+      "state": "workbench_lab_reference_verified_dreamhost_pending",
       "validation": {
         "source_php_7_4_syntax": "passed",
         "source_workflow_run_id": 34115195808,
         "lab_path": "workbench/labs/chattanooga-cms-admin",
-        "lab_source_mirror": "exact_git_blobs",
-        "lab_php_targets": ["7.4", "8.2"],
-        "runtime_wordpress_7_1": "not_run"
+        "immutable_baseline": "exact_git_blobs",
+        "candidate_path": "workbench/labs/chattanooga-cms-admin/candidate",
+        "lab_php_7_4": "passed",
+        "lab_php_8_2": "passed",
+        "reference_wordpress_7_1": "passed",
+        "reference_lab_run_id": 34118396822,
+        "reference_test_commit": "76f7f8a05f07014b13712b011cfec9fb69d0b666",
+        "real_registry_expected_abilities": 24,
+        "real_registry_result": "passed",
+        "database_backup_checksum": "passed",
+        "component_backup_restore": "passed",
+        "dreamhost_read_only_probe": "not_run",
+        "chattanooga_mcp_discovery": "not_run",
+        "database_restore": "not_run",
+        "core_backup_restore": "not_run",
+        "update_transactions": "not_run"
       }
     },
     {
@@ -33,5 +46,5 @@
     }
   ],
   "live_state_policy": "refresh_before_action",
-  "production_claim_policy": "source_or_ci_success_never_implies_live_deployment"
+  "production_claim_policy": "source_or_reference_ci_success_never_implies_live_deployment"
 }

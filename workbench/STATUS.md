@@ -18,10 +18,13 @@ Last verified: 2026-09-07
 - Path: `site-plugins/chattanooga-cms-admin`
 - Source validation: PHP 7.4 syntax workflow passed.
 - Workbench lab: `workbench/labs/chattanooga-cms-admin`
-- Lab source mirror: exact Git-blob mirror of the verified source checkpoint.
-- Lab validation targets: PHP 7.4 + PHP 8.2, source-blob integrity, architecture/security scan, stubbed Abilities registration.
+- Immutable lab baseline: exact Git-blob mirror of the verified source checkpoint.
+- Mutable coding candidate: `workbench/labs/chattanooga-cms-admin/candidate`.
+- Reference runtime: disposable WordPress 7.1 + PHP 8.2 + MySQL 8.0 in GitHub Actions.
+- Latest execution evidence: CMS Admin Workbench Lab run `34118396822` on commit `76f7f8a05f07014b13712b011cfec9fb69d0b666`.
+- Passed: PHP 7.4/8.2 lab, source integrity, security/architecture scan, 24-ability stub registration, candidate activation on real WordPress 7.1, 24-ability real registry verification, database backup/checksum, controlled plugin component backup/mutation/restore.
 - Production state: not merged to `main`; not installed on Chattanooga Music Scene.
-- Runtime-dependent capabilities remain UNKNOWN/CONDITIONAL until WordPress 7.1 probes and controlled execution tests pass.
+- Remaining runtime gates: DreamHost filesystem/policy probe, actual Chattanooga MCP discovery, permission matrix, REST exposure verification, database/core restore tests, update transactions, package-network privacy capture, and broader content/member/event/commerce ability implementation.
 
 ### Chattanooga Music Scene Weekend Feature
 
@@ -32,8 +35,8 @@ Last verified: 2026-09-07
 
 ## Site-operation state
 
-The workbench does not cache live WordPress state as authoritative. Before plugin updates, theme updates, event cleanup, venue repair, taxonomy changes, or other live mutations, query Chattanooga Music Scene again and treat that result as the current site position.
+The workbench does not cache live WordPress state as authoritative. Before plugin updates, theme updates, event cleanup, venue repair, taxonomy changes, member administration, or other live mutations, query Chattanooga Music Scene again and treat that result as the current site position.
 
 ## Current engineering principle
 
-Source work, lab evidence, deployment, and live verification are separate states. A successful GitHub commit or CI run does not establish installation, deployment, activation, MCP discovery, or correct live behavior.
+`plugin/` is the immutable source checkpoint; `candidate/` is the coding surface. Source evidence, reference-runtime evidence, Chattanooga/DreamHost evidence, deployment, and live verification remain separate states. A successful GitHub test does not establish production installation or behavior.

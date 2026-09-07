@@ -1,17 +1,19 @@
 # Task: Chattanooga CMS Admin Runtime Integration
 
-Status: WORKBENCH_LAB_PENDING_CI
+Status: REFERENCE_RUNTIME_VERIFIED — DREAMHOST/MCP PENDING
 
 ## Objective
 
-Promote the validated Chattanooga CMS Admin source through an isolated engineering lab, determine which WordPress/DreamHost capabilities are actually available, then establish an authorized WordPress test/deployment path and prove backup/health/rollback behavior before production maintenance is permitted.
+Develop Chattanooga CMS Admin through an isolated engineering lab, determine which WordPress capabilities are actually usable, and establish evidence-backed gates before production maintenance or broader site administration is permitted.
 
 ## Target set
 
 - Source: `site-plugins/chattanooga-cms-admin`
 - Source branch: `feature/chattanooga-cms-admin`
 - Workbench lab: `workbench/labs/chattanooga-cms-admin`
-- WordPress plugin installation for Chattanooga CMS Admin only during a separately authorized deployment phase.
+- Immutable baseline: `workbench/labs/chattanooga-cms-admin/plugin`
+- Mutable coding candidate: `workbench/labs/chattanooga-cms-admin/candidate`
+- WordPress plugin installation for Chattanooga CMS Admin only during a separately authorized production phase.
 
 ## Exclusion set
 
@@ -20,68 +22,73 @@ Promote the validated Chattanooga CMS Admin source through an isolated engineeri
 - Existing Chattanooga Music Scene content and member records are not mutation targets for lab/runtime preflight testing.
 - The existing Weekend Feature plugin is not part of this task.
 - Existing MCP transport is not removed as an incidental operation.
-- No production plugin/theme/core update is bundled into initial runtime validation.
+- No production plugin/theme/core update is bundled into workbench validation.
 
 ## Evidence
 
 - Verified source checkpoint: `0b34773ebc8073cb657477770b34cabc280f5892`.
-- PHP 7.4 source syntax workflow passed at GitHub Actions run `34115195808`.
-- Workbench lab mirrors the verified source using the exact Git blobs.
+- Source PHP 7.4 syntax workflow passed at GitHub Actions run `34115195808`.
+- Immutable workbench baseline reuses the exact source Git blobs.
+- Reference execution: CMS Admin Workbench Lab run `34118396822`, test commit `76f7f8a05f07014b13712b011cfec9fb69d0b666`.
+- Candidate passed PHP 7.4 and PHP 8.2 lab gates.
+- Disposable real WordPress 7.1 accepted and activated the candidate.
+- All expected 24 abilities were found through WordPress's actual ability registry after lifecycle execution.
+- Database backup creation and SHA-256 verification passed.
+- Disposable plugin fixture backup, deliberate mutation, restore, and exact-byte verification passed.
 - Source has not been merged to `main` and has not been installed on Chattanooga Music Scene.
 
-## Workbench lab gates
+## Workbench gates
 
-1. Verify mirrored Git blob identities.
-2. PHP lint on 7.4 and 8.2.
-3. Reject arbitrary shell/PHP execution primitives and direct REST route registration.
-4. Verify expected Abilities category, names, schemas, annotations, and permission callbacks under WordPress stubs.
-5. Preserve a capability matrix where runtime-dependent functions remain UNKNOWN/CONDITIONAL.
-6. Prepare a read-only WordPress runtime probe for Abilities API, upgrader classes, filesystem, ZipArchive, backup paths, cache APIs, database availability, and file-modification policy constants.
+Completed:
 
-## Runtime mutation set — future authorized phase
+- [x] Verify immutable source Git blob identities.
+- [x] PHP lint on 7.4 and 8.2.
+- [x] Reject arbitrary shell/PHP execution primitives and direct custom REST route registration.
+- [x] Verify expected 24 abilities under WordPress stubs.
+- [x] Install and activate candidate on disposable WordPress 7.1.
+- [x] Verify native Abilities API functions in real WordPress 7.1.
+- [x] Verify all 24 abilities through WordPress's real registry.
+- [x] Verify database backup + checksum.
+- [x] Verify controlled plugin component rollback.
 
-1. Establish an authorized installation path for the exact validated plugin package/source.
-2. Install and activate Chattanooga CMS Admin.
-3. Discover registered `chattanooga-cms-admin/*` abilities.
-4. Run read-only health/update inventory and runtime capability probe.
-5. Create a local backup and verify checksums.
-6. Exercise a non-destructive control such as cache clear only if appropriate to the verified live state.
-7. Test rollback capability on a deliberately controlled component before production maintenance abilities are used.
+Pending workbench/runtime tests:
+
+- [ ] Database sentinel restore.
+- [ ] Theme component backup/restore.
+- [ ] Core backup/create/restore transaction.
+- [ ] Permission matrix by WordPress capability/role.
+- [ ] Candidate-specific REST exposure verification.
+- [ ] Plugin/theme update transaction with forced-failure rollback.
+- [ ] WordPress.org package request privacy capture.
+- [ ] DreamHost/Chattanooga read-only capability probe.
+- [ ] Actual Chattanooga MCP discovery of the registered abilities.
+- [ ] Broader content/member/event/commerce/site-specific typed abilities from `ROADMAP.md`.
+
+## Runtime mutation set — future separately authorized phase
+
+1. Establish an authorized installation path for the exact validated candidate/package.
+2. Create/verify a production rollback point.
+3. Install and activate Chattanooga CMS Admin.
+4. Discover registered `chattanooga-cms-admin/*` abilities through the actual AI transport.
+5. Run read-only health/runtime inventory.
+6. Create and verify a local backup.
+7. Perform only separately authorized live mutations.
 
 ## Risk set
 
-- Static/stub tests may pass while WordPress 7.1 rejects metadata or runtime behavior.
-- WordPress Abilities API signature/registration mismatch may only appear in a real runtime.
-- Filesystem permission behavior may differ on DreamHost.
-- Backup directory or ZipArchive may be unavailable.
-- WordPress upgrader/rollback behavior may differ from source assumptions.
-- Network-dependent WordPress.org package APIs may be available but must not transmit member data.
+- Reference GitHub filesystem behavior does not prove DreamHost behavior.
+- WP-CLI does not automatically fire the Abilities registration lifecycle in the tested context; the reference registry test explicitly invokes the lifecycle in the disposable process.
+- Actual MCP transport may expose/filter metadata differently than the WordPress registry.
+- Backup storage capacity/permissions may differ on DreamHost.
+- Package lookup/update operations can make network requests; payload/privacy capture remains required.
+- Database/core restore and update rollback paths are not yet execution-verified.
 
 ## Rollback point
 
-- Workbench rollback: `workbench/mars` parent commit before the lab transaction.
-- Source rollback: feature-branch history; the lab uses copied Git blobs and does not mutate the feature branch.
-- Runtime rollback: separately established before any installation or live mutation.
-
-## Acceptance tests
-
-- [ ] Workbench lab CI passes on PHP 7.4.
-- [ ] Workbench lab CI passes on PHP 8.2.
-- [ ] Source mirror blob verification passes.
-- [ ] Stub registration returns exactly the expected 24 abilities.
-- [ ] Architecture/security scan passes.
-- [ ] Runtime capability probe executes successfully inside WordPress 7.1.
-- [ ] Exact plugin version `0.1.0` is installed and active in the authorized runtime phase.
-- [ ] Expected abilities are discoverable through the active AI transport.
-- [ ] Local backup creation succeeds and checksum verification passes.
-- [ ] No unintended member/content mutation occurs during validation.
-- [ ] Controlled rollback behavior is execution-verified before production update abilities are used.
-
-## Source position
-
-- Repository: `stanfieldjd/chattanooga-music-scene`
-- Branch: `feature/chattanooga-cms-admin`
-- Observed commit: `0b34773ebc8073cb657477770b34cabc280f5892`
+- Workbench history remains fully recoverable through Git commits.
+- Immutable baseline preserves exact source checkpoint `0b34773e...`.
+- Candidate experiments are isolated from source and production.
+- Production rollback must be separately established before deployment.
 
 ## Production state
 
@@ -90,4 +97,6 @@ NOT_DEPLOYED
 ## Result journal
 
 - 2026-09-07: Source built and PHP 7.4 syntax validation passed.
-- 2026-09-07: Workbench lab staged with exact source mirror, CI tests, security/architecture checks, and real-runtime capability probe. CI result pending.
+- 2026-09-07: Workbench lab established with immutable baseline, mutable candidate, static/stub tests, and capability matrix.
+- 2026-09-07: Disposable WordPress 7.1 proved core Abilities/upgrader/filesystem APIs are present and all 24 candidate abilities register in the real registry.
+- 2026-09-07: Database backup/checksum and controlled plugin component rollback passed in the reference runtime.
