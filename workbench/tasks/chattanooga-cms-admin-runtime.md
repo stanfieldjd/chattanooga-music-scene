@@ -1,74 +1,33 @@
 # Task: Chattanooga CMS Admin Runtime Integration
 
-Status: REFERENCE_MAINTENANCE_CONTENT_TAXONOMY_MEMBER_READ_VERIFIED — MEMBER MUTATION NEXT / LIVE PREFLIGHT PARTIAL / MCP DEPLOYMENT PENDING
-
-## Objective
-
-Develop Chattanooga CMS Admin in the isolated GitHub workbench, verify each typed administration surface against disposable WordPress before production use, and preserve explicit production/deployment boundaries.
-
-## Target and exclusions
-
-- Source branch remains `feature/chattanooga-cms-admin`; source checkpoint `0b34773ebc8073cb657477770b34cabc280f5892`.
-- Mutable candidate is `workbench/labs/chattanooga-cms-admin/candidate` on `workbench/mars`.
-- `main`, the feature branch, existing Chattanooga content/member records, and production are not mutation targets for lab work.
-- Existing MCP transport is not removed incidentally.
+Status: REFERENCE_MAINTENANCE_CONTENT_TAXONOMY_MEMBER_ADMIN_VERIFIED — EVENTS MANAGER LAB ACTIVE / LIVE PREFLIGHT PARTIAL / PRODUCTION NOT DEPLOYED
 
 ## Current verified candidate
 
-- Candidate/test checkpoint: `bb34fcbc2ffbe132eaf4ac12b651e423a2ff979d`.
-- Full maintenance regression: run `34170460953`, PHP 7.4 + PHP 8.2 + disposable WordPress 7.1 all passed.
-- Runtime artifact: `10035547833`, SHA-256 `a1a07985311e733a875502a4508a09de5c7d844fcdc0e8f724bf3ea589bbfd39`.
-- Dedicated content/member run: `34170460924`, passed.
-- Multisite candidate run: `34170324597`, passed.
-- Integrity run: `34170461007`, passed.
-- Real registry: 56 abilities = 24 maintenance + 14 post/page CRUD/revision + 2 status + 12 taxonomy + 4 member-read.
+- Candidate checkpoint: `119c32800af409b7c6d3e61afcd2e14abb68083d`.
+- Full maintenance regression: `34171114708` — PHP 7.4, PHP 8.2, disposable WordPress 7.1 passed.
+- Runtime artifact: `10035759884`, SHA-256 `eac121d727b24129406bde3832ffdced8bdba7c2c5cbb8e29c0059923723f0f0`.
+- Content/member run: `34171114778` passed.
+- Multisite run: `34171114718` passed.
+- Integrity run: `34171114712` passed.
+- Real registry: 58 abilities = 24 maintenance + 14 content CRUD/revision + 2 status + 12 taxonomy + 4 member-read + 2 member-mutation.
 
-## Completed maintenance gates
+## Verified member administration
 
-- [x] PHP 7.4 / 8.2 compatibility and real WordPress 7.1 activation.
-- [x] Typed Abilities API registration, maintenance permission matrix, REST isolation.
-- [x] Database/component/theme/core backup and exact rollback.
-- [x] Plugin/theme/core update transactions and forced-failure rollback.
-- [x] WordPress.org package privacy and bounded public error output.
-- [x] Single-site + real multisite cache paths.
-- [x] Corrupt/missing backup rejection, unavailable storage rejection, partial-write enforcement, ZIP finalization enforcement.
+- Bounded member list/search/detail and role reads.
+- Profile mutation is limited to display name and URL with exact expected profile state, readback verification, and rollback on injected verification failure.
+- Account email is readable and participates in the profile conflict token but is not mutable in this ability; attempted email-only mutation is rejected.
+- Exact role-state replacement validates editable roles, prevents changing the current account's own role state, verifies readback, and rolls back on injected corruption.
+- Mutation permission split: `edit_users` for profile; `promote_users` for roles, with execution-level object authority.
+- Runtime mail guard verified zero notification attempts from these mutations.
+- Passwords, reset operations, activation keys, session tokens, arbitrary usermeta, account creation, and permanent user deletion remain separate security/destructive contracts.
 
-## Layer B — WordPress content
+## Active next gate — Events Manager
 
-- [x] Bounded post/page list/get, draft create, conflict-checked update, native revisions, revision restore, trash/restore, page-parent checks, author scoping.
-- [x] Pending/private/publish/future status transitions with publish authority, exact expected state, schedule validation, and rollback path.
-- [x] Category/post-tag list/get/create/update with term state tokens and rollback.
-- [x] Post category/tag relationship assignment/removal with exact expected relationship sets, default-category preservation, stale-conflict rejection, rollback, and object scoping.
-- [ ] Term deletion remains a separate destructive contract.
-- [ ] Permanent content deletion remains a separate destructive contract.
-- [ ] Media/featured-image administration is not an automatic priority; implement only when required by the administration plan.
+Read-only discovery against the existing Chattanooga transport confirmed 39 site abilities covering events, locations, tickets, bookings, categories/tags, availability and related operations. No live mutation was performed.
 
-## Layer C — member/account administration
+Next implementation is a dedicated disposable Events Manager workbench runtime. It must install/activate Events Manager in a fresh WordPress 7.1 lab and prove the plugin/API model before Chattanooga CMS Admin gains any event mutation ability. Start with bounded event/location reads, then create/update/trash as separate tested transactions. Booking/payment operations remain separate higher-risk gates.
 
-Reference-verified read slice:
+## Production boundary
 
-- [x] Four typed abilities: bounded member list/search, member detail, role inventory, member-role read.
-- [x] Coarse `list_users` permission isolation: anonymous denied, administrator allowed, explicit capability required.
-- [x] Bounded pagination, email search, role filter, invalid-role fail closed.
-- [x] Exact response-field allowlists.
-- [x] Credentials, activation keys, session tokens, arbitrary usermeta, direct users-table access absent.
-- [x] `WP_User_Query` allowed only inside the typed member service by static privacy gate.
-- [x] Dummy-user-only runtime transactions; no live member data mutated.
-
-Next member sub-gate:
-
-- [ ] Conflict-checked selected profile-field updates on disposable users.
-- [ ] Exact role-state replacement/add/remove with authority validation and rollback verification.
-- [ ] Password/reset operations, arbitrary protected metadata, account creation notification behavior, and permanent user deletion remain separate security/destructive gates.
-
-## Events Manager discovery
-
-Read-only capability discovery against the existing Chattanooga transport confirmed concrete Events Manager contracts (event, location, booking, ticket, category/tag and related operations). No live event mutation was performed. Layer D implementation remains after the current Layer C slice unless recalculated by site priority.
-
-## Chattanooga/DreamHost read-only preflight
-
-Verified non-mutating facts: WordPress 7.1, PHP 8.2.30, MySQL 8.0.41, relevant WordPress directories writable, WP Super Cache active, existing MCP surface discoverable. Still unknown: free disk capacity, filesystem method, direct live ZipArchive availability, and preferred outside-web-root backup-parent writability.
-
-## Production state
-
-NOT_DEPLOYED. Candidate installation, actual candidate MCP discovery, live backup verification, and any production mutation remain separately authorized production gates.
+`main`, `feature/chattanooga-cms-admin`, DreamHost production, existing Chattanooga content/member/event records, and the current MCP transport are not mutation targets for workbench development. Candidate installation and live MCP discovery remain separately authorized production gates.

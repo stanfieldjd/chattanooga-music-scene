@@ -1,59 +1,27 @@
 # Chattanooga CMS Admin Capability Matrix
 
-Evidence states: `SOURCE_PRESENT`, `STUB_VERIFIED`, `REFERENCE_VERIFIED`, `LIVE_READ_ONLY_VERIFIED`, `CONDITIONAL`, `REJECTED`, `UNKNOWN`, `NOT_YET_IMPLEMENTED`.
+Latest reference candidate: `119c32800af409b7c6d3e61afcd2e14abb68083d`.
+Maintenance: `34171114708`; content/member: `34171114778`; multisite: `34171114718`; integrity: `34171114712`; artifact `10035759884`; SHA-256 `eac121d727b24129406bde3832ffdced8bdba7c2c5cbb8e29c0059923723f0f0`.
 
-Latest current-candidate maintenance evidence: run `34170460953`, commit `bb34fcbc2ffbe132eaf4ac12b651e423a2ff979d`, artifact `10035547833`, SHA-256 `a1a07985311e733a875502a4508a09de5c7d844fcdc0e8f724bf3ea589bbfd39`.
-Latest content/member evidence: run `34170460924`.
-Current candidate multisite evidence: run `34170324597` (candidate source identical; later commit changed only the member permission probe).
-Workbench integrity: run `34170461007`.
-
-| Capability | Current state | Evidence / remaining gate |
+| Capability | State | Evidence / boundary |
 | --- | --- | --- |
-| PHP 7.4 / PHP 8.2 compatibility | REFERENCE_VERIFIED | Current candidate/full lab passed. |
-| WordPress 7.1 activation | REFERENCE_VERIFIED | Single-site and multisite activation passed. |
-| Native Abilities API + 56 abilities | REFERENCE_VERIFIED | 24 maintenance + 14 CRUD/revision + 2 status + 12 taxonomy + 4 member-read; registration `PASS (56 abilities)`. |
-| Maintenance permission matrix | REFERENCE_VERIFIED | 24 abilities isolated across intended capabilities. |
-| REST isolation | REFERENCE_VERIFIED | Candidate remains hidden from direct REST ability execution. |
-| Arbitrary shell/PHP/SQL | REJECTED | Static architecture gate. |
-| Generic candidate REST routes | REJECTED | Static architecture gate. |
-| Direct candidate vendor HTTP | REJECTED | Official WordPress package API path only. |
-| Package-request privacy | REFERENCE_VERIFIED | Seeded private markers absent from exercised WordPress.org traffic. |
-| Public error redaction | REFERENCE_VERIFIED | Sensitive upstream diagnostics bounded. |
-| Database/component/theme/core backup + restore | REFERENCE_VERIFIED | Exact restore gates passed. |
-| Corrupt/missing rollback rejection | REFERENCE_VERIFIED | Fails before target mutation. |
-| Unavailable storage | REFERENCE_VERIFIED | No backup registered/created. |
-| Partial/stalled database writes | REFERENCE_VERIFIED | Complete writes enforced; incomplete SQL removed. |
-| ZIP archive finalization | REFERENCE_VERIFIED | Close/zero-byte failure rejected and incomplete archive removed. |
-| Plugin/theme/core updater/lifecycle | REFERENCE_VERIFIED | Normal transactions and forced rollback gates green. |
-| Single-site + multisite cache | REFERENCE_VERIFIED | Real WordPress 7.1 paths passed. |
-| Post/page list/get/create/update/revision/trash/restore | REFERENCE_VERIFIED | Bounded CRUD/revision transaction suite green. |
-| Publication status transitions | REFERENCE_VERIFIED | Conflict checks, authority, scheduling and readback green. |
-| Category/post-tag list/get/create/update | REFERENCE_VERIFIED | Term state token and deliberate rollback fault gate passed. |
-| Post category/tag relationships | REFERENCE_VERIFIED | Exact expected set, default category, stale conflict and rollback verified. |
-| Taxonomy term deletion | NOT_YET_IMPLEMENTED | Separate destructive relationship-consequence gate. |
-| Permanent content deletion | NOT_YET_IMPLEMENTED | Separate destructive contract. |
-| Member list/search | REFERENCE_VERIFIED | Bounded pagination/search/role filter; list uses explicit field allowlist. |
-| Member detail | REFERENCE_VERIFIED | Selected account fields only; credentials/private internals absent. |
-| Role inventory/member-role read | REFERENCE_VERIFIED | Dummy-user runtime verified. |
-| Member-read permission boundary | REFERENCE_VERIFIED | Anonymous/subscriber denied; administrator/explicit `list_users` capability allowed. |
-| Member query privacy boundary | REFERENCE_VERIFIED | `WP_User_Query` isolated to typed service; no arbitrary usermeta, credential, activation-key, session-token or direct users-table access. |
-| Member selected profile update | NOT_YET_IMPLEMENTED | Active next Layer C gate; expected-before state + rollback required. |
-| Member role mutation | NOT_YET_IMPLEMENTED | Active next Layer C gate; exact role-state + authority + rollback required. |
-| Password/reset/session administration | NOT_YET_IMPLEMENTED | Separate security-sensitive contract. |
-| Member permanent deletion | NOT_YET_IMPLEMENTED | Separate destructive contract. |
-| Member account creation | NOT_YET_IMPLEMENTED | Notification/password lifecycle must be designed separately. |
-| Events Manager contracts | SOURCE_PRESENT | Existing Chattanooga transport discovery confirms typed event/location/booking/ticket/category/tag operations; disposable candidate adapter not yet implemented. |
-| Media/featured-image administration | NOT_YET_IMPLEMENTED | Not an automatic priority; implement when required by administration plan. |
-| WooCommerce/marketplace administration | NOT_YET_IMPLEMENTED | Separate financial/order layer. |
-| Chattanooga WordPress/PHP/MySQL | LIVE_READ_ONLY_VERIFIED | WordPress 7.1, PHP 8.2.30, MySQL 8.0.41. |
-| Chattanooga relevant directory writability | LIVE_READ_ONLY_VERIFIED | Existing read-only system status reported writable. |
-| Chattanooga WP Super Cache | LIVE_READ_ONLY_VERIFIED | Active, WP_CACHE enabled. |
-| Existing Chattanooga MCP surface | LIVE_READ_ONLY_VERIFIED | 311 existing abilities; candidate absent because not deployed. |
-| Chattanooga disk capacity/filesystem method/ZipArchive/outside-webroot backup parent | UNKNOWN | Current live read-only surface does not expose these facts. |
-| Candidate MCP discovery on Chattanooga | UNKNOWN | Requires separately authorized installation. |
-| Production-scale backup behavior | UNKNOWN | Production capacity/performance gate remains. |
-| Self-hosted transport replacement | NOT_YET_IMPLEMENTED | Separate architecture task. |
-
-## Current gate
-
-Maintenance, content CRUD/revisions, publication status, taxonomy relationships, and bounded member reads are reference-verified. The active workbench gate is selected member profile/role mutation on disposable accounts. Events Manager is the next site-critical layer after Layer C unless priorities are recalculated. Production remains untouched.
+| PHP 7.4 / 8.2 + WordPress 7.1 activation | REFERENCE_VERIFIED | Current candidate passed. |
+| Native Abilities registry | REFERENCE_VERIFIED | 58 candidate abilities. |
+| Maintenance backup/update/rollback/cache/privacy/error model | REFERENCE_VERIFIED | Full maintenance regression green. |
+| Post/page CRUD/revisions/status | REFERENCE_VERIFIED | Dedicated content runtime green. |
+| Category/post-tag terms/relationships | REFERENCE_VERIFIED | Conflict and rollback fault gates green. |
+| Member list/search/detail/role reads | REFERENCE_VERIFIED | Bounded allowlists; credentials/private internals absent. |
+| Member profile display-name/URL update | REFERENCE_VERIFIED | Expected-state, readback and injected-fault rollback green. |
+| Member account email mutation | NOT_IMPLEMENTED | Explicitly excluded after WordPress notification side effect was observed; separate notification/security gate required. |
+| Member role-state replacement | REFERENCE_VERIFIED | Expected-state, editable-role validation, self guard and rollback green. |
+| Member mutation notifications | REFERENCE_VERIFIED | Zero mail attempts in corrected runtime gate. |
+| Password/reset/session operations | NOT_IMPLEMENTED | Separate security-sensitive contract. |
+| Member permanent deletion/account creation | NOT_IMPLEMENTED | Separate destructive/lifecycle contracts. |
+| Events Manager live contract discovery | LIVE_READ_ONLY_VERIFIED | 39 existing site abilities discovered; no live mutation. |
+| Events Manager disposable runtime | ACTIVE | Dedicated lab is next. |
+| Event/location bounded reads in candidate | NOT_IMPLEMENTED | Requires disposable Events Manager model proof first. |
+| Event/location create/update/trash | NOT_IMPLEMENTED | Separate transaction/rollback gates after reads. |
+| Booking/ticket/payment administration | NOT_IMPLEMENTED | Higher-risk layer; separate gates. |
+| Media/featured-image administration | NOT_IMPLEMENTED | Not an automatic priority; only when required by event/content administration. |
+| Candidate live MCP discovery | UNKNOWN | Candidate not deployed. |
+| Production deployment | NOT_DEPLOYED | Workbench evidence does not imply live installation. |
