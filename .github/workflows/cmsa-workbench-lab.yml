@@ -99,3 +99,22 @@ jobs:
         run: |
           set -euo pipefail
           php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/backup-rollback-cli.php" --path=/tmp/wordpress
+      - name: Verify lifecycle controls and rollback fidelity
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/wordpress/wp-content/plugins/cmsa-lab-fixture
+          cp -R workbench/labs/chattanooga-cms-admin/fixtures/cmsa-lab-fixture /tmp/wordpress/wp-content/plugins/cmsa-lab-fixture
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/lifecycle-cli.php" --path=/tmp/wordpress
+      - name: Verify health reporting and cache control
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/health-cache-cli.php" --path=/tmp/wordpress
+      - name: Upload runtime capability evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: cmsa-runtime-capabilities
+          path: /tmp/cmsa-runtime-capabilities.json
+          if-no-files-found: error
+          retention-days: 30
