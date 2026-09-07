@@ -6,7 +6,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 printf 'CMS Admin workbench lab\n'
 printf 'PHP: %s\n' "$(php -r 'echo PHP_VERSION;')"
 
-find "$ROOT/plugin" "$ROOT/tests" "$ROOT/probes" -type f -name '*.php' -print0 \
+find "$ROOT/plugin" "$ROOT/candidate" "$ROOT/tests" "$ROOT/probes" -type f -name '*.php' -print0 \
   | xargs -0 -n1 php -l >/dev/null
 
 php "$ROOT/tests/source-manifest-test.php"

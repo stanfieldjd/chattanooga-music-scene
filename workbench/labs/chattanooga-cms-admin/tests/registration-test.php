@@ -2,7 +2,7 @@
 
 $lab = dirname( __DIR__ );
 require $lab . '/tests/bootstrap/wp-stubs.php';
-require $lab . '/plugin/chattanooga-cms-admin.php';
+require $lab . '/candidate/chattanooga-cms-admin.php';
 
 do_action( 'wp_abilities_api_categories_init' );
 do_action( 'wp_abilities_api_init' );

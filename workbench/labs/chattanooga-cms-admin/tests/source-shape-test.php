@@ -1,9 +1,9 @@
 <?php
 
 $lab = dirname( __DIR__ );
-$plugin = file_get_contents( $lab . '/plugin/chattanooga-cms-admin.php' );
-$coordinator = file_get_contents( $lab . '/plugin/includes/class-cmsa-plugin.php' );
-$abilities = file_get_contents( $lab . '/plugin/includes/class-cmsa-abilities.php' );
+$plugin = file_get_contents( $lab . '/candidate/chattanooga-cms-admin.php' );
+$coordinator = file_get_contents( $lab . '/candidate/includes/class-cmsa-plugin.php' );
+$abilities = file_get_contents( $lab . '/candidate/includes/class-cmsa-abilities.php' );
 
 $required_header_fragments = array(
 	'Plugin Name: Chattanooga CMS Admin',

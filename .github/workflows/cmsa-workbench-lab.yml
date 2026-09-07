@@ -61,11 +61,11 @@ jobs:
           php /tmp/wp-cli.phar core download --version=7.1 --path=/tmp/wordpress --force
           php /tmp/wp-cli.phar config create --path=/tmp/wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
           php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://cmsa.test --title="CMSA Workbench" --admin_user=admin --admin_password="cmsa-workbench-only" --admin_email=lab@example.invalid --skip-email
-      - name: Activate mirrored CMS Admin plugin
+      - name: Activate candidate CMS Admin plugin
         shell: bash
         run: |
           set -euo pipefail
-          cp -R workbench/labs/chattanooga-cms-admin/plugin /tmp/wordpress/wp-content/plugins/chattanooga-cms-admin
+          cp -R workbench/labs/chattanooga-cms-admin/candidate /tmp/wordpress/wp-content/plugins/chattanooga-cms-admin
           php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin is-active chattanooga-cms-admin --path=/tmp/wordpress
       - name: Run read-only WordPress capability probe
@@ -88,3 +88,8 @@ jobs:
             ];
             foreach ($checks as $label => $ok) { echo $label . ": " . ($ok ? "PASS" : "FAIL") . "\n"; if (!$ok) { exit(1); } }
           '
+      - name: Verify abilities in real WordPress registry
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/ability-registration-cli.php" --path=/tmp/wordpress

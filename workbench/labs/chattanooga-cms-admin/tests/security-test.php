@@ -1,7 +1,7 @@
 <?php
 
 $lab = dirname( __DIR__ );
-$plugin_dir = $lab . '/plugin';
+$plugin_dir = $lab . '/candidate';
 $iterator = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $plugin_dir, FilesystemIterator::SKIP_DOTS ) );
 
 $prohibited = array(
