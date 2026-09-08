@@ -47,7 +47,13 @@ if ( ! $event->save() || empty( $event->event_id ) ) {
 $adapter = new CMSA_Events_Manager();
 $event_list = $adapter->list_events( array( 'search' => $token, 'page' => 1, 'per_page' => 1 ) );
 if ( is_wp_error( $event_list ) || 1 !== count( $event_list['items'] ) || (int) $event_list['items'][0]['id'] !== (int) $event->event_id ) {
-	fwrite( STDERR, "events-manager-read-cli: bounded event list/search failed.\n" );
+	$returned = array();
+	if ( ! is_wp_error( $event_list ) && isset( $event_list['items'] ) && is_array( $event_list['items'] ) ) {
+		foreach ( $event_list['items'] as $item ) {
+			$returned[] = array( 'id' => isset( $item['id'] ) ? (int) $item['id'] : 0, 'name' => isset( $item['name'] ) ? (string) $item['name'] : '' );
+		}
+	}
+	fwrite( STDERR, 'events-manager-read-cli: bounded event list/search failed; saved=' . wp_json_encode( array( 'id' => (int) $event->event_id, 'post_id' => (int) $event->post_id, 'name' => (string) $event->event_name, 'status' => (int) $event->event_status ) ) . '; returned=' . wp_json_encode( $returned ) . '; error=' . ( is_wp_error( $event_list ) ? $event_list->get_error_code() : 'none' ) . "\n" );
 	exit( 1 );
 }
 $event_detail = $adapter->get_event( $event->event_id );
