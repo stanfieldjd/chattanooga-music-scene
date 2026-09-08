@@ -13,7 +13,7 @@
       "branch": "feature/chattanooga-cms-admin",
       "head_sha": "0b34773ebc8073cb657477770b34cabc280f5892",
       "source_path": "site-plugins/chattanooga-cms-admin",
-      "state": "live_plugin_active_mcp_exposure_blocked_festival_relationships_freshly_reverified",
+      "state": "live_plugin_active_miniorange_role_ability_grant_pending_festival_relationships_freshly_reverified",
       "validation": {
         "candidate_checkpoint": "62e46bb64514973a640f1abd13ff5f90248580f8",
         "event_location_source_change": "9874d5192cef627292df09bd81fd1f7aaa59315d",
@@ -115,11 +115,14 @@
         "live_plugin_installation": "active_chattanooga_cms_admin_version_0_1_0_execution_verified",
         "live_mcp_identity": "wordpress_user_2_roles_administrator_bbp_keymaster",
         "live_admin_required_capabilities": "edit_events_manage_options_activate_plugins_install_plugins_update_plugins_verified_present",
-        "candidate_live_mcp_discovery": "zero_chattanooga_cms_admin_abilities_exposed_by_current_connector",
+        "chatgpt_plugin_permission_mode": "allow_all_actions_not_blocker",
+        "candidate_live_mcp_discovery": "zero_chattanooga_cms_admin_abilities_exposed_by_current_connector_reverified",
         "candidate_source_mcp_registration": "wp_abilities_api_init_public_true_mcp_public_true_reference_registry_82_passed",
-        "mcp_exposure_diagnosis": "wordpress_role_permission_gate_satisfied_exact_live_mcp_policy_not_inspectable_current_evidence_localizes_unresolved_boundary_to_mcp_exposure_governance_not_proven_candidate_registration_defect",
+        "miniorange_governance_vendor_evidence": "official_release_notes_per_ability_exposure_1_2_0_role_based_grants_1_2_2_resource_by_role_matrix_1_4_2",
+        "candidate_rest_isolation_compatibility": "miniorange_1_4_0_documents_governed_mcp_only_abilities_without_public_rest_so_show_in_rest_false_is_not_evidence_of_mcp_incompatibility",
+        "mcp_exposure_diagnosis": "wordpress_role_permission_and_chatgpt_plugin_permission_gates_satisfied_miniorange_governance_requires_explicit_role_nhi_ability_grant_current_connector_cannot_inspect_or_mutate_that_setting",
         "live_mutations_after_install": "none",
-        "next_gate": "expose_chattanooga_cms_admin_namespace_then_rerun_discovery_health_and_exact_taxonomy_reads_live_relationship_write_requires_separate_explicit_authorization"
+        "next_gate": "grant_chattanooga_cms_admin_resource_to_administrator_role_for_enabled_nhi_then_rerun_discovery_health_and_exact_taxonomy_reads_live_relationship_write_requires_separate_explicit_authorization"
       }
     },
     {
