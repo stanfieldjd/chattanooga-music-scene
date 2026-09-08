@@ -9,6 +9,7 @@ $registrars = array(
 	file_get_contents( $lab . '/candidate/includes/class-cmsa-content-deletion-abilities.php' ),
 	file_get_contents( $lab . '/candidate/includes/class-cmsa-content-status-abilities.php' ),
 	file_get_contents( $lab . '/candidate/includes/class-cmsa-content-taxonomy-abilities.php' ),
+	file_get_contents( $lab . '/candidate/includes/class-cmsa-navigation-abilities.php' ),
 	file_get_contents( $lab . '/candidate/includes/class-cmsa-member-abilities.php' ),
 	file_get_contents( $lab . '/candidate/includes/class-cmsa-member-mutation-abilities.php' ),
 	file_get_contents( $lab . '/candidate/includes/class-cmsa-events-manager-abilities.php' ),
@@ -22,7 +23,7 @@ foreach ( array( 'Plugin Name: Chattanooga CMS Admin', 'Version: 0.1.0', 'Requir
 	}
 }
 
-foreach ( array( 'class-cmsa-errors.php', 'class-cmsa-audit.php', 'class-cmsa-backups.php', 'class-cmsa-health.php', 'class-cmsa-updates.php', 'class-cmsa-lifecycle.php', 'class-cmsa-content.php', 'class-cmsa-content-deletion.php', 'class-cmsa-content-status.php', 'class-cmsa-content-taxonomy.php', 'class-cmsa-members.php', 'class-cmsa-member-mutations.php', 'class-cmsa-events-manager.php', 'class-cmsa-events-manager-mutations.php', 'class-cmsa-abilities.php', 'class-cmsa-content-abilities.php', 'class-cmsa-content-deletion-abilities.php', 'class-cmsa-content-status-abilities.php', 'class-cmsa-content-taxonomy-abilities.php', 'class-cmsa-member-abilities.php', 'class-cmsa-member-mutation-abilities.php', 'class-cmsa-events-manager-abilities.php', 'class-cmsa-events-manager-mutation-abilities.php', 'class-cmsa-plugin.php' ) as $required_include ) {
+foreach ( array( 'class-cmsa-errors.php', 'class-cmsa-audit.php', 'class-cmsa-backups.php', 'class-cmsa-health.php', 'class-cmsa-updates.php', 'class-cmsa-lifecycle.php', 'class-cmsa-content.php', 'class-cmsa-content-deletion.php', 'class-cmsa-content-status.php', 'class-cmsa-content-taxonomy.php', 'class-cmsa-navigation.php', 'class-cmsa-members.php', 'class-cmsa-member-mutations.php', 'class-cmsa-events-manager.php', 'class-cmsa-events-manager-mutations.php', 'class-cmsa-abilities.php', 'class-cmsa-content-abilities.php', 'class-cmsa-content-deletion-abilities.php', 'class-cmsa-content-status-abilities.php', 'class-cmsa-content-taxonomy-abilities.php', 'class-cmsa-navigation-abilities.php', 'class-cmsa-member-abilities.php', 'class-cmsa-member-mutation-abilities.php', 'class-cmsa-events-manager-abilities.php', 'class-cmsa-events-manager-mutation-abilities.php', 'class-cmsa-plugin.php' ) as $required_include ) {
 	if ( false === strpos( $plugin, $required_include ) ) {
 		fwrite( STDERR, "Plugin bootstrap does not load {$required_include}.\n" );
 		exit( 1 );
@@ -39,7 +40,7 @@ if ( false === strpos( $coordinator, "function_exists( 'wp_register_ability' )" 
 	fwrite( STDERR, "Abilities API availability guard is missing.\n" );
 	exit( 1 );
 }
-foreach ( array( 'new CMSA_Content()', 'new CMSA_Content_Abilities', 'new CMSA_Content_Deletion', 'new CMSA_Content_Deletion_Abilities', 'new CMSA_Content_Status', 'new CMSA_Content_Status_Abilities', 'new CMSA_Content_Taxonomy', 'new CMSA_Content_Taxonomy_Abilities', 'new CMSA_Members()', 'new CMSA_Member_Abilities', 'new CMSA_Member_Mutations', 'new CMSA_Member_Mutation_Abilities', 'new CMSA_Events_Manager()', 'new CMSA_Events_Manager_Abilities', 'new CMSA_Events_Manager_Mutations', 'new CMSA_Events_Manager_Mutation_Abilities' ) as $wiring ) {
+foreach ( array( 'new CMSA_Content()', 'new CMSA_Content_Abilities', 'new CMSA_Content_Deletion', 'new CMSA_Content_Deletion_Abilities', 'new CMSA_Content_Status', 'new CMSA_Content_Status_Abilities', 'new CMSA_Content_Taxonomy', 'new CMSA_Content_Taxonomy_Abilities', 'new CMSA_Navigation()', 'new CMSA_Navigation_Abilities', 'new CMSA_Members()', 'new CMSA_Member_Abilities', 'new CMSA_Member_Mutations', 'new CMSA_Member_Mutation_Abilities', 'new CMSA_Events_Manager()', 'new CMSA_Events_Manager_Abilities', 'new CMSA_Events_Manager_Mutations', 'new CMSA_Events_Manager_Mutation_Abilities' ) as $wiring ) {
 	if ( false === strpos( $coordinator, $wiring ) ) {
 		fwrite( STDERR, "Coordinator wiring missing: {$wiring}.\n" );
 		exit( 1 );
@@ -65,6 +66,20 @@ $deletion_source = file_get_contents( $lab . '/candidate/includes/class-cmsa-con
 foreach ( array( "'trash' !== $post->post_status", "current_user_can( 'delete_post'", 'confirm_permanent_delete', 'expected_modified_gmt', 'wp_delete_post( $post->ID, true )' ) as $deletion_guard ) {
 	if ( false === strpos( $deletion_source, $deletion_guard ) ) {
 		fwrite( STDERR, "Permanent content deletion guard missing: {$deletion_guard}.\n" );
+		exit( 1 );
+	}
+}
+
+$navigation_source = file_get_contents( $lab . '/candidate/includes/class-cmsa-navigation.php' );
+foreach ( array( 'wp_get_nav_menus', 'wp_get_nav_menu_items', 'wp_update_nav_menu_item', 'wp_delete_post( $item_id, true )', 'get_registered_nav_menus', "set_theme_mod( 'nav_menu_locations'", 'expected_menu_state', 'expected_locations_state', "array( 'http', 'https' )", "current_user_can( 'edit_theme_options' )" ) as $navigation_guard ) {
+	if ( false === strpos( $navigation_source, $navigation_guard ) ) {
+		fwrite( STDERR, "Core navigation boundary guard missing: {$navigation_guard}.\n" );
+		exit( 1 );
+	}
+}
+foreach ( array( 'update_option(', 'add_option(', 'delete_option(', 'EM_', 'BuddyBoss', 'buddyboss' ) as $navigation_forbidden ) {
+	if ( false !== strpos( $navigation_source, $navigation_forbidden ) ) {
+		fwrite( STDERR, "Core navigation layer expanded outside its bounded WordPress menu contract: {$navigation_forbidden}.\n" );
 		exit( 1 );
 	}
 }
