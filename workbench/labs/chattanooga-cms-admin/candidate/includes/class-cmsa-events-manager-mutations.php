@@ -33,11 +33,11 @@ final class CMSA_Events_Manager_Mutations {
 
 		$event = new EM_Event();
 		$event->event_owner = get_current_user_id();
-		$this->apply_event_target( $event, $target );
+		$this->apply_event_target( $event, $target, true );
 		if ( ! $event->save() || empty( $event->event_id ) ) {
 			return new WP_Error( 'cmsa_event_create_failed', 'Events Manager could not create the event.', array( 'cleaned_up' => $this->cleanup_created_event( $event ) ) );
 		}
-		if ( ! $this->sync_event_post_status( $event, $target['post_status'] ) ) {
+		if ( ! $this->ensure_event_post_status( $event, $target['post_status'] ) ) {
 			return new WP_Error( 'cmsa_event_create_status', 'Events Manager could not apply the requested event publication state.', array( 'cleaned_up' => $this->cleanup_created_event( $event ) ) );
 		}
 
@@ -84,8 +84,8 @@ final class CMSA_Events_Manager_Mutations {
 			return new WP_Error( 'cmsa_event_publish_permission', 'Current user cannot publish Events Manager events.' );
 		}
 
-		$this->apply_event_target( $event, $target );
-		if ( ! $event->save() || ! $this->sync_event_post_status( $event, $target['post_status'] ) ) {
+		$this->apply_event_target( $event, $target, false );
+		if ( ! $event->save() || ! $this->ensure_event_post_status( $event, $target['post_status'] ) ) {
 			return new WP_Error( 'cmsa_event_update_failed', 'Events Manager could not update the event.', array( 'rolled_back' => $this->restore_event( $id, $previous ) ) );
 		}
 		do_action( 'cmsa_events_manager_event_written', $id, 'update' );
@@ -119,7 +119,7 @@ final class CMSA_Events_Manager_Mutations {
 		if ( ! $location->save() || empty( $location->location_id ) ) {
 			return new WP_Error( 'cmsa_location_create_failed', 'Events Manager could not create the location.', array( 'cleaned_up' => $this->cleanup_created_location( $location ) ) );
 		}
-		if ( ! $this->sync_location_post_status( $location, $target['post_status'] ) ) {
+		if ( ! $this->ensure_location_post_status( $location, $target['post_status'] ) ) {
 			return new WP_Error( 'cmsa_location_create_status', 'Events Manager could not apply the requested location publication state.', array( 'cleaned_up' => $this->cleanup_created_location( $location ) ) );
 		}
 
@@ -164,7 +164,7 @@ final class CMSA_Events_Manager_Mutations {
 		}
 
 		$this->apply_location_target( $location, $target );
-		if ( ! $location->save() || ! $this->sync_location_post_status( $location, $target['post_status'] ) ) {
+		if ( ! $location->save() || ! $this->ensure_location_post_status( $location, $target['post_status'] ) ) {
 			return new WP_Error( 'cmsa_location_update_failed', 'Events Manager could not update the location.', array( 'rolled_back' => $this->restore_location( $id, $previous ) ) );
 		}
 		do_action( 'cmsa_events_manager_location_written', $id, 'update' );
@@ -183,7 +183,6 @@ final class CMSA_Events_Manager_Mutations {
 			'event_start_date' => '', 'event_end_date' => '',
 			'event_start_time' => '00:00:00', 'event_end_time' => '00:00:00',
 			'event_all_day' => false, 'event_timezone' => wp_timezone_string(), 'location_id' => 0,
-			'event_active_status' => 1, 'event_rsvp' => 0, 'event_private' => 0,
 		) : $base;
 		$fields = array(
 			'event_name' => 'event_name', 'content' => 'post_content', 'post_status' => 'post_status',
@@ -307,14 +306,13 @@ final class CMSA_Events_Manager_Mutations {
 			'event_name' => (string) $event->event_name,
 			'post_content' => $post instanceof WP_Post ? (string) $post->post_content : ( isset( $event->post_content ) ? (string) $event->post_content : '' ),
 			'post_status' => $post instanceof WP_Post ? (string) $post->post_status : 'draft',
-			'event_start_date' => (string) $event->event_start_date, 'event_end_date' => (string) $event->event_end_date,
-			'event_start_time' => (string) $event->event_start_time, 'event_end_time' => (string) $event->event_end_time,
+			'event_start_date' => (string) $event->event_start_date,
+			'event_end_date' => (string) $event->event_end_date,
+			'event_start_time' => (string) $event->event_start_time,
+			'event_end_time' => (string) $event->event_end_time,
 			'event_all_day' => ! empty( $event->event_all_day ),
 			'event_timezone' => isset( $event->event_timezone ) ? (string) $event->event_timezone : '',
 			'location_id' => isset( $event->location_id ) ? (int) $event->location_id : 0,
-			'event_active_status' => isset( $event->event_active_status ) ? (int) $event->event_active_status : 1,
-			'event_rsvp' => isset( $event->event_rsvp ) ? (int) $event->event_rsvp : 0,
-			'event_private' => isset( $event->event_private ) ? (int) $event->event_private : 0,
 		);
 	}
 
@@ -324,17 +322,25 @@ final class CMSA_Events_Manager_Mutations {
 			'location_name' => (string) $location->location_name,
 			'post_content' => $post instanceof WP_Post ? (string) $post->post_content : ( isset( $location->post_content ) ? (string) $location->post_content : '' ),
 			'post_status' => $post instanceof WP_Post ? (string) $post->post_status : 'draft',
-			'location_address' => (string) $location->location_address, 'location_town' => (string) $location->location_town,
-			'location_state' => (string) $location->location_state, 'location_postcode' => (string) $location->location_postcode,
-			'location_region' => (string) $location->location_region, 'location_country' => (string) $location->location_country,
+			'location_address' => (string) $location->location_address,
+			'location_town' => (string) $location->location_town,
+			'location_state' => (string) $location->location_state,
+			'location_postcode' => (string) $location->location_postcode,
+			'location_region' => (string) $location->location_region,
+			'location_country' => (string) $location->location_country,
 			'location_latitude' => $this->coordinate_string( isset( $location->location_latitude ) ? $location->location_latitude : '' ),
 			'location_longitude' => $this->coordinate_string( isset( $location->location_longitude ) ? $location->location_longitude : '' ),
 		);
 	}
 
-	private function apply_event_target( EM_Event $event, array $target ) {
-		$event->event_archetype = 'event';
-		$event->event_type = 'single';
+	private function apply_event_target( EM_Event $event, array $target, $creating ) {
+		if ( $creating ) {
+			$event->event_archetype = 'event';
+			$event->event_type = 'single';
+			$event->event_active_status = 1;
+			$event->event_rsvp = 0;
+			$event->event_private = 0;
+		}
 		$event->event_name = $target['event_name'];
 		$event->post_content = $target['post_content'];
 		$event->post_status = $target['post_status'];
@@ -345,9 +351,6 @@ final class CMSA_Events_Manager_Mutations {
 		$event->event_all_day = $target['event_all_day'] ? 1 : 0;
 		$event->event_timezone = $target['event_timezone'];
 		$event->location_id = $target['location_id'];
-		$event->event_active_status = $target['event_active_status'];
-		$event->event_rsvp = $target['event_rsvp'];
-		$event->event_private = $target['event_private'];
 	}
 
 	private function apply_location_target( EM_Location $location, array $target ) {
@@ -356,18 +359,26 @@ final class CMSA_Events_Manager_Mutations {
 		}
 	}
 
-	private function sync_event_post_status( EM_Event $event, $status ) {
+	private function ensure_event_post_status( EM_Event $event, $status ) {
 		if ( empty( $event->post_id ) ) {
 			return false;
+		}
+		$post = get_post( (int) $event->post_id );
+		if ( $post instanceof WP_Post && $status === (string) $post->post_status ) {
+			return true;
 		}
 		$result = 'draft' === $status ? $event->set_status( null, true ) : $event->set_status( 'publish' === $status ? 1 : 0, true );
 		$post = get_post( (int) $event->post_id );
 		return false !== $result && $post instanceof WP_Post && $status === (string) $post->post_status;
 	}
 
-	private function sync_location_post_status( EM_Location $location, $status ) {
+	private function ensure_location_post_status( EM_Location $location, $status ) {
 		if ( empty( $location->post_id ) ) {
 			return false;
+		}
+		$post = get_post( (int) $location->post_id );
+		if ( $post instanceof WP_Post && $status === (string) $post->post_status ) {
+			return true;
 		}
 		$result = 'draft' === $status ? $location->set_status( null, true ) : $location->set_status( 'publish' === $status ? 1 : 0, true );
 		$post = get_post( (int) $location->post_id );
@@ -377,6 +388,7 @@ final class CMSA_Events_Manager_Mutations {
 	private function event_matches( EM_Event $event, array $target ) {
 		return $this->event_snapshot( $event ) === $target;
 	}
+
 	private function location_matches( EM_Location $location, array $target ) {
 		return $this->location_snapshot( $location ) === $target;
 	}
@@ -386,8 +398,8 @@ final class CMSA_Events_Manager_Mutations {
 		if ( is_wp_error( $event ) ) {
 			return false;
 		}
-		$this->apply_event_target( $event, $previous );
-		if ( ! $event->save() || ! $this->sync_event_post_status( $event, $previous['post_status'] ) ) {
+		$this->apply_event_target( $event, $previous, false );
+		if ( ! $event->save() || ! $this->ensure_event_post_status( $event, $previous['post_status'] ) ) {
 			return false;
 		}
 		$restored = $this->events->load_event( $id );
@@ -400,7 +412,7 @@ final class CMSA_Events_Manager_Mutations {
 			return false;
 		}
 		$this->apply_location_target( $location, $previous );
-		if ( ! $location->save() || ! $this->sync_location_post_status( $location, $previous['post_status'] ) ) {
+		if ( ! $location->save() || ! $this->ensure_location_post_status( $location, $previous['post_status'] ) ) {
 			return false;
 		}
 		$restored = $this->events->load_location( $id );
@@ -415,6 +427,7 @@ final class CMSA_Events_Manager_Mutations {
 		$event->delete( true );
 		return is_wp_error( $this->events->load_event( $id ) );
 	}
+
 	private function cleanup_created_location( $location ) {
 		if ( ! $location instanceof EM_Location || empty( $location->location_id ) ) {
 			return true;
@@ -428,6 +441,7 @@ final class CMSA_Events_Manager_Mutations {
 		return 'event' === ( isset( $event->event_archetype ) ? (string) $event->event_archetype : 'event' )
 			&& 'single' === ( isset( $event->event_type ) ? (string) $event->event_type : 'single' );
 	}
+
 	private function valid_date( $value ) {
 		if ( ! is_string( $value ) || ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $value ) ) {
 			return false;
@@ -435,6 +449,7 @@ final class CMSA_Events_Manager_Mutations {
 		$parts = array_map( 'intval', explode( '-', $value ) );
 		return 3 === count( $parts ) && checkdate( $parts[1], $parts[2], $parts[0] );
 	}
+
 	private function valid_timezone( $value ) {
 		try {
 			new DateTimeZone( (string) $value );
@@ -443,6 +458,7 @@ final class CMSA_Events_Manager_Mutations {
 			return false;
 		}
 	}
+
 	private function normalize_time( $value ) {
 		$value = trim( (string) $value );
 		if ( preg_match( '/^(\d{2}):(\d{2})$/', $value ) ) {
@@ -453,6 +469,7 @@ final class CMSA_Events_Manager_Mutations {
 		}
 		return sprintf( '%02d:%02d:%02d', (int) $matches[1], (int) $matches[2], (int) $matches[3] );
 	}
+
 	private function coordinate_string( $value ) {
 		if ( null === $value || '' === (string) $value ) {
 			return '';
@@ -460,6 +477,7 @@ final class CMSA_Events_Manager_Mutations {
 		$value = rtrim( rtrim( sprintf( '%.8F', (float) $value ), '0' ), '.' );
 		return '-0' === $value ? '0' : $value;
 	}
+
 	private function unavailable() {
 		return new WP_Error( 'cmsa_events_manager_unavailable', 'Events Manager is not available in this WordPress runtime.' );
 	}
