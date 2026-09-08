@@ -60,6 +60,7 @@ foreach ( $abilities as $name => $ability ) {
 	if ( ! $permission( $ability ) ) {
 		fwrite( STDERR, "content-deletion-permission-cli: administrator denied {$name}.\n" );
 		exit( 1 );
+	}
 }
 
 $login = 'cmsa_delete_limited_' . strtolower( wp_generate_password( 8, false, false ) );
@@ -74,9 +75,33 @@ $limited->add_cap( 'delete_posts', true );
 clean_user_cache( $user_id );
 
 wp_set_current_user( $admin->ID );
-$other_id = wp_insert_post( array( 'post_type' => 'post', 'post_status' => 'draft', 'post_title' => 'CMSA delete other owner', 'post_author' => $admin->ID ), true );
-$own_id = wp_insert_post( array( 'post_type' => 'post', 'post_status' => 'draft', 'post_title' => 'CMSA delete limited owner', 'post_author' => $user_id ), true );
-$page_id = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'draft', 'post_title' => 'CMSA delete limited page', 'post_author' => $user_id ), true );
+$other_id = wp_insert_post(
+	array(
+		'post_type'   => 'post',
+		'post_status' => 'draft',
+		'post_title'  => 'CMSA delete other owner',
+		'post_author' => $admin->ID,
+	),
+	true
+);
+$own_id = wp_insert_post(
+	array(
+		'post_type'   => 'post',
+		'post_status' => 'draft',
+		'post_title'  => 'CMSA delete limited owner',
+		'post_author' => $user_id,
+	),
+	true
+);
+$page_id = wp_insert_post(
+	array(
+		'post_type'   => 'page',
+		'post_status' => 'draft',
+		'post_title'  => 'CMSA delete limited page',
+		'post_author' => $user_id,
+	),
+	true
+);
 if ( is_wp_error( $other_id ) || is_wp_error( $own_id ) || is_wp_error( $page_id ) ) {
 	fwrite( STDERR, "content-deletion-permission-cli: content fixture creation failed.\n" );
 	exit( 1 );
