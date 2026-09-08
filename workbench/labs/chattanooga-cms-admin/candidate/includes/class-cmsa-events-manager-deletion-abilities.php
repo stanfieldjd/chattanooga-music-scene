@@ -30,6 +30,23 @@ final class CMSA_Events_Manager_Deletion_Abilities {
 		);
 
 		$this->register_ability(
+			'restore-event',
+			'Restore event',
+			'Restores one ordinary single Events Manager event from WordPress trash to draft after an exact event-state conflict check. Restoration never republishes the event; the referenced venue and booking data are preserved.',
+			$this->object_schema(
+				array(
+					'id'                   => array( 'type' => 'integer', 'minimum' => 1 ),
+					'expected_state_token' => array( 'type' => 'string', 'minLength' => 64, 'maxLength' => 64 ),
+				),
+				array( 'id', 'expected_state_token' )
+			),
+			function ( $input ) { return $this->deletion->restore_event( $input ); },
+			false,
+			false,
+			false
+		);
+
+		$this->register_ability(
 			'delete-event',
 			'Permanently delete event',
 			'Permanently deletes one ordinary single Events Manager event only after it is already in trash, the exact trashed event state still matches, explicit permanent-delete confirmation is supplied, and zero bookings are present. The referenced venue is preserved.',
