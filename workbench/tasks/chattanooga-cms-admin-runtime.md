@@ -1,17 +1,17 @@
 # Task: Chattanooga CMS Admin Runtime Integration
 
-Status: REFERENCE_SINGLE_SITE_MAINTENANCE_CONTENT_PERMANENT_DELETE_TAXONOMY_NAVIGATION_LIFECYCLE_MEMBER_EVENT_LOCATION_EVENT_DELETION_ADMIN_VERIFIED — AUTONOMY GAP RECALCULATION NEXT / LIVE PREFLIGHT PARTIAL / PRODUCTION NOT DEPLOYED
+Status: REFERENCE_SINGLE_SITE_MAINTENANCE_CONTENT_PERMANENT_DELETE_TAXONOMY_NAVIGATION_LIFECYCLE_MEMBER_EVENT_LOCATION_EVENT_LIFECYCLE_ADMIN_VERIFIED — AUTONOMY GAP RECALCULATION NEXT / LIVE PREFLIGHT PARTIAL / PRODUCTION NOT DEPLOYED
 
 ## Current verified candidate
 
-- Candidate checkpoint: `b181bfc4350590796aabd45b3196be6bffcbf624`.
+- Candidate checkpoint: `6684aa3d508776b4e006455af0a493f102dddc02`.
 - Product scope: single-site WordPress only. Multisite/network support is not an acceptance target.
-- Full single-site maintenance regression: `34240050604` passed on PHP 7.4, PHP 8.2, and disposable WordPress 7.1.
-- Runtime artifact: `10061625032`, SHA-256 `8de5e338f732d0c8c28e603de8d160d45e40de2a5556b37ea7a71a9b327a77d4`.
-- Content/member/navigation run: `34240050534` passed.
-- Integrity run: `34240050888` passed.
-- Events Manager regression run: `34240050569` passed against WordPress.org Events Manager 7.4.3.
-- Real registry: 78 abilities = 24 maintenance + 14 content CRUD/revision + 2 permanent content deletion + 2 status + 12 taxonomy + 8 navigation + 4 member-read + 2 member-mutation + 4 event/location read + 4 event/location mutation + 2 event deletion.
+- Full single-site maintenance regression: `34241513120` passed on PHP 7.4, PHP 8.2, and disposable WordPress 7.1.
+- Runtime artifact: `10062232870`, SHA-256 `9a05a3a5974119efbcaca4803776d464e00d768f83537a4a1399068d7a81e11c`.
+- Content/member/navigation run: `34241513095` passed.
+- Integrity run: `34241513166` passed.
+- Events Manager regression run: `34241513102` passed against WordPress.org Events Manager 7.4.3.
+- Real registry: 79 abilities = 24 maintenance + 14 content CRUD/revision + 2 permanent content deletion + 2 status + 12 taxonomy + 8 navigation + 4 member-read + 2 member-mutation + 4 event/location read + 4 event/location mutation + 3 event lifecycle.
 
 ## Verified content administration
 
@@ -50,12 +50,14 @@ Status: REFERENCE_SINGLE_SITE_MAINTENANCE_CONTENT_PERMANENT_DELETE_TAXONOMY_NAVI
 - Four bounded read abilities cover list/get events and list/get locations.
 - Four mutation abilities cover create/update for ordinary single events and physical venues/locations only.
 - Expected-before state, readback, rollback/cleanup, publish/object authority, dependency-state preservation, and referenced-venue isolation are verified.
-- Two event-deletion abilities provide an explicit two-stage lifecycle for ordinary single events: native Events Manager trash first, then optional permanent deletion.
-- Event trash uses the exact current event state, verifies the backing WordPress event post is in trash, preserves the referenced venue, and leaves unrelated events unchanged.
+- Three event-lifecycle abilities now cover trash, restore, and permanent deletion for ordinary single events.
+- Event trash uses exact current event state, native `EM_Event::delete(false)`, and verifies the backing WordPress event post is in trash while preserving the referenced venue and unrelated event state.
+- Event restoration requires the event already be in trash and the exact trashed event state still match. It uses WordPress's native untrash lifecycle and deliberately restores to `draft`; it never silently republishes an event.
+- Restore performs event/post readback, object-level authority enforcement, referenced-venue isolation, and exact rollback to trash if verification fails. A real booking fixture proved restore and re-trash preserve booking state.
 - Permanent event deletion requires the event already be trashed, exact `expected_state_token`, explicit `confirm_permanent_delete=true`, and native object-level delete authority.
 - Before hard deletion, the service uses Events Manager's aggregate booking count across statuses/owners for the specific event. Any existing booking refuses permanent deletion and preserves both the event and booking; zero bookings permits the native forced delete path.
 - Successful permanent deletion verifies both the Events Manager identity and backing WordPress event post are absent while the referenced venue and unrelated event remain unchanged.
-- Location deletion, booking deletion, ticket deletion, and payment administration are not part of the event-deletion contract.
+- Location deletion, booking deletion, ticket deletion, and payment administration are not part of the event lifecycle contract.
 - Events Manager and all other third-party plugin source remain immutable dependency surfaces for this workstream.
 
 ## Active next gate — site administration autonomy gap recalculation
