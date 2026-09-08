@@ -63,7 +63,7 @@ foreach ( $registrars as $registration_source ) {
 }
 
 $deletion_source = file_get_contents( $lab . '/candidate/includes/class-cmsa-content-deletion.php' );
-foreach ( array( "'trash' !== $post->post_status", "current_user_can( 'delete_post'", 'confirm_permanent_delete', 'expected_modified_gmt', 'wp_delete_post( $post->ID, true )' ) as $deletion_guard ) {
+foreach ( array( "'trash' !== \$post->post_status", "current_user_can( 'delete_post'", 'confirm_permanent_delete', 'expected_modified_gmt', 'wp_delete_post( $post->ID, true )' ) as $deletion_guard ) {
 	if ( false === strpos( $deletion_source, $deletion_guard ) ) {
 		fwrite( STDERR, "Permanent content deletion guard missing: {$deletion_guard}.\n" );
 		exit( 1 );
@@ -78,7 +78,7 @@ foreach ( array( 'wp_get_nav_menus', 'wp_get_nav_menu_items', 'wp_update_nav_men
 	}
 }
 $navigation_abilities_source = file_get_contents( $lab . '/candidate/includes/class-cmsa-navigation-abilities.php' );
-foreach ( array( "'update-navigation-menu'", "'delete-navigation-menu'", "array( $this->navigation, 'update_menu' )", "array( $this->navigation, 'delete_menu' )" ) as $navigation_lifecycle_registration ) {
+foreach ( array( "'update-navigation-menu'", "'delete-navigation-menu'", "array( \$this->navigation, 'update_menu' )", "array( \$this->navigation, 'delete_menu' )" ) as $navigation_lifecycle_registration ) {
 	if ( false === strpos( $navigation_abilities_source, $navigation_lifecycle_registration ) ) {
 		fwrite( STDERR, "Core navigation lifecycle registration missing: {$navigation_lifecycle_registration}.\n" );
 		exit( 1 );
