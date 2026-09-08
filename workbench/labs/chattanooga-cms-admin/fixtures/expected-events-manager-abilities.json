@@ -1,0 +1,6 @@
+[
+  "chattanooga-cms-admin/list-events",
+  "chattanooga-cms-admin/get-event",
+  "chattanooga-cms-admin/list-locations",
+  "chattanooga-cms-admin/get-location"
+]

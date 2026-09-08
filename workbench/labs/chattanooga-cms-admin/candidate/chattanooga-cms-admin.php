@@ -28,12 +28,14 @@ require_once CMSA_DIR . 'includes/class-cmsa-content-status.php';
 require_once CMSA_DIR . 'includes/class-cmsa-content-taxonomy.php';
 require_once CMSA_DIR . 'includes/class-cmsa-members.php';
 require_once CMSA_DIR . 'includes/class-cmsa-member-mutations.php';
+require_once CMSA_DIR . 'includes/class-cmsa-events-manager.php';
 require_once CMSA_DIR . 'includes/class-cmsa-abilities.php';
 require_once CMSA_DIR . 'includes/class-cmsa-content-abilities.php';
 require_once CMSA_DIR . 'includes/class-cmsa-content-status-abilities.php';
 require_once CMSA_DIR . 'includes/class-cmsa-content-taxonomy-abilities.php';
 require_once CMSA_DIR . 'includes/class-cmsa-member-abilities.php';
 require_once CMSA_DIR . 'includes/class-cmsa-member-mutation-abilities.php';
+require_once CMSA_DIR . 'includes/class-cmsa-events-manager-abilities.php';
 require_once CMSA_DIR . 'includes/class-cmsa-plugin.php';
 
 CMSA_Plugin::instance();

@@ -10,6 +10,7 @@ $registrars = array(
 	file_get_contents( $lab . '/candidate/includes/class-cmsa-content-taxonomy-abilities.php' ),
 	file_get_contents( $lab . '/candidate/includes/class-cmsa-member-abilities.php' ),
 	file_get_contents( $lab . '/candidate/includes/class-cmsa-member-mutation-abilities.php' ),
+	file_get_contents( $lab . '/candidate/includes/class-cmsa-events-manager-abilities.php' ),
 );
 
 foreach ( array( 'Plugin Name: Chattanooga CMS Admin', 'Version: 0.1.0', 'Requires at least: 6.9', 'Requires PHP: 7.4' ) as $fragment ) {
@@ -19,7 +20,7 @@ foreach ( array( 'Plugin Name: Chattanooga CMS Admin', 'Version: 0.1.0', 'Requir
 	}
 }
 
-foreach ( array( 'class-cmsa-errors.php', 'class-cmsa-audit.php', 'class-cmsa-backups.php', 'class-cmsa-health.php', 'class-cmsa-updates.php', 'class-cmsa-lifecycle.php', 'class-cmsa-content.php', 'class-cmsa-content-status.php', 'class-cmsa-content-taxonomy.php', 'class-cmsa-members.php', 'class-cmsa-member-mutations.php', 'class-cmsa-abilities.php', 'class-cmsa-content-abilities.php', 'class-cmsa-content-status-abilities.php', 'class-cmsa-content-taxonomy-abilities.php', 'class-cmsa-member-abilities.php', 'class-cmsa-member-mutation-abilities.php', 'class-cmsa-plugin.php' ) as $required_include ) {
+foreach ( array( 'class-cmsa-errors.php', 'class-cmsa-audit.php', 'class-cmsa-backups.php', 'class-cmsa-health.php', 'class-cmsa-updates.php', 'class-cmsa-lifecycle.php', 'class-cmsa-content.php', 'class-cmsa-content-status.php', 'class-cmsa-content-taxonomy.php', 'class-cmsa-members.php', 'class-cmsa-member-mutations.php', 'class-cmsa-events-manager.php', 'class-cmsa-abilities.php', 'class-cmsa-content-abilities.php', 'class-cmsa-content-status-abilities.php', 'class-cmsa-content-taxonomy-abilities.php', 'class-cmsa-member-abilities.php', 'class-cmsa-member-mutation-abilities.php', 'class-cmsa-events-manager-abilities.php', 'class-cmsa-plugin.php' ) as $required_include ) {
 	if ( false === strpos( $plugin, $required_include ) ) {
 		fwrite( STDERR, "Plugin bootstrap does not load {$required_include}.\n" );
 		exit( 1 );
@@ -36,7 +37,7 @@ if ( false === strpos( $coordinator, "function_exists( 'wp_register_ability' )" 
 	fwrite( STDERR, "Abilities API availability guard is missing.\n" );
 	exit( 1 );
 }
-foreach ( array( 'new CMSA_Content()', 'new CMSA_Content_Abilities', 'new CMSA_Content_Status', 'new CMSA_Content_Status_Abilities', 'new CMSA_Content_Taxonomy', 'new CMSA_Content_Taxonomy_Abilities', 'new CMSA_Members()', 'new CMSA_Member_Abilities', 'new CMSA_Member_Mutations', 'new CMSA_Member_Mutation_Abilities' ) as $wiring ) {
+foreach ( array( 'new CMSA_Content()', 'new CMSA_Content_Abilities', 'new CMSA_Content_Status', 'new CMSA_Content_Status_Abilities', 'new CMSA_Content_Taxonomy', 'new CMSA_Content_Taxonomy_Abilities', 'new CMSA_Members()', 'new CMSA_Member_Abilities', 'new CMSA_Member_Mutations', 'new CMSA_Member_Mutation_Abilities', 'new CMSA_Events_Manager()', 'new CMSA_Events_Manager_Abilities' ) as $wiring ) {
 	if ( false === strpos( $coordinator, $wiring ) ) {
 		fwrite( STDERR, "Coordinator wiring missing: {$wiring}.\n" );
 		exit( 1 );

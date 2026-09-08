@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   events-manager-model:
-    name: WordPress 7.1 Events Manager model
+    name: WordPress 7.1 Events Manager runtime
     runs-on: ubuntu-latest
     services:
       mysql:
@@ -64,3 +64,18 @@ jobs:
         run: |
           set -euo pipefail
           php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/events-manager-model-cli.php" --path=/tmp/wordpress
+      - name: Verify all candidate abilities register with Events Manager
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/ability-registration-cli.php" --path=/tmp/wordpress
+      - name: Verify Events Manager read permissions
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/events-manager-permission-cli.php" --path=/tmp/wordpress
+      - name: Verify bounded event and location reads
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/events-manager-read-cli.php" --path=/tmp/wordpress
