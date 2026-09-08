@@ -9,6 +9,7 @@ final class CMSA_Plugin {
 
 	private $abilities;
 	private $content_abilities;
+	private $content_deletion_abilities;
 	private $content_status_abilities;
 	private $content_taxonomy_abilities;
 	private $member_abilities;
@@ -49,9 +50,10 @@ final class CMSA_Plugin {
 		if ( ! $this->abilities ) {
 			$this->abilities = new CMSA_Abilities( new CMSA_Health(), new CMSA_Backups(), new CMSA_Updates(), new CMSA_Lifecycle() );
 		}
-		if ( ! $this->content_abilities || ! $this->content_status_abilities || ! $this->content_taxonomy_abilities ) {
+		if ( ! $this->content_abilities || ! $this->content_deletion_abilities || ! $this->content_status_abilities || ! $this->content_taxonomy_abilities ) {
 			$content = new CMSA_Content();
 			$this->content_abilities = new CMSA_Content_Abilities( $content );
+			$this->content_deletion_abilities = new CMSA_Content_Deletion_Abilities( new CMSA_Content_Deletion() );
 			$this->content_status_abilities = new CMSA_Content_Status_Abilities( new CMSA_Content_Status( $content ) );
 			$this->content_taxonomy_abilities = new CMSA_Content_Taxonomy_Abilities( new CMSA_Content_Taxonomy( $content ) );
 		}
@@ -68,6 +70,7 @@ final class CMSA_Plugin {
 
 		$this->abilities->register();
 		$this->content_abilities->register();
+		$this->content_deletion_abilities->register();
 		$this->content_status_abilities->register();
 		$this->content_taxonomy_abilities->register();
 		$this->member_abilities->register();
