@@ -18,6 +18,12 @@ if ( ! function_exists( 'add_action' ) ) {
 	}
 }
 
+if ( ! function_exists( 'add_filter' ) ) {
+	function add_filter( $hook, $callback ) {
+		return add_action( $hook, $callback );
+	}
+}
+
 if ( ! function_exists( 'do_action' ) ) {
 	function do_action( $hook ) {
 		$callbacks = isset( $GLOBALS['cmsa_test_hooks'][ $hook ] ) ? $GLOBALS['cmsa_test_hooks'][ $hook ] : array();
