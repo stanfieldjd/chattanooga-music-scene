@@ -2,7 +2,7 @@
 
 All mutation tests use disposable WordPress fixtures. Reference/runtime success never implies production deployment. Product target is single-site WordPress only; multisite/network behavior is out of scope and must not be reintroduced as an acceptance requirement. Third-party plugin source is immutable dependency code for this workstream; only Chattanooga CMS Admin and its disposable harness are editable.
 
-## Gates 0–14 — PASS
+## Gates 0–15 — PASS
 
 - Source architecture, PHP 7.4/8.2, privacy/static boundaries.
 - Real WordPress 7.1 Abilities API registration and REST isolation.
@@ -16,8 +16,9 @@ All mutation tests use disposable WordPress fixtures. Reference/runtime success 
 - Ordinary single event and physical venue/location read/create/update integration without third-party source modification.
 - Permanent post/page deletion with trash prerequisite, exact conflict state, explicit confirmation, object permission and absence verification.
 - Core WordPress navigation administration including menu lifecycle, item lifecycle, and registered location assignment.
+- Ordinary single-event trash and permanent deletion with exact state, explicit confirmation, object authority, booking protection, absence verification, and venue isolation.
 
-Current reference evidence: candidate checkpoint `1a808764b150965809dda2dd07a5b5fad058ff72`; maintenance `34188720251`; content/member/navigation `34188720289`; integrity `34188720290`; Events Manager regression `34188720252`; artifact `10041444805`; SHA-256 `d852b4f3771583a72961f744c8cfc5fdc1de81eb38d8bb7ad2af316464a87ce2`.
+Current reference evidence: candidate checkpoint `b181bfc4350590796aabd45b3196be6bffcbf624`; maintenance `34240050604`; content/member/navigation `34240050534`; integrity `34240050888`; Events Manager regression `34240050569`; artifact `10061625032`; SHA-256 `8de5e338f732d0c8c28e603de8d160d45e40de2a5556b37ea7a71a9b327a77d4`.
 
 ## Gate 13 — Core WordPress navigation administration — PASS
 
@@ -35,7 +36,7 @@ Current reference evidence: candidate checkpoint `1a808764b150965809dda2dd07a5b5
 
 ## Gate 14 — Navigation menu lifecycle close-out — PASS
 
-Evidence: content runtime `34188720289`; 76 total registered abilities; maintenance/static `34188720251`; integrity `34188720290`.
+Evidence: content runtime `34240050534`; 78 total registered abilities; maintenance/static `34240050604`; integrity `34240050888`.
 
 1. `update-navigation-menu` renames an existing core WordPress menu using the exact current menu-state token.
 2. Stale rename and no-change rename fail closed.
@@ -48,13 +49,28 @@ Evidence: content runtime `34188720289`; 76 total registered abilities; maintena
 9. The unrelated control menu remains unchanged.
 10. Static boundary checks require the native menu update/delete APIs, exact-state and assignment guards, lifecycle registration, and prohibit generic option mutation or third-party-specific code in the navigation service.
 
-## Gate 15 — Site administration autonomy gap recalculation — ACTIVE
+## Gate 15 — Events Manager event deletion — PASS
 
-1. Inventory the verified 76 abilities against actual Chattanooga single-site administration workflows.
+Evidence: Events Manager runtime `34240050569`; 78 total registered abilities; maintenance/static `34240050604`; content/member/navigation `34240050534`; integrity `34240050888`.
+
+1. Two typed abilities cover ordinary single-event trash and permanent deletion only; location, booking, ticket, and payment deletion are excluded.
+2. Both abilities require `delete_events` at registration and native event object authority at execution; anonymous access and `edit_events` alone are insufficient.
+3. Trash requires the exact current event state token, rejects stale or repeated trash requests, calls native `EM_Event::delete(false)`, and verifies the backing event post enters WordPress trash.
+4. Permanent deletion requires the event already be trashed, the exact trashed event state token, and explicit `confirm_permanent_delete=true`.
+5. Before permanent deletion, Events Manager aggregate booking count is evaluated for the specific event across booking statuses and owners. Any existing booking refuses deletion and leaves both event and booking intact.
+6. Zero verified bookings permit native `EM_Event::delete(true)`; both the Events Manager event identity and backing WordPress event post must be absent afterward.
+7. Object-level `delete_others_events` authority is enforced for events owned by another account.
+8. The referenced venue state and an unrelated control event remain unchanged through trash, refusal, and successful hard deletion.
+9. The dependency-model probe independently confirms Events Manager 7.4.3 native `delete(false)` means trash and `delete(true)` means permanent deletion while preserving the referenced location.
+10. Static boundary checks require the two-stage native delete calls, exact state, explicit confirmation, aggregate booking guard, and venue isolation while rejecting location/booking/ticket deletion methods from this service.
+
+## Gate 16 — Site administration autonomy gap recalculation — ACTIVE
+
+1. Inventory the verified 78 abilities against actual Chattanooga single-site administration workflows.
 2. Identify a concrete administration action that remains impossible through the typed surface and is materially necessary or frequently required.
 3. Rank candidate gaps by operational necessity, frequency, reversibility, and security/destructive risk.
 4. Do not select a capability merely because WordPress or an installed plugin exposes it.
-5. Media, recurring events, bookings, tickets, payments, member security/account lifecycle, widgets/templates, and generic option mutation remain non-automatic targets.
+5. Media, recurring events, bookings, tickets, payments, member security/account lifecycle, widgets/templates, location deletion, and generic option mutation remain non-automatic targets.
 6. Any selected mutation must use native authority, bounded schemas/allowlists, exact-state conflict handling where applicable, readback verification, rollback for recoverable writes, and explicit destructive isolation where rollback is impossible.
 
 ## Live Chattanooga
