@@ -47,15 +47,24 @@ if ( ! $event->save() || empty( $event->event_id ) ) {
 $adapter = new CMSA_Events_Manager();
 $event_list = $adapter->list_events( array( 'search' => $token, 'page' => 1, 'per_page' => 1 ) );
 if ( is_wp_error( $event_list ) || 1 !== count( $event_list['items'] ) || (int) $event_list['items'][0]['id'] !== (int) $event->event_id ) {
-	$returned = array();
-	if ( ! is_wp_error( $event_list ) && isset( $event_list['items'] ) && is_array( $event_list['items'] ) ) {
-		foreach ( $event_list['items'] as $item ) {
-			$returned[] = array( 'id' => isset( $item['id'] ) ? (int) $item['id'] : 0, 'name' => isset( $item['name'] ) ? (string) $item['name'] : '' );
+	global $wpdb;
+	$raw = $wpdb->get_row( $wpdb->prepare( 'SELECT event_id, post_id, event_name, event_status, event_private, event_owner, event_start_date FROM ' . EM_EVENTS_TABLE . ' WHERE event_id = %d', $event->event_id ), ARRAY_A );
+	$map_events = static function ( $events ) {
+		$out = array();
+		foreach ( is_array( $events ) ? $events : array() as $item ) {
+			if ( $item instanceof EM_Event ) {
+				$out[] = array( 'id' => (int) $item->event_id, 'name' => (string) $item->event_name, 'status' => (int) $item->event_status, 'private' => isset( $item->event_private ) ? (int) $item->event_private : null );
+			}
 		}
-	}
-	fwrite( STDERR, 'events-manager-read-cli: bounded event list/search failed; saved=' . wp_json_encode( array( 'id' => (int) $event->event_id, 'post_id' => (int) $event->post_id, 'name' => (string) $event->event_name, 'status' => (int) $event->event_status ) ) . '; returned=' . wp_json_encode( $returned ) . '; error=' . ( is_wp_error( $event_list ) ? $event_list->get_error_code() : 'none' ) . "\n" );
+		return $out;
+	};
+	$native_all = EM_Events::get( array( 'scope' => 'all', 'limit' => 20 ) );
+	$native_search = EM_Events::get( array( 'scope' => 'all', 'limit' => 20, 'search' => $token ) );
+	$native_admin = EM_Events::get( array( 'scope' => 'all', 'limit' => 20, 'search' => $token, 'status' => 'all', 'private' => false ) );
+	fwrite( STDERR, 'events-manager-read-cli: bounded event list/search failed; raw=' . wp_json_encode( $raw ) . '; caps=' . wp_json_encode( array( 'edit_others_events' => current_user_can( 'edit_others_events' ), 'read_private_events' => current_user_can( 'read_private_events' ) ) ) . '; native_all=' . wp_json_encode( $map_events( $native_all ) ) . '; native_search=' . wp_json_encode( $map_events( $native_search ) ) . '; native_admin=' . wp_json_encode( $map_events( $native_admin ) ) . '; error=' . ( is_wp_error( $event_list ) ? $event_list->get_error_code() : 'none' ) . "\n" );
 	exit( 1 );
 }
+
 $event_detail = $adapter->get_event( $event->event_id );
 if ( is_wp_error( $event_detail ) || (int) $event_detail['event']['id'] !== (int) $event->event_id || $event->event_name !== $event_detail['event']['name'] ) {
 	fwrite( STDERR, "events-manager-read-cli: event detail failed.\n" );
