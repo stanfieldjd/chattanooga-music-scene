@@ -5,9 +5,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Bounded two-stage deletion for ordinary single Events Manager events.
+ * Bounded lifecycle controls for ordinary single Events Manager events.
  *
- * Soft deletion uses Events Manager's native trash path. Permanent deletion is
+ * Trash uses Events Manager's native soft-delete path. Restore uses the core
+ * WordPress untrash lifecycle and deliberately returns the event to draft so
+ * restoration never silently republishes an event. Permanent deletion is
  * allowed only from trash, requires explicit confirmation, and refuses events
  * with bookings so an event-only administration action cannot cascade into
  * attendee booking data.
@@ -59,6 +61,49 @@ final class CMSA_Events_Manager_Deletion {
 		$after = $this->events->normalize_event( $after_event );
 		CMSA_Audit::record( 'trash-event', 'event:' . $before['id'], 'success', array( 'previous_state_token' => $before['state_token'], 'state_token' => $after['state_token'] ) );
 		return array( 'trashed' => true, 'previous_state_token' => $before['state_token'], 'event' => $after );
+	}
+
+	public function restore_event( array $input ) {
+		$event = $this->load_authorized_event( $input );
+		if ( is_wp_error( $event ) ) {
+			return $event;
+		}
+		$post = $this->event_post( $event );
+		if ( is_wp_error( $post ) ) {
+			return $post;
+		}
+		if ( 'trash' !== $post->post_status ) {
+			return new WP_Error( 'cmsa_event_restore_requires_trash', 'Event restoration requires the event to already be in trash.' );
+		}
+
+		$before = $this->events->normalize_event( $event );
+		$conflict = $this->verify_expected_state( $before, $input );
+		if ( is_wp_error( $conflict ) ) {
+			return $conflict;
+		}
+		$location_guard = $this->location_guard( $event );
+		if ( is_wp_error( $location_guard ) ) {
+			return $location_guard;
+		}
+
+		$restored_post = wp_untrash_post( (int) $before['post_id'] );
+		if ( ! $restored_post instanceof WP_Post ) {
+			return new WP_Error( 'cmsa_event_restore_failed', 'WordPress could not restore the event from trash.' );
+		}
+
+		do_action( 'cmsa_events_manager_event_written', (int) $before['id'], 'restore' );
+		$after_event = $this->events->load_event( (int) $before['id'] );
+		$after_post = get_post( (int) $before['post_id'] );
+		if ( is_wp_error( $after_event ) || ! $after_post instanceof WP_Post || 'draft' !== $after_post->post_status || ! $this->is_ordinary_event( $after_event ) ) {
+			return new WP_Error( 'cmsa_event_restore_verify', 'Restored event did not pass draft-state readback verification.', array( 'rolled_back' => $this->rollback_restore_to_trash( (int) $before['id'] ) ) );
+		}
+		if ( ! $this->location_guard_unchanged( $location_guard ) ) {
+			return new WP_Error( 'cmsa_event_restore_location_changed', 'Referenced venue changed during event restoration.', array( 'rolled_back' => $this->rollback_restore_to_trash( (int) $before['id'] ) ) );
+		}
+
+		$after = $this->events->normalize_event( $after_event );
+		CMSA_Audit::record( 'restore-event', 'event:' . $before['id'], 'success', array( 'previous_state_token' => $before['state_token'], 'state_token' => $after['state_token'], 'post_status' => 'draft' ) );
+		return array( 'restored' => true, 'previous_state_token' => $before['state_token'], 'event' => $after );
 	}
 
 	public function delete_event( array $input ) {
@@ -128,10 +173,10 @@ final class CMSA_Events_Manager_Deletion {
 			return $event;
 		}
 		if ( ! $this->is_ordinary_event( $event ) ) {
-			return new WP_Error( 'cmsa_event_delete_type', 'Only ordinary single Events Manager events are supported by this deletion contract.' );
+			return new WP_Error( 'cmsa_event_delete_type', 'Only ordinary single Events Manager events are supported by this lifecycle contract.' );
 		}
 		if ( ! current_user_can( 'delete_events' ) || ! method_exists( $event, 'can_manage' ) || ! $event->can_manage( 'delete_events', 'delete_others_events' ) ) {
-			return new WP_Error( 'cmsa_event_delete_permission', 'Current user cannot delete this event.' );
+			return new WP_Error( 'cmsa_event_delete_permission', 'Current user cannot manage this event deletion lifecycle.' );
 		}
 		return $event;
 	}
@@ -148,7 +193,7 @@ final class CMSA_Events_Manager_Deletion {
 	private function verify_expected_state( array $current, array $input ) {
 		$expected = isset( $input['expected_state_token'] ) ? (string) $input['expected_state_token'] : '';
 		if ( '' === $expected || ! hash_equals( (string) $current['state_token'], $expected ) ) {
-			return new WP_Error( 'cmsa_event_delete_conflict', 'Event changed after it was read; deletion was not attempted.', array( 'current_state_token' => $current['state_token'] ) );
+			return new WP_Error( 'cmsa_event_delete_conflict', 'Event changed after it was read; lifecycle mutation was not attempted.', array( 'current_state_token' => $current['state_token'] ) );
 		}
 		return true;
 	}
@@ -172,6 +217,22 @@ final class CMSA_Events_Manager_Deletion {
 		return (int) $count;
 	}
 
+	private function rollback_restore_to_trash( $event_id ) {
+		$event = $this->events->load_event( (int) $event_id );
+		if ( is_wp_error( $event ) ) {
+			return false;
+		}
+		$post = $this->event_post( $event );
+		if ( is_wp_error( $post ) ) {
+			return false;
+		}
+		if ( 'trash' !== $post->post_status && true !== $event->delete( false ) ) {
+			return false;
+		}
+		$after_post = get_post( (int) $event->post_id );
+		return $after_post instanceof WP_Post && 'trash' === $after_post->post_status;
+	}
+
 	private function location_guard( EM_Event $event ) {
 		$location_id = isset( $event->location_id ) ? (int) $event->location_id : 0;
 		if ( $location_id < 1 ) {
@@ -179,7 +240,7 @@ final class CMSA_Events_Manager_Deletion {
 		}
 		$location = $this->events->load_location( $location_id );
 		if ( is_wp_error( $location ) ) {
-			return new WP_Error( 'cmsa_event_delete_location_guard', 'Referenced venue could not be read before event deletion.' );
+			return new WP_Error( 'cmsa_event_delete_location_guard', 'Referenced venue could not be read before event lifecycle mutation.' );
 		}
 		return array( 'id' => $location_id, 'state_token' => $this->events->location_state( $location ) );
 	}
