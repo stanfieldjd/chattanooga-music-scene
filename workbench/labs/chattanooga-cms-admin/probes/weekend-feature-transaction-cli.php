@@ -4,8 +4,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	fwrite( STDERR, "weekend-feature-transaction-cli: WordPress is not loaded.\n" );
 	exit( 1 );
 }
-if ( ! class_exists( 'CMS_Weekend_Posts' ) || ! defined( 'CMS_CORE_VERSION' ) || '0.2.1' !== CMS_CORE_VERSION ) {
-	fwrite( STDERR, "weekend-feature-transaction-cli: source Weekend Feature 0.2.1 is not active.\n" );
+if ( ! class_exists( 'CMS_Weekend_Posts' ) || ! defined( 'CMS_CORE_VERSION' ) || '0.2.2' !== CMS_CORE_VERSION ) {
+	fwrite( STDERR, "weekend-feature-transaction-cli: source Weekend Feature 0.2.2 is not active.\n" );
 	exit( 1 );
 }
 if ( ! class_exists( 'EM_Events' ) || ! class_exists( 'EM_Event' ) || ! class_exists( 'EM_Location' ) ) {
