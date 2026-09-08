@@ -36,6 +36,7 @@ require_once CMSA_DIR . 'includes/class-cmsa-events-manager-cache.php';
 require_once CMSA_DIR . 'includes/class-cmsa-events-manager-mutations.php';
 require_once CMSA_DIR . 'includes/class-cmsa-events-manager-deletion.php';
 require_once CMSA_DIR . 'includes/class-cmsa-events-manager-taxonomy.php';
+require_once CMSA_DIR . 'includes/class-cmsa-weekend-feature.php';
 require_once CMSA_DIR . 'includes/class-cmsa-abilities.php';
 require_once CMSA_DIR . 'includes/class-cmsa-content-abilities.php';
 require_once CMSA_DIR . 'includes/class-cmsa-content-deletion-abilities.php';
@@ -49,6 +50,7 @@ require_once CMSA_DIR . 'includes/class-cmsa-events-manager-abilities.php';
 require_once CMSA_DIR . 'includes/class-cmsa-events-manager-mutation-abilities.php';
 require_once CMSA_DIR . 'includes/class-cmsa-events-manager-deletion-abilities.php';
 require_once CMSA_DIR . 'includes/class-cmsa-events-manager-taxonomy-abilities.php';
+require_once CMSA_DIR . 'includes/class-cmsa-weekend-feature-abilities.php';
 require_once CMSA_DIR . 'includes/class-cmsa-plugin.php';
 
 CMSA_Events_Manager_Cache::register();
