@@ -13,7 +13,7 @@
       "branch": "feature/chattanooga-cms-admin",
       "head_sha": "0b34773ebc8073cb657477770b34cabc280f5892",
       "source_path": "site-plugins/chattanooga-cms-admin",
-      "state": "workbench_single_site_maintenance_content_permanent_delete_taxonomy_navigation_lifecycle_member_event_location_event_lifecycle_event_taxonomy_admin_verified_live_taxonomy_relationship_evidence_verified_production_gate_pending_preflight_partial",
+      "state": "live_plugin_active_mcp_exposure_blocked_festival_relationships_freshly_reverified",
       "validation": {
         "candidate_checkpoint": "62e46bb64514973a640f1abd13ff5f90248580f8",
         "event_location_source_change": "9874d5192cef627292df09bd81fd1f7aaa59315d",
@@ -39,6 +39,10 @@
         "content_run_id": 34244282476,
         "workbench_integrity_run_id": 34244282480,
         "events_manager_run_id": 34244282382,
+        "post_checkpoint_workbench_run_id": 34245410480,
+        "post_checkpoint_content_run_id": 34245410459,
+        "post_checkpoint_events_manager_run_id": 34245410524,
+        "post_checkpoint_integrity_run_id": 34245410436,
         "events_manager_version": "7.4.3",
         "real_registry_expected_abilities": 82,
         "maintenance_abilities": 24,
@@ -85,8 +89,22 @@
         "live_music_festivals_category": "id_59_slug_music-festivals_parent_0_count_3",
         "live_live_music_category": "id_60_slug_live-music_parent_0_category_count_68_published_cpt_filter_63",
         "live_festival_event_ids": [6810, 7800, 7803, 7804, 7806],
-        "live_festival_live_music_overlap": "5_of_5_published_festival_category_events_also_assigned_live_music",
+        "live_festival_live_music_overlap": "5_of_5_freshly_reverified_after_plugin_activation",
         "live_music_festivals_overlap": "3_published_records_all_within_current_festival_set",
+        "live_festival_current_sets": {
+          "6810": [247, 60, 59],
+          "7800": [252, 247, 256, 60],
+          "7803": [247, 60, 59],
+          "7804": [252, 247, 60],
+          "7806": [252, 247, 60, 59]
+        },
+        "live_festival_current_titles": {
+          "6810": "3 Sisters Bluegrass Festival",
+          "7800": "Chattanooga Oktoberfest",
+          "7803": "IBMA World of Bluegrass",
+          "7804": "Chattanooga Bluegrass",
+          "7806": "Chattanooga Jazz Fest"
+        },
         "live_vocabulary_decision": "existing_festival_and_live_music_vocabulary_is_sufficient_relationship_repair_needed_no_term_lifecycle_capability_justified",
         "live_taxonomy_catalog_limit": "connector_reports_11_event_categories_but_exposes_no_read_only_list_all_categories_ability_target_vocabulary_verified_by_category_id_and_taxonomy_filters",
         "third_party_plugin_boundary": "passed_dependency_source_unmodified_admin_plugin_adapter_and_disposable_fixture_only",
@@ -94,8 +112,13 @@
         "maintenance_regression": "passed_single_site_backup_restore_storage_update_rollback_privacy_error_redaction_cache_core",
         "dreamhost_read_only_probe": "partial_wordpress_7_1_php_8_2_30_mysql_8_0_41_relevant_directories_writable_wp_super_cache_active",
         "dreamhost_unresolved": "disk_capacity_filesystem_method_ziparchive_outside_webroot_backup_parent_writability",
-        "candidate_live_mcp_discovery": "not_run_candidate_not_installed",
-        "next_gate": "no_additional_taxonomy_source_capability_justified_candidate_installation_live_mcp_discovery_and_live_relationship_repair_require_separate_production_authorization"
+        "live_plugin_installation": "active_chattanooga_cms_admin_version_0_1_0_execution_verified",
+        "live_mcp_identity": "wordpress_user_2_roles_administrator_bbp_keymaster",
+        "candidate_live_mcp_discovery": "zero_chattanooga_cms_admin_abilities_exposed_by_current_connector",
+        "candidate_source_mcp_registration": "wp_abilities_api_init_public_true_mcp_public_true_reference_registry_82_passed",
+        "mcp_exposure_diagnosis": "exact_live_policy_not_inspectable_current_evidence_localizes_unresolved_boundary_to_mcp_exposure_governance_not_proven_candidate_registration_defect",
+        "live_mutations_after_install": "none",
+        "next_gate": "expose_chattanooga_cms_admin_namespace_then_rerun_discovery_health_and_exact_taxonomy_reads_live_relationship_write_requires_separate_explicit_authorization"
       }
     },
     {
