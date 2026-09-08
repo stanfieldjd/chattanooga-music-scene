@@ -155,3 +155,10 @@ Append-only record of material workbench state changes. Do not rewrite prior ent
 - Generic CPT reads are not accepted as candidate conflict tokens. Any later repair must first obtain fresh `get-event-taxonomy` state tokens after the candidate namespace becomes visible.
 - No live content or taxonomy relationship was modified.
 - Recalculated next gate: expose/grant `chattanooga-cms-admin/*` through the active MCP server, rerun candidate discovery/health/read validation, and only then proceed to a separately authorized exact-state Festival relationship repair.
+
+## 2026-09-08 — CMS Admin WordPress permission-side verification
+
+- The live Administrator role was read directly after the MCP exposure failure.
+- `edit_events` is present, along with `manage_options`, `activate_plugins`, `install_plugins`, and `update_plugins`.
+- Therefore the candidate taxonomy family's WordPress capability requirement is satisfied for the current connection; role capability denial is not the cause of the missing `chattanooga-cms-admin/*` namespace.
+- The unresolved production blocker remains the MCP exposure/governance boundary. No live mutation was performed.
