@@ -1,0 +1,7 @@
+[
+  "chattanooga-cms-admin/list-media",
+  "chattanooga-cms-admin/get-media",
+  "chattanooga-cms-admin/create-media",
+  "chattanooga-cms-admin/update-media",
+  "chattanooga-cms-admin/set-featured-image"
+]
