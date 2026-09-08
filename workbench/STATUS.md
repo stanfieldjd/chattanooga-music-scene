@@ -19,12 +19,17 @@ Last verified: 2026-09-08
 - Workbench lab: `workbench/labs/chattanooga-cms-admin`.
 - Immutable lab baseline remains an exact Git-blob mirror of the verified source checkpoint.
 - Mutable coding candidate: `workbench/labs/chattanooga-cms-admin/candidate`.
-- Current verified candidate source checkpoint: `62e46bb64514973a640f1abd13ff5f90248580f8`.
-- Real reference registry: 82 abilities = 24 maintenance + 14 content CRUD/revision + 2 permanent content deletion + 2 status + 12 content taxonomy + 8 navigation + 4 member-read + 2 member-mutation + 4 event/location read + 4 event/location mutation + 3 event lifecycle + 3 event taxonomy.
-- Latest post-checkpoint maintenance/workbench rerun `34245410480` passed the WordPress 7.1 runtime probe and PHP 7.4/8.2 labs.
-- Latest post-checkpoint content/member/navigation rerun `34245410459` passed.
-- Latest post-checkpoint Events Manager rerun `34245410524` passed against WordPress.org Events Manager 7.4.3.
-- Prior integrity run `34245410436` passed.
+- Event-taxonomy candidate checkpoint remains `62e46bb64514973a640f1abd13ff5f90248580f8`.
+- Media implementation source checkpoint is `fce5ef0a1cc470f483891cb60edf7a499d3584d0`; PR #9 integrated the verified media slice into `workbench/mars` at `1b73e5f8902062dc5ee9006ef30d0784438c5379`.
+- Real reference registry after media integration: 87 abilities = 24 maintenance + 14 content CRUD/revision + 2 permanent content deletion + 2 status + 12 content taxonomy + 5 media + 8 navigation + 4 member-read + 2 member-mutation + 4 event/location read + 4 event/location mutation + 3 event lifecycle + 3 event taxonomy.
+- Five bounded media abilities are now execution-verified in the workbench candidate: list media, get media, create one bounded validated base64 attachment, update exact-state attachment metadata, and set/clear an exact-state post/page featured-image relationship.
+- Media creation is capped at 8 MiB decoded, performs WordPress extension/type validation plus payload MIME verification, never fetches arbitrary remote URLs, verifies resulting file size/hash/type, and removes a just-created attachment if verification fails.
+- Media metadata and featured-image writes reject stale/no-change state, verify readback, roll back or preserve the exact prior semantic relationship after injected verification failure, and preserve unrelated control objects.
+- Media permissions and object scope were execution-verified: anonymous/subscriber access is denied, native upload/edit authority is required, and users lacking `edit_others_posts` are scoped to their own attachments.
+- Post-integration push validation passed: Content Layer Lab `34271628425`, Events Manager Lab `34271628277`, Mars Workbench Integrity `34271628426`, and CMS Admin Workbench Lab `34271628265`; the latter passed PHP 7.4, PHP 8.2, WordPress 7.1 registry/permission/REST-isolation, backup/update/rollback, normal core update, and forced-core rollback coverage.
+- Latest earlier post-taxonomy maintenance/workbench rerun `34245410480` passed the WordPress 7.1 runtime probe and PHP 7.4/8.2 labs.
+- Latest earlier post-taxonomy content/member/navigation rerun `34245410459` passed.
+- Latest earlier post-taxonomy Events Manager rerun `34245410524` passed against WordPress.org Events Manager 7.4.3.
 - Event taxonomy contract verified in the reference runtime: `event-categories` and `event-tags` can be registered on `event`; assignment uses native `edit_events` authority; exact assignment and relationship clearing work; relationship clearing leaves the terms themselves intact.
 - Three bounded event-taxonomy abilities are verified in the candidate: list existing event taxonomy terms, read one ordinary single event's exact category/tag relationship set, and replace that exact relationship set.
 - Event taxonomy mutation requires exact event state plus exact previous relationship state, validates target terms already exist, rejects stale/no-change writes, verifies readback, rolls relationships back after injected verification failure, and preserves event core state, referenced venue state, and an unrelated control event.
@@ -36,16 +41,17 @@ Last verified: 2026-09-08
 - Therefore the current festival-vs-Live-Music issue remains a relationship-classification issue under the existing project rule; no event term create/update/delete capability is justified by current evidence.
 - Live installation is execution-verified: WordPress production reports `Chattanooga CMS Admin` version `0.1.0` active on WordPress 7.1 / PHP 8.2.30.
 - The current MCP connection is execution-verified as WordPress user ID 2 with roles `administrator` and `bbp_keymaster`.
-- The live `administrator` capability list explicitly includes `edit_events`, `manage_options`, `activate_plugins`, `install_plugins`, `update_plugins`, and the other native authorities required by the candidate families.
+- The live `administrator` capability list explicitly includes `edit_events`, `manage_options`, `activate_plugins`, `install_plugins`, `update_plugins`, and the other native authorities required by the deployed candidate families.
 - ChatGPT plugin permissions for `MCP Server For WordPress` are set to `Allow all actions`.
-- miniOrange policy was successfully saved by the user and live discovery now exposes all 82 `chattanooga-cms-admin` abilities through the current MCP connection.
+- miniOrange policy was successfully saved by the user and live discovery exposes the currently deployed 82 `chattanooga-cms-admin` abilities through the current MCP connection.
 - Live `chattanooga-cms-admin__get-health` execution passed on production: database responding, direct filesystem method, plugin/theme/content directories writable, backup storage available+writable, ZipArchive available, maintenance mode off, and HTTPS enabled.
 - The first exact taxonomy call using WordPress post ID `6810` correctly failed `event not found`; bounded candidate event search established that this API's `id` is the Events Manager event ID, not the WordPress event post ID. The exact five mappings above were then verified by both title and `post_id` before taxonomy reads proceeded.
 - Each `get-event-taxonomy` state token exactly matched the corresponding state token returned by the fresh candidate event search at the time of inspection.
 - Candidate source continues to keep `show_in_rest=false`; no public-REST relaxation or generic taxonomy workaround was needed.
-- No generic `mosmcp__cpt-remove-terms`, WPCode, media-upload, direct production-source workaround, or source change was used.
-- Next gate: a live five-event relationship repair is a separate target-specific mutation and remains unauthorized. If authorized, refresh each candidate taxonomy snapshot immediately before its write, remove only term `60` while preserving every other current category, and verify readback through the guarded candidate ability.
-- Production state: plugin active; 82 candidate MCP abilities exposed; health/read runtime acceptance passed; five exact taxonomy defects execution-verified; no live taxonomy/content writes were made by this workbench increment.
+- No generic `mosmcp__cpt-remove-terms`, WPCode, direct production-source workaround, or source change was used.
+- Media production gate: the five new workbench media abilities are E2 source/runtime verified but are NOT deployed to production. Any production promotion is a separate A3 action requiring explicit authorization and subsequent live MCP discovery/read validation.
+- Event-taxonomy production gate: a live five-event relationship repair is a separate target-specific mutation and remains unauthorized. If authorized, refresh each candidate taxonomy snapshot immediately before its write, remove only term `60` while preserving every other current category, and verify readback through the guarded candidate ability.
+- Production state: plugin active; 82 MCP abilities exposed; health/read runtime acceptance passed; five exact taxonomy defects execution-verified; the five media abilities remain workbench-only; no live taxonomy/content/media write was made by this functionality increment.
 
 ### WordPress / plugin / theme maintenance
 
