@@ -30,21 +30,22 @@ Last verified: 2026-09-08
 - Event taxonomy mutation requires exact event state plus exact previous relationship state, validates target terms already exist, rejects stale/no-change writes, verifies readback, rolls relationships back after injected verification failure, and preserves event core state, referenced venue state, and an unrelated control event.
 - Fresh live Chattanooga evidence confirms the current `event` type exposes `event-categories` but does not expose `event-tags`; the candidate already fails closed when an allowlisted taxonomy is unavailable.
 - The live target vocabulary is sufficient: `Festival` is term 247, `Music Festivals` is term 59, and `Live Music` is term 60.
-- All five currently published events assigned `Festival` — IDs `6810`, `7800`, `7803`, `7804`, and `7806` — were freshly re-read after installation and still also carry `Live Music`.
-- Fresh titles and relationship sets: `6810 3 Sisters Bluegrass Festival` = 247/60/59; `7800 Chattanooga Oktoberfest` = 252/247/256/60; `7803 IBMA World of Bluegrass` = 247/60/59; `7804 Chattanooga Bluegrass` = 252/247/60; `7806 Chattanooga Jazz Fest` = 252/247/60/59.
+- All five currently published events assigned `Festival` — WordPress post IDs `6810`, `7800`, `7803`, `7804`, and `7806` — still also carry `Live Music`.
+- Live MCP event-ID mapping is now exact and independently read through Chattanooga CMS Admin: `6810→1119`, `7800→1180`, `7803→1181`, `7804→1182`, `7806→1183`.
+- Fresh exact candidate relationship reads returned: event `1119` = `[59,60,247]`; `1180` = `[60,247,252,256]`; `1181` = `[59,60,247]`; `1182` = `[60,247,252]`; `1183` = `[59,60,247,252]`.
 - Therefore the current festival-vs-Live-Music issue remains a relationship-classification issue under the existing project rule; no event term create/update/delete capability is justified by current evidence.
 - Live installation is execution-verified: WordPress production reports `Chattanooga CMS Admin` version `0.1.0` active on WordPress 7.1 / PHP 8.2.30.
 - The current MCP connection is execution-verified as WordPress user ID 2 with roles `administrator` and `bbp_keymaster`.
-- The live `administrator` capability list explicitly includes `edit_events`, `manage_options`, `activate_plugins`, `install_plugins`, `update_plugins`, and the other native authorities required by the candidate families; WordPress role capability denial is therefore not the cause of the missing candidate namespace.
-- ChatGPT plugin permissions for `MCP Server For WordPress` are set to `Allow all actions`; ChatGPT-side plugin permission mode is not the cause of the missing namespace.
-- Live MCP discovery still exposes zero abilities in category/namespace `chattanooga-cms-admin`; searches for the candidate event-taxonomy abilities likewise return zero. Therefore the production integration gate is not complete even though the plugin is active.
-- Candidate source explicitly registers the Chattanooga CMS Admin category and all abilities on `wp_abilities_api_init`, with `meta.public=true`, `meta.mcp.public=true`, and per-ability WordPress capability callbacks. Reference WordPress registration tests remain green.
-- miniOrange's official release notes establish that its MCP server uses explicit per-ability and role/NHI governance: per-ability exposure controls were added in 1.2.0, role-based grants in 1.2.2, and a resource-by-role ability matrix in 1.4.2.
-- The same official source states bundled miniOrange abilities can remain unavailable through public REST while still being reachable through the governed MCP endpoint. Candidate `show_in_rest=false` is therefore not evidence of MCP incompatibility and must not be relaxed merely to force discovery.
-- The exact miniOrange role/NHI grant is not inspectable or mutable through the currently exposed MCP abilities. Current evidence therefore localizes the blocker to miniOrange's governed ability exposure configuration rather than candidate source code.
-- No generic `mosmcp__cpt-remove-terms`, WPCode, media-upload, public-REST relaxation, or direct production-source workaround was used.
-- Next gate: grant the `chattanooga-cms-admin` resource/abilities to the Administrator role in miniOrange's role/ability editor for the enabled NHI used by the current connection, then re-run live discovery and candidate health/read checks. Only after that may a separately authorized live relationship repair obtain fresh candidate conflict tokens and perform guarded exact-state writes.
-- Production state: plugin active; candidate MCP namespace not exposed; no live taxonomy/content writes were made by this workbench increment.
+- The live `administrator` capability list explicitly includes `edit_events`, `manage_options`, `activate_plugins`, `install_plugins`, `update_plugins`, and the other native authorities required by the candidate families.
+- ChatGPT plugin permissions for `MCP Server For WordPress` are set to `Allow all actions`.
+- miniOrange policy was successfully saved by the user and live discovery now exposes all 82 `chattanooga-cms-admin` abilities through the current MCP connection.
+- Live `chattanooga-cms-admin__get-health` execution passed on production: database responding, direct filesystem method, plugin/theme/content directories writable, backup storage available+writable, ZipArchive available, maintenance mode off, and HTTPS enabled.
+- The first exact taxonomy call using WordPress post ID `6810` correctly failed `event not found`; bounded candidate event search established that this API's `id` is the Events Manager event ID, not the WordPress event post ID. The exact five mappings above were then verified by both title and `post_id` before taxonomy reads proceeded.
+- Each `get-event-taxonomy` state token exactly matched the corresponding state token returned by the fresh candidate event search at the time of inspection.
+- Candidate source continues to keep `show_in_rest=false`; no public-REST relaxation or generic taxonomy workaround was needed.
+- No generic `mosmcp__cpt-remove-terms`, WPCode, media-upload, direct production-source workaround, or source change was used.
+- Next gate: a live five-event relationship repair is a separate target-specific mutation and remains unauthorized. If authorized, refresh each candidate taxonomy snapshot immediately before its write, remove only term `60` while preserving every other current category, and verify readback through the guarded candidate ability.
+- Production state: plugin active; 82 candidate MCP abilities exposed; health/read runtime acceptance passed; five exact taxonomy defects execution-verified; no live taxonomy/content writes were made by this workbench increment.
 
 ### Chattanooga Music Scene Weekend Feature
 
