@@ -1,0 +1,60 @@
+name: CMS Admin WooCommerce Product Lab
+
+on:
+  push:
+    branches:
+      - work/cmsa-woocommerce-products
+      - workbench/mars
+    paths:
+      - "workbench/labs/chattanooga-cms-admin/**"
+      - ".github/workflows/cmsa-woocommerce-lab.yml"
+  pull_request:
+    paths:
+      - "workbench/labs/chattanooga-cms-admin/**"
+      - ".github/workflows/cmsa-woocommerce-lab.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  woocommerce-product-model:
+    name: WordPress 7.1 WooCommerce 11.0.1 product model
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mysqli, zip
+      - name: Install disposable WordPress 7.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+          php /tmp/wp-cli.phar core download --version=7.1 --path=/tmp/wordpress --force
+          php /tmp/wp-cli.phar config create --path=/tmp/wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
+          php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://cmsa-woocommerce.test --title="CMSA WooCommerce Workbench" --admin_user=admin --admin_password="cmsa-woocommerce-workbench-only" --admin_email=lab@example.invalid --skip-email
+      - name: Install and activate WooCommerce 11.0.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar plugin install woocommerce --version=11.0.1 --activate --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin is-active woocommerce --path=/tmp/wordpress
+      - name: Inspect WooCommerce product runtime contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/woocommerce-product-model-cli.php" --path=/tmp/wordpress
