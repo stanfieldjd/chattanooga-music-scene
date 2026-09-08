@@ -1,6 +1,6 @@
 # Task: cmsa-media-administration-2026-09-08
 
-Status: IN_PROGRESS
+Status: SOURCE_VERIFIED_PENDING_WORKBENCH_INTEGRATION
 
 ## Objective
 
@@ -26,50 +26,58 @@ Expand the Chattanooga CMS Admin candidate with a bounded core WordPress media-a
 
 ## Evidence
 
-- Live MCP discovery currently exposes 82 Chattanooga CMS Admin abilities and no media-specific ability family.
+- Live MCP discovery before this source slice exposed 82 Chattanooga CMS Admin abilities and no media-specific ability family.
 - The governing capability roadmap identifies media inspection, upload/replace/delete, and featured-image relationships as a missing WordPress content-administration layer.
-- The current candidate already implements typed WordPress content transactions with native capabilities, exact-state guards, readback verification, audit logging, and `show_in_rest=false`; the media layer must preserve those boundaries.
-- Current workbench head observed before branch creation: `4c03251beccfb89fa9039285ec240232cab35473`.
+- The existing candidate uses typed WordPress transactions with native capabilities, exact-state guards, readback verification, audit logging, and `show_in_rest=false`; the new media layer preserves those boundaries.
+- Source branch base: `4c03251beccfb89fa9039285ec240232cab35473`.
+- Source implementation checkpoint exercised by CI: `fce5ef0a1cc470f483891cb60edf7a499d3584d0`.
+- Pull request: #9, `work/cmsa-media-administration` -> `workbench/mars`.
+- WordPress 7.1 content runtime run `34271173933` passed. Its registration probe reported `PASS (87 abilities)`; media permissions reported `PASS abilities=5 object-scope=verified`; media transactions reported `PASS upload validation metadata conflict rollback featured-image conflict rollback isolation`.
+- CMS Admin Workbench Lab run `34271173931` passed, including PHP 7.4, PHP 8.2, real WordPress 7.1 ability permissions/REST isolation, backup/update/rollback and core lifecycle regression probes.
+- CMS Admin Events Manager Lab run `34271173926` passed.
+- Mars Workbench Integrity run `34271174027` passed.
 
 ## Mutation set
 
-- Add typed media list/get operations.
-- Add bounded base64 media creation with WordPress-native MIME/extension validation and decoded-size limit; do not fetch arbitrary remote URLs.
-- Add exact-state metadata update for title, caption, description, and alt text with verification and rollback to the prior metadata state on verification failure.
-- Add exact-state featured-image relationship set/clear for posts/pages with target-image validation, verification, and relationship rollback on verification failure.
-- Register the new abilities in the existing plugin bootstrap and real WordPress Abilities registry.
-- Add permission, registration, transaction, stale-state, invalid-input, and isolation probes.
+- Added typed media list/get operations.
+- Added bounded base64 media creation with WordPress-native MIME/extension validation and an 8 MiB decoded-size limit; no arbitrary remote URL fetch.
+- Added exact-state metadata update for title, caption, description, and alt text with readback verification and semantic rollback after injected verification failure.
+- Added exact-state featured-image relationship set/clear for posts/pages with target-image validation, readback verification, and relationship rollback after injected verification failure.
+- Registered five new media abilities in the existing WordPress Abilities/MCP-only architecture.
+- Added permission, registration, transaction, stale-state, invalid-input, rollback, and isolation probes.
 
 ## Risk set
 
-- Large or malformed base64 payloads could exhaust memory or create invalid files.
-- MIME/extension mismatches could allow unsafe or incorrectly typed uploads if validation is insufficient.
-- Metadata or featured-image writes could overwrite concurrent administrator changes without exact-state checks.
-- Failed upload or relationship verification could leave orphaned files/attachments or altered relationships.
-- Ability annotations or permissions could accidentally expose write operations as read-only or to underprivileged users.
+- Large or malformed base64 payloads could exhaust memory or create invalid files; bounded encoded/decoded limits and strict decoding are enforced.
+- MIME/extension mismatches could allow unsafe or incorrectly typed uploads; WordPress file-type/extension validation plus payload MIME probing is enforced.
+- Metadata or featured-image writes could overwrite concurrent administrator changes; exact-state/timestamp and relationship checks are required.
+- Failed upload or relationship verification could leave orphaned files/attachments or altered relationships; failure paths were tested to delete the newly created attachment or restore/preserve the prior relationship.
+- Ability annotations or permissions could accidentally expose write operations to underprivileged users; anonymous/subscriber denial and object-scope behavior passed runtime probes.
 
 ## Rollback point
 
 - Branch/base commit: `4c03251beccfb89fa9039285ec240232cab35473`.
-- Restoration path: discard/reset `work/cmsa-media-administration` to the base commit; no production state is involved.
+- Restoration path before workbench integration: discard/reset `work/cmsa-media-administration` to the base commit; no production state is involved.
+- After workbench integration, revert the integration commit on `workbench/mars`; production remains unaffected until a separately authorized deployment.
 
 ## Acceptance tests
 
-- [ ] Real WordPress 7.1 registry contains the complete existing ability set plus the new media abilities, with no duplicate names.
-- [ ] Anonymous and insufficiently privileged users are denied; an administrator with native upload/edit authority is allowed.
-- [ ] Media list/get returns only bounded allowlisted metadata and stable exact-state tokens.
-- [ ] Valid bounded base64 upload creates and verifies one attachment; malformed/oversize/MIME-mismatched payloads fail closed without orphaned attachments/files.
-- [ ] Metadata update rejects stale/no-change writes, verifies exact requested fields, and can restore the prior metadata state after injected verification failure.
-- [ ] Featured-image set/clear rejects stale relationship state and non-image attachments, verifies readback, and restores the prior relationship after injected verification failure.
-- [ ] Unrelated posts and attachments remain unchanged in transaction probes.
-- [ ] New abilities remain MCP-visible but public-REST hidden (`show_in_rest=false`).
-- [ ] Applicable PHP/static and WordPress runtime CI passes before promotion into `workbench/mars`.
+- [x] Real WordPress 7.1 registry contains the complete existing ability set plus the new media abilities, with no duplicate names. Verified count: 87 total, 5 media.
+- [x] Anonymous and insufficiently privileged users are denied; an administrator with native upload/edit authority is allowed.
+- [x] Media list/get returns bounded allowlisted metadata and stable exact-state tokens.
+- [x] Valid bounded base64 upload creates and verifies one attachment; malformed/oversize/MIME-mismatched payloads fail closed without orphaned attachments/files.
+- [x] Metadata update rejects stale/no-change writes, verifies exact requested fields, and restores prior semantic metadata after injected verification failure.
+- [x] Featured-image set/clear rejects stale relationship state and non-image attachments, verifies readback, and restores/preserves the prior relationship after injected verification failure.
+- [x] Unrelated posts and attachments remain unchanged in transaction probes.
+- [x] New abilities remain MCP-visible and candidate abilities remain public-REST hidden (`show_in_rest=false`); existing real-WordPress REST isolation probe passed.
+- [x] Applicable PHP/static and WordPress runtime CI passed before promotion into `workbench/mars`.
 
 ## Source position
 
 - Repository: `stanfieldjd/chattanooga-music-scene`
 - Branch: `work/cmsa-media-administration`
-- Observed commit: `4c03251beccfb89fa9039285ec240232cab35473`
+- Verified implementation checkpoint: `fce5ef0a1cc470f483891cb60edf7a499d3584d0`
+- Current task-record commit is later than the verified implementation checkpoint and changes documentation only.
 
 ## Production state
 
@@ -78,3 +86,6 @@ NOT_DEPLOYED
 ## Result journal
 
 - 2026-09-08: Task opened from verified workbench state; no production mutation authorized or performed.
+- 2026-09-08: Added five bounded media abilities: list/get, validated bounded base64 create, exact-state metadata update, and exact-state featured-image relationship management.
+- 2026-09-08: WordPress 7.1 runtime probes passed with 87 registered abilities; media permission and transaction probes passed; PHP 7.4/8.2, Events Manager, workbench runtime, and integrity regression workflows passed.
+- 2026-09-08: Source slice is execution-verified and ready for workbench integration; it is not deployed to production.
