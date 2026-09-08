@@ -12,7 +12,7 @@ if ( 0 === did_action( 'wp_abilities_api_init' ) ) {
 }
 
 $expected = json_decode( file_get_contents( dirname( __DIR__ ) . '/fixtures/expected-navigation-abilities.json' ), true );
-if ( ! is_array( $expected ) || 6 !== count( $expected ) ) {
+if ( ! is_array( $expected ) || 8 !== count( $expected ) ) {
 	fwrite( STDERR, "navigation-permission-cli: expected navigation ability fixture is invalid.\n" );
 	exit( 1 );
 }
@@ -70,4 +70,4 @@ wp_set_current_user( $admin->ID );
 require_once ABSPATH . 'wp-admin/includes/user.php';
 wp_delete_user( $user_id );
 
-echo "navigation-permission-cli: PASS abilities=6 anonymous=denied editor=denied administrator=allowed capability=edit_theme_options\n";
+echo "navigation-permission-cli: PASS abilities=8 anonymous=denied editor=denied administrator=allowed capability=edit_theme_options\n";
