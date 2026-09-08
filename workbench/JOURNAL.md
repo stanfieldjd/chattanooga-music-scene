@@ -146,7 +146,7 @@ Append-only record of material workbench state changes. Do not rewrite prior ent
 
 - Production WordPress execution-verifies `Chattanooga CMS Admin` version `0.1.0` as active on WordPress 7.1 / PHP 8.2.30.
 - The current MCP connection execution-verifies WordPress user ID `2` with roles `administrator` and `bbp_keymaster`.
-- Live `discover_abilities` returns zero abilities for `chattanooga-cms-admin` and zero matches for the candidate event-taxonomy namespace despite the active plugin.
+- Live `discover_abilities` returns zero abilities for category `chattanooga-cms-admin` and zero matches for the candidate event-taxonomy namespace despite the active plugin.
 - Candidate source still registers the category and ability families on the native WordPress Abilities lifecycle with `public=true`, `mcp.public=true`, and capability-specific permission callbacks; reference registration remains green at 82 abilities.
 - The currently exposed MCP surface does not provide miniOrange role/NHI/ability-policy inspection or mutation controls. The exact live exposure setting is therefore unresolved rather than inferred.
 - Current evidence localizes the next diagnostic boundary to MCP ability exposure/governance; it does not prove a candidate registration-code defect.
@@ -192,7 +192,7 @@ Append-only record of material workbench state changes. Do not rewrite prior ent
 - `chattanooga-cms-admin__list-updates` reports WordPress `7.1` as current/latest with no core update offered.
 - Nine active plugins currently have offered updates: Big File Uploads `2.1.9→2.2.0`, Hide Page And Post Title `1.5.8→1.6.2`, Plugin Check `2.0.0→2.1.0`, PublishPress Capabilities `2.50.0→2.50.1`, Site Kit by Google `1.185.0→1.187.0`, WooCommerce `11.0.1→11.1.0`, WooCommerce Shipping `2.3.13→2.3.16`, WooCommerce Tax `3.6.12→3.6.15`, and WPCode Lite `2.3.8→2.3.9`.
 - Four inactive themes currently have offered updates: BuddyX `5.1.5→5.1.7`, Twenty Twenty-Four `1.5→1.6`, Twenty Twenty-Three `1.6→1.7`, and Twenty Twenty-Two `2.1→2.2`.
-- The active theme remains `BuddyX Child - River Rhythms v5`; BuddyX is the inactive parent and therefore remains operationally relevant to any later parent-theme update.
+- The active theme remains `BuddyX Child - River Rhythms v5`; BuddyX is its inactive parent and therefore remains operationally relevant to any later parent-theme update.
 - Created `workbench/tasks/wordpress-maintenance.md` and recorded the exact live inventory and current authorization boundary.
 - No live update, auto-update policy change, activation/deactivation, install/delete action, source modification, or content mutation was performed.
 - Recalculated next position: live maintenance execution requires separate target-specific A3 authorization and must proceed one component at a time from fresh inventory/health evidence with rollback and post-update verification.
@@ -210,3 +210,16 @@ Append-only record of material workbench state changes. Do not rewrite prior ent
 - Created and updated `workbench/tasks/venue-location-data-quality.md`; STATUS, TASK_QUEUE, and machine-readable state were advanced to the partial-research position.
 - No `update-location`, event/content mutation, plugin/theme update, source change outside the workbench, or unrelated live mutation was performed.
 - Recalculated next position: continue read-only geospatial evidence collection and the Ross’s Landing conflict analysis. Any live location write remains blocked until exact target values and separate target-specific authorization exist.
+
+## 2026-09-08 — CMS Admin media administration integration
+
+- Opened a source-only media-administration slice from the verified `workbench/mars` position; production, `main`, and `feature/chattanooga-cms-admin` were excluded from mutation.
+- Added five bounded abilities to the workbench candidate: media list/get, validated base64 attachment creation, exact-state metadata update, and exact-state featured-image set/clear.
+- Media creation is limited to 8 MiB decoded data, uses WordPress extension/type validation plus payload MIME inspection, never fetches arbitrary remote URLs, verifies the resulting file, and deletes only the newly created attachment if post-create verification fails.
+- Metadata and featured-image mutations require exact prior state, reject stale/no-change requests, verify readback, and restore or preserve the exact prior semantic state after injected verification failures.
+- Pre-integration execution at source checkpoint `fce5ef0a1cc470f483891cb60edf7a499d3584d0` passed Content Layer `34271173933`, Workbench Lab `34271173931`, Events Manager `34271173926`, and integrity `34271174027`; the WordPress 7.1 registry reported 87 abilities and the media probes passed permission, validation, rollback, and isolation gates.
+- PR #9 integrated the verified source slice into `workbench/mars` at merge commit `1b73e5f8902062dc5ee9006ef30d0784438c5379`.
+- Post-integration push validation passed Content Layer `34271628425`, Events Manager `34271628277`, Mars integrity `34271628426`, and Workbench Lab `34271628265`, including PHP 7.4/8.2, WordPress 7.1 registry/REST isolation, backup/update/rollback, normal core update, and forced core rollback.
+- Workbench task/status/queue/state records were advanced to distinguish the 87-ability workbench candidate from the still-deployed 82-ability production runtime.
+- No media capability from this slice was deployed to production; no live media/content mutation occurred.
+- Recalculated position: source-only functionality engineering may continue from the verified 87-ability workbench candidate. Production media deployment, the five-event Festival relationship repair, and other live mutations remain separate explicit authorization gates.
