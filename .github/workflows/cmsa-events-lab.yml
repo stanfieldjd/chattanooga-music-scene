@@ -66,6 +66,11 @@ jobs:
         run: |
           set -euo pipefail
           php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/events-manager-model-cli.php" --path=/tmp/wordpress
+      - name: Inspect Events Manager taxonomy contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/events-manager-taxonomy-model-cli.php" --path=/tmp/wordpress
       - name: Inspect native Events Manager event deletion
         shell: bash
         run: |
