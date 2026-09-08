@@ -52,7 +52,7 @@ jobs:
           set -euo pipefail
           php /tmp/wp-cli.phar plugin install events-manager --activate --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin is-active events-manager --path=/tmp/wordpress
-          php /tmp/wp-cli.phar eval 'wp_set_current_user(1); require_once WP_PLUGIN_DIR . "/events-manager/classes/em-admin-notice.php"; require_once WP_PLUGIN_DIR . "/events-manager/classes/em-admin-notices.php"; require_once WP_PLUGIN_DIR . "/events-manager/em-install.php"; em_install();' --path=/tmp/wordpress
+          php /tmp/wp-cli.phar eval 'wp_set_current_user(1); require_once WP_PLUGIN_DIR . "/events-manager/classes/em-admin-notices.php"; require_once WP_PLUGIN_DIR . "/events-manager/em-install.php"; em_install();' --path=/tmp/wordpress
       - name: Activate candidate CMS Admin plugin
         shell: bash
         run: |
