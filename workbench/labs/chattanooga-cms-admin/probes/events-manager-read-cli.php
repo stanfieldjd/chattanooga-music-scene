@@ -31,6 +31,9 @@ if ( ! $location->save() || empty( $location->location_id ) ) {
 }
 
 $event = new EM_Event();
+$event->event_archetype = 'event';
+$event->event_type = 'single';
+$event->event_active_status = 1;
 $event->event_name = 'CMSA Event ' . $token;
 $event->event_start_date = gmdate( 'Y-m-d', strtotime( '+7 days' ) );
 $event->event_end_date = $event->event_start_date;
@@ -44,51 +47,28 @@ if ( ! $event->save() || empty( $event->event_id ) ) {
 	exit( 1 );
 }
 
-$captured_sql = array();
-add_filter(
-	'em_events_get_sql',
-	function ( $sql ) use ( &$captured_sql ) {
-		$captured_sql[] = (string) $sql;
-		return $sql;
-	},
-	999,
-	2
+global $wpdb;
+$fixture_shape = $wpdb->get_row(
+	$wpdb->prepare(
+		'SELECT event_archetype, event_type, event_active_status FROM ' . EM_EVENTS_TABLE . ' WHERE event_id = %d',
+		$event->event_id
+	),
+	ARRAY_A
 );
+if (
+	! is_array( $fixture_shape ) ||
+	'event' !== (string) $fixture_shape['event_archetype'] ||
+	'single' !== (string) $fixture_shape['event_type'] ||
+	1 !== (int) $fixture_shape['event_active_status']
+) {
+	fwrite( STDERR, "events-manager-read-cli: canonical single-event fixture fields did not persist.\n" );
+	exit( 1 );
+}
 
 $adapter = new CMSA_Events_Manager();
 $event_list = $adapter->list_events( array( 'search' => $token, 'page' => 1, 'per_page' => 1 ) );
 if ( is_wp_error( $event_list ) || 1 !== count( $event_list['items'] ) || (int) $event_list['items'][0]['id'] !== (int) $event->event_id ) {
-	global $wpdb;
-	$adapter_db_error = (string) $wpdb->last_error;
-	$raw_row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . EM_EVENTS_TABLE . ' WHERE event_id = %d', $event->event_id ), ARRAY_A );
-	$raw = null;
-	if ( is_array( $raw_row ) ) {
-		$raw = array();
-		foreach ( array( 'event_id', 'post_id', 'event_name', 'event_status', 'event_private', 'event_owner', 'event_start_date', 'event_end_date', 'recurrence_id', 'event_type' ) as $key ) {
-			if ( array_key_exists( $key, $raw_row ) ) {
-				$raw[ $key ] = $raw_row[ $key ];
-			}
-		}
-	}
-	$columns = $wpdb->get_col( 'SHOW COLUMNS FROM ' . EM_EVENTS_TABLE, 0 );
-	$post = get_post( $event->post_id );
-	$post_shape = $post instanceof WP_Post ? array( 'ID' => (int) $post->ID, 'post_type' => (string) $post->post_type, 'post_status' => (string) $post->post_status, 'post_title' => (string) $post->post_title ) : null;
-	$map_events = static function ( $events ) {
-		$out = array();
-		foreach ( is_array( $events ) ? $events : array() as $item ) {
-			$out[] = $item instanceof EM_Event ? array( 'kind' => 'EM_Event', 'id' => (int) $item->event_id, 'post_id' => (int) $item->post_id, 'name' => (string) $item->event_name ) : array( 'kind' => gettype( $item ) );
-		}
-		return $out;
-	};
-	$native_rows = EM_Events::get( array( 'scope' => 'all', 'limit' => 20, 'array' => true ) );
-	$rows_db_error = (string) $wpdb->last_error;
-	$native_search_rows = EM_Events::get( array( 'scope' => 'all', 'limit' => 20, 'search' => $token, 'array' => true ) );
-	$search_rows_db_error = (string) $wpdb->last_error;
-	$native_all = EM_Events::get( array( 'scope' => 'all', 'limit' => 20 ) );
-	$native_search = EM_Events::get( array( 'scope' => 'all', 'limit' => 20, 'search' => $token ) );
-	$by_post = em_get_event( $event->post_id, 'post_id' );
-	$by_event = em_get_event( $event->event_id, 'event_id' );
-	fwrite( STDERR, 'events-manager-read-cli: bounded event list/search failed; raw=' . wp_json_encode( $raw ) . '; columns=' . wp_json_encode( $columns ) . '; post=' . wp_json_encode( $post_shape ) . '; adapter_db_error=' . wp_json_encode( $adapter_db_error ) . '; rows=' . wp_json_encode( $native_rows ) . '; rows_db_error=' . wp_json_encode( $rows_db_error ) . '; search_rows=' . wp_json_encode( $native_search_rows ) . '; search_rows_db_error=' . wp_json_encode( $search_rows_db_error ) . '; captured_sql=' . wp_json_encode( $captured_sql ) . '; objects=' . wp_json_encode( $map_events( $native_all ) ) . '; search_objects=' . wp_json_encode( $map_events( $native_search ) ) . '; by_post=' . wp_json_encode( $by_post instanceof EM_Event ? array( 'id' => (int) $by_post->event_id, 'post_id' => (int) $by_post->post_id, 'name' => (string) $by_post->event_name ) : gettype( $by_post ) ) . '; by_event=' . wp_json_encode( $by_event instanceof EM_Event ? array( 'id' => (int) $by_event->event_id, 'post_id' => (int) $by_event->post_id, 'name' => (string) $by_event->event_name ) : gettype( $by_event ) ) . "\n" );
+	fwrite( STDERR, "events-manager-read-cli: bounded event list/search failed.\n" );
 	exit( 1 );
 }
 
@@ -135,4 +115,4 @@ if ( ! is_wp_error( $missing_event ) || 'cmsa_event_not_found' !== $missing_even
 $event->delete( true );
 $location->delete( true );
 
-echo "events-manager-read-cli: PASS event=list-search-get-allowlist location=list-search-get-allowlist missing=fail-closed\n";
+echo "events-manager-read-cli: PASS event=list-search-get-allowlist location=list-search-get-allowlist missing=fail-closed canonical-single-event=verified\n";
