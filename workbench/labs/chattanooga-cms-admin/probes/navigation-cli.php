@@ -74,6 +74,64 @@ if ( is_wp_error( $target_read ) || $target_read['menu']['state_token'] !== $tar
 	$fail( 'menu read/state token failed.' );
 }
 
+$stale_menu_update = $navigation->update_menu(
+	array(
+		'menu_id'             => $target_menu_id,
+		'expected_menu_state' => str_repeat( '0', 64 ),
+		'name'                => 'CMSA Stale Rename ' . $token,
+	)
+);
+if ( ! is_wp_error( $stale_menu_update ) || 'cmsa_navigation_conflict' !== $stale_menu_update->get_error_code() ) {
+	$fail( 'stale menu rename did not fail closed.' );
+}
+
+$renamed = $navigation->update_menu(
+	array(
+		'menu_id'             => $target_menu_id,
+		'expected_menu_state' => $target_read['menu']['state_token'],
+		'name'                => 'CMSA Navigation Renamed ' . $token,
+	)
+);
+if ( is_wp_error( $renamed ) || empty( $renamed['updated'] ) || 'CMSA Navigation Renamed ' . $token !== $renamed['menu']['name'] ) {
+	$fail( 'menu rename/readback failed.' );
+}
+$renamed_state = $renamed['menu']['state_token'];
+
+$no_change = $navigation->update_menu(
+	array(
+		'menu_id'             => $target_menu_id,
+		'expected_menu_state' => $renamed_state,
+		'name'                => 'CMSA Navigation Renamed ' . $token,
+	)
+);
+if ( ! is_wp_error( $no_change ) || 'cmsa_navigation_menu_no_change' !== $no_change->get_error_code() ) {
+	$fail( 'menu rename no-change guard did not fail closed.' );
+}
+
+$menu_fault_action = null;
+$menu_fault_action = static function ( $menu_id, $mode ) use ( &$menu_fault_action, $target_menu_id ) {
+	if ( 'update' === $mode && (int) $menu_id === $target_menu_id ) {
+		remove_action( 'cmsa_navigation_menu_written', $menu_fault_action, 10 );
+		wp_update_nav_menu_object( $target_menu_id, array( 'menu-name' => 'Injected Menu Corruption' ) );
+	}
+};
+add_action( 'cmsa_navigation_menu_written', $menu_fault_action, 10, 2 );
+$menu_fault = $navigation->update_menu(
+	array(
+		'menu_id'             => $target_menu_id,
+		'expected_menu_state' => $renamed_state,
+		'name'                => 'CMSA Fault Rename ' . $token,
+	)
+);
+remove_action( 'cmsa_navigation_menu_written', $menu_fault_action, 10 );
+if ( ! is_wp_error( $menu_fault ) || 'cmsa_navigation_menu_update_verify' !== $menu_fault->get_error_code() || empty( $menu_fault->get_error_data()['rolled_back'] ) ) {
+	$fail( 'menu rename verification fault did not trigger rollback.' );
+}
+$after_menu_fault = $navigation->get_menu( $target_menu_id );
+if ( is_wp_error( $after_menu_fault ) || $renamed_state !== $after_menu_fault['menu']['state_token'] ) {
+	$fail( 'menu rename rollback did not restore exact managed state.' );
+}
+
 $stale_item = $navigation->upsert_item(
 	array(
 		'menu_id'             => $target_menu_id,
@@ -90,7 +148,7 @@ if ( ! is_wp_error( $stale_item ) || 'cmsa_navigation_conflict' !== $stale_item-
 $page_item = $navigation->upsert_item(
 	array(
 		'menu_id'             => $target_menu_id,
-		'expected_menu_state' => $target_read['menu']['state_token'],
+		'expected_menu_state' => $after_menu_fault['menu']['state_token'],
 		'type'                 => 'post_type',
 		'object_id'            => $page_id,
 		'title'                => 'Scene',
@@ -208,6 +266,21 @@ if ( is_wp_error( $location_set ) || $target_menu_id !== (int) $location_set['lo
 	$fail( 'navigation location assignment failed.' );
 }
 
+$assigned_menu_state = $navigation->get_menu( $target_menu_id );
+if ( is_wp_error( $assigned_menu_state ) ) {
+	$fail( 'assigned menu reread failed.' );
+}
+$assigned_delete = $navigation->delete_menu(
+	array(
+		'menu_id'             => $target_menu_id,
+		'expected_menu_state' => $assigned_menu_state['menu']['state_token'],
+		'confirm_delete'       => true,
+	)
+);
+if ( ! is_wp_error( $assigned_delete ) || 'cmsa_navigation_menu_assigned' !== $assigned_delete->get_error_code() || ! wp_get_nav_menu_object( $target_menu_id ) ) {
+	$fail( 'assigned navigation menu deletion was not refused.' );
+}
+
 $location_state_before_fault = $location_set['locations']['state_token'];
 $location_filter = null;
 $location_filter = static function ( $value ) use ( &$location_filter ) {
@@ -234,31 +307,86 @@ if ( is_wp_error( $locations_after_fault ) || $location_state_before_fault !== $
 	$fail( 'navigation location rollback did not restore assignment state.' );
 }
 
-$before_delete = $navigation->get_menu( $target_menu_id );
-if ( is_wp_error( $before_delete ) ) {
-	$fail( 'navigation menu reread before delete failed.' );
+$before_item_delete = $navigation->get_menu( $target_menu_id );
+if ( is_wp_error( $before_item_delete ) ) {
+	$fail( 'navigation menu reread before item delete failed.' );
 }
-$unconfirmed_delete = $navigation->delete_item(
+$unconfirmed_item_delete = $navigation->delete_item(
 	array(
 		'menu_id'             => $target_menu_id,
 		'item_id'              => $custom_item_id,
-		'expected_menu_state' => $before_delete['menu']['state_token'],
+		'expected_menu_state' => $before_item_delete['menu']['state_token'],
 		'confirm_delete'       => false,
 	)
 );
-if ( ! is_wp_error( $unconfirmed_delete ) || 'cmsa_navigation_delete_confirmation' !== $unconfirmed_delete->get_error_code() || ! get_post( $custom_item_id ) ) {
+if ( ! is_wp_error( $unconfirmed_item_delete ) || 'cmsa_navigation_delete_confirmation' !== $unconfirmed_item_delete->get_error_code() || ! get_post( $custom_item_id ) ) {
 	$fail( 'unconfirmed navigation item delete did not fail closed.' );
 }
-$deleted = $navigation->delete_item(
+$deleted_item = $navigation->delete_item(
 	array(
 		'menu_id'             => $target_menu_id,
 		'item_id'              => $custom_item_id,
-		'expected_menu_state' => $before_delete['menu']['state_token'],
+		'expected_menu_state' => $before_item_delete['menu']['state_token'],
 		'confirm_delete'       => true,
 	)
 );
-if ( is_wp_error( $deleted ) || empty( $deleted['deleted'] ) || get_post( $custom_item_id ) instanceof WP_Post || ! ( get_post( $page_id ) instanceof WP_Post ) ) {
+if ( is_wp_error( $deleted_item ) || empty( $deleted_item['deleted'] ) || get_post( $custom_item_id ) instanceof WP_Post || ! ( get_post( $page_id ) instanceof WP_Post ) ) {
 	$fail( 'navigation item delete verification or target isolation failed.' );
+}
+
+$before_unassign = $navigation->list_menus();
+if ( is_wp_error( $before_unassign ) || $target_menu_id !== (int) $before_unassign['locations']['assignments']['cmsa_test_primary'] ) {
+	$fail( 'navigation location state before unassign is invalid.' );
+}
+$unassigned = $navigation->set_location(
+	array(
+		'location'                 => 'cmsa_test_primary',
+		'menu_id'                  => 0,
+		'expected_locations_state' => $before_unassign['locations']['state_token'],
+	)
+);
+if ( is_wp_error( $unassigned ) || 0 !== (int) $unassigned['locations']['assignments']['cmsa_test_primary'] ) {
+	$fail( 'navigation menu explicit unassignment failed.' );
+}
+
+$before_menu_delete = $navigation->get_menu( $target_menu_id );
+if ( is_wp_error( $before_menu_delete ) ) {
+	$fail( 'navigation menu reread before whole-menu delete failed.' );
+}
+$stale_menu_delete = $navigation->delete_menu(
+	array(
+		'menu_id'             => $target_menu_id,
+		'expected_menu_state' => str_repeat( 'a', 64 ),
+		'confirm_delete'       => true,
+	)
+);
+if ( ! is_wp_error( $stale_menu_delete ) || 'cmsa_navigation_conflict' !== $stale_menu_delete->get_error_code() || ! wp_get_nav_menu_object( $target_menu_id ) ) {
+	$fail( 'stale whole-menu delete did not fail closed.' );
+}
+$unconfirmed_menu_delete = $navigation->delete_menu(
+	array(
+		'menu_id'             => $target_menu_id,
+		'expected_menu_state' => $before_menu_delete['menu']['state_token'],
+		'confirm_delete'       => false,
+	)
+);
+if ( ! is_wp_error( $unconfirmed_menu_delete ) || 'cmsa_navigation_menu_delete_confirmation' !== $unconfirmed_menu_delete->get_error_code() || ! wp_get_nav_menu_object( $target_menu_id ) ) {
+	$fail( 'unconfirmed whole-menu delete did not fail closed.' );
+}
+$deleted_menu = $navigation->delete_menu(
+	array(
+		'menu_id'             => $target_menu_id,
+		'expected_menu_state' => $before_menu_delete['menu']['state_token'],
+		'confirm_delete'       => true,
+	)
+);
+if ( is_wp_error( $deleted_menu ) || empty( $deleted_menu['deleted'] ) || wp_get_nav_menu_object( $target_menu_id ) instanceof WP_Term || get_post( $page_item_id ) instanceof WP_Post || ! ( get_post( $page_id ) instanceof WP_Post ) ) {
+	$fail( 'whole navigation menu deletion or linked-page isolation failed.' );
+}
+
+$after_menu_delete_locations = $navigation->list_menus();
+if ( is_wp_error( $after_menu_delete_locations ) || $unassigned['locations']['state_token'] !== $after_menu_delete_locations['locations']['state_token'] ) {
+	$fail( 'whole navigation menu deletion changed location assignments.' );
 }
 
 $control_after = $navigation->get_menu( $control_menu_id );
@@ -267,4 +395,4 @@ if ( is_wp_error( $control_after ) || $control_state !== $control_after['menu'][
 }
 
 $cleanup();
-echo "navigation-cli: PASS menu=create-list-get item=page-custom-conflict-cycle-update-rollback-delete location=conflict-assign-rollback unrelated=unchanged third-party=untouched\n";
+echo "navigation-cli: PASS menu=create-list-get-rename-conflict-rollback-delete-assigned-guard item=page-custom-conflict-cycle-update-rollback-delete location=conflict-assign-rollback-unassign unrelated=unchanged third-party=untouched\n";
