@@ -85,6 +85,11 @@ jobs:
         run: |
           set -euo pipefail
           php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/events-manager-mutation-permission-cli.php" --path=/tmp/wordpress
+      - name: Diagnose draft location transaction
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/events-manager-location-draft-diagnostic-cli.php" --path=/tmp/wordpress
       - name: Verify ordinary event and venue mutation transactions
         shell: bash
         run: |
