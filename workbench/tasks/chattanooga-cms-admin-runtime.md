@@ -1,16 +1,17 @@
 # Task: Chattanooga CMS Admin Runtime Integration
 
-Status: REFERENCE_MAINTENANCE_CONTENT_TAXONOMY_MEMBER_ADMIN_VERIFIED — EVENTS MANAGER LAB ACTIVE / LIVE PREFLIGHT PARTIAL / PRODUCTION NOT DEPLOYED
+Status: REFERENCE_SINGLE_SITE_MAINTENANCE_CONTENT_TAXONOMY_MEMBER_EVENTS_READ_VERIFIED — EVENT/LOCATION MUTATION NEXT / LIVE PREFLIGHT PARTIAL / PRODUCTION NOT DEPLOYED
 
 ## Current verified candidate
 
-- Candidate checkpoint: `119c32800af409b7c6d3e61afcd2e14abb68083d`.
-- Full maintenance regression: `34171114708` — PHP 7.4, PHP 8.2, disposable WordPress 7.1 passed.
-- Runtime artifact: `10035759884`, SHA-256 `eac121d727b24129406bde3832ffdced8bdba7c2c5cbb8e29c0059923723f0f0`.
-- Content/member run: `34171114778` passed.
-- Multisite run: `34171114718` passed.
-- Integrity run: `34171114712` passed.
-- Real registry: 58 abilities = 24 maintenance + 14 content CRUD/revision + 2 status + 12 taxonomy + 4 member-read + 2 member-mutation.
+- Candidate source checkpoint: `dc1ac1322c14f073e82e2ae20ad315cfd79ee6c7`.
+- Product scope: single-site WordPress only. Multisite/network support was explicitly removed and is not an acceptance target.
+- Full single-site maintenance regression: `34174322773` — PHP 7.4, PHP 8.2, disposable WordPress 7.1 passed.
+- Runtime artifact: `10036756929`, SHA-256 `ff5c958c2bcdeefaaa1a87ff7d53eb45f6448c6f03679ed6f9cf0f42271d7bba`.
+- Content/member run: `34174322772` passed.
+- Integrity run: `34174322771` passed.
+- Events Manager read run: `34174699401` passed against WordPress.org Events Manager 7.4.3.
+- Real registry: 62 abilities = 24 maintenance + 14 content CRUD/revision + 2 status + 12 taxonomy + 4 member-read + 2 member-mutation + 4 Events Manager read.
 
 ## Verified member administration
 
@@ -22,11 +23,18 @@ Status: REFERENCE_MAINTENANCE_CONTENT_TAXONOMY_MEMBER_ADMIN_VERIFIED — EVENTS 
 - Runtime mail guard verified zero notification attempts from these mutations.
 - Passwords, reset operations, activation keys, session tokens, arbitrary usermeta, account creation, and permanent user deletion remain separate security/destructive contracts.
 
-## Active next gate — Events Manager
+## Verified Events Manager reads
 
-Read-only discovery against the existing Chattanooga transport confirmed 39 site abilities covering events, locations, tickets, bookings, categories/tags, availability and related operations. No live mutation was performed.
+- Dedicated disposable WordPress 7.1 + MySQL 8.0 lab installs and initializes real Events Manager 7.4.3.
+- Required event/location classes, helper APIs, post types and event taxonomies are present.
+- Four bounded candidate abilities register: list/get events and list/get locations.
+- Anonymous access is denied and administrator access uses Events Manager's native event/location capabilities.
+- Event/location list/search/get responses use explicit allowlists; missing identifiers fail closed.
+- The initial collection-query failure was a test-fixture defect: a manually built event omitted Events Manager 7.4.3 canonical fields. The corrected disposable fixture persists `event_archetype=event`, `event_type=single`, and `event_active_status=1`, after which native collection and candidate read gates pass.
 
-Next implementation is a dedicated disposable Events Manager workbench runtime. It must install/activate Events Manager in a fresh WordPress 7.1 lab and prove the plugin/API model before Chattanooga CMS Admin gains any event mutation ability. Start with bounded event/location reads, then create/update/trash as separate tested transactions. Booking/payment operations remain separate higher-risk gates.
+## Active next gate — bounded event/location mutation
+
+Implement only the Chattanooga operations that are presently justified: create and conflict-checked update for ordinary single events and venues/locations in the disposable Events Manager runtime. Require exact before-state tokens, native permission checks, readback verification, rollback on injected verification failure, and unrelated-record isolation. Do not add recurring-event, ticket, booking, payment, or other Events Manager surfaces merely because the upstream plugin exposes them.
 
 ## Production boundary
 
