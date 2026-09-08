@@ -1,18 +1,24 @@
 # Chattanooga CMS Admin Capability Matrix
 
-Latest reference candidate checkpoint: `8c2c422d6b8139fcfe571564a0d543b5d1607be2`.
-Single-site maintenance: `34187219749`; content/member/deletion: `34187219774`; integrity: `34187219809`; Events Manager regression: `34187219757`; artifact `10040947233`; SHA-256 `27c11afa7652f062da3a33b2ca23b04b37ca1eabd79d4ad6cdc7898287dc6947`.
+Latest reference candidate checkpoint: `b105ea0edf3fdb071794357770e1f0f9ed1c12ac`.
+Single-site maintenance: `34187848901`; content/member/navigation: `34187757628`; integrity: `34187848894`; Events Manager regression: `34187848906`; artifact `10041154773`; SHA-256 `c9b312bccbd5e5c12356e3048cf33085282c8c7f2f8fccb8e98b8c3b9d1011e8`.
 
 | Capability | State | Evidence / boundary |
 | --- | --- | --- |
 | Single-site product scope | REFERENCE_VERIFIED | Multisite/network behavior is out of scope and not an acceptance target. |
 | Third-party plugin source boundary | REFERENCE_VERIFIED | Installed plugins are immutable dependency surfaces; only Chattanooga CMS Admin and disposable harness code are changed. |
 | PHP 7.4 / 8.2 + WordPress 7.1 activation | REFERENCE_VERIFIED | Current single-site candidate passed. |
-| Native Abilities registry | REFERENCE_VERIFIED | 68 candidate abilities. |
+| Native Abilities registry | REFERENCE_VERIFIED | 74 candidate abilities. |
 | Maintenance backup/update/rollback/cache/privacy/error model | REFERENCE_VERIFIED | Full single-site maintenance regression green. |
 | Post/page CRUD/revisions/status | REFERENCE_VERIFIED | Dedicated content runtime green. |
-| Post/page permanent deletion | REFERENCE_VERIFIED | Two destructive typed abilities; trash-only prerequisite, exact modified-state conflict, explicit confirmation, native object permission, hard-delete verification, unrelated-content isolation. |
+| Post/page permanent deletion | REFERENCE_VERIFIED | Trash-only prerequisite, exact modified-state conflict, explicit confirmation, native object permission, absence verification and unrelated-content isolation. |
 | Category/post-tag terms/relationships | REFERENCE_VERIFIED | Conflict and rollback fault gates green. |
+| Core navigation menu list/get/create | REFERENCE_VERIFIED | Bounded normalized menus/items plus registered locations; edit_theme_options authority. |
+| Core navigation item create/update | REFERENCE_VERIFIED | Published page/custom root-relative or HTTP(S) links only; exact menu-state conflict, parent/cycle validation, readback and rollback/cleanup. |
+| Core navigation item deletion | REFERENCE_VERIFIED | Explicit destructive confirmation; exact menu state; item absence verified; linked page preserved. |
+| Core navigation location assignment | REFERENCE_VERIFIED | Exact assignment-map state; registered locations only; assign/unassign; injected-fault rollback green. |
+| Core navigation whole-menu rename/delete | ACTIVE | Small lifecycle symmetry gap; delete must require unassigned menu, exact state and explicit confirmation. |
+| Navigation source boundary | REFERENCE_VERIFIED | Core WordPress menu/theme-mod APIs only; no generic option mutation, theme source mutation, or third-party plugin code. |
 | Member list/search/detail/role reads | REFERENCE_VERIFIED | Bounded allowlists; credentials/private internals absent. |
 | Member profile display-name/URL update | REFERENCE_VERIFIED | Expected-state, readback and injected-fault rollback green. |
 | Member account email mutation | NOT_IMPLEMENTED | Explicitly excluded after WordPress notification side effect was observed; separate notification/security gate required. |
@@ -30,7 +36,6 @@ Single-site maintenance: `34187219749`; content/member/deletion: `34187219774`; 
 | Event/location trash/delete | NOT_IMPLEMENTED | Separate destructive gate if an actual Chattanooga administration workflow requires it. |
 | Booking/ticket/payment administration | NOT_IMPLEMENTED | Not an automatic target; higher-risk dependency surfaces. |
 | Media/featured-image administration | NOT_IMPLEMENTED | Not an automatic priority; add only for a concrete content/event workflow. |
-| Core/site administration autonomy gap review | ACTIVE | Recalculate missing typed abilities from actual Chattanooga workflows rather than plugin inventories. |
 | Multisite/network administration | OUT_OF_SCOPE | Single-site production target. |
 | Candidate live MCP discovery | UNKNOWN | Candidate not deployed. |
 | Production deployment | NOT_DEPLOYED | Workbench evidence does not imply live installation. |
