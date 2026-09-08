@@ -12,8 +12,8 @@ if ( 0 === did_action( 'wp_abilities_api_init' ) ) {
 }
 
 $expected = json_decode( file_get_contents( dirname( __DIR__ ) . '/fixtures/expected-events-manager-deletion-abilities.json' ), true );
-if ( ! is_array( $expected ) || 2 !== count( $expected ) ) {
-	fwrite( STDERR, "events-manager-deletion-permission-cli: expected deletion ability fixture is invalid.\n" );
+if ( ! is_array( $expected ) || 3 !== count( $expected ) ) {
+	fwrite( STDERR, "events-manager-deletion-permission-cli: expected event lifecycle ability fixture is invalid.\n" );
 	exit( 1 );
 }
 $abilities = array();
@@ -87,4 +87,4 @@ wp_set_current_user( $admin->ID );
 require_once ABSPATH . 'wp-admin/includes/user.php';
 wp_delete_user( $user_id );
 
-echo "events-manager-deletion-permission-cli: PASS abilities=2 anonymous=denied edit_events=insufficient delete_events=required administrator=allowed\n";
+echo "events-manager-deletion-permission-cli: PASS abilities=3 anonymous=denied edit_events=insufficient delete_events=required administrator=allowed\n";
