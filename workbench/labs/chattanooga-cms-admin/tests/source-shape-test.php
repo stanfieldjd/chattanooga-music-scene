@@ -71,9 +71,16 @@ foreach ( array( "'trash' !== $post->post_status", "current_user_can( 'delete_po
 }
 
 $navigation_source = file_get_contents( $lab . '/candidate/includes/class-cmsa-navigation.php' );
-foreach ( array( 'wp_get_nav_menus', 'wp_get_nav_menu_items', 'wp_update_nav_menu_item', 'wp_delete_post( $item_id, true )', 'get_registered_nav_menus', "set_theme_mod( 'nav_menu_locations'", 'expected_menu_state', 'expected_locations_state', "array( 'http', 'https' )", "current_user_can( 'edit_theme_options' )" ) as $navigation_guard ) {
+foreach ( array( 'wp_get_nav_menus', 'wp_get_nav_menu_items', 'wp_update_nav_menu_object', 'wp_delete_nav_menu', 'wp_update_nav_menu_item', 'wp_delete_post( $item_id, true )', 'get_registered_nav_menus', "set_theme_mod( 'nav_menu_locations'", 'expected_menu_state', 'expected_locations_state', 'confirm_delete', 'menu_assigned_locations', "array( 'http', 'https' )", "current_user_can( 'edit_theme_options' )" ) as $navigation_guard ) {
 	if ( false === strpos( $navigation_source, $navigation_guard ) ) {
 		fwrite( STDERR, "Core navigation boundary guard missing: {$navigation_guard}.\n" );
+		exit( 1 );
+	}
+}
+$navigation_abilities_source = file_get_contents( $lab . '/candidate/includes/class-cmsa-navigation-abilities.php' );
+foreach ( array( "'update-navigation-menu'", "'delete-navigation-menu'", "array( $this->navigation, 'update_menu' )", "array( $this->navigation, 'delete_menu' )" ) as $navigation_lifecycle_registration ) {
+	if ( false === strpos( $navigation_abilities_source, $navigation_lifecycle_registration ) ) {
+		fwrite( STDERR, "Core navigation lifecycle registration missing: {$navigation_lifecycle_registration}.\n" );
 		exit( 1 );
 	}
 }
