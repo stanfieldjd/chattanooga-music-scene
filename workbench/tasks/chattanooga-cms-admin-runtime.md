@@ -1,17 +1,27 @@
 # Task: Chattanooga CMS Admin Runtime Integration
 
-Status: REFERENCE_SINGLE_SITE_MAINTENANCE_CONTENT_TAXONOMY_MEMBER_EVENT_LOCATION_ADMIN_VERIFIED — AUTONOMY GAP RECALCULATION NEXT / LIVE PREFLIGHT PARTIAL / PRODUCTION NOT DEPLOYED
+Status: REFERENCE_SINGLE_SITE_MAINTENANCE_CONTENT_PERMANENT_DELETE_TAXONOMY_MEMBER_EVENT_LOCATION_ADMIN_VERIFIED — AUTONOMY GAP RECALCULATION NEXT / LIVE PREFLIGHT PARTIAL / PRODUCTION NOT DEPLOYED
 
 ## Current verified candidate
 
-- Candidate checkpoint: `2eaed7eab4575ffc4c5db036a513924494d50cf4`; event/location source correction: `9874d5192cef627292df09bd81fd1f7aaa59315d`.
+- Candidate checkpoint: `8c2c422d6b8139fcfe571564a0d543b5d1607be2`.
 - Product scope: single-site WordPress only. Multisite/network support is not an acceptance target.
-- Full single-site maintenance regression: `34183243913` passed on PHP 7.4, PHP 8.2, and disposable WordPress 7.1.
-- Runtime artifact: `10039648550`, SHA-256 `ba3c42d62ea5c0f87df81cea6eabcb6614724a2cf53d2b30d35bbc87291393d3`.
-- Content/member run: `34183243906` passed.
-- Integrity run: `34183243890` passed.
-- Events Manager runtime run: `34183462063` passed against WordPress.org Events Manager 7.4.3.
-- Real registry: 66 abilities = 24 maintenance + 14 content CRUD/revision + 2 status + 12 taxonomy + 4 member-read + 2 member-mutation + 4 event/location read + 4 event/location mutation.
+- Full single-site maintenance regression: `34187219749` passed on PHP 7.4, PHP 8.2, and disposable WordPress 7.1.
+- Runtime artifact: `10040947233`, SHA-256 `27c11afa7652f062da3a33b2ca23b04b37ca1eabd79d4ad6cdc7898287dc6947`.
+- Content/member/deletion run: `34187219774` passed.
+- Integrity run: `34187219809` passed.
+- Events Manager regression run: `34187219757` passed against WordPress.org Events Manager 7.4.3.
+- Real registry: 68 abilities = 24 maintenance + 14 content CRUD/revision + 2 permanent content deletion + 2 status + 12 taxonomy + 4 member-read + 2 member-mutation + 4 event/location read + 4 event/location mutation.
+
+## Verified content administration
+
+- Bounded post/page list/get/create-draft/update/trash/restore/revision-restore operations remain conflict checked and object-capability gated.
+- Publication/status transitions retain exact-state and publish-authority controls.
+- Category/post-tag term and relationship administration retains conflict/readback/rollback gates.
+- Permanent post/page deletion is now a separate destructive contract rather than part of ordinary CRUD.
+- Permanent deletion requires the item to already be in WordPress trash, requires exact `expected_modified_gmt`, requires explicit `confirm_permanent_delete=true`, and rechecks native object-level `delete_post` authority at execution time.
+- Hard deletion uses native WordPress deletion and verifies the item is absent afterward; stale, unconfirmed, non-trash, wrong-type, or unauthorized requests fail closed.
+- The permanent-deletion runtime proves unrelated content remains unchanged.
 
 ## Verified member administration
 
@@ -38,7 +48,7 @@ Status: REFERENCE_SINGLE_SITE_MAINTENANCE_CONTENT_TAXONOMY_MEMBER_EVENT_LOCATION
 
 ## Active next gate — site administration autonomy gap review
 
-Recalculate what Chattanooga CMS Admin still needs in order to administer the actual single-site Chattanooga environment. Select gaps from concrete site workflows, not from the feature inventory of installed third-party plugins. Prefer bounded typed abilities with native WordPress/plugin authority, exact-state conflicts where applicable, readback verification, rollback for material mutation, and explicit destructive/security gates. Do not modify third-party plugin source to satisfy an admin-plugin requirement.
+Recalculate what Chattanooga CMS Admin still needs in order to administer the actual single-site Chattanooga environment. Select gaps from concrete site workflows, not from the feature inventory of installed third-party plugins. Prefer core/site administration gaps before adding new third-party surfaces when both could satisfy the operational need. Keep security-sensitive, notification-producing, media, recurring-event, booking, ticket, payment, and other destructive domains separated until a concrete site workflow justifies them.
 
 ## Production boundary
 
