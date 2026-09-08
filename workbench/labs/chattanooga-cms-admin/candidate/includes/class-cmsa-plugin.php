@@ -18,6 +18,7 @@ final class CMSA_Plugin {
 	private $events_manager_abilities;
 	private $events_manager_mutation_abilities;
 	private $events_manager_deletion_abilities;
+	private $events_manager_taxonomy_abilities;
 
 	public static function instance() {
 		if ( null === self::$instance ) {
@@ -67,11 +68,12 @@ final class CMSA_Plugin {
 			$this->member_abilities = new CMSA_Member_Abilities( $members );
 			$this->member_mutation_abilities = new CMSA_Member_Mutation_Abilities( new CMSA_Member_Mutations( $members ) );
 		}
-		if ( ! $this->events_manager_abilities || ! $this->events_manager_mutation_abilities || ! $this->events_manager_deletion_abilities ) {
+		if ( ! $this->events_manager_abilities || ! $this->events_manager_mutation_abilities || ! $this->events_manager_deletion_abilities || ! $this->events_manager_taxonomy_abilities ) {
 			$events = new CMSA_Events_Manager();
 			$this->events_manager_abilities = new CMSA_Events_Manager_Abilities( $events );
 			$this->events_manager_mutation_abilities = new CMSA_Events_Manager_Mutation_Abilities( new CMSA_Events_Manager_Mutations( $events ) );
 			$this->events_manager_deletion_abilities = new CMSA_Events_Manager_Deletion_Abilities( new CMSA_Events_Manager_Deletion( $events ) );
+			$this->events_manager_taxonomy_abilities = new CMSA_Events_Manager_Taxonomy_Abilities( new CMSA_Events_Manager_Taxonomy( $events ) );
 		}
 
 		$this->abilities->register();
@@ -85,5 +87,6 @@ final class CMSA_Plugin {
 		$this->events_manager_abilities->register();
 		$this->events_manager_mutation_abilities->register();
 		$this->events_manager_deletion_abilities->register();
+		$this->events_manager_taxonomy_abilities->register();
 	}
 }
