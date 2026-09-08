@@ -12,6 +12,7 @@ final class CMSA_Plugin {
 	private $content_deletion_abilities;
 	private $content_status_abilities;
 	private $content_taxonomy_abilities;
+	private $navigation_abilities;
 	private $member_abilities;
 	private $member_mutation_abilities;
 	private $events_manager_abilities;
@@ -57,6 +58,9 @@ final class CMSA_Plugin {
 			$this->content_status_abilities = new CMSA_Content_Status_Abilities( new CMSA_Content_Status( $content ) );
 			$this->content_taxonomy_abilities = new CMSA_Content_Taxonomy_Abilities( new CMSA_Content_Taxonomy( $content ) );
 		}
+		if ( ! $this->navigation_abilities ) {
+			$this->navigation_abilities = new CMSA_Navigation_Abilities( new CMSA_Navigation() );
+		}
 		if ( ! $this->member_abilities || ! $this->member_mutation_abilities ) {
 			$members = new CMSA_Members();
 			$this->member_abilities = new CMSA_Member_Abilities( $members );
@@ -73,6 +77,7 @@ final class CMSA_Plugin {
 		$this->content_deletion_abilities->register();
 		$this->content_status_abilities->register();
 		$this->content_taxonomy_abilities->register();
+		$this->navigation_abilities->register();
 		$this->member_abilities->register();
 		$this->member_mutation_abilities->register();
 		$this->events_manager_abilities->register();
