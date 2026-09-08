@@ -252,7 +252,7 @@ final class CMSA_Events_Manager_Mutations {
 			'location_name' => '', 'post_content' => '', 'post_status' => 'draft',
 			'location_address' => '', 'location_town' => '', 'location_state' => '',
 			'location_postcode' => '', 'location_region' => '', 'location_country' => '',
-			'location_latitude' => '', 'location_longitude' => '',
+			'location_latitude' => '0', 'location_longitude' => '0',
 		) : $base;
 		$fields = array(
 			'location_name' => 'location_name', 'content' => 'post_content', 'post_status' => 'post_status',
