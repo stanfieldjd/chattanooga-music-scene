@@ -46,6 +46,42 @@ final class CMSA_Navigation_Abilities {
 		);
 
 		$this->register_ability(
+			'update-navigation-menu',
+			'Update navigation menu',
+			'Renames one core WordPress navigation menu after an exact menu-state conflict check and verifies the resulting state.',
+			$this->object_schema(
+				array(
+					'menu_id'             => array( 'type' => 'integer', 'minimum' => 1 ),
+					'expected_menu_state' => array( 'type' => 'string', 'minLength' => 64, 'maxLength' => 64 ),
+					'name'                => array( 'type' => 'string', 'minLength' => 1, 'maxLength' => 200 ),
+				),
+				array( 'menu_id', 'expected_menu_state', 'name' )
+			),
+			function ( $input ) { return $this->navigation->update_menu( $input ); },
+			false,
+			false,
+			false
+		);
+
+		$this->register_ability(
+			'delete-navigation-menu',
+			'Delete navigation menu',
+			'Permanently deletes one unassigned core WordPress navigation menu after an exact menu-state conflict check and explicit destructive confirmation. Assigned menus must first be explicitly unassigned from every registered location.',
+			$this->object_schema(
+				array(
+					'menu_id'             => array( 'type' => 'integer', 'minimum' => 1 ),
+					'expected_menu_state' => array( 'type' => 'string', 'minLength' => 64, 'maxLength' => 64 ),
+					'confirm_delete'       => array( 'type' => 'boolean' ),
+				),
+				array( 'menu_id', 'expected_menu_state', 'confirm_delete' )
+			),
+			function ( $input ) { return $this->navigation->delete_menu( $input ); },
+			false,
+			true,
+			false
+		);
+
+		$this->register_ability(
 			'upsert-navigation-menu-item',
 			'Create or update navigation menu item',
 			'Creates or updates one core WordPress navigation item after an exact menu-state conflict check. Supports published WordPress pages and bounded custom HTTP/HTTPS or root-relative links.',
