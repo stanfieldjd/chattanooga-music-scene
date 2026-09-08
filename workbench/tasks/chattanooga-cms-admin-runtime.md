@@ -1,16 +1,16 @@
 # Task: Chattanooga CMS Admin Runtime Integration
 
-Status: REFERENCE_SINGLE_SITE_MAINTENANCE_CONTENT_PERMANENT_DELETE_TAXONOMY_NAVIGATION_LIFECYCLE_MEMBER_EVENT_LOCATION_EVENT_LIFECYCLE_EVENT_TAXONOMY_ADMIN_VERIFIED — FRESH LIVE TAXONOMY INVENTORY NEXT / LIVE PREFLIGHT PARTIAL / PRODUCTION NOT DEPLOYED
+Status: REFERENCE_SINGLE_SITE_MAINTENANCE_CONTENT_PERMANENT_DELETE_TAXONOMY_NAVIGATION_LIFECYCLE_MEMBER_EVENT_LOCATION_EVENT_LIFECYCLE_EVENT_TAXONOMY_ADMIN_VERIFIED — LIVE FESTIVAL RELATIONSHIP ISSUE VERIFIED / NO TERM LIFECYCLE JUSTIFIED / PRODUCTION GATE PENDING
 
 ## Current verified candidate
 
 - Candidate source checkpoint: `62e46bb64514973a640f1abd13ff5f90248580f8`.
 - Product scope: single-site WordPress only. Multisite/network support is not an acceptance target.
-- Full single-site maintenance regression: `34243687257` passed on PHP 7.4, PHP 8.2, and disposable WordPress 7.1.
-- Runtime artifact: `10063123311`, SHA-256 `0cf3d8288731e5a5be8a5a5c7ef6528332f12f01387a38a1f65668a9f07ea24b`.
-- Content/member/navigation run: `34243687429` passed.
-- Integrity run: `34243687283` passed.
-- Events Manager regression run: `34243687468` passed against WordPress.org Events Manager 7.4.3.
+- Latest full single-site maintenance regression: `34244282299` passed on PHP 7.4, PHP 8.2, and disposable WordPress 7.1.
+- Latest runtime artifact: `10063358784`, SHA-256 `f3f13c5a2d603fcecaca8de458df18538a9216f42c2656e6eaa7e296a44695b7`.
+- Latest content/member/navigation run: `34244282476` passed.
+- Latest integrity run: `34244282480` passed.
+- Latest Events Manager regression run: `34244282382` passed against WordPress.org Events Manager 7.4.3.
 - Real registry: 82 abilities = 24 maintenance + 14 content CRUD/revision + 2 permanent content deletion + 2 status + 12 content taxonomy + 8 navigation + 4 member-read + 2 member-mutation + 4 event/location read + 4 event/location mutation + 3 event lifecycle + 3 event taxonomy.
 
 ## Verified content administration
@@ -43,9 +43,9 @@ Status: REFERENCE_SINGLE_SITE_MAINTENANCE_CONTENT_PERMANENT_DELETE_TAXONOMY_NAVI
 
 ## Verified Events Manager taxonomy administration
 
-- Events Manager 7.4.3 registers `event-categories` and `event-tags` on the `event` post type. `event-categories` is hierarchical; `event-tags` is non-hierarchical.
-- Native taxonomy assignment authority for both is `edit_events`; term lifecycle uses separate native manage/edit/delete capabilities and was not added to the candidate.
-- Three typed abilities are now verified:
+- Reference Events Manager 7.4.3 can register `event-categories` and `event-tags` on the `event` post type. `event-categories` is hierarchical; `event-tags` is non-hierarchical.
+- Native taxonomy assignment authority is `edit_events`; term lifecycle uses separate native manage/edit/delete capabilities and was not added to the candidate.
+- Three typed abilities are verified:
   1. `list-event-taxonomy-terms` — bounded inspection of existing category/tag vocabulary.
   2. `get-event-taxonomy` — exact relationship read for one ordinary single event plus event conflict token.
   3. `set-event-taxonomy` — exact relationship replacement for one allowlisted taxonomy.
@@ -57,14 +57,28 @@ Status: REFERENCE_SINGLE_SITE_MAINTENANCE_CONTENT_PERMANENT_DELETE_TAXONOMY_NAVI
 - Event core state, referenced venue state, and an unrelated control event remain unchanged through taxonomy transactions.
 - Third-party Events Manager source remains immutable dependency code.
 
-## Active next gate — fresh live taxonomy inventory
+## Gate 18 — fresh live taxonomy inventory — DECISION SUFFICIENT / PASS FOR TARGET WORKFLOW
 
-Obtain fresh read-only Chattanooga evidence for the existing Events Manager event category/tag vocabulary and the current classification relationships on affected live events. The purpose is to determine whether the verified relationship abilities are sufficient for the real festival-vs-Live-Music integrity workflow or whether a separate, concretely justified term-lifecycle capability is actually required.
+Fresh read-only Chattanooga evidence on 2026-09-08 established:
 
-This gate is evidence-only unless separately authorized. Do not install the candidate, mutate live records, create/rename/delete terms, or expand into media, recurrence, bookings, tickets, payments, account security, widgets/templates, location deletion, generic options, or multisite behavior merely because an upstream API supports them.
+- The live `event` post type has 110 published events, 1 draft, and 11 `event-categories` terms. `event-tags` is not exposed on the live `event` type.
+- `Festival`: term ID `247`, slug `festival`, parent `0`, current category count `5`.
+- `Music Festivals`: term ID `59`, slug `music-festivals`, parent `0`, current category count `3`.
+- `Live Music`: term ID `60`, slug `live-music`, parent `0`, current category count `68`; the published custom-post-type filter returned 63 published event records.
+- The five currently published Festival-category events are IDs `6810`, `7800`, `7803`, `7804`, and `7806`.
+- Every one of those five Festival-category records is also assigned `Live Music`.
+- Three of those five are also assigned `Music Festivals`.
+- Individual live reads confirmed these are actual festival-form records, including `3 Sisters Bluegrass Festival`, `Chattanooga Oktoberfest`, `IBMA World of Bluegrass`, `Chattanooga Bluegrass Festival`, and `Chattanooga Jazz Fest`.
+- The current connector reports that 11 event-category terms exist but does not expose a read-only list-all-category ability. A complete name catalogue of all 11 terms is therefore unavailable through this surface. This limitation does not prevent the current decision because the required `Festival`, `Music Festivals`, and `Live Music` terms were independently verified by ID and taxonomy-filtered event reads.
 
-If the connected live surface cannot expose the required taxonomy evidence, record that limitation explicitly rather than guessing or adding source capability without evidence.
+Decision: the live site already has sufficient vocabulary for the primary-form festival distinction. The defect is current relationship assignment: all five published Festival records also carry `Live Music`. No Events Manager term create/update/delete capability is justified by present evidence.
 
-## Production boundary
+## Current production boundary
 
-`main`, `feature/chattanooga-cms-admin`, DreamHost production, existing Chattanooga content/member/event/navigation records, and the current MCP transport are not mutation targets for workbench development. Candidate installation and live MCP discovery remain separate production gates; reference CI success does not imply deployment.
+No live content or taxonomy relationship was modified during Gate 18. The candidate is still not installed on Chattanooga Music Scene, and candidate MCP discovery has not been run. Installing the candidate, changing MCP transport, or repairing the five live festival relationships are separate production mutations and require the applicable authorization/verification gate plus a fresh pre-mutation read.
+
+`main`, `feature/chattanooga-cms-admin`, DreamHost production files, existing Chattanooga content/member/event/navigation records, and current MCP transport remain outside automatic workbench mutation.
+
+## Recalculated next position
+
+Do not add taxonomy term lifecycle or other speculative source capability. The next material step for this workstream is the production candidate-install/live-discovery gate; the next event-taxonomy operation is an authorized, freshly re-read relationship repair using exact expected-before state. Until that production authorization exists, the engineering source is at a verified bounded checkpoint rather than an incomplete taxonomy implementation.

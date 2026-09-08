@@ -128,3 +128,16 @@ Append-only record of material workbench state changes. Do not rewrite prior ent
 - Runtime capability artifact `10063123311` has SHA-256 `0cf3d8288731e5a5be8a5a5c7ef6528332f12f01387a38a1f65668a9f07ea24b`.
 - Production/source branches and live Chattanooga records were not mutated.
 - Recalculated next gate: obtain fresh read-only live event-taxonomy vocabulary and relationship evidence before deciding whether existing terms are sufficient or a separate term-lifecycle capability is materially necessary.
+
+## 2026-09-08 — Fresh live festival taxonomy evidence
+
+- Gate 18 used only read-only connected Chattanooga abilities; no live content/taxonomy mutation, candidate installation, or MCP transport change occurred.
+- The live `event` type currently reports 110 published events, 1 draft, and 11 `event-categories` terms; `event-tags` is not exposed on the live event type.
+- Verified relevant category identities: `Festival` term `247` (slug `festival`, parent `0`, count `5`), `Music Festivals` term `59` (slug `music-festivals`, parent `0`, count `3`), and `Live Music` term `60` (slug `live-music`, parent `0`, Events Manager count `68`; published custom-post-type filter `63`).
+- The published `Festival` filter returned exactly IDs `6810`, `7800`, `7803`, `7804`, and `7806`.
+- Fresh individual event reads confirmed all five Festival-category records also carry `Live Music`; three of the five also carry `Music Festivals`.
+- Direct reads identified these records as festival-form events: `3 Sisters Bluegrass Festival`, `Chattanooga Oktoberfest`, `IBMA World of Bluegrass`, `Chattanooga Bluegrass Festival`, and `Chattanooga Jazz Fest`.
+- Decision: existing vocabulary is sufficient. The current defect is taxonomy relationship assignment, so no event term create/update/delete capability is justified by current evidence.
+- The connector reports 11 event categories but exposes no read-only list-all-category ability; a complete 11-term name catalogue is therefore not claimed. The three terms required for the current decision were independently verified by ID and taxonomy-filtered event reads.
+- The prior workbench checkpoint `7bdec44c4a28ef5d81ffa5f74789701d7dd66964` re-ran cleanly: maintenance `34244282299`, content/member/navigation `34244282476`, integrity `34244282480`, and Events Manager `34244282382` all passed. Runtime artifact `10063358784` has SHA-256 `f3f13c5a2d603fcecaca8de458df18538a9216f42c2656e6eaa7e296a44695b7`.
+- Recalculated next position: do not add speculative taxonomy source capability. Candidate installation/live discovery and any live relationship repair are separate production authorization gates and must begin with fresh pre-mutation evidence.
