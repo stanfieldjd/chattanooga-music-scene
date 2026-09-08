@@ -78,7 +78,7 @@ foreach ( array( 'wp_get_nav_menus', 'wp_get_nav_menu_items', 'wp_update_nav_men
 	}
 }
 $navigation_abilities_source = file_get_contents( $lab . '/candidate/includes/class-cmsa-navigation-abilities.php' );
-foreach ( array( "'update-navigation-menu'", "'delete-navigation-menu'", "array( \$this->navigation, 'update_menu' )", "array( \$this->navigation, 'delete_menu' )" ) as $navigation_lifecycle_registration ) {
+foreach ( array( "'update-navigation-menu'", "'delete-navigation-menu'", '->update_menu( $input )', '->delete_menu( $input )' ) as $navigation_lifecycle_registration ) {
 	if ( false === strpos( $navigation_abilities_source, $navigation_lifecycle_registration ) ) {
 		fwrite( STDERR, "Core navigation lifecycle registration missing: {$navigation_lifecycle_registration}.\n" );
 		exit( 1 );
