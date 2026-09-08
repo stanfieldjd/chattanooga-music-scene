@@ -68,6 +68,11 @@ jobs:
         run: |
           set -euo pipefail
           php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/content-deletion-permission-cli.php" --path=/tmp/wordpress
+      - name: Verify navigation ability permissions
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/navigation-permission-cli.php" --path=/tmp/wordpress
       - name: Verify status ability permissions
         shell: bash
         run: |
@@ -108,6 +113,11 @@ jobs:
         run: |
           set -euo pipefail
           php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/content-deletion-cli.php" --path=/tmp/wordpress
+      - name: Verify core navigation transactions
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/navigation-cli.php" --path=/tmp/wordpress
       - name: Verify publication status transactions
         shell: bash
         run: |
