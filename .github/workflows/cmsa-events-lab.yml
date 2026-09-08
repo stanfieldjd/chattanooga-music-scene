@@ -46,6 +46,7 @@ jobs:
           php /tmp/wp-cli.phar core download --version=7.1 --path=/tmp/wordpress --force
           php /tmp/wp-cli.phar config create --path=/tmp/wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
           php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://cmsa-events.test --title="CMSA Events Workbench" --admin_user=admin --admin_password="cmsa-events-workbench-only" --admin_email=lab@example.invalid --skip-email
+          php /tmp/wp-cli.phar option update timezone_string America/New_York --path=/tmp/wordpress
       - name: Install and initialize Events Manager
         shell: bash
         run: |
