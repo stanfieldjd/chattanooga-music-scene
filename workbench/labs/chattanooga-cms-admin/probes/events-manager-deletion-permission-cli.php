@@ -28,6 +28,11 @@ foreach ( $expected as $name ) {
 $allowed = static function ( $ability ) {
 	return true === $ability->check_permissions();
 };
+$refresh_user = static function ( $user_id ) {
+	wp_set_current_user( 0 );
+	clean_user_cache( (int) $user_id );
+	wp_set_current_user( (int) $user_id );
+};
 
 wp_set_current_user( 0 );
 foreach ( $abilities as $name => $ability ) {
@@ -56,10 +61,11 @@ if ( is_wp_error( $user_id ) ) {
 	fwrite( STDERR, "events-manager-deletion-permission-cli: limited user creation failed.\n" );
 	exit( 1 );
 }
+$user_id = (int) $user_id;
 $limited = new WP_User( $user_id );
 $limited->set_role( 'subscriber' );
 $limited->add_cap( 'edit_events' );
-wp_set_current_user( $user_id );
+$refresh_user( $user_id );
 foreach ( $abilities as $name => $ability ) {
 	if ( $allowed( $ability ) ) {
 		fwrite( STDERR, "events-manager-deletion-permission-cli: edit_events alone unexpectedly grants {$name}.\n" );
@@ -67,8 +73,9 @@ foreach ( $abilities as $name => $ability ) {
 	}
 }
 
+$limited = new WP_User( $user_id );
 $limited->add_cap( 'delete_events' );
-wp_set_current_user( $user_id );
+$refresh_user( $user_id );
 foreach ( $abilities as $name => $ability ) {
 	if ( ! $allowed( $ability ) ) {
 		fwrite( STDERR, "events-manager-deletion-permission-cli: delete_events did not grant registrar access for {$name}.\n" );
