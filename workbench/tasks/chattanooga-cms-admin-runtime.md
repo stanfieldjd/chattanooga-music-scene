@@ -1,17 +1,17 @@
 # Task: Chattanooga CMS Admin Runtime Integration
 
-Status: REFERENCE_SINGLE_SITE_MAINTENANCE_CONTENT_PERMANENT_DELETE_TAXONOMY_NAVIGATION_LIFECYCLE_MEMBER_EVENT_LOCATION_ADMIN_VERIFIED — AUTONOMY GAP RECALCULATION NEXT / LIVE PREFLIGHT PARTIAL / PRODUCTION NOT DEPLOYED
+Status: REFERENCE_SINGLE_SITE_MAINTENANCE_CONTENT_PERMANENT_DELETE_TAXONOMY_NAVIGATION_LIFECYCLE_MEMBER_EVENT_LOCATION_EVENT_DELETION_ADMIN_VERIFIED — AUTONOMY GAP RECALCULATION NEXT / LIVE PREFLIGHT PARTIAL / PRODUCTION NOT DEPLOYED
 
 ## Current verified candidate
 
-- Candidate checkpoint: `1a808764b150965809dda2dd07a5b5fad058ff72`.
+- Candidate checkpoint: `b181bfc4350590796aabd45b3196be6bffcbf624`.
 - Product scope: single-site WordPress only. Multisite/network support is not an acceptance target.
-- Full single-site maintenance regression: `34188720251` passed on PHP 7.4, PHP 8.2, and disposable WordPress 7.1.
-- Runtime artifact: `10041444805`, SHA-256 `d852b4f3771583a72961f744c8cfc5fdc1de81eb38d8bb7ad2af316464a87ce2`.
-- Content/member/navigation run: `34188720289` passed.
-- Integrity run: `34188720290` passed.
-- Events Manager regression run: `34188720252` passed against WordPress.org Events Manager 7.4.3.
-- Real registry: 76 abilities = 24 maintenance + 14 content CRUD/revision + 2 permanent content deletion + 2 status + 12 taxonomy + 8 navigation + 4 member-read + 2 member-mutation + 4 event/location read + 4 event/location mutation.
+- Full single-site maintenance regression: `34240050604` passed on PHP 7.4, PHP 8.2, and disposable WordPress 7.1.
+- Runtime artifact: `10061625032`, SHA-256 `8de5e338f732d0c8c28e603de8d160d45e40de2a5556b37ea7a71a9b327a77d4`.
+- Content/member/navigation run: `34240050534` passed.
+- Integrity run: `34240050888` passed.
+- Events Manager regression run: `34240050569` passed against WordPress.org Events Manager 7.4.3.
+- Real registry: 78 abilities = 24 maintenance + 14 content CRUD/revision + 2 permanent content deletion + 2 status + 12 taxonomy + 8 navigation + 4 member-read + 2 member-mutation + 4 event/location read + 4 event/location mutation + 2 event deletion.
 
 ## Verified content administration
 
@@ -24,7 +24,7 @@ Status: REFERENCE_SINGLE_SITE_MAINTENANCE_CONTENT_PERMANENT_DELETE_TAXONOMY_NAVI
 
 ## Verified core navigation administration
 
-- Eight typed abilities now cover bounded core WordPress navigation: list menus, get one menu, create a menu, rename a menu, permanently delete an obsolete menu, create/update a menu item, delete a menu item, and assign/unassign a registered menu location.
+- Eight typed abilities cover bounded core WordPress navigation: list menus, get one menu, create a menu, rename a menu, permanently delete an obsolete menu, create/update a menu item, delete a menu item, and assign/unassign a registered menu location.
 - Navigation authority is isolated behind `edit_theme_options`; anonymous and ordinary editor fixtures are denied while administrator authority passes.
 - Menu and item mutations use exact menu-state tokens; location assignment uses an exact assignment-map state token.
 - Menu rename rejects stale and no-change writes, performs readback verification, and rolls back to the exact previous managed state when injected post-write corruption is detected.
@@ -50,11 +50,17 @@ Status: REFERENCE_SINGLE_SITE_MAINTENANCE_CONTENT_PERMANENT_DELETE_TAXONOMY_NAVI
 - Four bounded read abilities cover list/get events and list/get locations.
 - Four mutation abilities cover create/update for ordinary single events and physical venues/locations only.
 - Expected-before state, readback, rollback/cleanup, publish/object authority, dependency-state preservation, and referenced-venue isolation are verified.
+- Two event-deletion abilities provide an explicit two-stage lifecycle for ordinary single events: native Events Manager trash first, then optional permanent deletion.
+- Event trash uses the exact current event state, verifies the backing WordPress event post is in trash, preserves the referenced venue, and leaves unrelated events unchanged.
+- Permanent event deletion requires the event already be trashed, exact `expected_state_token`, explicit `confirm_permanent_delete=true`, and native object-level delete authority.
+- Before hard deletion, the service uses Events Manager's aggregate booking count across statuses/owners for the specific event. Any existing booking refuses permanent deletion and preserves both the event and booking; zero bookings permits the native forced delete path.
+- Successful permanent deletion verifies both the Events Manager identity and backing WordPress event post are absent while the referenced venue and unrelated event remain unchanged.
+- Location deletion, booking deletion, ticket deletion, and payment administration are not part of the event-deletion contract.
 - Events Manager and all other third-party plugin source remain immutable dependency surfaces for this workstream.
 
 ## Active next gate — site administration autonomy gap recalculation
 
-Recalculate what Chattanooga CMS Admin still cannot do that is materially necessary to administer the actual single-site Chattanooga environment. Select the next gate from concrete site workflows rather than from WordPress or installed-plugin feature inventories. Do not automatically expand into media, recurring events, bookings, tickets, payments, account security operations, widgets, templates, or generic option mutation. Any selected mutation must remain typed and bounded, use native authority, add exact-state conflict handling when the state model supports it, verify readback, and provide rollback or explicit destructive isolation appropriate to the operation.
+Recalculate what Chattanooga CMS Admin still cannot do that is materially necessary to administer the actual single-site Chattanooga environment. Select the next gate from concrete site workflows rather than from WordPress or installed-plugin feature inventories. Do not automatically expand into media, recurring events, bookings, tickets, payments, account security operations, widgets, templates, location deletion, or generic option mutation. Any selected mutation must remain typed and bounded, use native authority, add exact-state conflict handling when the state model supports it, verify readback, and provide rollback or explicit destructive isolation appropriate to the operation.
 
 ## Production boundary
 
