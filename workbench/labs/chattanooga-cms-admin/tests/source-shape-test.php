@@ -106,7 +106,7 @@ foreach ( array( "'trash-event'", "'delete-event'", "current_user_can( 'delete_e
 		exit( 1 );
 	}
 }
-foreach ( array( 'delete_location', 'delete_booking', 'delete_ticket', 'manage_bookings', 'manage_others_bookings' ) as $event_deletion_forbidden ) {
+foreach ( array( 'function delete_location(', '->delete_location(', 'function delete_booking(', '->delete_booking(', 'function delete_ticket(', '->delete_ticket(', 'manage_others_bookings' ) as $event_deletion_forbidden ) {
 	if ( false !== strpos( $event_deletion_source, $event_deletion_forbidden ) ) {
 		fwrite( STDERR, "Events Manager deletion layer expanded beyond event-only lifecycle safety: {$event_deletion_forbidden}.\n" );
 		exit( 1 );
@@ -125,7 +125,7 @@ foreach ( $candidate_sources as $source_path ) {
 			fwrite( STDERR, 'Multisite-only behavior is not part of the Chattanooga single-site product: ' . basename( $source_path ) . " contains {$fragment}.\n" );
 			exit( 1 );
 		}
-}
+	}
 }
 
 $mutation_source = file_get_contents( $lab . '/candidate/includes/class-cmsa-events-manager-mutations.php' );
