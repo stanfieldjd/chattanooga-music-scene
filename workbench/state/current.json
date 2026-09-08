@@ -13,7 +13,7 @@
       "branch": "feature/chattanooga-cms-admin",
       "head_sha": "0b34773ebc8073cb657477770b34cabc280f5892",
       "source_path": "site-plugins/chattanooga-cms-admin",
-      "state": "live_plugin_active_miniorange_role_ability_grant_pending_festival_relationships_freshly_reverified",
+      "state": "live_mcp_exposure_verified_exact_taxonomy_reads_complete_relationship_repair_awaiting_authorization",
       "validation": {
         "candidate_checkpoint": "62e46bb64514973a640f1abd13ff5f90248580f8",
         "event_location_source_change": "9874d5192cef627292df09bd81fd1f7aaa59315d",
@@ -89,15 +89,31 @@
         "live_music_festivals_category": "id_59_slug_music-festivals_parent_0_count_3",
         "live_live_music_category": "id_60_slug_live-music_parent_0_category_count_68_published_cpt_filter_63",
         "live_festival_event_ids": [6810, 7800, 7803, 7804, 7806],
-        "live_festival_live_music_overlap": "5_of_5_freshly_reverified_after_plugin_activation",
+        "live_festival_event_manager_ids": {
+          "6810": 1119,
+          "7800": 1180,
+          "7803": 1181,
+          "7804": 1182,
+          "7806": 1183
+        },
+        "live_event_id_domain": "chattanooga_cms_admin_event_abilities_accept_events_manager_event_id_not_wordpress_post_id_mapping_verified_by_exact_title_and_post_id_search",
+        "live_festival_live_music_overlap": "5_of_5_exact_candidate_reads_after_mcp_exposure",
         "live_music_festivals_overlap": "3_published_records_all_within_current_festival_set",
         "live_festival_current_sets": {
-          "6810": [247, 60, 59],
-          "7800": [252, 247, 256, 60],
-          "7803": [247, 60, 59],
-          "7804": [252, 247, 60],
-          "7806": [252, 247, 60, 59]
+          "6810": [59, 60, 247],
+          "7800": [60, 247, 252, 256],
+          "7803": [59, 60, 247],
+          "7804": [60, 247, 252],
+          "7806": [59, 60, 247, 252]
         },
+        "live_festival_event_state_tokens_observed": {
+          "1119": "274cdedf2874946fbd7c8ea61a281891f1e8727b829bda9755473db3af26b711",
+          "1180": "8f03f8a014f54fa71f3a0612bd73b6177d7c3227125c06aa692d8584e0d6910d",
+          "1181": "a3877ad63e6befc067f3ec7f35cfe7b49d177ef6ff3583a4ad44dff311699740",
+          "1182": "52ab49e34c38fad7a1168d9805482e0a83c0d72f3955ad5a55a320e33874b10e",
+          "1183": "3673df9b98bcb974d2036bdfde497c3c7a8f5e59634347e00aef65fd3b6b00e1"
+        },
+        "live_event_state_token_policy": "observed_tokens_are_verification_evidence_only_refresh_immediately_before_any_authorized_write",
         "live_festival_current_titles": {
           "6810": "3 Sisters Bluegrass Festival",
           "7800": "Chattanooga Oktoberfest",
@@ -111,18 +127,20 @@
         "rest_exposure": "passed_candidate_hidden_not_executable",
         "maintenance_regression": "passed_single_site_backup_restore_storage_update_rollback_privacy_error_redaction_cache_core",
         "dreamhost_read_only_probe": "partial_wordpress_7_1_php_8_2_30_mysql_8_0_41_relevant_directories_writable_wp_super_cache_active",
-        "dreamhost_unresolved": "disk_capacity_filesystem_method_ziparchive_outside_webroot_backup_parent_writability",
+        "dreamhost_unresolved": "disk_capacity_outside_webroot_backup_parent_location",
         "live_plugin_installation": "active_chattanooga_cms_admin_version_0_1_0_execution_verified",
         "live_mcp_identity": "wordpress_user_2_roles_administrator_bbp_keymaster",
         "live_admin_required_capabilities": "edit_events_manage_options_activate_plugins_install_plugins_update_plugins_verified_present",
         "chatgpt_plugin_permission_mode": "allow_all_actions_not_blocker",
-        "candidate_live_mcp_discovery": "zero_chattanooga_cms_admin_abilities_exposed_by_current_connector_reverified",
+        "candidate_live_mcp_discovery": "82_chattanooga_cms_admin_abilities_exposed_live",
+        "live_candidate_health": "passed_wordpress_7_1_php_8_2_30_production_database_responding_direct_filesystem_plugin_theme_content_writable_backup_storage_available_writable_ziparchive_https_maintenance_off",
+        "live_candidate_exact_taxonomy_reads": "passed_all_five_target_events_event_categories_exact_relationship_sets_and_state_tokens",
         "candidate_source_mcp_registration": "wp_abilities_api_init_public_true_mcp_public_true_reference_registry_82_passed",
         "miniorange_governance_vendor_evidence": "official_release_notes_per_ability_exposure_1_2_0_role_based_grants_1_2_2_resource_by_role_matrix_1_4_2",
         "candidate_rest_isolation_compatibility": "miniorange_1_4_0_documents_governed_mcp_only_abilities_without_public_rest_so_show_in_rest_false_is_not_evidence_of_mcp_incompatibility",
-        "mcp_exposure_diagnosis": "wordpress_role_permission_and_chatgpt_plugin_permission_gates_satisfied_miniorange_governance_requires_explicit_role_nhi_ability_grant_current_connector_cannot_inspect_or_mutate_that_setting",
-        "live_mutations_after_install": "none",
-        "next_gate": "grant_chattanooga_cms_admin_resource_to_administrator_role_for_enabled_nhi_then_rerun_discovery_health_and_exact_taxonomy_reads_live_relationship_write_requires_separate_explicit_authorization"
+        "mcp_exposure_diagnosis": "resolved_user_saved_miniorange_administrator_nhi_ability_policy_live_connector_now_exposes_all_82_candidate_abilities",
+        "live_mutations_after_install": "no_live_content_taxonomy_plugin_theme_or_source_mutation_by_current_validation_sequence",
+        "next_gate": "live_five_event_relationship_repair_requires_separate_explicit_target_specific_authorization_then_refresh_each_exact_candidate_snapshot_immediately_before_guarded_write"
       }
     },
     {
