@@ -173,3 +173,15 @@ Append-only record of material workbench state changes. Do not rewrite prior ent
 - miniOrange's current MCP documentation describes tool discovery as exposing approved WordPress abilities after identity and role-based permission evaluation.
 - Direct-repair conclusion: grant the `chattanooga-cms-admin` resource/abilities to the Administrator role for the enabled NHI used by this connection. Do not alter candidate registration code or use generic taxonomy mutation as a substitute.
 - No miniOrange policy, plugin source, MCP transport, live content, or taxonomy relationship was modified.
+
+## 2026-09-08 — Live CMS Admin MCP exposure and exact Festival taxonomy verification
+
+- The user successfully saved the miniOrange Administrator/NHI ability policy. Fresh `discover_abilities` now returns all 82 `chattanooga-cms-admin` abilities through the production MCP connection.
+- `chattanooga-cms-admin__get-health` executed successfully on production: WordPress 7.1, PHP 8.2.30, database responding, direct filesystem, writable plugin/theme/content directories, writable local backup storage, ZipArchive present, HTTPS enabled, and maintenance mode off.
+- A `get-event-taxonomy` probe using WordPress post ID `6810` returned `event not found`, exposing an identifier-domain distinction rather than being treated as a plugin defect.
+- Candidate `list-events` searches resolved and independently verified exact WordPress-post-to-Events-Manager mappings: `6810→1119`, `7800→1180`, `7803→1181`, `7804→1182`, and `7806→1183`.
+- Fresh candidate `get-event-taxonomy` reads for `event-categories` returned exact sets: `1119=[59,60,247]`, `1180=[60,247,252,256]`, `1181=[59,60,247]`, `1182=[60,247,252]`, and `1183=[59,60,247,252]`.
+- Each taxonomy event-state token matched the corresponding fresh `list-events` state token at inspection time.
+- All five target relationships still contain `Live Music` term `60`; the 5/5 classification defect is now verified through the candidate's own exact-state contract.
+- No `set-event-taxonomy` call or other live content/taxonomy mutation was made. `main` and `feature/chattanooga-cms-admin` remain untouched.
+- Recalculated next position: production MCP exposure/read-runtime acceptance is closed. The five-event relationship repair remains a separate target-specific live mutation; refresh exact candidate state immediately before any explicitly authorized write.
