@@ -1,68 +1,69 @@
 # Task: Chattanooga CMS Admin Runtime Integration
 
-Status: REFERENCE_SINGLE_SITE_MAINTENANCE_CONTENT_PERMANENT_DELETE_TAXONOMY_NAVIGATION_LIFECYCLE_MEMBER_EVENT_LOCATION_EVENT_LIFECYCLE_ADMIN_VERIFIED — AUTONOMY GAP RECALCULATION NEXT / LIVE PREFLIGHT PARTIAL / PRODUCTION NOT DEPLOYED
+Status: REFERENCE_SINGLE_SITE_MAINTENANCE_CONTENT_PERMANENT_DELETE_TAXONOMY_NAVIGATION_LIFECYCLE_MEMBER_EVENT_LOCATION_EVENT_LIFECYCLE_EVENT_TAXONOMY_ADMIN_VERIFIED — FRESH LIVE TAXONOMY INVENTORY NEXT / LIVE PREFLIGHT PARTIAL / PRODUCTION NOT DEPLOYED
 
 ## Current verified candidate
 
-- Candidate checkpoint: `6684aa3d508776b4e006455af0a493f102dddc02`.
+- Candidate source checkpoint: `62e46bb64514973a640f1abd13ff5f90248580f8`.
 - Product scope: single-site WordPress only. Multisite/network support is not an acceptance target.
-- Full single-site maintenance regression: `34241513120` passed on PHP 7.4, PHP 8.2, and disposable WordPress 7.1.
-- Runtime artifact: `10062232870`, SHA-256 `9a05a3a5974119efbcaca4803776d464e00d768f83537a4a1399068d7a81e11c`.
-- Content/member/navigation run: `34241513095` passed.
-- Integrity run: `34241513166` passed.
-- Events Manager regression run: `34241513102` passed against WordPress.org Events Manager 7.4.3.
-- Real registry: 79 abilities = 24 maintenance + 14 content CRUD/revision + 2 permanent content deletion + 2 status + 12 taxonomy + 8 navigation + 4 member-read + 2 member-mutation + 4 event/location read + 4 event/location mutation + 3 event lifecycle.
+- Full single-site maintenance regression: `34243687257` passed on PHP 7.4, PHP 8.2, and disposable WordPress 7.1.
+- Runtime artifact: `10063123311`, SHA-256 `0cf3d8288731e5a5be8a5a5c7ef6528332f12f01387a38a1f65668a9f07ea24b`.
+- Content/member/navigation run: `34243687429` passed.
+- Integrity run: `34243687283` passed.
+- Events Manager regression run: `34243687468` passed against WordPress.org Events Manager 7.4.3.
+- Real registry: 82 abilities = 24 maintenance + 14 content CRUD/revision + 2 permanent content deletion + 2 status + 12 content taxonomy + 8 navigation + 4 member-read + 2 member-mutation + 4 event/location read + 4 event/location mutation + 3 event lifecycle + 3 event taxonomy.
 
 ## Verified content administration
 
 - Bounded post/page list/get/create-draft/update/trash/restore/revision-restore operations remain conflict checked and object-capability gated.
 - Publication/status transitions retain exact-state and publish-authority controls.
 - Category/post-tag term and relationship administration retains conflict/readback/rollback gates.
-- Permanent post/page deletion is a separate destructive contract rather than part of ordinary CRUD.
-- Permanent deletion requires the item to already be in WordPress trash, exact `expected_modified_gmt`, explicit `confirm_permanent_delete=true`, and native object-level `delete_post` authority.
-- Hard deletion uses native WordPress deletion and verifies the item is absent afterward; stale, unconfirmed, non-trash, wrong-type, or unauthorized requests fail closed.
+- Permanent post/page deletion remains a separate destructive contract with trash prerequisite, exact conflict state, explicit confirmation, native object authority, and absence verification.
 
 ## Verified core navigation administration
 
-- Eight typed abilities cover bounded core WordPress navigation: list menus, get one menu, create a menu, rename a menu, permanently delete an obsolete menu, create/update a menu item, delete a menu item, and assign/unassign a registered menu location.
-- Navigation authority is isolated behind `edit_theme_options`; anonymous and ordinary editor fixtures are denied while administrator authority passes.
-- Menu and item mutations use exact menu-state tokens; location assignment uses an exact assignment-map state token.
-- Menu rename rejects stale and no-change writes, performs readback verification, and rolls back to the exact previous managed state when injected post-write corruption is detected.
-- Whole-menu deletion is a separate destructive contract requiring exact current menu state and explicit confirmation. Assigned menus are refused; callers must explicitly unassign them first through the location ability.
-- Whole-menu deletion verifies the menu is absent, preserves registered-location assignments, preserves linked WordPress pages, and leaves an unrelated control menu unchanged.
-- Item creation/update supports only published core WordPress pages and bounded custom links using root-relative or HTTP/HTTPS URLs.
-- Parent validation prevents cross-menu parents and menu-item cycles.
-- Item writes and location assignments retain readback verification and injected-fault rollback coverage.
-- Navigation-item deletion requires explicit destructive confirmation, deletes only the menu-item post, and verifies linked content remains intact.
-- The navigation layer uses core WordPress menu/theme-mod APIs only. It does not mutate theme source, generic options, or any third-party plugin source.
+- Eight typed abilities cover bounded core WordPress navigation: list/get/create/rename/delete menus, create/update/delete items, and assign/unassign registered locations.
+- Navigation mutations use native core APIs, exact state, readback, rollback where recoverable, destructive confirmation where appropriate, and preserve linked page content.
+- The navigation layer does not mutate generic options, theme source, or third-party plugin source.
 
 ## Verified member administration
 
-- Bounded member list/search/detail and role reads.
-- Profile mutation is limited to display name and URL with exact expected profile state, readback verification, and rollback on injected verification failure.
-- Account email is readable and participates in the profile conflict token but is not mutable in this ability.
-- Exact role-state replacement validates editable roles, prevents changing the current account's own role state, verifies readback, and rolls back on injected corruption.
-- Runtime mail guard verified zero notification attempts from member mutations.
-- Passwords, reset operations, activation keys, session tokens, arbitrary usermeta, account creation, and permanent user deletion remain separate security/destructive contracts.
+- Bounded member list/search/detail and role reads remain isolated from arbitrary usermeta, credentials, activation keys, and session tokens.
+- Display-name/URL and role-state mutations require exact current state, native authority, readback, rollback after injected corruption, and zero notification mail attempts.
+- Password/reset/session/account-creation/permanent-user-deletion operations remain outside this contract.
 
 ## Verified event and venue administration
 
 - Four bounded read abilities cover list/get events and list/get locations.
 - Four mutation abilities cover create/update for ordinary single events and physical venues/locations only.
 - Expected-before state, readback, rollback/cleanup, publish/object authority, dependency-state preservation, and referenced-venue isolation are verified.
-- Three event-lifecycle abilities now cover trash, restore, and permanent deletion for ordinary single events.
-- Event trash uses exact current event state, native `EM_Event::delete(false)`, and verifies the backing WordPress event post is in trash while preserving the referenced venue and unrelated event state.
-- Event restoration requires the event already be in trash and the exact trashed event state still match. It uses WordPress's native untrash lifecycle and deliberately restores to `draft`; it never silently republishes an event.
-- Restore performs event/post readback, object-level authority enforcement, referenced-venue isolation, and exact rollback to trash if verification fails. A real booking fixture proved restore and re-trash preserve booking state.
-- Permanent event deletion requires the event already be trashed, exact `expected_state_token`, explicit `confirm_permanent_delete=true`, and native object-level delete authority.
-- Before hard deletion, the service uses Events Manager's aggregate booking count across statuses/owners for the specific event. Any existing booking refuses permanent deletion and preserves both the event and booking; zero bookings permits the native forced delete path.
-- Successful permanent deletion verifies both the Events Manager identity and backing WordPress event post are absent while the referenced venue and unrelated event remain unchanged.
-- Location deletion, booking deletion, ticket deletion, and payment administration are not part of the event lifecycle contract.
-- Events Manager and all other third-party plugin source remain immutable dependency surfaces for this workstream.
+- Three event-lifecycle abilities cover trash, restore-to-draft, and permanent deletion for ordinary single events.
+- Permanent deletion remains trash-first, exact-state, explicitly confirmed, object-authorized, booking-protected, absence-verified, and isolated from the referenced venue and unrelated events.
+- Location deletion, booking deletion, ticket deletion, payment administration, and recurring-event administration remain outside the event lifecycle contract.
 
-## Active next gate — site administration autonomy gap recalculation
+## Verified Events Manager taxonomy administration
 
-Recalculate what Chattanooga CMS Admin still cannot do that is materially necessary to administer the actual single-site Chattanooga environment. Select the next gate from concrete site workflows rather than from WordPress or installed-plugin feature inventories. Do not automatically expand into media, recurring events, bookings, tickets, payments, account security operations, widgets, templates, location deletion, or generic option mutation. Any selected mutation must remain typed and bounded, use native authority, add exact-state conflict handling when the state model supports it, verify readback, and provide rollback or explicit destructive isolation appropriate to the operation.
+- Events Manager 7.4.3 registers `event-categories` and `event-tags` on the `event` post type. `event-categories` is hierarchical; `event-tags` is non-hierarchical.
+- Native taxonomy assignment authority for both is `edit_events`; term lifecycle uses separate native manage/edit/delete capabilities and was not added to the candidate.
+- Three typed abilities are now verified:
+  1. `list-event-taxonomy-terms` — bounded inspection of existing category/tag vocabulary.
+  2. `get-event-taxonomy` — exact relationship read for one ordinary single event plus event conflict token.
+  3. `set-event-taxonomy` — exact relationship replacement for one allowlisted taxonomy.
+- `set-event-taxonomy` requires the exact current event state token and exact previous term-ID set. Stale event or relationship state fails closed.
+- Requested target terms must already exist. No implicit term creation occurs.
+- No-change relationship writes are rejected.
+- Relationship clearing is explicit replacement with an empty set and does not delete the underlying term.
+- Runtime fault injection proved failed post-write verification restores the exact prior relationship set.
+- Event core state, referenced venue state, and an unrelated control event remain unchanged through taxonomy transactions.
+- Third-party Events Manager source remains immutable dependency code.
+
+## Active next gate — fresh live taxonomy inventory
+
+Obtain fresh read-only Chattanooga evidence for the existing Events Manager event category/tag vocabulary and the current classification relationships on affected live events. The purpose is to determine whether the verified relationship abilities are sufficient for the real festival-vs-Live-Music integrity workflow or whether a separate, concretely justified term-lifecycle capability is actually required.
+
+This gate is evidence-only unless separately authorized. Do not install the candidate, mutate live records, create/rename/delete terms, or expand into media, recurrence, bookings, tickets, payments, account security, widgets/templates, location deletion, generic options, or multisite behavior merely because an upstream API supports them.
+
+If the connected live surface cannot expose the required taxonomy evidence, record that limitation explicitly rather than guessing or adding source capability without evidence.
 
 ## Production boundary
 

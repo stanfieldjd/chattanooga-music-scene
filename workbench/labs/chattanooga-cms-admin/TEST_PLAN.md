@@ -2,7 +2,7 @@
 
 All mutation tests use disposable WordPress fixtures. Reference/runtime success never implies production deployment. Product target is single-site WordPress only; multisite/network behavior is out of scope and must not be reintroduced as an acceptance requirement. Third-party plugin source is immutable dependency code for this workstream; only Chattanooga CMS Admin and its disposable harness are editable.
 
-## Gates 0–16 — PASS
+## Gates 0–17 — PASS
 
 - Source architecture, PHP 7.4/8.2, privacy/static boundaries.
 - Real WordPress 7.1 Abilities API registration and REST isolation.
@@ -18,8 +18,9 @@ All mutation tests use disposable WordPress fixtures. Reference/runtime success 
 - Core WordPress navigation administration including menu lifecycle, item lifecycle, and registered location assignment.
 - Ordinary single-event trash and permanent deletion with exact state, explicit confirmation, object authority, booking protection, absence verification, and venue isolation.
 - Ordinary single-event restoration from trash to draft with exact state, object authority, booking preservation, readback, and rollback to trash on failed verification.
+- Events Manager event category/tag vocabulary inspection and exact relationship replacement with dual conflict guards, relationship-only clearing, verification rollback, and event/location/control isolation.
 
-Current reference evidence: candidate checkpoint `6684aa3d508776b4e006455af0a493f102dddc02`; maintenance `34241513120`; content/member/navigation `34241513095`; integrity `34241513166`; Events Manager regression `34241513102`; artifact `10062232870`; SHA-256 `9a05a3a5974119efbcaca4803776d464e00d768f83537a4a1399068d7a81e11c`.
+Current reference evidence: candidate source checkpoint `62e46bb64514973a640f1abd13ff5f90248580f8`; maintenance `34243687257`; content/member/navigation `34243687429`; integrity `34243687283`; Events Manager regression `34243687468`; artifact `10063123311`; SHA-256 `0cf3d8288731e5a5be8a5a5c7ef6528332f12f01387a38a1f65668a9f07ea24b`; 82 registered abilities.
 
 ## Gate 13 — Core WordPress navigation administration — PASS
 
@@ -37,7 +38,7 @@ Current reference evidence: candidate checkpoint `6684aa3d508776b4e006455af0a493
 
 ## Gate 14 — Navigation menu lifecycle close-out — PASS
 
-Evidence: content runtime `34241513095`; 79 total registered abilities; maintenance/static `34241513120`; integrity `34241513166`.
+Evidence retained from the navigation reference gates and included in the current 82-ability regression.
 
 1. `update-navigation-menu` renames an existing core WordPress menu using the exact current menu-state token.
 2. Stale rename and no-change rename fail closed.
@@ -52,7 +53,7 @@ Evidence: content runtime `34241513095`; 79 total registered abilities; maintena
 
 ## Gate 15 — Events Manager event deletion — PASS
 
-Evidence: Events Manager runtime `34241513102`; 79 total registered abilities; maintenance/static `34241513120`; content/member/navigation `34241513095`; integrity `34241513166`.
+Evidence retained from the event-lifecycle reference gates and included in Events Manager runtime `34243687468`.
 
 1. Event trash and permanent deletion remain ordinary-single-event-only lifecycle operations; location, booking, ticket, and payment deletion are excluded.
 2. Lifecycle abilities require `delete_events` at registration and native event object authority at execution; anonymous access and `edit_events` alone are insufficient.
@@ -67,7 +68,7 @@ Evidence: Events Manager runtime `34241513102`; 79 total registered abilities; m
 
 ## Gate 16 — Events Manager event restore lifecycle — PASS
 
-Evidence: Events Manager runtime `34241513102`; maintenance/static `34241513120`; content/member/navigation `34241513095`; integrity `34241513166`; 79 registered abilities.
+Evidence retained from the event-lifecycle reference gates and included in Events Manager runtime `34243687468`.
 
 1. `restore-event` restores one ordinary single event only from WordPress trash.
 2. Exact `expected_state_token` is required; stale state and non-trash restore attempts fail closed.
@@ -80,15 +81,37 @@ Evidence: Events Manager runtime `34241513102`; maintenance/static `34241513120`
 9. A successfully restored event can re-enter the existing trash/permanent-delete lifecycle.
 10. Static coverage requires native untrash, draft-only verification, rollback-to-trash, exact state, object authority, booking preservation, venue isolation, and event-only lifecycle scope.
 
-## Gate 17 — Site administration autonomy gap recalculation — ACTIVE
+## Gate 17 — Events Manager event taxonomy relationship administration — PASS
 
-1. Inventory the verified 79 abilities against actual Chattanooga single-site administration workflows.
-2. Identify a concrete administration action that remains impossible through the typed surface and is materially necessary or frequently required.
-3. Rank candidate gaps by operational necessity, frequency, reversibility, and security/destructive risk.
-4. Do not select a capability merely because WordPress or an installed plugin exposes it.
-5. Media, recurring events, bookings, tickets, payments, member security/account lifecycle, widgets/templates, location deletion, and generic option mutation remain non-automatic targets.
-6. Any selected mutation must use native authority, bounded schemas/allowlists, exact-state conflict handling where applicable, readback verification, rollback for recoverable writes, and explicit destructive isolation where rollback is impossible.
+Evidence: source checkpoint `62e46bb64514973a640f1abd13ff5f90248580f8`; Events Manager runtime `34243687468`; maintenance `34243687257`; content/member/navigation `34243687429`; integrity `34243687283`; 82 registered abilities.
+
+1. Runtime contract inspection verifies Events Manager 7.4.3 registers `event-categories` and `event-tags` against `event`.
+2. `event-categories` is hierarchical and `event-tags` is non-hierarchical; both expose native `edit_events` assignment authority.
+3. Candidate scope is allowlisted to those two event taxonomies only. No generic taxonomy surface is introduced.
+4. Three abilities register: bounded existing-term list, exact event relationship read, and exact relationship replacement.
+5. Only ordinary single events with a verified backing WordPress `event` post are accepted.
+6. Relationship mutation requires exact current event-state token plus exact previous term-ID set; stale relationship state is rejected without write.
+7. Every requested target term must already exist in the selected taxonomy; implicit term creation is prohibited.
+8. Exact replacement uses native `wp_set_object_terms(..., append=false)`. Empty replacement clears only relationships and leaves terms intact.
+9. No-change writes are rejected.
+10. Post-write readback verifies the exact target relationship set and also verifies the event core state and referenced location state remained unchanged.
+11. Injected post-write relationship corruption forces verification failure and exact rollback to the previous relationship set.
+12. An unrelated control event's taxonomy remains unchanged.
+13. Anonymous ability access is denied and administrator execution is allowed.
+14. The full existing Events Manager read/mutation/deletion regression remains green in the same runtime.
+15. Events Manager source is not modified; only Chattanooga CMS Admin and disposable fixtures changed.
+
+## Gate 18 — Fresh live event taxonomy inventory — ACTIVE
+
+1. Query the connected Chattanooga environment read-only for the existing Events Manager event category/tag vocabulary and affected event relationships if the current live connector can expose them.
+2. Re-read affected live records rather than treating historical classification state as current.
+3. Determine whether existing vocabulary is sufficient to preserve the primary-form distinction, including festivals remaining festival-class records rather than ordinary Live Music merely because they contain performances.
+4. If existing terms are sufficient, do not add term-lifecycle source capability merely because Events Manager exposes term-management APIs.
+5. If a missing/incorrect vocabulary operation is proven necessary, record the exact concrete need before designing a separate term create/update/delete gate.
+6. This gate is read-only. Candidate installation, MCP transport changes, and live content/taxonomy mutation remain separate authorization gates.
+7. If the connected live surface cannot expose the required evidence, record the limitation as UNKNOWN/BLOCKED rather than guessing.
+8. Media, recurring events, bookings, tickets, payments, member security/account lifecycle, widgets/templates, location deletion, generic options, and multisite/network behavior remain non-automatic targets.
 
 ## Live Chattanooga
 
-Read-only preflight remains partial. No live candidate install or content/member/event/navigation mutation is authorized by these laboratory gates. Candidate installation and live MCP discovery remain separate production gates.
+Read-only preflight remains partial. No live candidate install or content/member/event/navigation/taxonomy mutation is authorized by these laboratory gates. Candidate installation and live MCP discovery remain separate production gates.

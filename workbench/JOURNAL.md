@@ -115,3 +115,16 @@ Append-only record of material workbench state changes. Do not rewrite prior ent
 - Error redaction remained green in the same run: `error-redaction-cli: PASS boundaries=plugin-api,plugin-updater,database-restore marker=absent rollback=verified`.
 - Runtime capability artifact id `10033701473` was uploaded with SHA-256 `e74eef622406878219d6cbd89d429befbfae2b2fe93d02771b1de013686a2712`.
 - The next active workbench gate is real WordPress multisite execution of the health/cache branch; single-site proof is not being substituted for multisite evidence.
+
+## 2026-09-08 — Events Manager event taxonomy relationship administration
+
+- Starting from the previously verified Events Manager 7.4.3 taxonomy contract probe, selected event classification/tag relationships as the next concrete Chattanooga administration gap because the queue requires preserving festival-vs-Live-Music primary-form distinctions.
+- Added three bounded Chattanooga CMS Admin abilities at source commit `62e46bb64514973a640f1abd13ff5f90248580f8`: list existing event category/tag terms, read one ordinary single event's exact taxonomy relationship set, and replace that exact relationship set.
+- The new mutation is allowlisted to `event-categories` and `event-tags`, requires native event edit/assignment authority, exact event state, exact previous term IDs, pre-existing target terms, readback, and exact relationship rollback after verification failure.
+- Term create/update/delete was deliberately not added. Relationship clearing removes only the assignment and leaves the term itself intact.
+- Events Manager runtime run `34243687468` passed on WordPress 7.1 with WordPress.org Events Manager 7.4.3. Exact new output: `events-manager-taxonomy-cli: PASS abilities=3 anonymous=denied administrator=allowed taxonomy=bounded exact-replace=verified clear=relationship-only stale=blocked no-change=blocked rollback=exact event-location-control=unchanged`.
+- The same run reported `wordpress-ability-registration: PASS (82 abilities)` and all prior Events Manager read/mutation/deletion regressions remained green.
+- Full maintenance regression `34243687257`, content/member/navigation regression `34243687429`, and workbench integrity `34243687283` all passed on the same source checkpoint.
+- Runtime capability artifact `10063123311` has SHA-256 `0cf3d8288731e5a5be8a5a5c7ef6528332f12f01387a38a1f65668a9f07ea24b`.
+- Production/source branches and live Chattanooga records were not mutated.
+- Recalculated next gate: obtain fresh read-only live event-taxonomy vocabulary and relationship evidence before deciding whether existing terms are sufficient or a separate term-lifecycle capability is materially necessary.
