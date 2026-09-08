@@ -20,6 +20,7 @@ final class CMSA_Plugin {
 	private $events_manager_mutation_abilities;
 	private $events_manager_deletion_abilities;
 	private $events_manager_taxonomy_abilities;
+	private $weekend_feature_abilities;
 
 	public static function instance() {
 		if ( null === self::$instance ) {
@@ -79,6 +80,9 @@ final class CMSA_Plugin {
 			$this->events_manager_deletion_abilities = new CMSA_Events_Manager_Deletion_Abilities( new CMSA_Events_Manager_Deletion( $events ) );
 			$this->events_manager_taxonomy_abilities = new CMSA_Events_Manager_Taxonomy_Abilities( new CMSA_Events_Manager_Taxonomy( $events ) );
 		}
+		if ( ! $this->weekend_feature_abilities ) {
+			$this->weekend_feature_abilities = new CMSA_Weekend_Feature_Abilities( new CMSA_Weekend_Feature() );
+		}
 
 		$this->abilities->register();
 		$this->content_abilities->register();
@@ -93,5 +97,6 @@ final class CMSA_Plugin {
 		$this->events_manager_mutation_abilities->register();
 		$this->events_manager_deletion_abilities->register();
 		$this->events_manager_taxonomy_abilities->register();
+		$this->weekend_feature_abilities->register();
 	}
 }

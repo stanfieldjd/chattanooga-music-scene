@@ -1,0 +1,6 @@
+[
+  "chattanooga-cms-admin/get-weekend-feature-status",
+  "chattanooga-cms-admin/update-weekend-feature-settings",
+  "chattanooga-cms-admin/generate-weekend-feature-draft",
+  "chattanooga-cms-admin/publish-weekend-feature-now"
+]

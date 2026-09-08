@@ -88,6 +88,11 @@ jobs:
         run: |
           set -euo pipefail
           php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/media-permission-cli.php" --path=/tmp/wordpress
+      - name: Verify Weekend Feature ability permissions and dependency fail-closed behavior
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/weekend-feature-permission-cli.php" --path=/tmp/wordpress
       - name: Verify member read permissions
         shell: bash
         run: |
