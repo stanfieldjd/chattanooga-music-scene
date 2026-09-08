@@ -123,6 +123,81 @@ if ( ! is_wp_error( $already_trashed ) || 'cmsa_event_already_trashed' !== $alre
 	$fail( 'repeat event trash did not fail closed.' );
 }
 
+$control_restore = $deletion->restore_event( array( 'id' => $control_id, 'expected_state_token' => $control_state ) );
+if ( ! is_wp_error( $control_restore ) || 'cmsa_event_restore_requires_trash' !== $control_restore->get_error_code() ) {
+	$fail( 'restoration of non-trashed event did not fail closed.' );
+}
+$stale_restore = $deletion->restore_event( array( 'id' => $target_id, 'expected_state_token' => str_repeat( 'e', 64 ) ) );
+if ( ! is_wp_error( $stale_restore ) || 'cmsa_event_delete_conflict' !== $stale_restore->get_error_code() ) {
+	$fail( 'stale event restoration did not fail closed.' );
+}
+
+$limited_login = 'cmsa_event_object_delete_' . $token;
+$limited_id = wp_create_user( $limited_login, wp_generate_password( 20, true, true ), $limited_login . '@example.invalid' );
+if ( is_wp_error( $limited_id ) ) {
+	$fail( 'limited lifecycle user creation failed.' );
+}
+$limited_id = (int) $limited_id;
+$user_ids[] = $limited_id;
+$limited = new WP_User( $limited_id );
+$limited->set_role( 'subscriber' );
+$limited->add_cap( 'delete_events' );
+wp_set_current_user( $limited_id );
+$restore_object_denied = $deletion->restore_event( array( 'id' => $target_id, 'expected_state_token' => $trashed['event']['state_token'] ) );
+if ( ! is_wp_error( $restore_object_denied ) || 'cmsa_event_delete_permission' !== $restore_object_denied->get_error_code() ) {
+	$fail( 'object-level authority was not enforced for event restoration.' );
+}
+wp_set_current_user( $admin->ID );
+
+$restored = $deletion->restore_event( array( 'id' => $target_id, 'expected_state_token' => $trashed['event']['state_token'] ) );
+if ( is_wp_error( $restored ) || empty( $restored['restored'] ) || 'draft' !== $restored['event']['post_status'] ) {
+	$fail( 'event restoration did not produce verified draft state.' );
+}
+$after_restore_location = $events->get_location( $location_id );
+$after_restore_control = $events->get_event( $control_id );
+if ( is_wp_error( $after_restore_location ) || $location_state !== $after_restore_location['location']['state_token'] || is_wp_error( $after_restore_control ) || $control_state !== $after_restore_control['event']['state_token'] ) {
+	$fail( 'event restoration changed referenced venue or unrelated event.' );
+}
+$repeat_restore = $deletion->restore_event( array( 'id' => $target_id, 'expected_state_token' => $restored['event']['state_token'] ) );
+if ( ! is_wp_error( $repeat_restore ) || 'cmsa_event_restore_requires_trash' !== $repeat_restore->get_error_code() ) {
+	$fail( 'repeat event restoration did not fail closed.' );
+}
+
+$fault = $make_event( 'CMSA Restore Rollback ' . $token, $admin->ID, $location_id );
+if ( ! $fault ) {
+	$fail( 'restore rollback fixture save failed.' );
+}
+$fault_id = (int) $fault->event_id;
+$event_ids[] = $fault_id;
+$fault_read = $events->get_event( $fault_id );
+if ( is_wp_error( $fault_read ) ) {
+	$fail( 'restore rollback fixture read failed.' );
+}
+$fault_trashed = $deletion->trash_event( array( 'id' => $fault_id, 'expected_state_token' => $fault_read['event']['state_token'] ) );
+if ( is_wp_error( $fault_trashed ) ) {
+	$fail( 'restore rollback fixture trash failed.' );
+}
+$fault_hook = static function ( $event_id, $operation ) use ( $fault_id, $fault_trashed ) {
+	if ( $fault_id === (int) $event_id && 'restore' === $operation ) {
+		wp_update_post( array( 'ID' => (int) $fault_trashed['event']['post_id'], 'post_status' => 'publish' ) );
+	}
+};
+add_action( 'cmsa_events_manager_event_written', $fault_hook, 10, 2 );
+$fault_restore = $deletion->restore_event( array( 'id' => $fault_id, 'expected_state_token' => $fault_trashed['event']['state_token'] ) );
+remove_action( 'cmsa_events_manager_event_written', $fault_hook, 10 );
+if ( ! is_wp_error( $fault_restore ) || 'cmsa_event_restore_verify' !== $fault_restore->get_error_code() || empty( $fault_restore->get_error_data()['rolled_back'] ) ) {
+	$fail( 'event restore verification fault did not trigger rollback.' );
+}
+$fault_post = get_post( (int) $fault_trashed['event']['post_id'] );
+if ( ! $fault_post instanceof WP_Post || 'trash' !== $fault_post->post_status ) {
+	$fail( 'failed event restoration did not roll back to trash.' );
+}
+
+$retrashed = $deletion->trash_event( array( 'id' => $target_id, 'expected_state_token' => $restored['event']['state_token'] ) );
+if ( is_wp_error( $retrashed ) || 'trash' !== $retrashed['event']['post_status'] ) {
+	$fail( 'restored event could not re-enter trash lifecycle.' );
+}
+
 $control_delete = $deletion->delete_event(
 	array(
 		'id'                       => $control_id,
@@ -147,7 +222,7 @@ if ( ! is_wp_error( $stale_delete ) || 'cmsa_event_delete_conflict' !== $stale_d
 $unconfirmed_delete = $deletion->delete_event(
 	array(
 		'id'                       => $target_id,
-		'expected_state_token'     => $trashed['event']['state_token'],
+		'expected_state_token'     => $retrashed['event']['state_token'],
 		'confirm_permanent_delete' => false,
 	)
 );
@@ -155,21 +230,11 @@ if ( ! is_wp_error( $unconfirmed_delete ) || 'cmsa_event_delete_confirmation' !=
 	$fail( 'unconfirmed permanent event deletion did not fail closed.' );
 }
 
-$limited_login = 'cmsa_event_object_delete_' . $token;
-$limited_id = wp_create_user( $limited_login, wp_generate_password( 20, true, true ), $limited_login . '@example.invalid' );
-if ( is_wp_error( $limited_id ) ) {
-	$fail( 'limited deletion user creation failed.' );
-}
-$limited_id = (int) $limited_id;
-$user_ids[] = $limited_id;
-$limited = new WP_User( $limited_id );
-$limited->set_role( 'subscriber' );
-$limited->add_cap( 'delete_events' );
 wp_set_current_user( $limited_id );
 $object_denied = $deletion->delete_event(
 	array(
 		'id'                       => $target_id,
-		'expected_state_token'     => $trashed['event']['state_token'],
+		'expected_state_token'     => $retrashed['event']['state_token'],
 		'confirm_permanent_delete' => true,
 	)
 );
@@ -181,13 +246,10 @@ wp_set_current_user( $admin->ID );
 $deleted = $deletion->delete_event(
 	array(
 		'id'                       => $target_id,
-		'expected_state_token'     => $trashed['event']['state_token'],
+		'expected_state_token'     => $retrashed['event']['state_token'],
 		'confirm_permanent_delete' => true,
 	)
 );
-if ( is_wp_error( $deleted ) ) {
-	fwrite( STDERR, 'events-manager-deletion-cli diagnostic: ' . wp_json_encode( array( 'code' => $deleted->get_error_code(), 'message' => $deleted->get_error_message(), 'data' => $deleted->get_error_data() ) ) . "\n" );
-}
 if ( is_wp_error( $deleted ) || empty( $deleted['deleted'] ) || 0 !== (int) $deleted['booking_count'] ) {
 	$fail( 'permanent event deletion failed.' );
 }
@@ -234,19 +296,27 @@ if ( false === $inserted ) {
 }
 $booking_id = (int) $wpdb->insert_id;
 $booking_ids[] = $booking_id;
+$booked_restored = $deletion->restore_event( array( 'id' => $booked_id, 'expected_state_token' => $booked_trashed['event']['state_token'] ) );
+if ( is_wp_error( $booked_restored ) || 'draft' !== $booked_restored['event']['post_status'] || ! $wpdb->get_var( $wpdb->prepare( 'SELECT booking_id FROM ' . EM_BOOKINGS_TABLE . ' WHERE booking_id = %d', $booking_id ) ) ) {
+	$fail( 'restoring booked event changed or lost booking state.' );
+}
+$booked_retrashed = $deletion->trash_event( array( 'id' => $booked_id, 'expected_state_token' => $booked_restored['event']['state_token'] ) );
+if ( is_wp_error( $booked_retrashed ) || ! $wpdb->get_var( $wpdb->prepare( 'SELECT booking_id FROM ' . EM_BOOKINGS_TABLE . ' WHERE booking_id = %d', $booking_id ) ) ) {
+	$fail( 're-trashing restored booked event changed booking state.' );
+}
 $booked_delete = $deletion->delete_event(
 	array(
 		'id'                       => $booked_id,
-		'expected_state_token'     => $booked_trashed['event']['state_token'],
+		'expected_state_token'     => $booked_retrashed['event']['state_token'],
 		'confirm_permanent_delete' => true,
 	)
 );
 if ( ! is_wp_error( $booked_delete ) || 'cmsa_event_delete_has_bookings' !== $booked_delete->get_error_code() || 1 !== (int) $booked_delete->get_error_data()['booking_count'] ) {
 	$fail( 'event with booking was not refused by permanent deletion guard.' );
 }
-if ( ! ( get_post( (int) $booked_trashed['event']['post_id'] ) instanceof WP_Post ) || ! $wpdb->get_var( $wpdb->prepare( 'SELECT booking_id FROM ' . EM_BOOKINGS_TABLE . ' WHERE booking_id = %d', $booking_id ) ) ) {
+if ( ! ( get_post( (int) $booked_retrashed['event']['post_id'] ) instanceof WP_Post ) || ! $wpdb->get_var( $wpdb->prepare( 'SELECT booking_id FROM ' . EM_BOOKINGS_TABLE . ' WHERE booking_id = %d', $booking_id ) ) ) {
 	$fail( 'booking guard refusal changed the event or booking.' );
 }
 
 $cleanup();
-echo "events-manager-deletion-cli: PASS trash=conflict-readback-idempotence-venue-isolation permanent=trash-prerequisite-conflict-confirmation-object-authority-absence booking-guard=refused-preserved unrelated=unchanged\n";
+echo "events-manager-deletion-cli: PASS trash=conflict-readback-idempotence-venue-isolation restore=trash-prerequisite-conflict-object-authority-draft-readback-rollback-booking-preserved permanent=trash-prerequisite-conflict-confirmation-object-authority-absence booking-guard=refused-preserved unrelated=unchanged\n";
