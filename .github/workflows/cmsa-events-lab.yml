@@ -110,4 +110,4 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/events-manager-mutation-cli.php" --path=/tmp/wordpress
+          php /tmp/wp-cli.phar eval 'require getenv("GITHUB_WORKSPACE") . "/workbench/labs/chattanooga-cms-admin/probes/events-manager-mutation-isolation-monitor.php"; require getenv("GITHUB_WORKSPACE") . "/workbench/labs/chattanooga-cms-admin/probes/events-manager-mutation-cli.php";' --path=/tmp/wordpress
