@@ -1,6 +1,6 @@
 # Task: Chattanooga CMS Admin Runtime Integration
 
-Status: LIVE_PLUGIN_ACTIVE_MCP_EXPOSURE_BLOCKED — FESTIVAL RELATIONSHIPS FRESHLY REVERIFIED / NO LIVE RELATIONSHIP WRITE AUTHORIZED
+Status: LIVE_PLUGIN_ACTIVE_MCP_EXPOSURE_BLOCKED — MINI ORANGE ROLE/ABILITY GOVERNANCE CONFIRMED / FESTIVAL RELATIONSHIPS FRESHLY REVERIFIED / NO LIVE RELATIONSHIP WRITE AUTHORIZED
 
 ## Objective
 
@@ -104,6 +104,24 @@ Verified conclusion: installation/activation is confirmed and the WordPress role
 
 No workaround mutation was performed.
 
+## Gate 20 — miniOrange governance contract — CONFIGURATION GATE CONFIRMED
+
+Fresh continuation checks on 2026-09-08 established:
+
+- Re-running `discover_abilities` for category `chattanooga-cms-admin` still returns zero abilities.
+- Searches for MCP/ability/server/access controls on the current WordPress MCP surface expose no miniOrange self-management ability capable of changing NHI/role ability grants.
+- ChatGPT plugin permission inspection reports `MCP Server For WordPress` with an app-specific permission mode of `Allow all actions`; ChatGPT-side plugin permission mode is therefore not the cause of the missing namespace.
+- miniOrange's official MCP Server release notes state that version 1.2.0 added the NHI Registry and per-ability enable/disable controls for MCP exposure.
+- The same official release notes state that version 1.2.2 made the NHI Registry role-based: abilities are granted to WordPress roles, and an MCP request receives the abilities granted to its user's role(s) across enabled NHIs.
+- Version 1.4.2 redesigned the role/ability editor as a matrix with abilities/resources as rows and WordPress roles as columns, including resource- and role-level select/clear controls.
+- Version 1.4.0 explicitly states that miniOrange's bundled abilities are reachable through the governed MCP endpoint while remaining unavailable through the public REST API. Therefore the candidate's `show_in_rest=false` requirement is not, by itself, evidence of MCP incompatibility and must not be relaxed merely to force discovery.
+- miniOrange's current product documentation describes MCP tool discovery as exposure of approved WordPress abilities after identity and role-based permission evaluation.
+- Authoritative vendor source consulted: `https://plugins.miniorange.com/mcp-server-ai-policy-enforcement-wordpress-changelog` and `https://plugins.miniorange.com/native-mcp-server-endpoint-wordpress`, accessed 2026-09-08.
+
+Verified conclusion: the missing Chattanooga CMS Admin namespace is consistent with the miniOrange governance model requiring an explicit role/NHI ability grant. Current evidence does not justify changing candidate registration code, enabling public REST exposure, or bypassing miniOrange with a generic mutation route. The direct repair is to grant the `chattanooga-cms-admin` resource/abilities to the current Administrator role in miniOrange's role/ability editor for the enabled NHI used by this connection, then rerun MCP discovery.
+
+No miniOrange policy mutation was performed because the connected MCP surface exposes no supported control for that setting.
+
 ## Fresh live Festival relationship checkpoint after installation
 
 All five target records were re-read from production after the plugin became active. Current exact generic-CPT relationship observations are:
@@ -121,21 +139,22 @@ The overlap remains 5/5. These generic reads are evidence of the current relatio
 - `OBJECTIVE`: expose the already-installed Chattanooga CMS Admin abilities through the active MCP server and verify candidate read/health behavior before any live taxonomy write.
 - `TARGET_SET`: Chattanooga CMS Admin MCP exposure for the current authorized administrative connection only.
 - `EXCLUSION_SET`: live event relationships, unrelated MCP abilities, transport replacement, plugin/theme source, unrelated site configuration.
-- `EVIDENCE`: plugin active; administrator connection; required WordPress role capabilities present; candidate source/reference registry valid; zero candidate abilities exposed live.
+- `EVIDENCE`: plugin active; administrator connection; required WordPress role capabilities present; candidate source/reference registry valid; zero candidate abilities exposed live; miniOrange official governance contract requires explicit role/NHI ability grants.
 - `MUTATION_SET`: no mutation is executable from the current connector because no supported miniOrange governance control is exposed.
-- `RISK_SET`: enabling the wrong namespace/role/NHI could broaden access beyond the intended administration layer; bypassing with generic mutation would discard exact-state/rollback protections.
+- `RISK_SET`: enabling the wrong namespace/role/NHI could broaden access beyond the intended administration layer; bypassing with generic mutation would discard exact-state/rollback protections; changing `show_in_rest` would weaken the verified REST-isolation boundary without evidence that it solves this governed MCP exposure state.
 - `ROLLBACK_POINT`: no MCP governance mutation has been performed in this task position.
 - `ACCEPTANCE_TESTS`: candidate namespace discoverable; expected candidate abilities visible; `get-health` and bounded read abilities execute successfully; event taxonomy reads return exact state tokens; unrelated existing abilities remain available.
 
 ## Current production boundary
 
 - Chattanooga CMS Admin is active on production.
-- Candidate MCP discovery is blocked by missing live exposure of the candidate namespace, not by the current Administrator role lacking `edit_events`.
-- No live content or taxonomy relationship was modified during Gate 19.
+- Candidate MCP discovery is blocked by missing live exposure of the candidate namespace, not by the current Administrator role lacking `edit_events` and not by ChatGPT plugin permission mode.
+- miniOrange's role/NHI governance model is now authoritative external evidence for the exposure gate.
+- No live content or taxonomy relationship was modified during Gates 19–20.
 - No MCP transport/policy setting was changed.
 - `main`, `feature/chattanooga-cms-admin`, DreamHost production source files, unrelated content/member/event/navigation records, and third-party plugin source remain untouched by the workbench.
 - The five Festival relationship writes remain a separate live mutation requiring both candidate MCP exposure and explicit target-specific live-write authorization.
 
 ## Recalculated next position
 
-Do not add speculative source capability and do not use the generic taxonomy-removal ability as a substitute. Resolve the MCP exposure/governance gate for `chattanooga-cms-admin/*`, then rerun discovery and candidate health/read validation. After that, if the five Festival relationship repair is explicitly authorized, obtain fresh candidate `get-event-taxonomy` tokens and perform only the exact guarded relationship replacements with post-write verification and rollback semantics.
+Do not add speculative source capability, do not enable public REST exposure, and do not use the generic taxonomy-removal ability as a substitute. Grant the `chattanooga-cms-admin` resource/abilities to the Administrator role in miniOrange's role/ability editor for the enabled NHI used by the current connection. Then rerun discovery and candidate health/read validation. After that, if the five Festival relationship repair is explicitly authorized, obtain fresh candidate `get-event-taxonomy` tokens and perform only the exact guarded relationship replacements with post-write verification and rollback semantics.
