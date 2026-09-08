@@ -1,6 +1,6 @@
 # Task: Venue / Location Data Quality
 
-Status: LIVE_DEFECT_INVENTORY_VERIFIED — AUTHORITATIVE RESEARCH AND LIVE WRITE AUTHORIZATION PENDING
+Status: LIVE_DEFECT_INVENTORY_VERIFIED — FIRST-PARTY ADDRESS RESEARCH PARTIAL / COORDINATES AND LIVE WRITE AUTHORIZATION PENDING
 
 ## Objective
 
@@ -56,7 +56,7 @@ These records have physical addresses in Tennessee or Georgia but coordinates ex
    - current coordinates: `47.4, 1.6`
    - current state token: `45b4335a8ddc27cb9ad8f4176acd1a614f95ce0baa7867ca15e5f3ab0bc3c535`
 
-The classification “wrong coordinates” is execution-verified from internal record inconsistency. The correct replacement coordinates are not yet established and remain `UNKNOWN` pending authoritative research.
+The classification “wrong coordinates” is execution-verified from internal record inconsistency. The correct replacement coordinates are not yet established and remain `UNKNOWN` pending authoritative geospatial research.
 
 ### Definite field-semantic contamination
 
@@ -83,7 +83,7 @@ A URL in the geographic `region` field is a type/semantic mismatch. The correct 
    - coordinates: `0,0`
    - current state token: `5e256531bcf5d06cf36a53f9310205e438b5e07145900976fb896d2a9757ce79`
 
-The missing postcode/zero-coordinate state is verified. Exact replacement postal and coordinate values remain `UNKNOWN` until authoritative research is completed.
+The missing postcode/zero-coordinate state is verified.
 
 ### Zero-coordinate class requiring discrimination
 
@@ -100,13 +100,60 @@ Its `0,0` state must not be classified as a physical-geocode defect without addi
 
 ## Research state
 
-The live defect classification above relies only on current production record consistency and does not claim replacement values. Contemporary address/postcode/coordinate correction is a separate research phase. Before reaching material replacement conclusions, apply the Ledger’s Library of Congress research-precedence procedure; if LOC is not applicable, not found, or inconclusive for the contemporary venue proposition, continue to first-party venue/operator, municipal/county, postal, or other authoritative location sources as appropriate. General web search must not precede that LOC examination.
+### Library of Congress precedence examination
+
+Research question: establish current 2026 operational street address, postcode, administrative location metadata, and physical coordinates for the six definite suspect venues.
+
+Direct Library of Congress systems were examined first on 2026-09-08. The LOC homepage and LC Catalog scope were inspected; the catalog describes holdings centered on books, serials, manuscripts, maps, music, recordings, images, and electronic resources. The direct `loc.gov/search/` endpoint returned HTTP 403 in the retrieval environment and the current `search.catalog.loc.gov` interface required client-side JavaScript. For the exact proposition being researched — current operational venue address/postcode/coordinate metadata — the result is recorded as `LOC_NOT_APPLICABLE`: historical or cultural LOC holdings may intersect some venue identities, but they are not competent current operational-location sources for the fields being repaired. General web discovery was used only after this examination.
+
+### First-party / governmental address evidence
+
+The following current evidence was then inspected directly from venue/operator or government pages:
+
+1. 1885 Grill (Ooltewah)
+   - First-party 1885 Grill contact page states `9469 Bradmore Lane Suite 101, Ooltewah, TN 37363`.
+   - This independently confirms the current town/postcode, establishes uppercase `TN`, and shows that the live location address omits `Suite 101`.
+   - Evidence-supported non-coordinate candidate fields: address `9469 Bradmore Lane Suite 101`; state `TN`; postcode remains `37363`.
+   - Replacement coordinates remain unresolved.
+
+2. Artistic Civic Theatre
+   - First-party Artistic Civic Theatre contact page states the theater address is `907 Gaston St., Dalton GA 30720`.
+   - The live record stores `905 Gaston St`; this is now a separately verified street-number defect, not merely a coordinate defect.
+   - Evidence-supported non-coordinate candidate field: address `907 Gaston St`.
+   - Replacement coordinates remain unresolved.
+
+3. Bessie Smith Cultural Center
+   - First-party Bessie Smith Cultural Center visitor page states it is located at `200 East M.L. King Boulevard` in Chattanooga.
+   - The live `200 E MLK Blvd` is semantically consistent with that first-party address; no street-address repair is currently justified from this evidence.
+   - The incorrect `47.4,1.6` coordinates remain the outstanding defect.
+
+4. Ross’s Landing
+   - City of Chattanooga Parks currently lists `101 Riverfront Pkwy`.
+   - The U.S. National Park Service currently lists `201 Riverfront Pkwy, Chattanooga, Tennessee 37402` and identifies the site as managed by the City of Chattanooga.
+   - This is a material authoritative-source conflict. The live record currently uses `201 Riverfront Parkway`, matching NPS, so no address change is justified while the conflict remains unresolved.
+   - The `region` URL contamination remains definite; the correct replacement region value remains unresolved.
+
+5. Baby Hughy’s Pizza and Burgers Rock Spring
+   - First-party Baby Hughy’s site lists the Rock Spring location at `8047 US-27, Rock Spring, GA 30739`.
+   - Evidence-supported postcode candidate: `30739`.
+   - The live street text `8047 N. Hwy 27` differs from the operator’s `8047 US-27`; the address-format/canonicalization question remains separate from the missing postcode and should not be changed merely for stylistic consistency.
+   - Replacement coordinates remain unresolved.
+
+6. Farm to Fork
+   - First-party Farm to Fork site lists `120 General Lee Street, Ringgold, GA 30736`.
+   - Evidence-supported postcode candidate: `30736`.
+   - Current street/town/state already match that source.
+   - Replacement coordinates remain unresolved.
+
+### Current evidence decision
+
+The research has established several exact non-coordinate corrections, but it has not established authoritative replacement coordinates for the physical venues with invalid/missing geospatial values. Ross’s Landing also has an unresolved 101-vs-201 Riverfront Parkway source conflict. Those unresolved values remain `UNKNOWN` and cannot support a live write.
 
 ## Planned mutation set
 
 None under the current authorization state.
 
-If later authorized after evidence is established, each record must be handled as its own exact-state transaction:
+If later authorized after all values for a specific record are established, each record must be handled as its own exact-state transaction:
 
 1. refresh `get-location` immediately before the write;
 2. verify the identity and state token still match;
@@ -121,6 +168,7 @@ If later authorized after evidence is established, each record must be handled a
 - Incorrect coordinates can misroute visitors and corrupt map/distance behavior.
 - Blindly replacing all `0,0` values would damage intentionally nonphysical logical locations such as `Multiple Chattanooga Venues`.
 - Address or postcode sources may disagree or may reflect mailing versus physical venue addresses.
+- Ross’s Landing currently demonstrates an actual authoritative-source address conflict; choosing one source without resolving the discrepancy would be assumptive.
 - Venue names/ownership may have changed; a current address must be verified against the exact current venue identity.
 - Batch writes would increase blast radius and weaken per-record attribution; use exact independent transactions.
 
@@ -130,11 +178,14 @@ No live venue/location mutation has been performed. Current production reads are
 
 ## Acceptance tests
 
-Inspection phase:
+Inspection/research phase:
 
 - Suspect records are identified from current live evidence.
 - Exact `get-location` reads confirm the highest-confidence defect set.
 - Intentional logical/nonphysical locations are separated from physical geocode defects.
+- LOC precedence examination is recorded before general web discovery.
+- First-party or governmental address/postcode evidence is captured for the definite suspect set.
+- Material source conflicts remain explicit rather than silently resolved.
 - No live location write occurs.
 
 Future repair phase for each authorized record:
@@ -148,4 +199,4 @@ Future repair phase for each authorized record:
 
 ## Recalculated next position
 
-Continue read-only authoritative research for the definite suspect set, beginning with the required Library of Congress applicability examination. Do not perform `update-location` until both the exact replacement evidence and target-specific live-write authorization exist.
+Continue read-only geospatial research for 1885 Grill (Ooltewah), Artistic Civic Theatre, Bessie Smith Cultural Center, Baby Hughy’s Rock Spring, and Farm to Fork, and resolve the Ross’s Landing address/region evidence conflict if a source competent to do so is located. Do not perform `update-location` until the exact replacement values for a specific target and target-specific live-write authorization both exist.
