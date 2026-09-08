@@ -56,6 +56,20 @@ Last verified: 2026-09-08
 - No update, auto-update policy, activation state, install/delete action, live source, or content change was performed by this inventory pass.
 - Maintenance execution is not authorized by the current continuation. Any later live update must target one exact component, begin with fresh inventory/health evidence, use the candidate rollback contract, and validate the post-update live state before moving to another component.
 
+### Venue / location data quality
+
+- Fresh live location inventory and exact `get-location` reads confirmed a high-confidence defect set without changing production data.
+- Locations `333` (1885 Grill Ooltewah), `307` (Artistic Civic Theatre), and `277` (Bessie Smith Cultural Center) each store impossible/default coordinates `47.4,1.6` despite Tennessee/Georgia physical addresses.
+- First-party research after the required Library of Congress applicability examination established additional non-coordinate defects: 1885 Grill Ooltewah’s first-party address includes `Suite 101` and uppercase `TN`; Artistic Civic Theatre’s first-party theater address is `907 Gaston St`, while live stores `905 Gaston St`.
+- Bessie Smith Cultural Center’s first-party visitor page confirms `200 East M.L. King Boulevard` in Chattanooga, so its live street address is semantically consistent; its incorrect coordinates remain the defect.
+- Location `84` Ross’s Landing has a URL stored in the geographic `region` field. City of Chattanooga currently lists `101 Riverfront Pkwy`, while the current National Park Service page lists `201 Riverfront Pkwy, Chattanooga, Tennessee 37402` and says the site is managed by the City. The address conflict remains explicit; live currently uses `201`, so no address change is justified from the current evidence.
+- Location `437` Baby Hughy’s Rock Spring has an empty postcode; the operator’s site confirms `8047 US-27, Rock Spring, GA 30739`.
+- Location `444` Farm to Fork has an empty postcode; the operator’s site confirms `120 General Lee Street, Ringgold, GA 30736`.
+- Many other physical venue records store `0,0`; this remains a research class, not permission to mass-geocode. Location `331` `Multiple Chattanooga Venues` is explicitly a logical multi-venue location and is excluded from automatic geocoding despite `0,0`.
+- Correct replacement coordinates for the physical invalid/zero-coordinate records remain unverified. No generic geocoder output has been substituted for authoritative geospatial evidence.
+- No live location write, event mutation, source change, or unrelated state change was performed.
+- Next gate: continue read-only geospatial evidence collection and resolve the Ross’s Landing address/region conflict where possible. A live `update-location` transaction remains target-specific and unauthorized until exact replacement values are established and separately authorized.
+
 ### Chattanooga Music Scene Weekend Feature
 
 - Source path: `site-plugins/chattanooga-music-scene-core`.
