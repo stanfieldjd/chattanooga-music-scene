@@ -2,7 +2,7 @@
 
 All mutation tests use disposable WordPress fixtures. Reference/runtime success never implies production deployment. Product target is single-site WordPress only; multisite/network behavior is out of scope and must not be reintroduced as an acceptance requirement. Third-party plugin source is immutable dependency code for this workstream; only Chattanooga CMS Admin and its disposable harness are editable.
 
-## Gates 0–15 — PASS
+## Gates 0–16 — PASS
 
 - Source architecture, PHP 7.4/8.2, privacy/static boundaries.
 - Real WordPress 7.1 Abilities API registration and REST isolation.
@@ -17,8 +17,9 @@ All mutation tests use disposable WordPress fixtures. Reference/runtime success 
 - Permanent post/page deletion with trash prerequisite, exact conflict state, explicit confirmation, object permission and absence verification.
 - Core WordPress navigation administration including menu lifecycle, item lifecycle, and registered location assignment.
 - Ordinary single-event trash and permanent deletion with exact state, explicit confirmation, object authority, booking protection, absence verification, and venue isolation.
+- Ordinary single-event restoration from trash to draft with exact state, object authority, booking preservation, readback, and rollback to trash on failed verification.
 
-Current reference evidence: candidate checkpoint `b181bfc4350590796aabd45b3196be6bffcbf624`; maintenance `34240050604`; content/member/navigation `34240050534`; integrity `34240050888`; Events Manager regression `34240050569`; artifact `10061625032`; SHA-256 `8de5e338f732d0c8c28e603de8d160d45e40de2a5556b37ea7a71a9b327a77d4`.
+Current reference evidence: candidate checkpoint `6684aa3d508776b4e006455af0a493f102dddc02`; maintenance `34241513120`; content/member/navigation `34241513095`; integrity `34241513166`; Events Manager regression `34241513102`; artifact `10062232870`; SHA-256 `9a05a3a5974119efbcaca4803776d464e00d768f83537a4a1399068d7a81e11c`.
 
 ## Gate 13 — Core WordPress navigation administration — PASS
 
@@ -36,7 +37,7 @@ Current reference evidence: candidate checkpoint `b181bfc4350590796aabd45b3196be
 
 ## Gate 14 — Navigation menu lifecycle close-out — PASS
 
-Evidence: content runtime `34240050534`; 78 total registered abilities; maintenance/static `34240050604`; integrity `34240050888`.
+Evidence: content runtime `34241513095`; 79 total registered abilities; maintenance/static `34241513120`; integrity `34241513166`.
 
 1. `update-navigation-menu` renames an existing core WordPress menu using the exact current menu-state token.
 2. Stale rename and no-change rename fail closed.
@@ -51,22 +52,37 @@ Evidence: content runtime `34240050534`; 78 total registered abilities; maintena
 
 ## Gate 15 — Events Manager event deletion — PASS
 
-Evidence: Events Manager runtime `34240050569`; 78 total registered abilities; maintenance/static `34240050604`; content/member/navigation `34240050534`; integrity `34240050888`.
+Evidence: Events Manager runtime `34241513102`; 79 total registered abilities; maintenance/static `34241513120`; content/member/navigation `34241513095`; integrity `34241513166`.
 
-1. Two typed abilities cover ordinary single-event trash and permanent deletion only; location, booking, ticket, and payment deletion are excluded.
-2. Both abilities require `delete_events` at registration and native event object authority at execution; anonymous access and `edit_events` alone are insufficient.
-3. Trash requires the exact current event state token, rejects stale or repeated trash requests, calls native `EM_Event::delete(false)`, and verifies the backing event post enters WordPress trash.
-4. Permanent deletion requires the event already be trashed, the exact trashed event state token, and explicit `confirm_permanent_delete=true`.
-5. Before permanent deletion, Events Manager aggregate booking count is evaluated for the specific event across booking statuses and owners. Any existing booking refuses deletion and leaves both event and booking intact.
-6. Zero verified bookings permit native `EM_Event::delete(true)`; both the Events Manager event identity and backing WordPress event post must be absent afterward.
+1. Event trash and permanent deletion remain ordinary-single-event-only lifecycle operations; location, booking, ticket, and payment deletion are excluded.
+2. Lifecycle abilities require `delete_events` at registration and native event object authority at execution; anonymous access and `edit_events` alone are insufficient.
+3. Trash requires exact current event state, rejects stale/repeated trash requests, calls native `EM_Event::delete(false)`, and verifies the backing event post enters WordPress trash.
+4. Permanent deletion requires the event already be trashed, exact trashed state, and explicit `confirm_permanent_delete=true`.
+5. Events Manager aggregate booking count is evaluated across statuses/owners for the specific event. Any booking refuses deletion and leaves event plus booking intact.
+6. Zero verified bookings permit native `EM_Event::delete(true)`; both Events Manager identity and backing WordPress event post must be absent afterward.
 7. Object-level `delete_others_events` authority is enforced for events owned by another account.
-8. The referenced venue state and an unrelated control event remain unchanged through trash, refusal, and successful hard deletion.
-9. The dependency-model probe independently confirms Events Manager 7.4.3 native `delete(false)` means trash and `delete(true)` means permanent deletion while preserving the referenced location.
-10. Static boundary checks require the two-stage native delete calls, exact state, explicit confirmation, aggregate booking guard, and venue isolation while rejecting location/booking/ticket deletion methods from this service.
+8. Referenced venue state and unrelated control event remain unchanged through trash, refusal, and successful hard deletion.
+9. Dependency-model probe independently confirms Events Manager 7.4.3 `delete(false)` means trash and `delete(true)` means permanent removal while preserving location.
+10. Static boundary checks retain two-stage native delete, exact state, explicit confirmation, aggregate booking guard, venue isolation, and event-only deletion scope.
 
-## Gate 16 — Site administration autonomy gap recalculation — ACTIVE
+## Gate 16 — Events Manager event restore lifecycle — PASS
 
-1. Inventory the verified 78 abilities against actual Chattanooga single-site administration workflows.
+Evidence: Events Manager runtime `34241513102`; maintenance/static `34241513120`; content/member/navigation `34241513095`; integrity `34241513166`; 79 registered abilities.
+
+1. `restore-event` restores one ordinary single event only from WordPress trash.
+2. Exact `expected_state_token` is required; stale state and non-trash restore attempts fail closed.
+3. Registration uses the same `delete_events` lifecycle authority and execution enforces native object authority, including `delete_others_events` for another owner's event.
+4. Native WordPress `wp_untrash_post` behavior was measured in Events Manager 7.4.3: the event row/object survive and the backing event post is restored to `draft`.
+5. The product deliberately requires draft readback; restore never silently republishes an event. Publication remains a separate explicit mutation.
+6. Referenced venue state and an unrelated control event must remain unchanged.
+7. An injected post-restore status corruption proves verification failure triggers rollback to native Events Manager trash, with trash-state readback.
+8. A real booking fixture proves trash → restore-to-draft → re-trash preserves the booking, and permanent deletion remains refused while that booking exists.
+9. A successfully restored event can re-enter the existing trash/permanent-delete lifecycle.
+10. Static coverage requires native untrash, draft-only verification, rollback-to-trash, exact state, object authority, booking preservation, venue isolation, and event-only lifecycle scope.
+
+## Gate 17 — Site administration autonomy gap recalculation — ACTIVE
+
+1. Inventory the verified 79 abilities against actual Chattanooga single-site administration workflows.
 2. Identify a concrete administration action that remains impossible through the typed surface and is materially necessary or frequently required.
 3. Rank candidate gaps by operational necessity, frequency, reversibility, and security/destructive risk.
 4. Do not select a capability merely because WordPress or an installed plugin exposes it.
