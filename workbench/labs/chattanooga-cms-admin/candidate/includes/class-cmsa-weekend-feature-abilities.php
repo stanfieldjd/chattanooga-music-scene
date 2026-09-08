@@ -40,7 +40,7 @@ final class CMSA_Weekend_Feature_Abilities {
 				array( 'expected_settings_state_token', 'enabled', 'publish_time', 'post_author', 'introduction', 'closing' )
 			),
 			function ( $input ) { return $this->weekend->update_settings( $input ); },
-			'manage_options',
+			function () { return current_user_can( 'manage_options' ) && current_user_can( 'publish_posts' ); },
 			false,
 			false,
 			false
@@ -80,7 +80,7 @@ final class CMSA_Weekend_Feature_Abilities {
 		);
 	}
 
-	private function register_ability( $slug, $label, $description, $input_schema, $callback, $capability, $readonly, $destructive, $idempotent ) {
+	private function register_ability( $slug, $label, $description, $input_schema, $callback, $permission, $readonly, $destructive, $idempotent ) {
 		wp_register_ability(
 			'chattanooga-cms-admin/' . $slug,
 			array(
@@ -90,8 +90,11 @@ final class CMSA_Weekend_Feature_Abilities {
 				'input_schema'        => $input_schema,
 				'output_schema'       => array( 'type' => 'object' ),
 				'execute_callback'    => $callback,
-				'permission_callback' => function () use ( $capability ) {
-					return current_user_can( $capability );
+				'permission_callback' => function () use ( $permission ) {
+					if ( is_callable( $permission ) ) {
+						return true === call_user_func( $permission );
+					}
+					return current_user_can( $permission );
 				},
 				'meta'                => array(
 					'public'       => true,
