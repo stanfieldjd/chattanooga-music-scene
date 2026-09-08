@@ -34,21 +34,7 @@ $admin = get_user_by( 'login', 'admin' );
 wp_set_current_user( $admin ? $admin->ID : 0 );
 foreach ( $abilities as $name => $ability ) {
 	if ( true !== $ability->check_permissions() ) {
-		$role = get_role( 'administrator' );
-		$checks = array(
-			'edit_events'            => current_user_can( 'edit_events' ),
-			'edit_others_events'     => current_user_can( 'edit_others_events' ),
-			'read_private_events'    => current_user_can( 'read_private_events' ),
-			'edit_locations'         => current_user_can( 'edit_locations' ),
-			'edit_others_locations'  => current_user_can( 'edit_others_locations' ),
-			'read_private_locations' => current_user_can( 'read_private_locations' ),
-			'manage_options'         => current_user_can( 'manage_options' ),
-		);
-		$role_caps = array();
-		foreach ( array_keys( $checks ) as $cap ) {
-			$role_caps[ $cap ] = $role && ! empty( $role->capabilities[ $cap ] );
-		}
-		fwrite( STDERR, 'events-manager-permission-cli: administrator denied ' . $name . '; current=' . wp_json_encode( $checks ) . '; role=' . wp_json_encode( $role_caps ) . "\n" );
+		fwrite( STDERR, "events-manager-permission-cli: administrator denied {$name}.\n" );
 		exit( 1 );
 	}
 }

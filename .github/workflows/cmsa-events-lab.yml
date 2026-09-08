@@ -46,12 +46,13 @@ jobs:
           php /tmp/wp-cli.phar core download --version=7.1 --path=/tmp/wordpress --force
           php /tmp/wp-cli.phar config create --path=/tmp/wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
           php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://cmsa-events.test --title="CMSA Events Workbench" --admin_user=admin --admin_password="cmsa-events-workbench-only" --admin_email=lab@example.invalid --skip-email
-      - name: Install and activate Events Manager
+      - name: Install and initialize Events Manager
         shell: bash
         run: |
           set -euo pipefail
           php /tmp/wp-cli.phar plugin install events-manager --activate --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin is-active events-manager --path=/tmp/wordpress
+          php /tmp/wp-cli.phar eval 'wp_set_current_user(1); require_once WP_PLUGIN_DIR . "/events-manager/em-install.php"; em_install();' --path=/tmp/wordpress
       - name: Activate candidate CMS Admin plugin
         shell: bash
         run: |
