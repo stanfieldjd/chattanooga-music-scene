@@ -185,6 +185,9 @@ $deleted = $deletion->delete_event(
 		'confirm_permanent_delete' => true,
 	)
 );
+if ( is_wp_error( $deleted ) ) {
+	fwrite( STDERR, 'events-manager-deletion-cli diagnostic: ' . wp_json_encode( array( 'code' => $deleted->get_error_code(), 'message' => $deleted->get_error_message(), 'data' => $deleted->get_error_data() ) ) . "\n" );
+}
 if ( is_wp_error( $deleted ) || empty( $deleted['deleted'] ) || 0 !== (int) $deleted['booking_count'] ) {
 	$fail( 'permanent event deletion failed.' );
 }
