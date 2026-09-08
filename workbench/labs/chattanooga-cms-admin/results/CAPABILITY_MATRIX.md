@@ -1,14 +1,14 @@
 # Chattanooga CMS Admin Capability Matrix
 
-Latest reference candidate checkpoint: `1a808764b150965809dda2dd07a5b5fad058ff72`.
-Single-site maintenance: `34188720251`; content/member/navigation: `34188720289`; integrity: `34188720290`; Events Manager regression: `34188720252`; artifact `10041444805`; SHA-256 `d852b4f3771583a72961f744c8cfc5fdc1de81eb38d8bb7ad2af316464a87ce2`.
+Latest reference candidate checkpoint: `b181bfc4350590796aabd45b3196be6bffcbf624`.
+Single-site maintenance: `34240050604`; content/member/navigation: `34240050534`; integrity: `34240050888`; Events Manager regression: `34240050569`; artifact `10061625032`; SHA-256 `8de5e338f732d0c8c28e603de8d160d45e40de2a5556b37ea7a71a9b327a77d4`.
 
 | Capability | State | Evidence / boundary |
 | --- | --- | --- |
 | Single-site product scope | REFERENCE_VERIFIED | Multisite/network behavior is out of scope and not an acceptance target. |
 | Third-party plugin source boundary | REFERENCE_VERIFIED | Installed plugins are immutable dependency surfaces; only Chattanooga CMS Admin and disposable harness code are changed. |
 | PHP 7.4 / 8.2 + WordPress 7.1 activation | REFERENCE_VERIFIED | Current single-site candidate passed. |
-| Native Abilities registry | REFERENCE_VERIFIED | 76 candidate abilities. |
+| Native Abilities registry | REFERENCE_VERIFIED | 78 candidate abilities. |
 | Maintenance backup/update/rollback/cache/privacy/error model | REFERENCE_VERIFIED | Full single-site maintenance regression green. |
 | Post/page CRUD/revisions/status | REFERENCE_VERIFIED | Dedicated content runtime green. |
 | Post/page permanent deletion | REFERENCE_VERIFIED | Trash-only prerequisite, exact modified-state conflict, explicit confirmation, native object permission, absence verification and unrelated-content isolation. |
@@ -33,8 +33,11 @@ Single-site maintenance: `34188720251`; content/member/navigation: `34188720289`
 | Ordinary event/location create/update | REFERENCE_VERIFIED | Four typed abilities; exact-state update conflicts, readback, rollback/cleanup, publish/object authority, isolation green. |
 | Event dependency-state preservation | REFERENCE_VERIFIED | Metadata updates preserve active/booking/private state outside CMS Admin contract. |
 | Referenced venue isolation | REFERENCE_VERIFIED | Event transaction preserves existing venue state despite dependency side effects; fail-closed if preservation cannot be verified. |
+| Event trash | REFERENCE_VERIFIED | Ordinary single events only; exact state; native `delete(false)`; repeated trash refused; backing post trash readback; venue/unrelated-event isolation. |
+| Event permanent deletion | REFERENCE_VERIFIED | Trash prerequisite; exact state; explicit confirmation; object authority; native `delete(true)`; event identity/post absence verification. |
+| Event permanent-delete booking guard | REFERENCE_VERIFIED | Events Manager aggregate count across statuses/owners; any booking refuses and preserves event + booking; verified zero permits hard delete. |
+| Location deletion | NOT_IMPLEMENTED | Not part of the event-deletion gate; add only for a concrete venue administration workflow. |
 | Recurring-event administration | NOT_IMPLEMENTED | Not a current target; add only for a concrete Chattanooga workflow. |
-| Event/location trash/delete | NOT_IMPLEMENTED | Separate destructive gate if an actual Chattanooga administration workflow requires it. |
 | Booking/ticket/payment administration | NOT_IMPLEMENTED | Not an automatic target; higher-risk dependency surfaces. |
 | Media/featured-image administration | NOT_IMPLEMENTED | Not an automatic priority; add only for a concrete content/event workflow. |
 | Site administration autonomy gap recalculation | ACTIVE | Select the next gate from concrete Chattanooga workflows, not WordPress/plugin feature inventories. |
