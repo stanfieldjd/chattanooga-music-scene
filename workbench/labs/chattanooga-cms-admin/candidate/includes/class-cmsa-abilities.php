@@ -109,30 +109,18 @@ final class CMSA_Abilities {
 		$this->register_ability(
 			'activate-plugin',
 			'Activate plugin',
-			'Activates an installed plugin and verifies that activation persisted.',
-			$this->object_schema(
-				array(
-					'plugin'       => array( 'type' => 'string', 'minLength' => 1 ),
-					'network_wide' => array( 'type' => 'boolean', 'default' => false ),
-				),
-				array( 'plugin' )
-			),
-			function ( $input ) { return $this->updates->activate_plugin( $input['plugin'], ! empty( $input['network_wide'] ) ); },
+			'Activates an installed plugin on this WordPress site and verifies that activation persisted.',
+			$this->object_schema( array( 'plugin' => array( 'type' => 'string', 'minLength' => 1 ) ), array( 'plugin' ) ),
+			function ( $input ) { return $this->updates->activate_plugin( $input['plugin'] ); },
 			'activate_plugins', false, false, false
 		);
 
 		$this->register_ability(
 			'deactivate-plugin',
 			'Deactivate plugin',
-			'Deactivates an installed plugin and verifies that deactivation persisted.',
-			$this->object_schema(
-				array(
-					'plugin'       => array( 'type' => 'string', 'minLength' => 1 ),
-					'network_wide' => array( 'type' => 'boolean', 'default' => false ),
-				),
-				array( 'plugin' )
-			),
-			function ( $input ) { return $this->updates->deactivate_plugin( $input['plugin'], ! empty( $input['network_wide'] ) ); },
+			'Deactivates an installed plugin on this WordPress site and verifies that deactivation persisted.',
+			$this->object_schema( array( 'plugin' => array( 'type' => 'string', 'minLength' => 1 ) ), array( 'plugin' ) ),
+			function ( $input ) { return $this->updates->deactivate_plugin( $input['plugin'] ); },
 			'activate_plugins', false, true, false
 		);
 
@@ -202,7 +190,7 @@ final class CMSA_Abilities {
 			'update_themes', false, false, true
 		);
 
-		$this->register_ability( 'clear-cache', 'Clear site cache', 'Clears WP Super Cache when available, the WordPress object cache, and WordPress blog object state.', null, array( $this->health, 'clear_cache' ), 'manage_options', false, false, false );
+		$this->register_ability( 'clear-cache', 'Clear site cache', 'Clears WP Super Cache when available, the WordPress object cache, and the site options cache.', null, array( $this->health, 'clear_cache' ), 'manage_options', false, false, false );
 
 		$this->register_ability(
 			'restore-component-backup',

@@ -21,7 +21,6 @@ final class CMSA_Health {
 			'environment'         => function_exists( 'wp_get_environment_type' ) ? wp_get_environment_type() : 'production',
 			'timezone'            => wp_timezone_string(),
 			'https'               => is_ssl(),
-			'multisite'           => is_multisite(),
 			'database_responding' => '1' === (string) $db_test,
 			'filesystem_method'   => get_filesystem_method(),
 			'plugin_dir_writable' => is_writable( WP_PLUGIN_DIR ),
@@ -56,14 +55,9 @@ final class CMSA_Health {
 			$actions[] = 'object-cache';
 		}
 
-		if ( is_multisite() && function_exists( 'clean_blog_cache' ) ) {
-			clean_blog_cache( get_current_blog_id() );
-			$actions[] = 'wordpress-blog-cache';
-		} else {
-			wp_cache_delete( 'alloptions', 'options' );
-			wp_cache_delete( 'notoptions', 'options' );
-			$actions[] = 'wordpress-options-cache';
-		}
+		wp_cache_delete( 'alloptions', 'options' );
+		wp_cache_delete( 'notoptions', 'options' );
+		$actions[] = 'wordpress-options-cache';
 
 		CMSA_Audit::record( 'clear-cache', 'site', 'success', array( 'methods' => implode( ',', array_unique( $actions ) ) ) );
 

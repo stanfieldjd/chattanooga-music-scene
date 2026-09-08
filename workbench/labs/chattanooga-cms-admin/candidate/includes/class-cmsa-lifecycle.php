@@ -36,9 +36,8 @@ final class CMSA_Lifecycle {
 		}
 
 		$was_active = is_plugin_active( $plugin );
-		$was_network_active = is_multisite() && is_plugin_active_for_network( $plugin );
-		if ( $was_active || $was_network_active ) {
-			deactivate_plugins( $plugin, false, $was_network_active );
+		if ( $was_active ) {
+			deactivate_plugins( $plugin );
 		}
 
 		$result = delete_plugins( array( $plugin ) );
@@ -46,7 +45,7 @@ final class CMSA_Lifecycle {
 		if ( is_wp_error( $result ) || false === $result || isset( get_plugins()[ $plugin ] ) ) {
 			$rollback = $this->backups->restore_component_backup( $backup['id'] );
 			if ( ! is_wp_error( $rollback ) && $was_active ) {
-				activate_plugin( $plugin, '', $was_network_active, true );
+				activate_plugin( $plugin, '', false, true );
 			}
 			return CMSA_Errors::rollback( 'cmsa_plugin_delete_failed', 'Plugin deletion failed and rollback was attempted.', $backup['id'], $rollback );
 		}

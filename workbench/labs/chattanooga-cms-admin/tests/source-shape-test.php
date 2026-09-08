@@ -59,4 +59,19 @@ foreach ( $registrars as $registration_source ) {
 	}
 }
 
+$candidate_sources = array_merge(
+	array( $lab . '/candidate/chattanooga-cms-admin.php' ),
+	glob( $lab . '/candidate/includes/*.php' ) ?: array()
+);
+$multisite_fragments = array( 'is_multisite(', 'is_plugin_active_for_network(', 'clean_blog_cache(', 'network_wide', 'network_active' );
+foreach ( $candidate_sources as $source_path ) {
+	$source = file_get_contents( $source_path );
+	foreach ( $multisite_fragments as $fragment ) {
+		if ( false !== strpos( $source, $fragment ) ) {
+			fwrite( STDERR, 'Multisite-only behavior is not part of the Chattanooga single-site product: ' . basename( $source_path ) . " contains {$fragment}.\n" );
+			exit( 1 );
+		}
+	}
+}
+
 echo "source-shape-test: PASS\n";

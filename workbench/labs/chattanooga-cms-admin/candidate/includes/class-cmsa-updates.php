@@ -26,7 +26,6 @@ final class CMSA_Updates {
 				'name'                => $data['Name'],
 				'version'             => $data['Version'],
 				'active'              => is_plugin_active( $file ),
-				'network_active'      => is_multisite() && is_plugin_active_for_network( $file ),
 				'auto_update'         => in_array( $file, $auto_updates, true ),
 				'update_available'    => (bool) $update,
 				'available_version'   => $update && isset( $update->new_version ) ? $update->new_version : null,
@@ -131,7 +130,7 @@ final class CMSA_Updates {
 		}
 
 		if ( $was_active && ! is_plugin_active( $plugin ) ) {
-			$activation = activate_plugin( $plugin, '', is_multisite() && is_plugin_active_for_network( $plugin ), true );
+			$activation = activate_plugin( $plugin, '', false, true );
 			if ( is_wp_error( $activation ) ) {
 				return $this->rollback_error( 'cmsa_plugin_activation_verify', 'Plugin did not remain active after update.', $backup['id'] );
 			}
@@ -273,29 +272,29 @@ final class CMSA_Updates {
 		return array( 'installed' => true, 'plugin' => $plugin, 'slug' => $slug );
 	}
 
-	public function activate_plugin( $plugin, $network_wide = false ) {
+	public function activate_plugin( $plugin ) {
 		$this->load_plugin_api();
 		if ( ! isset( get_plugins()[ $plugin ] ) ) {
 			return new WP_Error( 'cmsa_plugin_not_found', 'The requested plugin is not installed.' );
 		}
-		$result = activate_plugin( $plugin, '', (bool) $network_wide, true );
+		$result = activate_plugin( $plugin, '', false, true );
 		if ( is_wp_error( $result ) ) {
 			return CMSA_Errors::external( 'cmsa_plugin_activation', 'Plugin activation failed.' );
 		}
-		if ( ! is_plugin_active( $plugin ) && ! ( is_multisite() && is_plugin_active_for_network( $plugin ) ) ) {
+		if ( ! is_plugin_active( $plugin ) ) {
 			return new WP_Error( 'cmsa_plugin_activation_verify', 'Plugin activation did not persist.' );
 		}
 		CMSA_Audit::record( 'activate-plugin', $plugin, 'success' );
 		return array( 'activated' => true, 'plugin' => $plugin );
 	}
 
-	public function deactivate_plugin( $plugin, $network_wide = false ) {
+	public function deactivate_plugin( $plugin ) {
 		$this->load_plugin_api();
 		if ( ! isset( get_plugins()[ $plugin ] ) ) {
 			return new WP_Error( 'cmsa_plugin_not_found', 'The requested plugin is not installed.' );
 		}
-		deactivate_plugins( $plugin, false, (bool) $network_wide );
-		if ( is_plugin_active( $plugin ) || ( is_multisite() && is_plugin_active_for_network( $plugin ) ) ) {
+		deactivate_plugins( $plugin );
+		if ( is_plugin_active( $plugin ) ) {
 			return new WP_Error( 'cmsa_plugin_deactivation_verify', 'Plugin deactivation did not persist.' );
 		}
 		CMSA_Audit::record( 'deactivate-plugin', $plugin, 'success' );
