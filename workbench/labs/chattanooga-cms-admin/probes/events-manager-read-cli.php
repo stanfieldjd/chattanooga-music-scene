@@ -48,20 +48,23 @@ $adapter = new CMSA_Events_Manager();
 $event_list = $adapter->list_events( array( 'search' => $token, 'page' => 1, 'per_page' => 1 ) );
 if ( is_wp_error( $event_list ) || 1 !== count( $event_list['items'] ) || (int) $event_list['items'][0]['id'] !== (int) $event->event_id ) {
 	global $wpdb;
-	$raw = $wpdb->get_row( $wpdb->prepare( 'SELECT event_id, post_id, event_name, event_status, event_private, event_owner, event_start_date FROM ' . EM_EVENTS_TABLE . ' WHERE event_id = %d', $event->event_id ), ARRAY_A );
+	$raw = $wpdb->get_row( $wpdb->prepare( 'SELECT event_id, post_id, event_name, event_status, event_private, event_owner, event_start_date, recurrence, recurrence_id FROM ' . EM_EVENTS_TABLE . ' WHERE event_id = %d', $event->event_id ), ARRAY_A );
+	$post = get_post( $event->post_id );
+	$post_shape = $post instanceof WP_Post ? array( 'ID' => (int) $post->ID, 'post_type' => (string) $post->post_type, 'post_status' => (string) $post->post_status, 'post_title' => (string) $post->post_title ) : null;
 	$map_events = static function ( $events ) {
 		$out = array();
 		foreach ( is_array( $events ) ? $events : array() as $item ) {
-			if ( $item instanceof EM_Event ) {
-				$out[] = array( 'id' => (int) $item->event_id, 'name' => (string) $item->event_name, 'status' => (int) $item->event_status, 'private' => isset( $item->event_private ) ? (int) $item->event_private : null );
-			}
+			$out[] = $item instanceof EM_Event ? array( 'kind' => 'EM_Event', 'id' => (int) $item->event_id, 'post_id' => (int) $item->post_id, 'name' => (string) $item->event_name ) : array( 'kind' => gettype( $item ) );
 		}
 		return $out;
 	};
+	$native_rows = EM_Events::get( array( 'scope' => 'all', 'limit' => 20, 'array' => true ) );
+	$native_search_rows = EM_Events::get( array( 'scope' => 'all', 'limit' => 20, 'search' => $token, 'array' => true ) );
 	$native_all = EM_Events::get( array( 'scope' => 'all', 'limit' => 20 ) );
 	$native_search = EM_Events::get( array( 'scope' => 'all', 'limit' => 20, 'search' => $token ) );
-	$native_admin = EM_Events::get( array( 'scope' => 'all', 'limit' => 20, 'search' => $token, 'status' => 'all', 'private' => false ) );
-	fwrite( STDERR, 'events-manager-read-cli: bounded event list/search failed; raw=' . wp_json_encode( $raw ) . '; caps=' . wp_json_encode( array( 'edit_others_events' => current_user_can( 'edit_others_events' ), 'read_private_events' => current_user_can( 'read_private_events' ) ) ) . '; native_all=' . wp_json_encode( $map_events( $native_all ) ) . '; native_search=' . wp_json_encode( $map_events( $native_search ) ) . '; native_admin=' . wp_json_encode( $map_events( $native_admin ) ) . '; error=' . ( is_wp_error( $event_list ) ? $event_list->get_error_code() : 'none' ) . "\n" );
+	$by_post = em_get_event( $event->post_id, 'post_id' );
+	$by_event = em_get_event( $event->event_id, 'event_id' );
+	fwrite( STDERR, 'events-manager-read-cli: bounded event list/search failed; raw=' . wp_json_encode( $raw ) . '; post=' . wp_json_encode( $post_shape ) . '; rows=' . wp_json_encode( $native_rows ) . '; search_rows=' . wp_json_encode( $native_search_rows ) . '; objects=' . wp_json_encode( $map_events( $native_all ) ) . '; search_objects=' . wp_json_encode( $map_events( $native_search ) ) . '; by_post=' . wp_json_encode( $by_post instanceof EM_Event ? array( 'id' => (int) $by_post->event_id, 'post_id' => (int) $by_post->post_id, 'name' => (string) $by_post->event_name ) : gettype( $by_post ) ) . '; by_event=' . wp_json_encode( $by_event instanceof EM_Event ? array( 'id' => (int) $by_event->event_id, 'post_id' => (int) $by_event->post_id, 'name' => (string) $by_event->event_name ) : gettype( $by_event ) ) . "\n" );
 	exit( 1 );
 }
 
