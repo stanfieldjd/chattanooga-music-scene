@@ -1,23 +1,24 @@
 # Chattanooga CMS Admin Capability Matrix
 
-Latest reference candidate checkpoint: `b105ea0edf3fdb071794357770e1f0f9ed1c12ac`.
-Single-site maintenance: `34187848901`; content/member/navigation: `34187757628`; integrity: `34187848894`; Events Manager regression: `34187848906`; artifact `10041154773`; SHA-256 `c9b312bccbd5e5c12356e3048cf33085282c8c7f2f8fccb8e98b8c3b9d1011e8`.
+Latest reference candidate checkpoint: `1a808764b150965809dda2dd07a5b5fad058ff72`.
+Single-site maintenance: `34188720251`; content/member/navigation: `34188720289`; integrity: `34188720290`; Events Manager regression: `34188720252`; artifact `10041444805`; SHA-256 `d852b4f3771583a72961f744c8cfc5fdc1de81eb38d8bb7ad2af316464a87ce2`.
 
 | Capability | State | Evidence / boundary |
 | --- | --- | --- |
 | Single-site product scope | REFERENCE_VERIFIED | Multisite/network behavior is out of scope and not an acceptance target. |
 | Third-party plugin source boundary | REFERENCE_VERIFIED | Installed plugins are immutable dependency surfaces; only Chattanooga CMS Admin and disposable harness code are changed. |
 | PHP 7.4 / 8.2 + WordPress 7.1 activation | REFERENCE_VERIFIED | Current single-site candidate passed. |
-| Native Abilities registry | REFERENCE_VERIFIED | 74 candidate abilities. |
+| Native Abilities registry | REFERENCE_VERIFIED | 76 candidate abilities. |
 | Maintenance backup/update/rollback/cache/privacy/error model | REFERENCE_VERIFIED | Full single-site maintenance regression green. |
 | Post/page CRUD/revisions/status | REFERENCE_VERIFIED | Dedicated content runtime green. |
 | Post/page permanent deletion | REFERENCE_VERIFIED | Trash-only prerequisite, exact modified-state conflict, explicit confirmation, native object permission, absence verification and unrelated-content isolation. |
 | Category/post-tag terms/relationships | REFERENCE_VERIFIED | Conflict and rollback fault gates green. |
-| Core navigation menu list/get/create | REFERENCE_VERIFIED | Bounded normalized menus/items plus registered locations; edit_theme_options authority. |
+| Core navigation menu list/get/create | REFERENCE_VERIFIED | Bounded normalized menus/items plus registered locations; `edit_theme_options` authority. |
+| Core navigation whole-menu rename | REFERENCE_VERIFIED | Exact menu-state conflict, no-change guard, native rename API, readback and injected-fault rollback. |
+| Core navigation whole-menu deletion | REFERENCE_VERIFIED | Explicit destructive confirmation; exact menu state; assigned menus refused until separately unassigned; menu/item absence verified; linked page and location assignments preserved. |
 | Core navigation item create/update | REFERENCE_VERIFIED | Published page/custom root-relative or HTTP(S) links only; exact menu-state conflict, parent/cycle validation, readback and rollback/cleanup. |
 | Core navigation item deletion | REFERENCE_VERIFIED | Explicit destructive confirmation; exact menu state; item absence verified; linked page preserved. |
 | Core navigation location assignment | REFERENCE_VERIFIED | Exact assignment-map state; registered locations only; assign/unassign; injected-fault rollback green. |
-| Core navigation whole-menu rename/delete | ACTIVE | Small lifecycle symmetry gap; delete must require unassigned menu, exact state and explicit confirmation. |
 | Navigation source boundary | REFERENCE_VERIFIED | Core WordPress menu/theme-mod APIs only; no generic option mutation, theme source mutation, or third-party plugin code. |
 | Member list/search/detail/role reads | REFERENCE_VERIFIED | Bounded allowlists; credentials/private internals absent. |
 | Member profile display-name/URL update | REFERENCE_VERIFIED | Expected-state, readback and injected-fault rollback green. |
@@ -36,6 +37,7 @@ Single-site maintenance: `34187848901`; content/member/navigation: `34187757628`
 | Event/location trash/delete | NOT_IMPLEMENTED | Separate destructive gate if an actual Chattanooga administration workflow requires it. |
 | Booking/ticket/payment administration | NOT_IMPLEMENTED | Not an automatic target; higher-risk dependency surfaces. |
 | Media/featured-image administration | NOT_IMPLEMENTED | Not an automatic priority; add only for a concrete content/event workflow. |
+| Site administration autonomy gap recalculation | ACTIVE | Select the next gate from concrete Chattanooga workflows, not WordPress/plugin feature inventories. |
 | Multisite/network administration | OUT_OF_SCOPE | Single-site production target. |
 | Candidate live MCP discovery | UNKNOWN | Candidate not deployed. |
 | Production deployment | NOT_DEPLOYED | Workbench evidence does not imply live installation. |
