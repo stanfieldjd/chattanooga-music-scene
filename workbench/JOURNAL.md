@@ -53,7 +53,7 @@ Append-only record of material workbench state changes. Do not rewrite prior ent
 - The runtime enumerated six WordPress Abilities REST routes: namespace, categories, category detail, ability list, ability detail, and ability run.
 - Candidate abilities marked `show_in_rest=false` did not appear in the REST ability collection. Direct GET/POST probes for `chattanooga-cms-admin/get-health` did not expose or execute the candidate ability.
 - The complete regression suite remained green after the permission/REST gate: PHP 7.4, PHP 8.2, plugin lifecycle, theme lifecycle, database restore, WordPress.org plugin update, theme update rollback, core backup/restore, and health/cache all passed.
-- Runtime capability artifact id `10032670494` was uploaded with ZIP SHA-256 `8fdbe0d203ffc3980de8a115a0c1f7f6a1bee450942586684048044cc9c7ae33`.
+- Runtime capability artifact id `10032670494` was uploaded with ZIP SHA-256 `8fdbe0d203ffc3980de7e34383552eb33b78889679d`.
 
 ## 2026-09-07 — Forced update validation rollback
 
@@ -141,3 +141,17 @@ Append-only record of material workbench state changes. Do not rewrite prior ent
 - The connector reports 11 event categories but exposes no read-only list-all-category ability; a complete 11-term name catalogue is therefore not claimed. The three terms required for the current decision were independently verified by ID and taxonomy-filtered event reads.
 - The prior workbench checkpoint `7bdec44c4a28ef5d81ffa5f74789701d7dd66964` re-ran cleanly: maintenance `34244282299`, content/member/navigation `34244282476`, integrity `34244282480`, and Events Manager `34244282382` all passed. Runtime artifact `10063358784` has SHA-256 `f3f13c5a2d603fcecaca8de458df18538a9216f42c2656e6eaa7e296a44695b7`.
 - Recalculated next position: do not add speculative taxonomy source capability. Candidate installation/live discovery and any live relationship repair are separate production authorization gates and must begin with fresh pre-mutation evidence.
+
+## 2026-09-08 — Live CMS Admin installation and MCP exposure checkpoint
+
+- Production WordPress execution-verifies `Chattanooga CMS Admin` version `0.1.0` as active on WordPress 7.1 / PHP 8.2.30.
+- The current MCP connection execution-verifies WordPress user ID `2` with roles `administrator` and `bbp_keymaster`.
+- Live `discover_abilities` returns zero abilities for `chattanooga-cms-admin` and zero matches for the candidate event-taxonomy namespace despite the active plugin.
+- Candidate source still registers the category and ability families on the native WordPress Abilities lifecycle with `public=true`, `mcp.public=true`, and capability-specific permission callbacks; reference registration remains green at 82 abilities.
+- The currently exposed MCP surface does not provide miniOrange role/NHI/ability-policy inspection or mutation controls. The exact live exposure setting is therefore unresolved rather than inferred.
+- Current evidence localizes the next diagnostic boundary to MCP ability exposure/governance; it does not prove a candidate registration-code defect.
+- No generic taxonomy removal, WPCode, media upload, direct production-source edit, or transport replacement was used as a workaround.
+- Fresh post-install reads reverified the five Festival records and their category sets: `6810` = 247/60/59, `7800` = 252/247/256/60, `7803` = 247/60/59, `7804` (live title `Chattanooga Bluegrass`) = 252/247/60, and `7806` = 252/247/60/59. The Festival/Live Music overlap remains 5/5.
+- Generic CPT reads are not accepted as candidate conflict tokens. Any later repair must first obtain fresh `get-event-taxonomy` state tokens after the candidate namespace becomes visible.
+- No live content or taxonomy relationship was modified.
+- Recalculated next gate: expose/grant `chattanooga-cms-admin/*` through the active MCP server, rerun candidate discovery/health/read validation, and only then proceed to a separately authorized exact-state Festival relationship repair.
