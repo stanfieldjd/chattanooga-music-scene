@@ -30,21 +30,31 @@ final class CMSA_Events_Manager_Mutations {
 		if ( 'publish' === $target['post_status'] && ! current_user_can( 'publish_events' ) ) {
 			return new WP_Error( 'cmsa_event_publish_permission', 'Current user cannot publish Events Manager events.' );
 		}
+		$location_guard = $this->capture_location_guard( array( $target['location_id'] ) );
+		if ( is_wp_error( $location_guard ) ) {
+			return $location_guard;
+		}
 
 		$event = new EM_Event();
 		$event->event_owner = get_current_user_id();
 		$this->apply_event_target( $event, $target, true );
 		if ( ! $event->save() || empty( $event->event_id ) ) {
-			return new WP_Error( 'cmsa_event_create_failed', 'Events Manager could not create the event.', array( 'cleaned_up' => $this->cleanup_created_event( $event ) ) );
+			return new WP_Error( 'cmsa_event_create_failed', 'Events Manager could not create the event.', $this->cleanup_event_transaction( $event, $location_guard ) );
 		}
 		if ( ! $this->ensure_event_post_status( $event, $target['post_status'] ) ) {
-			return new WP_Error( 'cmsa_event_create_status', 'Events Manager could not apply the requested event publication state.', array( 'cleaned_up' => $this->cleanup_created_event( $event ) ) );
+			return new WP_Error( 'cmsa_event_create_status', 'Events Manager could not apply the requested event publication state.', $this->cleanup_event_transaction( $event, $location_guard ) );
+		}
+		if ( ! $this->restore_location_guard( $location_guard ) ) {
+			return new WP_Error( 'cmsa_event_create_isolation', 'Creating the event changed an existing location outside the event transaction.', $this->cleanup_event_transaction( $event, $location_guard ) );
 		}
 
 		do_action( 'cmsa_events_manager_event_written', (int) $event->event_id, 'create' );
+		if ( ! $this->restore_location_guard( $location_guard ) ) {
+			return new WP_Error( 'cmsa_event_create_isolation', 'Creating the event changed an existing location outside the event transaction.', $this->cleanup_event_transaction( $event, $location_guard ) );
+		}
 		$after = $this->events->load_event( $event->event_id );
 		if ( is_wp_error( $after ) || ! $this->is_ordinary_event( $after ) || ! $this->event_matches( $after, $target ) ) {
-			return new WP_Error( 'cmsa_event_create_verify', 'Created event did not pass readback verification.', array( 'cleaned_up' => $this->cleanup_created_event( $event ) ) );
+			return new WP_Error( 'cmsa_event_create_verify', 'Created event did not pass readback verification.', $this->cleanup_event_transaction( $event, $location_guard ) );
 		}
 		$normalized = $this->events->normalize_event( $after );
 		CMSA_Audit::record( 'create-event', (string) $after->event_id, 'success', array( 'state_token' => $normalized['state_token'] ) );
@@ -83,15 +93,25 @@ final class CMSA_Events_Manager_Mutations {
 		if ( 'publish' === $target['post_status'] && 'publish' !== $previous['post_status'] && ! current_user_can( 'publish_events' ) ) {
 			return new WP_Error( 'cmsa_event_publish_permission', 'Current user cannot publish Events Manager events.' );
 		}
+		$location_guard = $this->capture_location_guard( array( $previous['location_id'], $target['location_id'] ) );
+		if ( is_wp_error( $location_guard ) ) {
+			return $location_guard;
+		}
 
 		$this->apply_event_target( $event, $target, false );
 		if ( ! $event->save() || ! $this->ensure_event_post_status( $event, $target['post_status'] ) ) {
-			return new WP_Error( 'cmsa_event_update_failed', 'Events Manager could not update the event.', array( 'rolled_back' => $this->restore_event( $id, $previous ) ) );
+			return new WP_Error( 'cmsa_event_update_failed', 'Events Manager could not update the event.', array( 'rolled_back' => $this->rollback_event_transaction( $id, $previous, $location_guard ) ) );
+		}
+		if ( ! $this->restore_location_guard( $location_guard ) ) {
+			return new WP_Error( 'cmsa_event_update_isolation', 'Updating the event changed an existing location outside the event transaction.', array( 'rolled_back' => $this->rollback_event_transaction( $id, $previous, $location_guard ) ) );
 		}
 		do_action( 'cmsa_events_manager_event_written', $id, 'update' );
+		if ( ! $this->restore_location_guard( $location_guard ) ) {
+			return new WP_Error( 'cmsa_event_update_isolation', 'Updating the event changed an existing location outside the event transaction.', array( 'rolled_back' => $this->rollback_event_transaction( $id, $previous, $location_guard ) ) );
+		}
 		$after = $this->events->load_event( $id );
 		if ( is_wp_error( $after ) || ! $this->is_ordinary_event( $after ) || ! $this->event_matches( $after, $target ) ) {
-			return new WP_Error( 'cmsa_event_update_verify', 'Updated event did not pass readback verification.', array( 'rolled_back' => $this->restore_event( $id, $previous ) ) );
+			return new WP_Error( 'cmsa_event_update_verify', 'Updated event did not pass readback verification.', array( 'rolled_back' => $this->rollback_event_transaction( $id, $previous, $location_guard ) ) );
 		}
 		$normalized = $this->events->normalize_event( $after );
 		CMSA_Audit::record( 'update-event', (string) $id, 'success', array( 'state_token' => $normalized['state_token'] ) );
@@ -331,6 +351,52 @@ final class CMSA_Events_Manager_Mutations {
 			'location_latitude' => $this->coordinate_string( isset( $location->location_latitude ) ? $location->location_latitude : '' ),
 			'location_longitude' => $this->coordinate_string( isset( $location->location_longitude ) ? $location->location_longitude : '' ),
 		);
+	}
+
+	private function capture_location_guard( array $ids ) {
+		$guard = array();
+		foreach ( array_unique( array_map( 'intval', $ids ) ) as $id ) {
+			if ( $id < 1 ) {
+				continue;
+			}
+			$location = $this->events->load_location( $id );
+			if ( is_wp_error( $location ) ) {
+				return new WP_Error( 'cmsa_event_location_guard', 'The event transaction could not capture the referenced location state.' );
+			}
+			$guard[ $id ] = $this->location_snapshot( $location );
+		}
+		return $guard;
+	}
+
+	private function restore_location_guard( array $guard ) {
+		foreach ( $guard as $id => $snapshot ) {
+			$location = $this->events->load_location( (int) $id );
+			if ( is_wp_error( $location ) ) {
+				return false;
+			}
+			if ( $this->location_matches( $location, $snapshot ) ) {
+				continue;
+			}
+			if ( ! $this->restore_location( (int) $id, $snapshot ) ) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private function cleanup_event_transaction( $event, array $location_guard ) {
+		$cleaned_up = $this->cleanup_created_event( $event );
+		$locations_restored = $this->restore_location_guard( $location_guard );
+		return array(
+			'cleaned_up' => $cleaned_up,
+			'locations_restored' => $locations_restored,
+		);
+	}
+
+	private function rollback_event_transaction( $id, array $previous, array $location_guard ) {
+		$event_restored = $this->restore_event( $id, $previous );
+		$locations_restored = $this->restore_location_guard( $location_guard );
+		return $event_restored && $locations_restored;
 	}
 
 	private function apply_event_target( EM_Event $event, array $target, $creating ) {
