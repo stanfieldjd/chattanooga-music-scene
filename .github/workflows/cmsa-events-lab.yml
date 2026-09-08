@@ -120,6 +120,11 @@ jobs:
         run: |
           set -euo pipefail
           php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/events-manager-deletion-cli.php" --path=/tmp/wordpress
+      - name: Diagnose Weekend Feature settings scheduler contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/weekend-feature-settings-diagnostic-cli.php" --path=/tmp/wordpress
       - name: Verify Weekend Feature settings draft publish and rollback transactions
         shell: bash
         run: |
