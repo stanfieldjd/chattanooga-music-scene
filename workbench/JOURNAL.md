@@ -223,3 +223,17 @@ Append-only record of material workbench state changes. Do not rewrite prior ent
 - Workbench task/status/queue/state records were advanced to distinguish the 87-ability workbench candidate from the still-deployed 82-ability production runtime.
 - No media capability from this slice was deployed to production; no live media/content mutation occurred.
 - Recalculated position: source-only functionality engineering may continue from the verified 87-ability workbench candidate. Production media deployment, the five-event Festival relationship repair, and other live mutations remain separate explicit authorization gates.
+
+## 2026-09-08 — CMS Admin Weekend Feature adapter integration
+
+- Opened a source-only Layer G Weekend Feature adapter from the verified 87-ability workbench position; production, `main`, `feature/chattanooga-cms-admin`, live Weekend Feature settings/posts, and miniOrange policy were excluded from mutation.
+- Added four typed Chattanooga CMS Admin abilities: bounded Weekend Feature status, exact settings replacement, guarded current-weekend draft generation, and guarded immediate publication through the source-owned generation path.
+- Real WordPress first-save diagnostics exposed a source defect in Weekend Feature 0.2.1: only the option-update hook synchronized the scheduler, so initial option creation could persist enabled settings without creating the Thursday cron event.
+- Repaired that source defect directly in the workbench Weekend Feature plugin, advancing its verified contract to 0.2.2 and registering the source-owned add-option synchronization hook rather than adding an adapter bypass or duplicate scheduler implementation.
+- Strengthened adapter rollback so settings fault injection restores the exact prior cron timestamp, recurrence schedule, and args as well as the exact prior option state.
+- Source checkpoint `e0e29c0786f8a2ae21d070d64d0d2408138d74f4` passed the complete source regression set, including 91-ability registration, dependency fail-closed behavior, exact settings/schedule state, stale/no-change rejection, draft generation, immediate publication in disposable WordPress, injected rollback, and unrelated post/event isolation.
+- PR #10 integrated the verified source slice into `workbench/mars` at merge commit `4121c0c1b7315b88a8719bde9fb4f1a5dab30e98`.
+- Post-integration push validation passed Workbench Lab `34276153946`, Mars integrity `34276153954`, Weekend Feature `34276153963`, Events Manager `34276154034`, and Content Layer `34276154008`.
+- The source/workbench task is complete at 91 candidate abilities. Production remains at the independently verified 82 exposed abilities; neither the five media abilities nor the four Weekend Feature abilities/source contract 0.2.2 were deployed by this work.
+- No live Weekend Feature settings change, draft generation, publication, taxonomy/content/media mutation, miniOrange policy change, or production deployment occurred.
+- Recalculated position: continue source-only Chattanooga CMS Admin functionality engineering from the verified 91-ability workbench candidate. Any production media/Weekend promotion and the five-event Festival relationship repair remain separate explicit authorization gates.
