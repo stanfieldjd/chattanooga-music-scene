@@ -12,6 +12,7 @@ final class CMSA_Plugin {
 	private $content_deletion_abilities;
 	private $content_status_abilities;
 	private $content_taxonomy_abilities;
+	private $media_abilities;
 	private $navigation_abilities;
 	private $member_abilities;
 	private $member_mutation_abilities;
@@ -60,6 +61,9 @@ final class CMSA_Plugin {
 			$this->content_status_abilities = new CMSA_Content_Status_Abilities( new CMSA_Content_Status( $content ) );
 			$this->content_taxonomy_abilities = new CMSA_Content_Taxonomy_Abilities( new CMSA_Content_Taxonomy( $content ) );
 		}
+		if ( ! $this->media_abilities ) {
+			$this->media_abilities = new CMSA_Media_Abilities( new CMSA_Media() );
+		}
 		if ( ! $this->navigation_abilities ) {
 			$this->navigation_abilities = new CMSA_Navigation_Abilities( new CMSA_Navigation() );
 		}
@@ -81,6 +85,7 @@ final class CMSA_Plugin {
 		$this->content_deletion_abilities->register();
 		$this->content_status_abilities->register();
 		$this->content_taxonomy_abilities->register();
+		$this->media_abilities->register();
 		$this->navigation_abilities->register();
 		$this->member_abilities->register();
 		$this->member_mutation_abilities->register();
