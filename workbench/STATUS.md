@@ -8,7 +8,7 @@ Last verified: 2026-09-08
 - Production source branch: `main`
 - Verified `main` head: `d3167ab8d084523c63d22004955d781962e41623`
 - Workbench branch: `workbench/mars`
-- Production/source branches were not mutated by the latest workbench increment.
+- `main` and `feature/chattanooga-cms-admin` were not mutated by the latest workbench increment. The workbench source-controlled Weekend Feature dependency was advanced from 0.2.1 to 0.2.2 only on `workbench/mars` as part of an execution-verified direct source repair.
 
 ## Active source workstreams
 
@@ -21,12 +21,18 @@ Last verified: 2026-09-08
 - Mutable coding candidate: `workbench/labs/chattanooga-cms-admin/candidate`.
 - Event-taxonomy candidate checkpoint remains `62e46bb64514973a640f1abd13ff5f90248580f8`.
 - Media implementation source checkpoint is `fce5ef0a1cc470f483891cb60edf7a499d3584d0`; PR #9 integrated the verified media slice into `workbench/mars` at `1b73e5f8902062dc5ee9006ef30d0784438c5379`.
-- Real reference registry after media integration: 87 abilities = 24 maintenance + 14 content CRUD/revision + 2 permanent content deletion + 2 status + 12 content taxonomy + 5 media + 8 navigation + 4 member-read + 2 member-mutation + 4 event/location read + 4 event/location mutation + 3 event lifecycle + 3 event taxonomy.
-- Five bounded media abilities are now execution-verified in the workbench candidate: list media, get media, create one bounded validated base64 attachment, update exact-state attachment metadata, and set/clear an exact-state post/page featured-image relationship.
+- Weekend Feature adapter source checkpoint is `e0e29c0786f8a2ae21d070d64d0d2408138d74f4`; PR #10 integrated the verified Weekend Feature slice into `workbench/mars` at `4121c0c1b7315b88a8719bde9fb4f1a5dab30e98`.
+- Real reference registry after Weekend Feature integration: 91 abilities = 24 maintenance + 14 content CRUD/revision + 2 permanent content deletion + 2 status + 12 content taxonomy + 5 media + 8 navigation + 4 member-read + 2 member-mutation + 4 event/location read + 4 event/location mutation + 3 event lifecycle + 3 event taxonomy + 4 Weekend Feature.
+- Four bounded Weekend Feature abilities are execution-verified in the workbench candidate: exact status, exact settings replacement, guarded current-weekend draft generation, and guarded immediate publication through the source-controlled Weekend Feature plugin.
+- The Weekend Feature adapter is pinned to source contract `0.2.2`, remains MCP-visible/public-REST-hidden, requires native WordPress authority, rejects stale/no-change state, verifies settings/schedule and generated feature readback, and rolls back injected verification failures.
+- Real WordPress diagnostics exposed a source-owned first-save scheduler defect: only `update_option_cms_weekend_post_settings` was registered, so initial option creation could persist enabled settings without scheduling the Thursday cron. The direct source repair added the corresponding `add_option_...` synchronization hook in Weekend Feature 0.2.2; no adapter-owned duplicate scheduler or bypass was introduced.
+- Weekend scheduler rollback now preserves and verifies the exact prior cron timestamp, recurrence schedule, and args rather than reconstructing an approximate schedule.
+- Post-integration push validation for the Weekend Feature slice passed: Workbench Lab `34276153946`, Mars Workbench Integrity `34276153954`, Chattanooga Music Scene Weekend Feature `34276153963`, Events Manager Lab `34276154034`, and Content Layer Lab `34276154008`.
+- Five bounded media abilities are execution-verified in the workbench candidate: list media, get media, create one bounded validated base64 attachment, update exact-state attachment metadata, and set/clear an exact-state post/page featured-image relationship.
 - Media creation is capped at 8 MiB decoded, performs WordPress extension/type validation plus payload MIME verification, never fetches arbitrary remote URLs, verifies resulting file size/hash/type, and removes a just-created attachment if verification fails.
 - Media metadata and featured-image writes reject stale/no-change state, verify readback, roll back or preserve the exact prior semantic relationship after injected verification failure, and preserve unrelated control objects.
 - Media permissions and object scope were execution-verified: anonymous/subscriber access is denied, native upload/edit authority is required, and users lacking `edit_others_posts` are scoped to their own attachments.
-- Post-integration push validation passed: Content Layer Lab `34271628425`, Events Manager Lab `34271628277`, Mars Workbench Integrity `34271628426`, and CMS Admin Workbench Lab `34271628265`; the latter passed PHP 7.4, PHP 8.2, WordPress 7.1 registry/permission/REST-isolation, backup/update/rollback, normal core update, and forced-core rollback coverage.
+- Post-media-integration push validation passed: Content Layer Lab `34271628425`, Events Manager Lab `34271628277`, Mars Workbench Integrity `34271628426`, and CMS Admin Workbench Lab `34271628265`; the latter passed PHP 7.4, PHP 8.2, WordPress 7.1 registry/permission/REST-isolation, backup/update/rollback, normal core update, and forced-core rollback coverage.
 - Latest earlier post-taxonomy maintenance/workbench rerun `34245410480` passed the WordPress 7.1 runtime probe and PHP 7.4/8.2 labs.
 - Latest earlier post-taxonomy content/member/navigation rerun `34245410459` passed.
 - Latest earlier post-taxonomy Events Manager rerun `34245410524` passed against WordPress.org Events Manager 7.4.3.
@@ -49,9 +55,10 @@ Last verified: 2026-09-08
 - Each `get-event-taxonomy` state token exactly matched the corresponding state token returned by the fresh candidate event search at the time of inspection.
 - Candidate source continues to keep `show_in_rest=false`; no public-REST relaxation or generic taxonomy workaround was needed.
 - No generic `mosmcp__cpt-remove-terms`, WPCode, direct production-source workaround, or source change was used.
-- Media production gate: the five new workbench media abilities are E2 source/runtime verified but are NOT deployed to production. Any production promotion is a separate A3 action requiring explicit authorization and subsequent live MCP discovery/read validation.
+- Media production gate: the five workbench media abilities are E2 source/runtime verified but are NOT deployed to production. Any production promotion is a separate A3 action requiring explicit authorization and subsequent live MCP discovery/read validation.
+- Weekend Feature production gate: the four new workbench Weekend Feature abilities and source contract 0.2.2 are E2 source/runtime verified but are NOT deployed to production. Live settings mutation, draft creation, or publication remains a separate target-specific production action with its own authorization class.
 - Event-taxonomy production gate: a live five-event relationship repair is a separate target-specific mutation and remains unauthorized. If authorized, refresh each candidate taxonomy snapshot immediately before its write, remove only term `60` while preserving every other current category, and verify readback through the guarded candidate ability.
-- Production state: plugin active; 82 MCP abilities exposed; health/read runtime acceptance passed; five exact taxonomy defects execution-verified; the five media abilities remain workbench-only; no live taxonomy/content/media write was made by this functionality increment.
+- Production state: plugin active; 82 MCP abilities exposed; health/read runtime acceptance passed; five exact taxonomy defects execution-verified; the five media abilities and four Weekend Feature abilities remain workbench-only; no live taxonomy/content/media/Weekend Feature write was made by this functionality increment.
 
 ### WordPress / plugin / theme maintenance
 
@@ -79,8 +86,10 @@ Last verified: 2026-09-08
 ### Chattanooga Music Scene Weekend Feature
 
 - Source path: `site-plugins/chattanooga-music-scene-core`.
-- Source version on verified baseline: `0.2.1`.
-- Production state must be verified independently before any deployment claim.
+- Workbench source version: `0.2.2` at integration checkpoint `4121c0c1b7315b88a8719bde9fb4f1a5dab30e98`.
+- Version 0.2.2 repairs first-save schedule synchronization by handling source-owned option creation as well as option update.
+- Direct Weekend Feature workflow `34276153963` and integrated Events Manager workflow `34276154034` passed after the repair.
+- Production source/version/state was not changed or inferred from workbench integration and must be verified independently before any deployment claim.
 
 ## Site-operation state
 
