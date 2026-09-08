@@ -14,41 +14,41 @@ All mutation tests use disposable WordPress fixtures. Reference/runtime success 
 - Bounded member reads with credential/usermeta/session boundaries.
 - Member display-name/URL and role-state mutation with conflict/readback/rollback and zero mail attempts.
 
-Current reference evidence: candidate checkpoint `2eaed7eab4575ffc4c5db036a513924494d50cf4`; event/location source correction `9874d5192cef627292df09bd81fd1f7aaa59315d`; maintenance `34183243913`; content/member `34183243906`; integrity `34183243890`; artifact `10039648550`; SHA-256 `ba3c42d62ea5c0f87df81cea6eabcb6614724a2cf53d2b30d35bbc87291393d3`.
+Current reference evidence: candidate checkpoint `8c2c422d6b8139fcfe571564a0d543b5d1607be2`; maintenance `34187219749`; content/member/deletion `34187219774`; integrity `34187219809`; Events Manager regression `34187219757`; artifact `10040947233`; SHA-256 `27c11afa7652f062da3a33b2ca23b04b37ca1eabd79d4ad6cdc7898287dc6947`.
 
 ## Gate 10 — Events Manager disposable read runtime — PASS
 
-Evidence: Events Manager run `34183462063` against WordPress.org Events Manager 7.4.3.
-
 - Real Events Manager installer/model bootstrap passed in disposable WordPress 7.1 + MySQL 8.0.
-- Registry: 66 total candidate abilities; four event/location read abilities.
-- Native event/location permissions: anonymous denied, administrator allowed.
-- Bounded event list/search/get passed with explicit field allowlist.
-- Bounded location list/search/get passed with explicit field allowlist.
-- Missing event/location IDs fail closed.
-- Canonical ordinary single-event fixture state verified.
+- Native event/location permissions, bounded read allowlists, missing-ID failure, and canonical ordinary event fixtures remain green.
 
 ## Gate 11 — Ordinary event/location mutation — PASS
 
 - Four typed abilities cover create/update for ordinary single events and physical venues/locations.
 - Native Events Manager model APIs and capabilities are used; candidate code does not patch or modify Events Manager.
-- Creation validates required fields, canonical ordinary-event state, requested publication state, readback, and cleanup after failed/incomplete creation.
-- Updates require exact expected-before state tokens and reject stale mutations.
-- Injected post-write verification failures trigger rollback and exact managed-state restoration.
-- Publish authority and object-level event/location authority are enforced.
-- Metadata-only event updates preserve dependency-owned active/booking/private state outside the ability contract.
-- Event creation/update snapshots a referenced existing venue and restores/verifies it if the dependency call changes venue state as a side effect; failure to preserve it causes the CMS Admin transaction to fail closed.
-- Unrelated event/location records remain unchanged.
-- Clean diagnostic-free event/location workflow passed as run `34183462063`.
+- Expected-state conflicts, readback, cleanup/rollback, publish authority, dependency-state preservation, referenced-venue isolation, and unrelated-record isolation remain green in regression run `34187219757`.
 
-## Gate 12 — Site administration autonomy gap review — ACTIVE
+## Gate 12 — Permanent post/page deletion — PASS
 
-1. Inventory the existing 66 CMS Admin abilities by actual Chattanooga administration workflow.
-2. Identify concrete administration actions still impossible through the typed admin surface.
-3. Rank gaps by frequency, operational necessity, reversibility, and risk.
-4. Implement only justified CMS Admin abilities; do not expand installed third-party plugins merely because they expose additional features.
-5. Keep destructive, notification-producing, security-sensitive, media, recurring-event, booking, ticket, and payment operations separate until an actual site workflow justifies them.
-6. Apply exact-state conflicts, native authority, readback verification, rollback, and isolation according to the mutation's risk and state model.
+Evidence: content runtime `34187219774`; 68 total registered abilities.
+
+1. Permanent deletion is a separate destructive ability surface for core WordPress posts/pages only.
+2. The target must already have `post_status=trash`; non-trash requests fail closed.
+3. The caller must provide the exact current `expected_modified_gmt`; stale requests fail closed and report current state.
+4. `confirm_permanent_delete` must explicitly be `true`; omission/false cannot delete.
+5. Execution rechecks native object-level `delete_post` authority even after the coarse ability permission callback.
+6. Deletion uses native `wp_delete_post(..., true)` and verifies the target no longer exists.
+7. Post and page transactions both pass; unrelated sentinel content remains unchanged.
+8. Anonymous access is denied; administrator access passes; a limited post-delete user does not acquire page-delete authority or other-author deletion authority.
+9. This gate does not add arbitrary post-type deletion, user deletion, event deletion, media deletion, or any third-party plugin mutation.
+
+## Gate 13 — Site administration autonomy gap review — ACTIVE
+
+1. Inventory the 68 CMS Admin abilities by actual Chattanooga workflow.
+2. Identify operations still impossible through the typed admin surface.
+3. Prefer gaps in core/site administration before introducing additional third-party surfaces when appropriate.
+4. Rank by operational frequency, necessity, reversibility, and risk.
+5. Implement only justified CMS Admin abilities; installed third-party plugin source remains immutable.
+6. Keep notification-producing, security-sensitive, media, recurring-event, booking, ticket, payment, and other destructive operations separate until a concrete site workflow justifies them.
 
 ## Live Chattanooga
 
