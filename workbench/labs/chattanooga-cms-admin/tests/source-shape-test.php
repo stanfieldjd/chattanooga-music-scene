@@ -93,22 +93,22 @@ foreach ( array( 'update_option(', 'add_option(', 'delete_option(', 'EM_', 'Budd
 }
 
 $event_deletion_source = file_get_contents( $lab . '/candidate/includes/class-cmsa-events-manager-deletion.php' );
-foreach ( array( 'trash_event', 'delete_event', "->delete( false )", "->delete( true )", 'expected_state_token', 'confirm_permanent_delete', "'trash' !== \$post->post_status", "can_manage( 'delete_events', 'delete_others_events' )", 'EM_Bookings::count(', "'status' => false", "'owner'  => false", 'cmsa_event_delete_has_bookings', 'location_guard_unchanged' ) as $event_deletion_guard ) {
+foreach ( array( 'trash_event', 'restore_event', 'delete_event', "->delete( false )", 'wp_untrash_post(', "'draft' !== \$after_post->post_status", 'rollback_restore_to_trash', "->delete( true )", 'expected_state_token', 'confirm_permanent_delete', "'trash' !== \$post->post_status", "can_manage( 'delete_events', 'delete_others_events' )", 'EM_Bookings::count(', "'status' => false", "'owner'  => false", 'cmsa_event_delete_has_bookings', 'location_guard_unchanged' ) as $event_deletion_guard ) {
 	if ( false === strpos( $event_deletion_source, $event_deletion_guard ) ) {
-		fwrite( STDERR, "Events Manager deletion guard missing: {$event_deletion_guard}.\n" );
+		fwrite( STDERR, "Events Manager event lifecycle guard missing: {$event_deletion_guard}.\n" );
 		exit( 1 );
 	}
 }
 $event_deletion_abilities = file_get_contents( $lab . '/candidate/includes/class-cmsa-events-manager-deletion-abilities.php' );
-foreach ( array( "'trash-event'", "'delete-event'", "current_user_can( 'delete_events' )", "'destructive' => (bool) \$destructive" ) as $event_deletion_registration ) {
+foreach ( array( "'trash-event'", "'restore-event'", "'delete-event'", '->restore_event( $input )', "current_user_can( 'delete_events' )", "'destructive' => (bool) \$destructive" ) as $event_deletion_registration ) {
 	if ( false === strpos( $event_deletion_abilities, $event_deletion_registration ) ) {
-		fwrite( STDERR, "Events Manager deletion registration missing: {$event_deletion_registration}.\n" );
+		fwrite( STDERR, "Events Manager event lifecycle registration missing: {$event_deletion_registration}.\n" );
 		exit( 1 );
 	}
 }
 foreach ( array( 'function delete_location(', '->delete_location(', 'function delete_booking(', '->delete_booking(', 'function delete_ticket(', '->delete_ticket(', 'manage_others_bookings' ) as $event_deletion_forbidden ) {
 	if ( false !== strpos( $event_deletion_source, $event_deletion_forbidden ) ) {
-		fwrite( STDERR, "Events Manager deletion layer expanded beyond event-only lifecycle safety: {$event_deletion_forbidden}.\n" );
+		fwrite( STDERR, "Events Manager event lifecycle layer expanded beyond event-only safety: {$event_deletion_forbidden}.\n" );
 		exit( 1 );
 	}
 }
