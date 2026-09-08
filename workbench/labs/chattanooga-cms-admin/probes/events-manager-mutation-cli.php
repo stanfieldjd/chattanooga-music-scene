@@ -237,7 +237,6 @@ if ( is_wp_error( $event_after_fault ) || $event_fault_before['state_token'] !==
 $preserved = new EM_Event();
 $preserved->event_archetype = 'event';
 $preserved->event_type = 'single';
-$preserved->event_active_status = 0;
 $preserved->event_rsvp = 1;
 $preserved->event_owner = $admin->ID;
 $preserved->event_name = 'CMSA Preserve Flags ' . $token;
@@ -251,6 +250,13 @@ if ( ! $preserved->save() || empty( $preserved->event_id ) ) {
 }
 $preserved_id = (int) $preserved->event_id;
 $created_event_ids[] = $preserved_id;
+$preserved_before = $reader->load_event( $preserved_id );
+if ( is_wp_error( $preserved_before ) ) {
+	$fail( 'flag-preservation fixture load failed.' );
+}
+$preserved_active_before = isset( $preserved_before->event_active_status ) ? (int) $preserved_before->event_active_status : null;
+$preserved_rsvp_before = isset( $preserved_before->event_rsvp ) ? (int) $preserved_before->event_rsvp : null;
+$preserved_private_before = isset( $preserved_before->event_private ) ? (int) $preserved_before->event_private : null;
 $preserved_read = $reader->get_event( $preserved_id );
 if ( is_wp_error( $preserved_read ) ) {
 	$fail( 'flag-preservation fixture read failed.' );
@@ -266,8 +272,14 @@ if ( is_wp_error( $preserve_update ) ) {
 	$fail( 'flag-preservation metadata update failed: ' . $preserve_update->get_error_code() );
 }
 $preserved_after = $reader->load_event( $preserved_id );
-if ( is_wp_error( $preserved_after ) || 0 !== (int) $preserved_after->event_active_status || 1 !== (int) $preserved_after->event_rsvp ) {
-	$fail( 'event metadata update changed active/booking state outside its contract.' );
+if ( is_wp_error( $preserved_after ) ) {
+	$fail( 'flag-preservation fixture reread failed.' );
+}
+$preserved_active_after = isset( $preserved_after->event_active_status ) ? (int) $preserved_after->event_active_status : null;
+$preserved_rsvp_after = isset( $preserved_after->event_rsvp ) ? (int) $preserved_after->event_rsvp : null;
+$preserved_private_after = isset( $preserved_after->event_private ) ? (int) $preserved_after->event_private : null;
+if ( $preserved_active_before !== $preserved_active_after || $preserved_rsvp_before !== $preserved_rsvp_after || $preserved_private_before !== $preserved_private_after ) {
+	$fail( 'event metadata update changed active/booking/private state outside its contract.' );
 }
 
 $limited_login = 'cmsa-em-publish-' . strtolower( wp_generate_password( 8, false, false ) );
