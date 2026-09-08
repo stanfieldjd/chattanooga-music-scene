@@ -65,12 +65,14 @@ if ( ! $event->save() || empty( $event->event_id ) ) {
 }
 $event_id = (int) $event->event_id;
 $post_id = isset( $event->post_id ) ? (int) $event->post_id : 0;
-if ( $post_id < 1 || ! get_post( $post_id ) instanceof WP_Post ) {
+$initial_post = $post_id > 0 ? get_post( $post_id ) : null;
+if ( ! $initial_post instanceof WP_Post ) {
 	$event->delete( true );
 	$location->delete( true );
 	fwrite( STDERR, "events-manager-delete-model-cli: disposable event backing post missing.\n" );
 	exit( 1 );
 }
+$initial_post_status = (string) $initial_post->post_status;
 
 $can_delete = method_exists( $event, 'can_manage' ) ? $event->can_manage( 'delete_events', 'delete_others_events' ) : null;
 $soft_deleted = $event->delete();
@@ -87,7 +89,24 @@ $location_after_soft = new EM_Location( $location_id, 'location_id' );
 $location_soft_exists = $location_after_soft instanceof EM_Location && ! empty( $location_after_soft->location_id );
 $location_soft_post_exists = $location_post_id > 0 ? get_post( $location_post_id ) instanceof WP_Post : true;
 
-$forced_deleted = $soft_event_exists ? $soft_reload->delete( true ) : false;
+$restored_post = $soft_post_exists ? wp_untrash_post( $post_id ) : false;
+$restored_post_readback = get_post( $post_id );
+$restored_post_exists = $restored_post_readback instanceof WP_Post;
+$restored_post_status = $restored_post_exists ? (string) $restored_post_readback->post_status : '';
+$restored_reload = new EM_Event( $event_id, 'event_id' );
+$restored_event_exists = $restored_reload instanceof EM_Event && ! empty( $restored_reload->event_id ) && (int) $restored_reload->event_id === $event_id;
+$restored_row_exists = (bool) $GLOBALS['wpdb']->get_var( $GLOBALS['wpdb']->prepare( "SELECT event_id FROM {$event_table} WHERE event_id = %d", $event_id ) );
+$location_after_restore = new EM_Location( $location_id, 'location_id' );
+$location_restore_exists = $location_after_restore instanceof EM_Location && ! empty( $location_after_restore->location_id );
+$location_restore_post_exists = $location_post_id > 0 ? get_post( $location_post_id ) instanceof WP_Post : true;
+
+$retrashed = $restored_event_exists ? $restored_reload->delete( false ) : false;
+$retrash_post = get_post( $post_id );
+$retrash_ok = true === $retrashed && $retrash_post instanceof WP_Post && 'trash' === $retrash_post->post_status;
+$retrash_reload = new EM_Event( $event_id, 'event_id' );
+$retrash_event_exists = $retrash_reload instanceof EM_Event && ! empty( $retrash_reload->event_id ) && (int) $retrash_reload->event_id === $event_id;
+
+$forced_deleted = $retrash_event_exists ? $retrash_reload->delete( true ) : false;
 $hard_row_exists = (bool) $GLOBALS['wpdb']->get_var( $GLOBALS['wpdb']->prepare( "SELECT event_id FROM {$event_table} WHERE event_id = %d", $event_id ) );
 $hard_post_exists = get_post( $post_id ) instanceof WP_Post;
 $hard_reload = new EM_Event( $event_id, 'event_id' );
@@ -105,6 +124,7 @@ $result = array(
 	),
 	'capabilities' => $capabilities,
 	'can_manage_delete' => $can_delete,
+	'initial_post_status' => $initial_post_status,
 	'soft_delete' => array(
 		'return'               => $soft_deleted,
 		'event_row_exists'     => $soft_row_exists,
@@ -113,6 +133,20 @@ $result = array(
 		'event_post_status'    => $soft_post_status,
 		'location_exists'      => $location_soft_exists,
 		'location_post_exists' => $location_soft_post_exists,
+	),
+	'restore' => array(
+		'return_post'          => $restored_post instanceof WP_Post,
+		'event_row_exists'     => $restored_row_exists,
+		'event_object_exists'  => $restored_event_exists,
+		'event_post_exists'    => $restored_post_exists,
+		'event_post_status'    => $restored_post_status,
+		'location_exists'      => $location_restore_exists,
+		'location_post_exists' => $location_restore_post_exists,
+	),
+	'retrash' => array(
+		'return'              => $retrashed,
+		'event_object_exists' => $retrash_event_exists,
+		'event_post_trashed'  => $retrash_ok,
 	),
 	'forced_delete' => array(
 		'return'               => $forced_deleted,
@@ -138,6 +172,18 @@ if ( ! $location_soft_exists || ! $location_soft_post_exists ) {
 	fwrite( STDERR, "events-manager-delete-model-cli: soft event deletion changed the referenced location.\n" );
 	exit( 1 );
 }
+if ( ! $restored_post instanceof WP_Post || ! $restored_row_exists || ! $restored_event_exists || ! $restored_post_exists || 'trash' === $restored_post_status || $initial_post_status !== $restored_post_status ) {
+	fwrite( STDERR, "events-manager-delete-model-cli: core untrash did not restore the Events Manager event and backing post to the original status.\n" );
+	exit( 1 );
+}
+if ( ! $location_restore_exists || ! $location_restore_post_exists ) {
+	fwrite( STDERR, "events-manager-delete-model-cli: event restoration changed the referenced location.\n" );
+	exit( 1 );
+}
+if ( ! $retrash_ok || ! $retrash_event_exists ) {
+	fwrite( STDERR, "events-manager-delete-model-cli: restored event could not re-enter the native trash lifecycle.\n" );
+	exit( 1 );
+}
 if ( true !== $forced_deleted || $hard_row_exists || $hard_event_exists || $hard_post_exists ) {
 	fwrite( STDERR, "events-manager-delete-model-cli: forced EM_Event delete did not remove event row, object identity, and backing post.\n" );
 	exit( 1 );
@@ -148,4 +194,4 @@ if ( ! $location_hard_exists || ! $location_hard_post_exists ) {
 }
 
 $location_after_hard->delete( true );
-echo "events-manager-delete-model-cli: PASS delete=false=>trash delete=true=>permanent location=preserved\n";
+echo "events-manager-delete-model-cli: PASS delete=false=>trash wp_untrash_post=>restore delete=false=>trash delete=true=>permanent location=preserved\n";
