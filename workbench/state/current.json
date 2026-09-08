@@ -177,6 +177,32 @@
       }
     },
     {
+      "id": "venue-location-data-quality",
+      "branch": "main",
+      "head_sha": "d3167ab8d084523c63d22004955d781962e41623",
+      "state": "live_defect_inventory_verified_partial_authoritative_research_coordinates_and_write_pending",
+      "validation": {
+        "inventory_date": "2026-09-08",
+        "definite_invalid_coordinate_location_ids": [333, 307, 277],
+        "invalid_coordinate_value": "47.4,1.6",
+        "region_field_contamination_location_id": 84,
+        "missing_postcode_location_ids": [437, 444],
+        "intentional_nonphysical_control_location_id": 331,
+        "loc_research_state": "LOC_NOT_APPLICABLE_for_current_2026_operational_venue_address_postcode_coordinate_fields_after_direct_LOC_scope_examination",
+        "first_party_address_evidence": {
+          "333": "1885_Grill_official_9469_Bradmore_Lane_Suite_101_Ooltewah_TN_37363",
+          "307": "Artistic_Civic_Theatre_official_907_Gaston_St_Dalton_GA_30720",
+          "277": "Bessie_Smith_Cultural_Center_official_200_East_ML_King_Boulevard_Chattanooga",
+          "437": "Baby_Hughys_official_8047_US_27_Rock_Spring_GA_30739",
+          "444": "Farm_to_Fork_official_120_General_Lee_Street_Ringgold_GA_30736"
+        },
+        "ross_landing_address_conflict": "City_of_Chattanooga_101_Riverfront_Pkwy_vs_NPS_201_Riverfront_Pkwy_37402_live_uses_201_no_change_justified",
+        "coordinate_replacements": "unresolved_no_authoritative_values_established",
+        "live_mutations": "none",
+        "authorization_boundary": "no_live_update_location_authorized_each_record_requires_exact_target_specific_authorization_after_replacement_values_verified"
+      }
+    },
+    {
       "id": "weekend-feature",
       "branch": "main",
       "head_sha": "d3167ab8d084523c63d22004955d781962e41623",
