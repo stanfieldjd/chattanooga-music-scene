@@ -185,3 +185,14 @@ Append-only record of material workbench state changes. Do not rewrite prior ent
 - All five target relationships still contain `Live Music` term `60`; the 5/5 classification defect is now verified through the candidate's own exact-state contract.
 - No `set-event-taxonomy` call or other live content/taxonomy mutation was made. `main` and `feature/chattanooga-cms-admin` remain untouched.
 - Recalculated next position: production MCP exposure/read-runtime acceptance is closed. The five-event relationship repair remains a separate target-specific live mutation; refresh exact candidate state immediately before any explicitly authorized write.
+
+## 2026-09-08 — Fresh live maintenance inventory
+
+- Advanced the next unblocked queue item through read-only Chattanooga CMS Admin inspection; the Festival relationship repair remains separately blocked on live-write authorization.
+- `chattanooga-cms-admin__list-updates` reports WordPress `7.1` as current/latest with no core update offered.
+- Nine active plugins currently have offered updates: Big File Uploads `2.1.9→2.2.0`, Hide Page And Post Title `1.5.8→1.6.2`, Plugin Check `2.0.0→2.1.0`, PublishPress Capabilities `2.50.0→2.50.1`, Site Kit by Google `1.185.0→1.187.0`, WooCommerce `11.0.1→11.1.0`, WooCommerce Shipping `2.3.13→2.3.16`, WooCommerce Tax `3.6.12→3.6.15`, and WPCode Lite `2.3.8→2.3.9`.
+- Four inactive themes currently have offered updates: BuddyX `5.1.5→5.1.7`, Twenty Twenty-Four `1.5→1.6`, Twenty Twenty-Three `1.6→1.7`, and Twenty Twenty-Two `2.1→2.2`.
+- The active theme remains `BuddyX Child - River Rhythms v5`; BuddyX is the inactive parent and therefore remains operationally relevant to any later parent-theme update.
+- Created `workbench/tasks/wordpress-maintenance.md` and recorded the exact live inventory and current authorization boundary.
+- No live update, auto-update policy change, activation/deactivation, install/delete action, source modification, or content mutation was performed.
+- Recalculated next position: live maintenance execution requires separate target-specific A3 authorization and must proceed one component at a time from fresh inventory/health evidence with rollback and post-update verification.
