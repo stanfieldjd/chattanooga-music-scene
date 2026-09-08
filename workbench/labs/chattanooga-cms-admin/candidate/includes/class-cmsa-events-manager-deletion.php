@@ -154,14 +154,22 @@ final class CMSA_Events_Manager_Deletion {
 	}
 
 	private function booking_count( EM_Event $event ) {
-		if ( ! class_exists( 'EM_Bookings' ) ) {
+		if ( ! class_exists( 'EM_Bookings' ) || ! method_exists( 'EM_Bookings', 'count' ) ) {
 			return new WP_Error( 'cmsa_event_delete_booking_guard', 'Events Manager booking model is unavailable; permanent deletion was not attempted.' );
 		}
-		$bookings = new EM_Bookings( $event );
-		if ( ! isset( $bookings->bookings ) || ! is_array( $bookings->bookings ) ) {
+		$count = EM_Bookings::count(
+			array(
+				'event'  => (int) $event->event_id,
+				'scope'  => false,
+				'status' => false,
+				'owner'  => false,
+				'limit'  => 0,
+			)
+		);
+		if ( ! is_numeric( $count ) || (int) $count < 0 ) {
 			return new WP_Error( 'cmsa_event_delete_booking_guard', 'Event booking state could not be verified; permanent deletion was not attempted.' );
 		}
-		return count( $bookings->bookings );
+		return (int) $count;
 	}
 
 	private function location_guard( EM_Event $event ) {
