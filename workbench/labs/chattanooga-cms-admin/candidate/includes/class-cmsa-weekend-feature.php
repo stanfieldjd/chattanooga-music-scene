@@ -5,7 +5,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class CMSA_Weekend_Feature {
-	const SUPPORTED_CORE_VERSION = '0.2.1';
+	const SUPPORTED_CORE_VERSION = '0.2.2';
 
 	public function get_status() {
 		if ( ! current_user_can( 'publish_posts' ) ) {
@@ -85,7 +85,7 @@ final class CMSA_Weekend_Feature {
 
 		$had_option = array_key_exists( CMS_Weekend_Posts::OPTION_SETTINGS, wp_load_alloptions() ) || false !== get_option( CMS_Weekend_Posts::OPTION_SETTINGS, false );
 		$raw_before = get_option( CMS_Weekend_Posts::OPTION_SETTINGS, array() );
-		$schedule_before = $this->schedule_snapshot();
+		$schedule_before = $this->raw_schedule_snapshot();
 
 		$updated = update_option( CMS_Weekend_Posts::OPTION_SETTINGS, $requested, false );
 		if ( ! $updated ) {
@@ -255,13 +255,24 @@ final class CMSA_Weekend_Feature {
 		return true;
 	}
 
-	private function schedule_snapshot() {
+	private function raw_schedule_snapshot() {
 		$event = function_exists( 'wp_get_scheduled_event' ) ? wp_get_scheduled_event( CMS_Weekend_Posts::CRON_HOOK ) : false;
 		return array(
-			'scheduled'  => (bool) $event,
-			'timestamp'  => $event ? (int) $event->timestamp : 0,
-			'schedule'   => $event ? (string) $event->schedule : '',
-			'next_local' => $event ? wp_date( DATE_ATOM, (int) $event->timestamp, wp_timezone() ) : '',
+			'scheduled' => (bool) $event,
+			'timestamp' => $event ? (int) $event->timestamp : 0,
+			'schedule'  => $event ? (string) $event->schedule : '',
+			'args'      => $event && isset( $event->args ) ? (array) $event->args : array(),
+		);
+	}
+
+	private function schedule_snapshot() {
+		$raw = $this->raw_schedule_snapshot();
+		return array(
+			'scheduled' => $raw['scheduled'],
+			'timestamp' => $raw['timestamp'],
+			'schedule'  => $raw['schedule'],
+			'next_local' => $raw['scheduled'] ? wp_date( DATE_ATOM, $raw['timestamp'], wp_timezone() ) : '',
+			'args_hash' => $this->state_token( $raw['args'] ),
 		);
 	}
 
@@ -281,19 +292,33 @@ final class CMSA_Weekend_Feature {
 			update_option( CMS_Weekend_Posts::OPTION_SETTINGS, is_array( $raw_before ) ? $raw_before : array(), false );
 		} else {
 			delete_option( CMS_Weekend_Posts::OPTION_SETTINGS );
-			CMS_Weekend_Posts::instance()->settings_updated();
 		}
+
+		wp_clear_scheduled_hook( CMS_Weekend_Posts::CRON_HOOK );
+		$schedule_restored = true;
+		if ( ! empty( $schedule_before['scheduled'] ) ) {
+			$scheduled = wp_schedule_event(
+				(int) $schedule_before['timestamp'],
+				(string) $schedule_before['schedule'],
+				CMS_Weekend_Posts::CRON_HOOK,
+				isset( $schedule_before['args'] ) ? (array) $schedule_before['args'] : array(),
+				true
+			);
+			$schedule_restored = ! is_wp_error( $scheduled ) && false !== $scheduled;
+		}
+
 		$raw_after = get_option( CMS_Weekend_Posts::OPTION_SETTINGS, array() );
-		$current_schedule = $this->schedule_snapshot();
+		$current_schedule = $this->raw_schedule_snapshot();
 		$option_ok = $had_option ? $raw_after === $raw_before : array() === $raw_after;
-		$schedule_ok = $this->schedule_semantically_equal( $schedule_before, $current_schedule );
-		return $option_ok && $schedule_ok;
+		$schedule_ok = $this->schedule_exactly_equal( $schedule_before, $current_schedule );
+		return $option_ok && $schedule_restored && $schedule_ok;
 	}
 
-	private function schedule_semantically_equal( array $a, array $b ) {
+	private function schedule_exactly_equal( array $a, array $b ) {
 		return (bool) $a['scheduled'] === (bool) $b['scheduled']
 			&& (string) $a['schedule'] === (string) $b['schedule']
-			&& (int) $a['timestamp'] === (int) $b['timestamp'];
+			&& (int) $a['timestamp'] === (int) $b['timestamp']
+			&& ( isset( $a['args'] ) ? (array) $a['args'] : array() ) === ( isset( $b['args'] ) ? (array) $b['args'] : array() );
 	}
 
 	private function weekend_window() {
