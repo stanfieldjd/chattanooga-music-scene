@@ -47,6 +47,15 @@ Last verified: 2026-09-08
 - Next gate: a live five-event relationship repair is a separate target-specific mutation and remains unauthorized. If authorized, refresh each candidate taxonomy snapshot immediately before its write, remove only term `60` while preserving every other current category, and verify readback through the guarded candidate ability.
 - Production state: plugin active; 82 candidate MCP abilities exposed; health/read runtime acceptance passed; five exact taxonomy defects execution-verified; no live taxonomy/content writes were made by this workbench increment.
 
+### WordPress / plugin / theme maintenance
+
+- Fresh live `chattanooga-cms-admin__list-updates` execution reports WordPress `7.1` as current/latest; no core update is offered.
+- 9 active plugins currently have offered updates: Big File Uploads `2.1.9→2.2.0`, Hide Page And Post Title `1.5.8→1.6.2`, Plugin Check `2.0.0→2.1.0`, PublishPress Capabilities `2.50.0→2.50.1`, Site Kit by Google `1.185.0→1.187.0`, WooCommerce `11.0.1→11.1.0`, WooCommerce Shipping `2.3.13→2.3.16`, WooCommerce Tax `3.6.12→3.6.15`, and WPCode Lite `2.3.8→2.3.9`.
+- 4 inactive themes currently have offered updates: BuddyX `5.1.5→5.1.7`, Twenty Twenty-Four `1.5→1.6`, Twenty Twenty-Three `1.6→1.7`, and Twenty Twenty-Two `2.1→2.2`.
+- The active theme remains `BuddyX Child - River Rhythms v5`; BuddyX is its inactive parent and therefore still carries active-site compatibility risk if later updated.
+- No update, auto-update policy, activation state, install/delete action, live source, or content change was performed by this inventory pass.
+- Maintenance execution is not authorized by the current continuation. Any later live update must target one exact component, begin with fresh inventory/health evidence, use the candidate rollback contract, and validate the post-update live state before moving to another component.
+
 ### Chattanooga Music Scene Weekend Feature
 
 - Source path: `site-plugins/chattanooga-music-scene-core`.
