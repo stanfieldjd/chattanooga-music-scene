@@ -162,3 +162,14 @@ Append-only record of material workbench state changes. Do not rewrite prior ent
 - `edit_events` is present, along with `manage_options`, `activate_plugins`, `install_plugins`, and `update_plugins`.
 - Therefore the candidate taxonomy family's WordPress capability requirement is satisfied for the current connection; role capability denial is not the cause of the missing `chattanooga-cms-admin/*` namespace.
 - The unresolved production blocker remains the MCP exposure/governance boundary. No live mutation was performed.
+
+## 2026-09-08 — miniOrange role/NHI governance boundary confirmed
+
+- Re-ran MCP discovery and again received zero abilities for category `chattanooga-cms-admin`; the live exposure blocker remains current.
+- Searched the exposed WordPress MCP surface for ability, MCP, server, and access-management controls; no miniOrange self-management ability is exposed for changing NHI/role ability grants.
+- ChatGPT plugin management reports `MCP Server For WordPress` with app-specific permission mode `Allow all actions`, excluding ChatGPT-side plugin permission mode as the cause.
+- miniOrange's official release notes state that v1.2.0 added per-ability MCP exposure toggles, v1.2.2 changed the NHI Registry to role-based ability grants, and v1.4.2 added a resource-by-role ability matrix.
+- The same release notes state that v1.4.0 bundled abilities are reachable through the governed MCP endpoint while never being exposed through the public REST API. Candidate `show_in_rest=false` is therefore not evidence of incompatibility and remains part of the verified REST-isolation boundary.
+- miniOrange's current MCP documentation describes tool discovery as exposing approved WordPress abilities after identity and role-based permission evaluation.
+- Direct-repair conclusion: grant the `chattanooga-cms-admin` resource/abilities to the Administrator role for the enabled NHI used by this connection. Do not alter candidate registration code or use generic taxonomy mutation as a substitute.
+- No miniOrange policy, plugin source, MCP transport, live content, or taxonomy relationship was modified.
