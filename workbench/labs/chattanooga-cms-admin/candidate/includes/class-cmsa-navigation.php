@@ -76,6 +76,92 @@ final class CMSA_Navigation {
 		return array( 'created' => true, 'menu' => $normalized );
 	}
 
+	public function update_menu( array $input ) {
+		if ( ! current_user_can( 'edit_theme_options' ) ) {
+			return new WP_Error( 'cmsa_navigation_manage_permission', 'Current user cannot modify WordPress navigation menus.' );
+		}
+		$menu_id = isset( $input['menu_id'] ) ? (int) $input['menu_id'] : 0;
+		$menu = $this->menu_object( $menu_id );
+		if ( is_wp_error( $menu ) ) {
+			return $menu;
+		}
+		$before = $this->normalize_menu( $menu );
+		$expected = isset( $input['expected_menu_state'] ) ? (string) $input['expected_menu_state'] : '';
+		if ( '' === $expected || ! hash_equals( $before['state_token'], $expected ) ) {
+			return new WP_Error( 'cmsa_navigation_conflict', 'Navigation menu changed after it was read; menu update was not attempted.', array( 'current_menu_state' => $before['state_token'] ) );
+		}
+		$name = isset( $input['name'] ) ? trim( wp_strip_all_tags( (string) $input['name'] ) ) : '';
+		if ( '' === $name ) {
+			return new WP_Error( 'cmsa_navigation_name', 'Navigation menu name is required.' );
+		}
+		if ( $name === $before['name'] ) {
+			return new WP_Error( 'cmsa_navigation_menu_no_change', 'No navigation menu change was requested.' );
+		}
+
+		$result = wp_update_nav_menu_object( $menu_id, array( 'menu-name' => $name ) );
+		if ( is_wp_error( $result ) ) {
+			return new WP_Error( 'cmsa_navigation_menu_update', 'WordPress could not update the navigation menu.' );
+		}
+		do_action( 'cmsa_navigation_menu_written', $menu_id, 'update' );
+
+		$after = $this->menu_object( $menu_id );
+		if ( is_wp_error( $after ) || $name !== (string) $after->name ) {
+			return new WP_Error(
+				'cmsa_navigation_menu_update_verify',
+				'Navigation menu update verification failed.',
+				array( 'rolled_back' => $this->restore_menu_name( $menu_id, $before ) )
+			);
+		}
+		$normalized = $this->normalize_menu( $after );
+		CMSA_Audit::record( 'update-navigation-menu', (string) $menu_id, 'success', array( 'state_token' => $normalized['state_token'] ) );
+		return array( 'updated' => true, 'menu' => $normalized );
+	}
+
+	public function delete_menu( array $input ) {
+		if ( ! current_user_can( 'edit_theme_options' ) ) {
+			return new WP_Error( 'cmsa_navigation_manage_permission', 'Current user cannot delete WordPress navigation menus.' );
+		}
+		$menu_id = isset( $input['menu_id'] ) ? (int) $input['menu_id'] : 0;
+		$menu = $this->menu_object( $menu_id );
+		if ( is_wp_error( $menu ) ) {
+			return $menu;
+		}
+		$before = $this->normalize_menu( $menu );
+		$expected = isset( $input['expected_menu_state'] ) ? (string) $input['expected_menu_state'] : '';
+		if ( '' === $expected || ! hash_equals( $before['state_token'], $expected ) ) {
+			return new WP_Error( 'cmsa_navigation_conflict', 'Navigation menu changed after it was read; menu deletion was not attempted.', array( 'current_menu_state' => $before['state_token'] ) );
+		}
+		if ( empty( $input['confirm_delete'] ) || true !== (bool) $input['confirm_delete'] ) {
+			return new WP_Error( 'cmsa_navigation_menu_delete_confirmation', 'Navigation menu deletion requires explicit confirmation.' );
+		}
+		$assigned_locations = $this->menu_assigned_locations( $menu_id );
+		if ( $assigned_locations ) {
+			return new WP_Error(
+				'cmsa_navigation_menu_assigned',
+				'Navigation menu must be explicitly unassigned from every registered location before deletion.',
+				array( 'assigned_locations' => $assigned_locations )
+			);
+		}
+
+		$locations_before = $this->normalized_locations();
+		$deleted = wp_delete_nav_menu( $menu_id );
+		if ( is_wp_error( $deleted ) || false === $deleted ) {
+			return new WP_Error( 'cmsa_navigation_menu_delete', 'WordPress could not delete the navigation menu.' );
+		}
+		$after = wp_get_nav_menu_object( $menu_id );
+		$locations_after = $this->normalized_locations();
+		if ( $after instanceof WP_Term || ! hash_equals( $locations_before['state_token'], $locations_after['state_token'] ) ) {
+			return new WP_Error(
+				'cmsa_navigation_menu_delete_verify',
+				'Navigation menu deletion did not pass post-delete verification.',
+				array( 'deleted' => ! ( $after instanceof WP_Term ) )
+			);
+		}
+
+		CMSA_Audit::record( 'delete-navigation-menu', (string) $menu_id, 'success', array( 'previous_state' => $before['state_token'] ) );
+		return array( 'deleted' => true, 'menu' => $before );
+	}
+
 	public function upsert_item( array $input ) {
 		if ( ! current_user_can( 'edit_theme_options' ) ) {
 			return new WP_Error( 'cmsa_navigation_manage_permission', 'Current user cannot modify WordPress navigation menus.' );
@@ -356,6 +442,27 @@ final class CMSA_Navigation {
 		}
 		$restored = $this->menu_item( $menu_id, $item_id );
 		return ! is_wp_error( $restored ) && $this->item_matches_args( $restored, $args );
+	}
+
+	private function restore_menu_name( $menu_id, array $before ) {
+		$result = wp_update_nav_menu_object( (int) $menu_id, array( 'menu-name' => (string) $before['name'] ) );
+		if ( is_wp_error( $result ) ) {
+			return false;
+		}
+		$restored = $this->menu_object( $menu_id );
+		return ! is_wp_error( $restored ) && hash_equals( $before['state_token'], $this->normalize_menu( $restored )['state_token'] );
+	}
+
+	private function menu_assigned_locations( $menu_id ) {
+		$assigned = get_nav_menu_locations();
+		$locations = array();
+		foreach ( $assigned as $location => $assigned_menu_id ) {
+			if ( (int) $assigned_menu_id === (int) $menu_id ) {
+				$locations[] = (string) $location;
+			}
+		}
+		sort( $locations, SORT_STRING );
+		return $locations;
 	}
 
 	private function cleanup_created_item( $item_id ) {
