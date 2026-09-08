@@ -1,17 +1,36 @@
 # Task: Chattanooga CMS Admin Runtime Integration
 
-Status: REFERENCE_SINGLE_SITE_MAINTENANCE_CONTENT_PERMANENT_DELETE_TAXONOMY_NAVIGATION_LIFECYCLE_MEMBER_EVENT_LOCATION_EVENT_LIFECYCLE_EVENT_TAXONOMY_ADMIN_VERIFIED — LIVE FESTIVAL RELATIONSHIP ISSUE VERIFIED / NO TERM LIFECYCLE JUSTIFIED / PRODUCTION GATE PENDING
+Status: LIVE_PLUGIN_ACTIVE_MCP_EXPOSURE_BLOCKED — FESTIVAL RELATIONSHIPS FRESHLY REVERIFIED / NO LIVE RELATIONSHIP WRITE AUTHORIZED
+
+## Objective
+
+Operate Chattanooga CMS Admin as the bounded production administration layer for Chattanooga Music Scene, preserving source integrity, exact-state conflict controls, rollback, and live-result verification before high-risk maintenance or content mutations.
+
+## Target set
+
+- Production Chattanooga CMS Admin plugin installation and its WordPress Abilities/MCP exposure.
+- Read-only verification of the five published `Festival` event records already identified by the workstream.
+- Source-controlled workbench records on `workbench/mars`.
+
+## Exclusion set
+
+- No live event taxonomy relationship mutation until the candidate abilities are exposed and a separate live-write authorization exists.
+- No generic `mosmcp__cpt-remove-terms` substitution.
+- No WPCode/media-upload/direct live-source workaround.
+- No miniOrange transport/policy change without applicable authorization and a supported control path.
+- No term create/update/delete capability.
+- No changes to `main`, `feature/chattanooga-cms-admin`, unrelated plugins/themes/settings, members, navigation, bookings, tickets, payments, or event/location core state.
 
 ## Current verified candidate
 
 - Candidate source checkpoint: `62e46bb64514973a640f1abd13ff5f90248580f8`.
 - Product scope: single-site WordPress only. Multisite/network support is not an acceptance target.
-- Latest full single-site maintenance regression: `34244282299` passed on PHP 7.4, PHP 8.2, and disposable WordPress 7.1.
-- Latest runtime artifact: `10063358784`, SHA-256 `f3f13c5a2d603fcecaca8de458df18538a9216f42c2656e6eaa7e296a44695b7`.
-- Latest content/member/navigation run: `34244282476` passed.
-- Latest integrity run: `34244282480` passed.
-- Latest Events Manager regression run: `34244282382` passed against WordPress.org Events Manager 7.4.3.
-- Real registry: 82 abilities = 24 maintenance + 14 content CRUD/revision + 2 permanent content deletion + 2 status + 12 content taxonomy + 8 navigation + 4 member-read + 2 member-mutation + 4 event/location read + 4 event/location mutation + 3 event lifecycle + 3 event taxonomy.
+- Reference registry: 82 abilities = 24 maintenance + 14 content CRUD/revision + 2 permanent content deletion + 2 status + 12 content taxonomy + 8 navigation + 4 member-read + 2 member-mutation + 4 event/location read + 4 event/location mutation + 3 event lifecycle + 3 event taxonomy.
+- Latest post-checkpoint maintenance/workbench rerun: `34245410480` passed WordPress 7.1 runtime plus PHP 7.4 and PHP 8.2 labs.
+- Latest post-checkpoint content/member/navigation rerun: `34245410459` passed.
+- Latest post-checkpoint Events Manager rerun: `34245410524` passed against Events Manager 7.4.3.
+- Latest post-checkpoint integrity rerun: `34245410436` passed.
+- Previously recorded installable/runtime artifact remains source-checkpoint evidence; live installed-byte identity has not been independently reduced to an artifact digest and is therefore not claimed from version alone.
 
 ## Verified content administration
 
@@ -45,10 +64,10 @@ Status: REFERENCE_SINGLE_SITE_MAINTENANCE_CONTENT_PERMANENT_DELETE_TAXONOMY_NAVI
 
 - Reference Events Manager 7.4.3 can register `event-categories` and `event-tags` on the `event` post type. `event-categories` is hierarchical; `event-tags` is non-hierarchical.
 - Native taxonomy assignment authority is `edit_events`; term lifecycle uses separate native manage/edit/delete capabilities and was not added to the candidate.
-- Three typed abilities are verified:
-  1. `list-event-taxonomy-terms` — bounded inspection of existing category/tag vocabulary.
-  2. `get-event-taxonomy` — exact relationship read for one ordinary single event plus event conflict token.
-  3. `set-event-taxonomy` — exact relationship replacement for one allowlisted taxonomy.
+- Three typed abilities are verified in source/reference runtime:
+  1. `chattanooga-cms-admin/list-event-taxonomy-terms` — bounded inspection of existing category/tag vocabulary.
+  2. `chattanooga-cms-admin/get-event-taxonomy` — exact relationship read for one ordinary single event plus event conflict token.
+  3. `chattanooga-cms-admin/set-event-taxonomy` — exact relationship replacement for one allowlisted taxonomy.
 - `set-event-taxonomy` requires the exact current event state token and exact previous term-ID set. Stale event or relationship state fails closed.
 - Requested target terms must already exist. No implicit term creation occurs.
 - No-change relationship writes are rejected.
@@ -57,28 +76,65 @@ Status: REFERENCE_SINGLE_SITE_MAINTENANCE_CONTENT_PERMANENT_DELETE_TAXONOMY_NAVI
 - Event core state, referenced venue state, and an unrelated control event remain unchanged through taxonomy transactions.
 - Third-party Events Manager source remains immutable dependency code.
 
-## Gate 18 — fresh live taxonomy inventory — DECISION SUFFICIENT / PASS FOR TARGET WORKFLOW
+## Gate 18 — live taxonomy inventory — DECISION SUFFICIENT
 
-Fresh read-only Chattanooga evidence on 2026-09-08 established:
+Read-only Chattanooga evidence on 2026-09-08 established:
 
-- The live `event` post type has 110 published events, 1 draft, and 11 `event-categories` terms. `event-tags` is not exposed on the live `event` type.
-- `Festival`: term ID `247`, slug `festival`, parent `0`, current category count `5`.
-- `Music Festivals`: term ID `59`, slug `music-festivals`, parent `0`, current category count `3`.
-- `Live Music`: term ID `60`, slug `live-music`, parent `0`, current category count `68`; the published custom-post-type filter returned 63 published event records.
-- The five currently published Festival-category events are IDs `6810`, `7800`, `7803`, `7804`, and `7806`.
-- Every one of those five Festival-category records is also assigned `Live Music`.
-- Three of those five are also assigned `Music Festivals`.
-- Individual live reads confirmed these are actual festival-form records, including `3 Sisters Bluegrass Festival`, `Chattanooga Oktoberfest`, `IBMA World of Bluegrass`, `Chattanooga Bluegrass Festival`, and `Chattanooga Jazz Fest`.
-- The current connector reports that 11 event-category terms exist but does not expose a read-only list-all-category ability. A complete name catalogue of all 11 terms is therefore unavailable through this surface. This limitation does not prevent the current decision because the required `Festival`, `Music Festivals`, and `Live Music` terms were independently verified by ID and taxonomy-filtered event reads.
+- The live `event` type exposes `event-categories` and does not expose `event-tags` through the generic CPT surface.
+- `Festival`: term ID `247`.
+- `Music Festivals`: term ID `59`.
+- `Live Music`: term ID `60`.
+- The five published Festival-category events are IDs `6810`, `7800`, `7803`, `7804`, and `7806`.
+- Existing vocabulary is sufficient for the established primary-form classification rule; no Events Manager term create/update/delete capability is justified.
 
-Decision: the live site already has sufficient vocabulary for the primary-form festival distinction. The defect is current relationship assignment: all five published Festival records also carry `Live Music`. No Events Manager term create/update/delete capability is justified by present evidence.
+## Gate 19 — live installation and MCP discovery — ACTIVE PLUGIN / EXPOSURE BLOCKED
+
+Fresh production verification after the user's installation established:
+
+- WordPress reports `Chattanooga CMS Admin` version `0.1.0` as an active plugin.
+- Production runtime is WordPress `7.1`, PHP `8.2.30`, single-site production.
+- The current MCP connection resolves to WordPress user ID `2`, roles `administrator` and `bbp_keymaster`.
+- `discover_abilities` returns zero abilities for category `chattanooga-cms-admin` and zero matches for the candidate event-taxonomy namespace/relationship searches.
+- Candidate source registers the category on `wp_abilities_api_categories_init` and all ability families on `wp_abilities_api_init`.
+- Candidate ability metadata sets `public=true`, `mcp.public=true`, and capability-specific `permission_callback` checks. The taxonomy family requires `edit_events`.
+- Reference WordPress registration remains green at 82 abilities.
+
+Verified conclusion: installation/activation is confirmed, but live MCP integration acceptance is not met because the candidate namespace is not exposed to this connector. The currently available connector does not expose miniOrange ability-policy/NHI configuration controls, so the exact live policy row/toggle cannot be directly inspected from this surface. The evidence localizes the unresolved boundary to live MCP exposure/governance; it does not prove a candidate registration-code defect.
+
+No workaround mutation was performed.
+
+## Fresh live Festival relationship checkpoint after installation
+
+All five target records were re-read from production after the plugin became active. Current exact generic-CPT relationship observations are:
+
+- `6810` — `3 Sisters Bluegrass Festival` — published — modified `2026-08-03 16:14:42` — terms `[247 Festival, 60 Live Music, 59 Music Festivals]`.
+- `7800` — `Chattanooga Oktoberfest` — published — modified `2026-08-18 11:45:31` — terms `[252 Family Friendly, 247 Festival, 256 Food, 60 Live Music]`.
+- `7803` — `IBMA World of Bluegrass` — published — modified `2026-08-18 13:03:44` — terms `[247 Festival, 60 Live Music, 59 Music Festivals]`.
+- `7804` — live title `Chattanooga Bluegrass` — published — modified `2026-09-07 05:28:26` — terms `[252 Family Friendly, 247 Festival, 60 Live Music]`.
+- `7806` — `Chattanooga Jazz Fest` — published — modified `2026-08-18 11:50:28` — terms `[252 Family Friendly, 247 Festival, 60 Live Music, 59 Music Festivals]`.
+
+The overlap remains 5/5. These generic reads are evidence of the current relationship sets but are not substitutes for the candidate's required `expected_event_state_token`; those tokens must be obtained from fresh `get-event-taxonomy` calls after MCP exposure is fixed.
+
+## Pre-execution control record for the next production mutation
+
+- `OBJECTIVE`: expose the already-installed Chattanooga CMS Admin abilities through the active MCP server and verify candidate read/health behavior before any live taxonomy write.
+- `TARGET_SET`: Chattanooga CMS Admin MCP exposure for the current authorized administrative connection only.
+- `EXCLUSION_SET`: live event relationships, unrelated MCP abilities, transport replacement, plugin/theme source, unrelated site configuration.
+- `EVIDENCE`: plugin active; administrator connection; candidate source/reference registry valid; zero candidate abilities exposed live.
+- `MUTATION_SET`: no mutation is executable from the current connector because no supported miniOrange governance control is exposed.
+- `RISK_SET`: enabling the wrong namespace/role/NHI could broaden access beyond the intended administration layer; bypassing with generic mutation would discard exact-state/rollback protections.
+- `ROLLBACK_POINT`: no MCP governance mutation has been performed in this task position.
+- `ACCEPTANCE_TESTS`: candidate namespace discoverable; expected candidate abilities visible; `get-health` and bounded read abilities execute successfully; event taxonomy reads return exact state tokens; unrelated existing abilities remain available.
 
 ## Current production boundary
 
-No live content or taxonomy relationship was modified during Gate 18. The candidate is still not installed on Chattanooga Music Scene, and candidate MCP discovery has not been run. Installing the candidate, changing MCP transport, or repairing the five live festival relationships are separate production mutations and require the applicable authorization/verification gate plus a fresh pre-mutation read.
-
-`main`, `feature/chattanooga-cms-admin`, DreamHost production files, existing Chattanooga content/member/event/navigation records, and current MCP transport remain outside automatic workbench mutation.
+- Chattanooga CMS Admin is active on production.
+- Candidate MCP discovery is blocked by missing live exposure of the candidate namespace.
+- No live content or taxonomy relationship was modified during Gate 19.
+- No MCP transport/policy setting was changed.
+- `main`, `feature/chattanooga-cms-admin`, DreamHost production source files, unrelated content/member/event/navigation records, and third-party plugin source remain untouched by the workbench.
+- The five Festival relationship writes remain a separate live mutation requiring both candidate MCP exposure and explicit target-specific live-write authorization.
 
 ## Recalculated next position
 
-Do not add taxonomy term lifecycle or other speculative source capability. The next material step for this workstream is the production candidate-install/live-discovery gate; the next event-taxonomy operation is an authorized, freshly re-read relationship repair using exact expected-before state. Until that production authorization exists, the engineering source is at a verified bounded checkpoint rather than an incomplete taxonomy implementation.
+Do not add speculative source capability and do not use the generic taxonomy-removal ability as a substitute. Resolve the MCP exposure/governance gate for `chattanooga-cms-admin/*`, then rerun discovery and candidate health/read validation. After that, if the five Festival relationship repair is explicitly authorized, obtain fresh candidate `get-event-taxonomy` tokens and perform only the exact guarded relationship replacements with post-write verification and rollback semantics.
