@@ -79,10 +79,10 @@ if ( is_wp_error( $event_detail ) || (int) $event_detail['event']['id'] !== (int
 }
 $event_keys = array_keys( $event_detail['event'] );
 sort( $event_keys, SORT_STRING );
-$expected_event_keys = array( 'end_date', 'end_time', 'id', 'location_id', 'name', 'post_id', 'start_date', 'start_time', 'status' );
+$expected_event_keys = array( 'active_status', 'all_day', 'content', 'end_date', 'end_time', 'id', 'location_id', 'name', 'post_id', 'post_status', 'start_date', 'start_time', 'state_token', 'status', 'timezone' );
 sort( $expected_event_keys, SORT_STRING );
-if ( $event_keys !== $expected_event_keys ) {
-	fwrite( STDERR, "events-manager-read-cli: event field allowlist changed unexpectedly.\n" );
+if ( $event_keys !== $expected_event_keys || ! preg_match( '/^[a-f0-9]{64}$/', $event_detail['event']['state_token'] ) ) {
+	fwrite( STDERR, "events-manager-read-cli: event field allowlist/state token changed unexpectedly.\n" );
 	exit( 1 );
 }
 
@@ -98,10 +98,10 @@ if ( is_wp_error( $location_detail ) || (int) $location_detail['location']['id']
 }
 $location_keys = array_keys( $location_detail['location'] );
 sort( $location_keys, SORT_STRING );
-$expected_location_keys = array( 'address', 'country', 'id', 'name', 'post_id', 'postcode', 'region', 'state', 'town' );
+$expected_location_keys = array( 'address', 'content', 'country', 'id', 'latitude', 'longitude', 'name', 'post_id', 'postcode', 'post_status', 'region', 'state', 'state_token', 'town' );
 sort( $expected_location_keys, SORT_STRING );
-if ( $location_keys !== $expected_location_keys ) {
-	fwrite( STDERR, "events-manager-read-cli: location field allowlist changed unexpectedly.\n" );
+if ( $location_keys !== $expected_location_keys || ! preg_match( '/^[a-f0-9]{64}$/', $location_detail['location']['state_token'] ) ) {
+	fwrite( STDERR, "events-manager-read-cli: location field allowlist/state token changed unexpectedly.\n" );
 	exit( 1 );
 }
 
@@ -115,4 +115,4 @@ if ( ! is_wp_error( $missing_event ) || 'cmsa_event_not_found' !== $missing_even
 $event->delete( true );
 $location->delete( true );
 
-echo "events-manager-read-cli: PASS event=list-search-get-allowlist location=list-search-get-allowlist missing=fail-closed canonical-single-event=verified\n";
+echo "events-manager-read-cli: PASS event=list-search-get-allowlist-state location=list-search-get-allowlist-state missing=fail-closed canonical-single-event=verified\n";
