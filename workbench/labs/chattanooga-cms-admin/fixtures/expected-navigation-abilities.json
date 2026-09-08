@@ -1,0 +1,8 @@
+[
+  "chattanooga-cms-admin/list-navigation-menus",
+  "chattanooga-cms-admin/get-navigation-menu",
+  "chattanooga-cms-admin/create-navigation-menu",
+  "chattanooga-cms-admin/upsert-navigation-menu-item",
+  "chattanooga-cms-admin/delete-navigation-menu-item",
+  "chattanooga-cms-admin/set-navigation-menu-location"
+]
