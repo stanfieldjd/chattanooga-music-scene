@@ -28,6 +28,7 @@ require_once CMSA_DIR . 'includes/class-cmsa-content-deletion.php';
 require_once CMSA_DIR . 'includes/class-cmsa-content-status.php';
 require_once CMSA_DIR . 'includes/class-cmsa-content-taxonomy.php';
 require_once CMSA_DIR . 'includes/class-cmsa-media.php';
+require_once CMSA_DIR . 'includes/class-cmsa-media-lifecycle.php';
 require_once CMSA_DIR . 'includes/class-cmsa-navigation.php';
 require_once CMSA_DIR . 'includes/class-cmsa-members.php';
 require_once CMSA_DIR . 'includes/class-cmsa-member-mutations.php';

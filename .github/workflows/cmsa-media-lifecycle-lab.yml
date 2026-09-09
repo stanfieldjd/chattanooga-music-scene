@@ -1,0 +1,80 @@
+name: CMS Admin Media Lifecycle Lab
+
+on:
+  push:
+    branches:
+      - work/cmsa-media-lifecycle
+    paths:
+      - "workbench/labs/chattanooga-cms-admin/**"
+      - "workbench/tasks/cmsa-media-lifecycle-2026-09-09.md"
+      - ".github/workflows/cmsa-media-lifecycle-lab.yml"
+  pull_request:
+    paths:
+      - "workbench/labs/chattanooga-cms-admin/**"
+      - "workbench/tasks/cmsa-media-lifecycle-2026-09-09.md"
+      - ".github/workflows/cmsa-media-lifecycle-lab.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  media-lifecycle-contract:
+    name: WordPress 7.1 media lifecycle contract
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mysqli, zip, gd, fileinfo
+      - name: Lint candidate and media lifecycle probes
+        shell: bash
+        run: |
+          set -euo pipefail
+          find workbench/labs/chattanooga-cms-admin/candidate -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
+          php -l workbench/labs/chattanooga-cms-admin/probes/media-lifecycle-contract-cli.php >/dev/null
+          php -l workbench/labs/chattanooga-cms-admin/probes/media-replacement-contract-cli.php >/dev/null
+          php -l workbench/labs/chattanooga-cms-admin/probes/media-state-token-contract-cli.php >/dev/null
+          php -l workbench/labs/chattanooga-cms-admin/probes/media-replacement-ability-cli.php >/dev/null
+      - name: Install disposable WordPress 7.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+          php /tmp/wp-cli.phar core download --version=7.1 --path=/tmp/wordpress --force
+          php /tmp/wp-cli.phar config create --path=/tmp/wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
+          php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://cmsa-media-lifecycle.test --title="CMSA Media Lifecycle Workbench" --admin_user=admin --admin_password="cmsa-media-lifecycle-only" --admin_email=lab@example.invalid --skip-email
+      - name: Activate candidate CMS Admin plugin
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp -R workbench/labs/chattanooga-cms-admin/candidate /tmp/wordpress/wp-content/plugins/chattanooga-cms-admin
+          php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin is-active chattanooga-cms-admin --path=/tmp/wordpress
+      - name: Verify complete 98-ability candidate registry
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/ability-registration-cli.php" --path=/tmp/wordpress
+      - name: Verify media permission boundary
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/media-permission-cli.php" --path=/tmp/wordpress
+      - name: Verify existing media transactions
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/media-transaction-cli.php" --path=/tmp/wordpress
+      - name: Discover native media lifecycle contract
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/media-lifecycle-contract-cli.php" --path=/tmp/wordpress
+      - name: Discover same-path media replacement contract
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/media-replacement-contract-cli.php" --path=/tmp/wordpress
+      - name: Verify exact media lifecycle state token boundary
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/media-state-token-contract-cli.php" --path=/tmp/wordpress
+      - name: Verify guarded media replacement ability
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/media-replacement-ability-cli.php" --path=/tmp/wordpress
