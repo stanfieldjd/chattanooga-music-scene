@@ -1,0 +1,6 @@
+[
+  "chattanooga-cms-admin/list-products",
+  "chattanooga-cms-admin/get-product",
+  "chattanooga-cms-admin/create-simple-product-draft",
+  "chattanooga-cms-admin/update-simple-product"
+]

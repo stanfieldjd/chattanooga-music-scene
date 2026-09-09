@@ -39,6 +39,11 @@ jobs:
         with:
           php-version: "8.2"
           extensions: mysqli, zip
+      - name: Lint WooCommerce product candidate and probes
+        shell: bash
+        run: |
+          set -euo pipefail
+          find workbench/labs/chattanooga-cms-admin/candidate workbench/labs/chattanooga-cms-admin/probes -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
       - name: Install disposable WordPress 7.1
         shell: bash
         run: |
@@ -58,3 +63,30 @@ jobs:
         run: |
           set -euo pipefail
           php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/woocommerce-product-model-cli.php" --path=/tmp/wordpress
+      - name: Activate candidate CMS Admin plugin
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp -R workbench/labs/chattanooga-cms-admin/candidate /tmp/wordpress/wp-content/plugins/chattanooga-cms-admin
+          php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin is-active chattanooga-cms-admin --path=/tmp/wordpress
+      - name: Verify complete candidate registry
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/ability-registration-cli.php" --path=/tmp/wordpress
+      - name: Verify WooCommerce product permissions and object scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/woocommerce-product-permission-cli.php" --path=/tmp/wordpress
+      - name: Verify candidate REST isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/permission-rest-cli.php" --path=/tmp/wordpress
+      - name: Verify WooCommerce product transactions and rollback
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/woocommerce-product-transaction-cli.php" --path=/tmp/wordpress

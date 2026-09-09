@@ -15,5 +15,6 @@ php "$ROOT/tests/backup-write-integrity-test.php"
 php "$ROOT/tests/security-test.php"
 php "$ROOT/tests/privacy-boundary-test.php"
 php "$ROOT/tests/registration-test.php"
+php "$ROOT/tests/woocommerce-product-boundary-test.php"
 
 printf 'run-lab: PASS\n'
