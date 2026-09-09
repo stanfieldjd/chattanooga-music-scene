@@ -1,0 +1,27 @@
+name: Chattanooga Music Marketplace
+
+on:
+  push:
+    paths:
+      - "site-plugins/chattanooga-music-marketplace/**"
+      - ".github/workflows/chattanooga-music-marketplace.yml"
+  pull_request:
+    paths:
+      - "site-plugins/chattanooga-music-marketplace/**"
+      - ".github/workflows/chattanooga-music-marketplace.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  php:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "7.4"
+      - name: Check PHP syntax
+        run: find site-plugins/chattanooga-music-marketplace -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: Test Marketplace feature
+        run: php site-plugins/chattanooga-music-marketplace/tests/test-marketplace.php
