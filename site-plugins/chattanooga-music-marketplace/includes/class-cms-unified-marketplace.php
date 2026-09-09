@@ -10,7 +10,8 @@ final class CMS_Unified_Marketplace {
 
 	private static $instance;
 
-	private $products = null;
+	private $catalog_products = null;
+	private $products = array();
 	private $cursor = 0;
 	private $assignments = array();
 	private $integration_ready = null;
@@ -45,13 +46,16 @@ final class CMS_Unified_Marketplace {
 	public function prepare_interleaving( $before_pagination, $context, $listings, $query_vars ) {
 		$this->cursor      = 0;
 		$this->assignments = array();
+		$this->products    = array();
 
 		if ( ! $this->is_marketplace_request() || ! $this->is_supported_listing_context( $context, $query_vars ) ) {
 			return $before_pagination;
 		}
 
+		$this->products = $this->get_products_for_query( $context, $query_vars );
+
 		$listing_count = is_countable( $listings ) ? count( $listings ) : 0;
-		$product_count = count( $this->get_products() );
+		$product_count = count( $this->products );
 
 		if ( $product_count < 1 ) {
 			return $before_pagination;
@@ -121,56 +125,7 @@ final class CMS_Unified_Marketplace {
 			return false;
 		}
 
-		if ( 'main-page' === $context ) {
-			return true;
-		}
-
-		if ( 'browse-listings' !== $context ) {
-			return false;
-		}
-
-		$classifieds_query = isset( $query_vars['classifieds_query'] ) && is_array( $query_vars['classifieds_query'] )
-			? $query_vars['classifieds_query']
-			: array();
-
-		return ! $this->has_active_listing_filter( $query_vars, $classifieds_query );
-	}
-
-	private function has_active_listing_filter( $query_vars, $classifieds_query ) {
-		if ( ! empty( $query_vars['s'] ) ) {
-			return true;
-		}
-
-		$filter_keys = array(
-			'category',
-			'contact_name',
-			'min_price',
-			'max_price',
-			'region',
-			'regions',
-			'title',
-		);
-
-		foreach ( $filter_keys as $key ) {
-			if ( ! isset( $classifieds_query[ $key ] ) ) {
-				continue;
-			}
-
-			$value = $classifieds_query[ $key ];
-			if ( is_array( $value ) ) {
-				if ( ! empty( array_filter( $value ) ) ) {
-					return true;
-				}
-				continue;
-			}
-
-			$normalized = trim( (string) $value );
-			if ( '' !== $normalized && '0' !== $normalized ) {
-				return true;
-			}
-		}
-
-		return false;
+		return in_array( $context, array( 'main-page', 'browse-listings', 'search' ), true );
 	}
 
 	private function is_first_results_page( $query_vars ) {
@@ -180,21 +135,204 @@ final class CMS_Unified_Marketplace {
 		return 0 === $offset && $paged <= 1;
 	}
 
+	private function get_products_for_query( $context, $query_vars ) {
+		$products = $this->get_catalog_products();
+		if ( empty( $products ) || 'main-page' === $context ) {
+			return $products;
+		}
+
+		$classifieds_query = isset( $query_vars['classifieds_query'] ) && is_array( $query_vars['classifieds_query'] )
+			? $query_vars['classifieds_query']
+			: array();
+
+		if ( $this->has_location_filter( $classifieds_query ) || $this->has_meaningful_value( $classifieds_query, 'contact_name' ) ) {
+			return array();
+		}
+
+		$category_id = isset( $classifieds_query['category'] ) ? absint( $classifieds_query['category'] ) : 0;
+		if ( $category_id > 0 ) {
+			$product_category_ids = $this->resolve_product_category_ids( $category_id );
+			if ( empty( $product_category_ids ) ) {
+				return array();
+			}
+
+			$products = array_values(
+				array_filter(
+					$products,
+					function ( $product ) use ( $product_category_ids ) {
+						return ! empty( array_intersect( $product_category_ids, array_map( 'absint', $product->get_category_ids() ) ) );
+					}
+				)
+			);
+		}
+
+		$search = '';
+		if ( isset( $query_vars['s'] ) ) {
+			$search = trim( (string) $query_vars['s'] );
+		} elseif ( isset( $classifieds_query['title'] ) ) {
+			$search = trim( (string) $classifieds_query['title'] );
+		}
+
+		if ( '' !== $search ) {
+			$products = array_values(
+				array_filter(
+					$products,
+					function ( $product ) use ( $search ) {
+						return $this->product_matches_search( $product, $search );
+					}
+				)
+			);
+		}
+
+		$min_price = $this->read_price_filter( $classifieds_query, 'min_price' );
+		$max_price = $this->read_price_filter( $classifieds_query, 'max_price' );
+		if ( null !== $min_price || null !== $max_price ) {
+			$products = array_values(
+				array_filter(
+					$products,
+					function ( $product ) use ( $min_price, $max_price ) {
+						return $this->product_matches_price_range( $product, $min_price, $max_price );
+					}
+				)
+			);
+		}
+
+		return $products;
+	}
+
+	private function has_location_filter( $classifieds_query ) {
+		return $this->has_meaningful_value( $classifieds_query, 'region' ) || $this->has_meaningful_value( $classifieds_query, 'regions' );
+	}
+
+	private function has_meaningful_value( $values, $key ) {
+		if ( ! is_array( $values ) || ! array_key_exists( $key, $values ) ) {
+			return false;
+		}
+
+		return $this->value_is_meaningful( $values[ $key ] );
+	}
+
+	private function value_is_meaningful( $value ) {
+		if ( is_array( $value ) ) {
+			foreach ( $value as $nested_value ) {
+				if ( $this->value_is_meaningful( $nested_value ) ) {
+					return true;
+				}
+			}
+			return false;
+		}
+
+		$normalized = trim( (string) $value );
+		return '' !== $normalized && '0' !== $normalized;
+	}
+
+	private function resolve_product_category_ids( $awpcp_category_id ) {
+		if ( ! function_exists( 'get_term' ) || ! function_exists( 'get_term_by' ) ) {
+			return array();
+		}
+
+		$awpcp_term = get_term( $awpcp_category_id, 'awpcp_listing_category' );
+		if ( ! $awpcp_term || is_wp_error( $awpcp_term ) ) {
+			return array();
+		}
+
+		$product_term = get_term_by( 'slug', $awpcp_term->slug, 'product_cat' );
+		if ( ! $product_term ) {
+			$product_term = get_term_by( 'name', $awpcp_term->name, 'product_cat' );
+		}
+
+		if ( ! $product_term || is_wp_error( $product_term ) ) {
+			return array();
+		}
+
+		$category_ids = array( absint( $product_term->term_id ) );
+		if ( function_exists( 'get_term_children' ) ) {
+			$children = get_term_children( $product_term->term_id, 'product_cat' );
+			if ( is_array( $children ) ) {
+				$category_ids = array_merge( $category_ids, array_map( 'absint', $children ) );
+			}
+		}
+
+		return array_values( array_unique( array_filter( $category_ids ) ) );
+	}
+
+	private function product_matches_search( WC_Product $product, $search ) {
+		$haystack = implode(
+			' ',
+			array(
+				$product->get_name(),
+				$product->get_short_description(),
+				$product->get_description(),
+			)
+		);
+
+		$haystack = wp_strip_all_tags( strip_shortcodes( $haystack ) );
+		return false !== stripos( $haystack, $search );
+	}
+
+	private function read_price_filter( $classifieds_query, $key ) {
+		if ( ! isset( $classifieds_query[ $key ] ) ) {
+			return null;
+		}
+
+		$value = trim( (string) $classifieds_query[ $key ] );
+		if ( '' === $value ) {
+			return null;
+		}
+
+		return max( 0, (float) $value );
+	}
+
+	private function product_matches_price_range( WC_Product $product, $min_price, $max_price ) {
+		$bounds = $this->get_product_price_bounds( $product );
+		if ( null === $bounds ) {
+			return false;
+		}
+
+		if ( null !== $min_price && $bounds['max'] < $min_price ) {
+			return false;
+		}
+
+		if ( null !== $max_price && $bounds['min'] > $max_price ) {
+			return false;
+		}
+
+		return true;
+	}
+
+	private function get_product_price_bounds( WC_Product $product ) {
+		if ( $product->is_type( 'variable' ) && method_exists( $product, 'get_variation_price' ) ) {
+			$min = $product->get_variation_price( 'min', true );
+			$max = $product->get_variation_price( 'max', true );
+		} else {
+			$min = $product->get_price();
+			$max = $min;
+		}
+
+		if ( '' === $min || null === $min || '' === $max || null === $max ) {
+			return null;
+		}
+
+		return array(
+			'min' => (float) $min,
+			'max' => (float) $max,
+		);
+	}
+
 	private function products_for_position( $position ) {
 		$count = isset( $this->assignments[ $position ] ) ? absint( $this->assignments[ $position ] ) : 0;
 		if ( $count < 1 ) {
 			return array();
 		}
 
-		$products = $this->get_products();
 		$assigned = array();
 
 		for ( $i = 0; $i < $count; $i++ ) {
-			if ( ! isset( $products[ $this->cursor ] ) ) {
+			if ( ! isset( $this->products[ $this->cursor ] ) ) {
 				break;
 			}
 
-			$assigned[] = $products[ $this->cursor ];
+			$assigned[] = $this->products[ $this->cursor ];
 			$this->cursor++;
 		}
 
@@ -203,25 +341,24 @@ final class CMS_Unified_Marketplace {
 
 	private function render_remaining_products() {
 		$rendered = '';
-		$products = $this->get_products();
 
-		while ( isset( $products[ $this->cursor ] ) ) {
-			$rendered .= $this->render_product_card( $products[ $this->cursor ] );
+		while ( isset( $this->products[ $this->cursor ] ) ) {
+			$rendered .= $this->render_product_card( $this->products[ $this->cursor ] );
 			$this->cursor++;
 		}
 
 		return $rendered;
 	}
 
-	private function get_products() {
-		if ( null !== $this->products ) {
-			return $this->products;
+	private function get_catalog_products() {
+		if ( null !== $this->catalog_products ) {
+			return $this->catalog_products;
 		}
 
-		$this->products = array();
+		$this->catalog_products = array();
 
 		if ( ! function_exists( 'wc_get_products' ) ) {
-			return $this->products;
+			return $this->catalog_products;
 		}
 
 		$products = wc_get_products(
@@ -243,10 +380,10 @@ final class CMS_Unified_Marketplace {
 				continue;
 			}
 
-			$this->products[] = $product;
+			$this->catalog_products[] = $product;
 		}
 
-		return $this->products;
+		return $this->catalog_products;
 	}
 
 	private function render_product_card( WC_Product $product ) {
