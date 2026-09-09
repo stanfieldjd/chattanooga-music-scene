@@ -1,6 +1,6 @@
 # Task: cmsa-woocommerce-products-2026-09-08
 
-Status: SOURCE_ACCEPTED_READY_FOR_WORKBENCH_INTEGRATION
+Status: WORKBENCH_INTEGRATED_VERIFIED
 
 ## Objective
 
@@ -10,8 +10,9 @@ Extend the Chattanooga CMS Admin workbench candidate with a bounded WooCommerce 
 
 - Workbench base and rollback point: `f9bacf3291bd382030c945521414ae25aa86967c`.
 - Source branch: `work/cmsa-woocommerce-products`.
-- Accepted source checkpoint before this task-record-only state update: `12b06e77e32e0988242a79d5ea5586b247355478`.
-- Current workbench candidate: 91 registered abilities before the WooCommerce product slice; the accepted source branch candidate registers 95 after adding four bounded WooCommerce product abilities.
+- Accepted source checkpoint before the task-record-only source-acceptance update: `12b06e77e32e0988242a79d5ea5586b247355478`.
+- Clean workbench integration checkpoint: `6ec24eb534a32e9d6e4446cdf5c68f3602696081`.
+- Current workbench candidate: 95 registered abilities after adding four bounded WooCommerce product abilities to the previous 91-ability candidate.
 - `workbench/labs/chattanooga-cms-admin/ROADMAP.md` explicitly identifies WooCommerce / marketplace product and listing inventory plus metadata as Layer E work.
 - The current generic `CMSA_Content` service supports only `post` and `page`; WooCommerce `product` objects therefore require a WooCommerce-specific contract instead of an arbitrary custom-post-type expansion.
 - The live maintenance inventory established that WooCommerce is an active Chattanooga dependency. Production is not part of this source transaction.
@@ -26,7 +27,9 @@ Extend the Chattanooga CMS Admin workbench candidate with a bounded WooCommerce 
 - Direct diagnostic evidence established that failure was a probe-baseline defect rather than an order mutation: immediately after `wc_create_order()`, WooCommerce represented the zero total as string `"0"` in the returned in-memory object, while reloading the same persisted order represented the same zero total as canonical string `"0.00"`. Identity, status, customer ID and item count were unchanged. The isolation probe now takes its before-state from a persisted reload and continues to compare that persisted semantic state against a later persisted reload; the order-isolation assertion was not weakened or removed.
 - Workflow `34321646228` at checkpoint `323503b117c82335e75f1822abba7f6e696605de` passed the diagnostic gate and full WooCommerce product transaction probe, including create/get/list/update, exact-state conflict handling, injected-failure rollback and unrelated product/post/event/media/customer/order isolation.
 - Existing regression workflows were then run unchanged against the source branch by adding branch-only trigger scaffolding. `Mars Workbench Integrity` run `34363584118`, `CMS Admin Content Layer Lab` run `34363650727`, `CMS Admin Events Manager Lab` run `34363690700`, and `CMS Admin Workbench Lab` run `34363759870` all passed. The Workbench Lab passed PHP 7.4, PHP 8.2, and the complete WordPress 7.1 maintenance/runtime job. The Events Manager run also passed the Weekend Feature transaction regression.
-- The temporary branch-only trigger additions were removed after those runs. A compare from the workbench base to the accepted branch shows no residual changes to the existing integrity/content/events/workbench workflow files; only the intended WooCommerce source, probes, fixture, WooCommerce workflow, lab boundary hook, and task record remain in the final diff.
+- The temporary branch-only trigger additions were removed after those runs. A compare from the workbench base to the accepted branch showed no residual changes to the existing integrity/content/events/workbench workflow files; only the intended WooCommerce source, probes, fixture, WooCommerce workflow, lab boundary hook, and task record remained in the accepted diff.
+- The accepted tree was integrated cleanly into `workbench/mars` at `6ec24eb534a32e9d6e4446cdf5c68f3602696081`, using `f9bacf3291bd382030c945521414ae25aa86967c` as the single parent so temporary feature-branch CI-trigger history was not promoted.
+- Post-integration validation passed all five triggered workflows: Mars Workbench Integrity `34364494618`, WooCommerce Product Lab `34364494683`, Events Manager/Weekend Feature `34364494803`, Content Layer `34364494823`, and CMS Admin Workbench Lab `34364494740`. The Workbench Lab passed PHP 7.4, PHP 8.2, and the complete WordPress 7.1 runtime/maintenance job.
 
 ## Pre-execution control record
 
@@ -55,7 +58,7 @@ Establish, test, and implement only the bounded WooCommerce product-catalog oper
 ### EVIDENCE
 
 - Workbench base `f9bacf3291bd382030c945521414ae25aa86967c` passed Mars Workbench Integrity run `34276860121`.
-- The integrated pre-task Chattanooga CMS Admin candidate contains 91 abilities after the verified media and Weekend Feature slices.
+- The integrated pre-task Chattanooga CMS Admin candidate contained 91 abilities after the verified media and Weekend Feature slices.
 - `CMSA_Content::type_config()` supports only `post` and `page` and rejects other post types.
 - Corrected WooCommerce runtime run `34277599322` passed on WordPress 7.1, PHP 8.2, MySQL 8, and WooCommerce 11.0.1. It verified `WC_Product`, `WC_Product_Simple`, `WC_Product_Query`, `WC_Data_Store`, `wc_get_product()`, `wc_get_products()`, product type/taxonomy registration, the native getter/setter surface, and actual product data store `WC_Product_Data_Store_CPT`.
 - The same runtime verified product `map_meta_cap=true`, object-scoped meta capabilities `edit_product`, `read_product`, and `delete_product`, and administrator primitive product capabilities.
@@ -63,8 +66,9 @@ Establish, test, and implement only the bounded WooCommerce product-catalog oper
 - Workflow `34320181025` proved native disposable product cleanup through `WC_Product::delete( true )` with absence readback.
 - Workflow `34321646228` proved the 95-ability registry, product permission/object-scope gates, REST isolation, canonical persisted-order isolation baseline, full product transactions and rollback.
 - The order-baseline diagnostic showed `{"total":"0"}` in the immediate creation object versus `{"total":"0.00"}` after persisted reload before any product operation, establishing the exact cause of the earlier false isolation failure.
-- Regression runs `34363584118`, `34363650727`, `34363690700`, and `34363759870` all completed successfully against the accepted product candidate. PHP 7.4, PHP 8.2, WordPress 7.1 maintenance/runtime, content, Events Manager, Weekend Feature and workbench integrity gates are green.
-- Final compare against the workbench base confirms temporary regression-trigger scaffolding was removed and does not remain in the accepted tree.
+- Pre-integration regression runs `34363584118`, `34363650727`, `34363690700`, and `34363759870` all completed successfully against the accepted product candidate. PHP 7.4, PHP 8.2, WordPress 7.1 maintenance/runtime, content, Events Manager, Weekend Feature and workbench integrity gates were green.
+- Final source-branch compare against the workbench base confirmed temporary regression-trigger scaffolding was removed and did not remain in the accepted tree.
+- Post-integration runs `34364494618`, `34364494683`, `34364494803`, `34364494823`, and `34364494740` all completed successfully against `workbench/mars` integration checkpoint `6ec24eb534a32e9d6e4446cdf5c68f3602696081`.
 
 ### MUTATION_SET
 
@@ -75,7 +79,8 @@ Establish, test, and implement only the bounded WooCommerce product-catalog oper
 5. Diagnose and correct the unrelated-order isolation baseline without weakening or removing the isolation assertion.
 6. Run the existing CMS Admin regression workflows before integration into `workbench/mars`.
 7. Remove branch-only CI trigger scaffolding after validation.
-8. Integrate the accepted final tree into `workbench/mars` as a source-only workbench change, then run the workbench-triggered validation gates again and update protocol state.
+8. Integrate the accepted final tree into `workbench/mars` as a source-only workbench change and run the workbench-triggered validation gates again.
+9. Update protocol state after the verified integration result.
 
 ### RISK_SET
 
@@ -102,6 +107,7 @@ Establish, test, and implement only the bounded WooCommerce product-catalog oper
 - [x] Unrelated products, WordPress posts, orders/customer fixtures, media, events, and existing candidate abilities remain unchanged by product transaction probes.
 - [x] PHP 7.4/8.2 and all existing WordPress 7.1, content, Events Manager, Weekend Feature, maintenance, and workbench-integrity regression gates remain green.
 - [x] Temporary regression-trigger scaffolding is absent from the accepted final tree.
+- [x] Accepted source tree is integrated into `workbench/mars` and the post-integration WooCommerce, content, Events Manager/Weekend Feature, maintenance/runtime, PHP 7.4/8.2, and integrity gates all pass.
 - [x] No production mutation or deployment occurs.
 
 ## Production state
@@ -118,4 +124,6 @@ This task is source/workbench engineering only. Any later production deployment 
 - 2026-09-09: Implemented four bounded WooCommerce product abilities at `f3fdd5e34fb884ec57fe6afc8f5c09d2a20ddba2`. Run `34320883241` passed all pre-transaction gates and exposed a final unrelated-order comparison defect.
 - 2026-09-09: Preserved the failure and added a dedicated order-baseline diagnostic. It execution-verified that `wc_create_order()` returns zero total as `"0"` in memory while `wc_get_order()` reloads the persisted same order as `"0.00"`; no product operation is needed for the mismatch.
 - 2026-09-09: Corrected the probe to compare persisted-before against persisted-after order state at `323503b117c82335e75f1822abba7f6e696605de`. Run `34321646228` passed the 95-ability registry, permissions, REST isolation, diagnostic cleanup, and complete WooCommerce product transaction/rollback/isolation suite.
-- 2026-09-09: Ran the unchanged pre-integration regression gates against the candidate. Integrity `34363584118`, content `34363650727`, Events Manager/Weekend Feature `34363690700`, and workbench PHP 7.4/PHP 8.2/WordPress 7.1 maintenance `34363759870` all passed. Removed the temporary source-branch trigger scaffolding; final compare shows no residual changes to those existing workflow files. Source acceptance is complete; next action is clean workbench integration and post-integration validation.
+- 2026-09-09: Ran the unchanged pre-integration regression gates against the candidate. Integrity `34363584118`, content `34363650727`, Events Manager/Weekend Feature `34363690700`, and workbench PHP 7.4/PHP 8.2/WordPress 7.1 maintenance `34363759870` all passed. Removed the temporary source-branch trigger scaffolding; final compare showed no residual changes to those existing workflow files.
+- 2026-09-09: Integrated the accepted tree into `workbench/mars` as clean commit `6ec24eb534a32e9d6e4446cdf5c68f3602696081`, preserving `f9bacf3291bd382030c945521414ae25aa86967c` as the rollback parent and excluding temporary feature-branch CI-trigger history.
+- 2026-09-09: Post-integration validation passed Mars integrity `34364494618`, WooCommerce Product Lab `34364494683`, Events Manager/Weekend Feature `34364494803`, Content Layer `34364494823`, and Workbench Lab `34364494740` (PHP 7.4, PHP 8.2, WordPress 7.1 runtime/maintenance). The workbench source task is execution-verified at 95 abilities. Production and live WooCommerce state remain unchanged.
