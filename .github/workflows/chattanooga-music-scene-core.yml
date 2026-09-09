@@ -23,6 +23,8 @@ jobs:
           php-version: "7.4"
       - name: Check PHP syntax
         run: find site-plugins/chattanooga-music-scene-core -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: Test Marketplace integration
+        run: php site-plugins/chattanooga-music-scene-core/tests/test-marketplace.php
 
   package:
     needs: php-syntax
