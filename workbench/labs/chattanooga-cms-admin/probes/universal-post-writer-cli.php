@@ -9,8 +9,13 @@ wp_set_current_user( 1 );
 delete_option( 'cmsa_universal_post_writer_after_insert' );
 
 $ability = function_exists( 'wp_get_ability' ) ? wp_get_ability( 'chattanooga-cms-admin/write-standard-post-resource' ) : null;
+$reader  = function_exists( 'wp_get_ability' ) ? wp_get_ability( 'chattanooga-cms-admin/read-standard-resource' ) : null;
 if ( ! $ability instanceof WP_Ability ) {
 	fwrite( STDERR, "Universal post writer ability was not registered.\n" );
+	exit( 1 );
+}
+if ( ! $reader instanceof WP_Ability ) {
+	fwrite( STDERR, "Universal standard-resource reader ability was not registered.\n" );
 	exit( 1 );
 }
 
@@ -196,6 +201,19 @@ if ( $post_id !== (int) ( $after_create_hook['id'] ?? 0 ) || true !== ( $after_c
 	goto cleanup_failure;
 }
 
+$post_read = $reader->execute(
+	array(
+		'kind'      => 'post_type',
+		'resource'  => 'post',
+		'operation' => 'get',
+		'id'        => $post_id,
+	)
+);
+if ( is_wp_error( $post_read ) || empty( $post_read['item']['state_token'] ) || (string) $created['item']['state_token'] !== (string) $post_read['item']['state_token'] ) {
+	fwrite( STDERR, "Reader-to-writer post state-token handoff failed after creation.\n" );
+	goto cleanup_failure;
+}
+
 $stale = $ability->execute(
 	array(
 		'resource'             => 'post',
@@ -215,7 +233,7 @@ $updated = $ability->execute(
 		'resource'             => 'post',
 		'operation'            => 'update',
 		'id'                   => $post_id,
-		'expected_state_token' => (string) $created['item']['state_token'],
+		'expected_state_token' => (string) $post_read['item']['state_token'],
 		'title'                => 'Universal writer post updated',
 		'content'              => 'Updated universal writer content.',
 		'excerpt'              => 'Updated universal writer excerpt.',
@@ -236,6 +254,19 @@ if ( $post_id !== (int) ( $after_update_hook['id'] ?? 0 ) || false !== ( $after_
 	goto cleanup_failure;
 }
 
+$post_read_after_update = $reader->execute(
+	array(
+		'kind'      => 'post_type',
+		'resource'  => 'post',
+		'operation' => 'get',
+		'id'        => $post_id,
+	)
+);
+if ( is_wp_error( $post_read_after_update ) || empty( $post_read_after_update['item']['state_token'] ) || (string) $updated['item']['state_token'] !== (string) $post_read_after_update['item']['state_token'] ) {
+	fwrite( STDERR, "Reader-to-writer post state-token handoff failed after update.\n" );
+	goto cleanup_failure;
+}
+
 $before_rollback = array(
 	'title'   => $post->post_title,
 	'content' => $post->post_content,
@@ -247,7 +278,7 @@ $rollback_test = $ability->execute(
 		'resource'             => 'post',
 		'operation'            => 'update',
 		'id'                   => $post_id,
-		'expected_state_token' => (string) $updated['item']['state_token'],
+		'expected_state_token' => (string) $post_read_after_update['item']['state_token'],
 		'title'                => 'Universal rollback trigger',
 		'content'              => 'Requested content that will be corrupted after REST update.',
 		'excerpt'              => 'Requested rollback-test excerpt.',
@@ -298,12 +329,25 @@ if ( ! $child_post instanceof WP_Post || 'page' !== $child_post->post_type || $p
 	goto cleanup_failure;
 }
 
+$child_read = $reader->execute(
+	array(
+		'kind'      => 'post_type',
+		'resource'  => 'page',
+		'operation' => 'get',
+		'id'        => $child_id,
+	)
+);
+if ( is_wp_error( $child_read ) || empty( $child_read['item']['state_token'] ) || (string) $child['item']['state_token'] !== (string) $child_read['item']['state_token'] ) {
+	fwrite( STDERR, "Reader-to-writer page state-token handoff failed.\n" );
+	goto cleanup_failure;
+}
+
 $child_update = $ability->execute(
 	array(
 		'resource'             => 'page',
 		'operation'            => 'update',
 		'id'                   => $child_id,
-		'expected_state_token' => (string) $child['item']['state_token'],
+		'expected_state_token' => (string) $child_read['item']['state_token'],
 		'excerpt'              => 'Universal child page excerpt updated.',
 	)
 );
@@ -332,7 +376,7 @@ wp_delete_post( $parent_id, true );
 wp_delete_post( $post_id, true );
 delete_option( 'cmsa_universal_post_writer_after_insert' );
 
-echo 'universal-post-writer-cli: PASS resources=post,page draft_only=yes update_fields=revision_backed plugin_cpt=blocked taxonomy=blocked permissions=preserved preinsert=authoritative afterinsert=preserved stale_state=blocked create_rollback=verified update_rollback=verified' . "\n";
+echo 'universal-post-writer-cli: PASS resources=post,page draft_only=yes update_fields=revision_backed plugin_cpt=blocked taxonomy=blocked permissions=preserved preinsert=authoritative afterinsert=preserved stale_state=blocked reader_writer_state_handoff=verified create_rollback=verified update_rollback=verified' . "\n";
 exit( 0 );
 
 cleanup_failure:
