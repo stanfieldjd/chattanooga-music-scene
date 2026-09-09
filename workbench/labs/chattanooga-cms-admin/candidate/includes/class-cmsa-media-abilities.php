@@ -70,6 +70,26 @@ final class CMSA_Media_Abilities {
 		);
 
 		$this->register_ability(
+			'replace-media',
+			'Replace media file',
+			'Replaces the primary file of one eligible ordinary image attachment in place only when its exact file-and-metadata lifecycle state still matches. The attachment ID, URL/path, MIME type, parent, and featured-image references are preserved; obsolete derivatives are removed; verification failure restores the exact prior file and metadata state.',
+			$this->object_schema(
+				array(
+					'id'                             => array( 'type' => 'integer', 'minimum' => 1 ),
+					'expected_lifecycle_state_token' => array( 'type' => 'string', 'minLength' => 1 ),
+					'mime_type'                      => array( 'type' => 'string', 'minLength' => 1, 'maxLength' => 127 ),
+					'data_base64'                    => array( 'type' => 'string', 'minLength' => 1 ),
+				),
+				array( 'id', 'expected_lifecycle_state_token', 'mime_type', 'data_base64' )
+			),
+			function ( $input ) { return $this->lifecycle->replace_from_base64( $input ); },
+			'upload_files',
+			false,
+			true,
+			false
+		);
+
+		$this->register_ability(
 			'update-media',
 			'Update media metadata',
 			'Updates title, caption, description, or alt text for one media attachment only when its exact prior state still matches; verification failure restores the prior metadata values.',
