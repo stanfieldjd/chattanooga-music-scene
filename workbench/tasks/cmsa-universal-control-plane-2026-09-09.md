@@ -76,6 +76,41 @@ The end state is one integration architecture inside Chattanooga CMS Admin, not 
 - [ ] New plugin integration no longer requires adding a plugin-specific CMSA class when the plugin exposes a supported standard interface.
 - [ ] Production remains unchanged.
 
+## Checkpoint — 2026-09-09 universal discovery and standard registry slice
+
+Checkpoint head before record: `4887a39266829c89d55c2e5623d9364ca0066122` on `work/cmsa-universal-control-plane`.
+
+Verified source changes:
+
+- `CMSA_Universal_Control_Plane` dynamically discovers public native WordPress abilities and excludes the CMSA namespace from recursive mirroring.
+- `chattanooga-cms-admin/inspect-extension-capabilities` remains discovery-only; there is no generic native-ability execute proxy.
+- `chattanooga-cms-admin/inspect-resource-registry` now discovers administratively exposed registered post types and taxonomies through the standard WordPress registries without plugin-name-specific source logic.
+- Resource-registry output is bounded to an explicit metadata/capability allowlist. Registered resources hidden from both the admin UI and REST are excluded.
+- Standard-registry discovery is read-only. No generic post-type/taxonomy mutation path is admitted by this checkpoint.
+- Two unrelated disposable fixtures independently register a visible/hidden post-type pair and a visible/hidden taxonomy pair so interface discovery is tested without special-casing either fixture in the control-plane source.
+- The expected CMSA registry is now 100 abilities.
+
+Execution evidence:
+
+- GitHub Actions run `34414315685` on head `4887a39266829c89d55c2e5623d9364ca0066122` passed PHP lint.
+- The interface-only/non-proxy source contract passed.
+- Disposable WordPress 7.1 installation and activation passed.
+- The 100-ability registry test passed.
+- Existing native-ability discovery across both unrelated fixtures passed.
+- Standard post-type/taxonomy registry discovery passed, including hidden-resource exclusion and bounded output-field checks.
+
+Preserved constraints:
+
+- Production WordPress/DreamHost unchanged.
+- `main` unchanged.
+- `feature/chattanooga-cms-admin` unchanged.
+- miniOrange/NHI policy unchanged.
+- Existing plugin-specific adapters remain present; none has been deleted, hidden, or converted into a fallback path.
+
+Recalculated next position:
+
+The universal layer now has two generic discovery contracts: native WordPress abilities and standard post-type/taxonomy registries. The next source-only line is parity classification: determine which existing bespoke CMSA adapters can be replaced by a verified native/standard interface without losing domain invariants. Any adapter lacking full parity remains in place. Generic CPT/taxonomy mutation remains prohibited until a concrete interface is execution-tested to preserve the target plugin's save semantics and permission model.
+
 ## Production state
 
 NOT_DEPLOYED
