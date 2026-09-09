@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - "workbench/mars"
+      - "work/cmsa-woocommerce-products"
     paths:
       - "workbench/**"
       - ".github/workflows/workbench-integrity.yml"
