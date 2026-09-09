@@ -336,22 +336,7 @@ final class CMSA_Universal_Post_Resource_Writer {
 	}
 
 	private function state_token( WP_Post $post ) {
-		return hash(
-			'sha256',
-			wp_json_encode(
-				array(
-					'id'           => (int) $post->ID,
-					'post_type'    => (string) $post->post_type,
-					'status'       => (string) $post->post_status,
-					'title'        => (string) $post->post_title,
-					'content'      => (string) $post->post_content,
-					'excerpt'      => (string) $post->post_excerpt,
-					'slug'         => (string) $post->post_name,
-					'parent_id'    => (int) $post->post_parent,
-					'modified_gmt' => (string) $post->post_modified_gmt,
-				)
-			)
-		);
+		return CMSA_Universal_Post_State::token( $post );
 	}
 
 	private function normalize( WP_Post $post ) {
