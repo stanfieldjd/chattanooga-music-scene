@@ -1,0 +1,520 @@
+name: CMS Admin Marketplace Listings Lab
+
+on:
+  push:
+    branches:
+      - work/cmsa-marketplace-listings
+    paths:
+      - "workbench/labs/chattanooga-cms-admin/candidate/**"
+      - "workbench/labs/chattanooga-cms-admin/fixtures/expected-marketplace-listing-abilities.json"
+      - "workbench/labs/chattanooga-cms-admin/probes/awpcp-marketplace-*.php"
+      - "site-plugins/chattanooga-music-marketplace/**"
+      - "workbench/tasks/cmsa-marketplace-listings-2026-09-09.md"
+      - ".github/workflows/cmsa-marketplace-listings-lab.yml"
+  pull_request:
+    paths:
+      - "workbench/labs/chattanooga-cms-admin/candidate/**"
+      - "workbench/labs/chattanooga-cms-admin/fixtures/expected-marketplace-listing-abilities.json"
+      - "workbench/labs/chattanooga-cms-admin/probes/awpcp-marketplace-*.php"
+      - "site-plugins/chattanooga-music-marketplace/**"
+      - "workbench/tasks/cmsa-marketplace-listings-2026-09-09.md"
+      - ".github/workflows/cmsa-marketplace-listings-lab.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  static-boundary:
+    name: PHP ${{ matrix.php }} source boundary
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ["7.4", "8.2"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+      - name: Run complete CMS Admin source lab
+        run: bash workbench/labs/chattanooga-cms-admin/scripts/run-lab.sh
+      - name: Lint candidate and Marketplace probes
+        shell: bash
+        run: |
+          set -euo pipefail
+          find workbench/labs/chattanooga-cms-admin/candidate -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
+          php -l workbench/labs/chattanooga-cms-admin/probes/awpcp-marketplace-model-cli.php >/dev/null
+          php -l workbench/labs/chattanooga-cms-admin/probes/awpcp-marketplace-read-contract-cli.php >/dev/null
+          php -l workbench/labs/chattanooga-cms-admin/probes/awpcp-marketplace-fixture-contract-cli.php >/dev/null
+          php -l workbench/labs/chattanooga-cms-admin/probes/awpcp-marketplace-candidate-boundary-cli.php >/dev/null
+          php -l workbench/labs/chattanooga-cms-admin/probes/awpcp-marketplace-candidate-read-cli.php >/dev/null
+          php -l workbench/labs/chattanooga-cms-admin/probes/awpcp-marketplace-candidate-dependency-cli.php >/dev/null
+          find site-plugins/chattanooga-music-marketplace -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
+      - name: Verify Marketplace listing source boundary
+        run: php workbench/labs/chattanooga-cms-admin/probes/awpcp-marketplace-candidate-boundary-cli.php
+      - name: Verify unified Marketplace presentation regression
+        run: php site-plugins/chattanooga-music-marketplace/tests/test-marketplace.php
+
+  workbench-integrity:
+    name: Mars workbench integrity regression
+    needs: static-boundary
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate workbench structure
+        run: bash workbench/scripts/check-workbench.sh
+
+  marketplace-listing-runtime:
+    name: WordPress 7.1 AWP Classifieds 4.4.8 candidate runtime
+    needs: static-boundary
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mysqli, zip
+      - name: Install disposable WordPress 7.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+          php /tmp/wp-cli.phar core download --version=7.1 --path=/tmp/wordpress --force
+          php /tmp/wp-cli.phar config create --path=/tmp/wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
+          php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://cmsa-marketplace.test --title="CMSA Marketplace Workbench" --admin_user=admin --admin_password="cmsa-marketplace-workbench-only" --admin_email=lab@example.invalid --skip-email
+      - name: Install and activate WooCommerce 11.0.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar plugin install woocommerce --version=11.0.1 --activate --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin is-active woocommerce --path=/tmp/wordpress
+      - name: Install and activate AWP Classifieds 4.4.8
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar plugin install another-wordpress-classifieds-plugin --version=4.4.8 --activate --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin is-active another-wordpress-classifieds-plugin --path=/tmp/wordpress
+      - name: Inspect exact Marketplace listing model
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/awpcp-marketplace-model-cli.php" --path=/tmp/wordpress
+      - name: Inspect exact Marketplace read contract
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/awpcp-marketplace-read-contract-cli.php" --path=/tmp/wordpress
+      - name: Verify native disposable listing fixture contract
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/awpcp-marketplace-fixture-contract-cli.php" --path=/tmp/wordpress
+      - name: Activate candidate CMS Admin and unified Marketplace
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp -R workbench/labs/chattanooga-cms-admin/candidate /tmp/wordpress/wp-content/plugins/chattanooga-cms-admin
+          cp -R site-plugins/chattanooga-music-marketplace /tmp/wordpress/wp-content/plugins/chattanooga-music-marketplace
+          php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin activate chattanooga-music-marketplace --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin is-active chattanooga-cms-admin --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin is-active chattanooga-music-marketplace --path=/tmp/wordpress
+      - name: Verify complete 97-ability candidate registry
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/ability-registration-cli.php" --path=/tmp/wordpress
+      - name: Verify admitted Marketplace listing read abilities
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/awpcp-marketplace-candidate-read-cli.php" --path=/tmp/wordpress
+      - name: Verify AWP absence fails closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar plugin deactivate another-wordpress-classifieds-plugin --path=/tmp/wordpress
+          CMSA_EXPECT_AWPCP_DEPENDENCY=absent php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/awpcp-marketplace-candidate-dependency-cli.php" --path=/tmp/wordpress
+
+  version-mismatch:
+    name: AWP Classifieds 4.4.7 mismatch fails closed
+    needs: static-boundary
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress_mismatch
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mysqli, zip
+      - name: Install disposable WordPress 7.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+          php /tmp/wp-cli.phar core download --version=7.1 --path=/tmp/wordpress-mismatch --force
+          php /tmp/wp-cli.phar config create --path=/tmp/wordpress-mismatch --dbname=wordpress_mismatch --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
+          php /tmp/wp-cli.phar core install --path=/tmp/wordpress-mismatch --url=http://cmsa-marketplace-mismatch.test --title="CMSA Marketplace Mismatch" --admin_user=admin --admin_password="cmsa-marketplace-mismatch-only" --admin_email=lab@example.invalid --skip-email
+      - name: Install AWP Classifieds 4.4.7
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar plugin install another-wordpress-classifieds-plugin --version=4.4.7 --activate --path=/tmp/wordpress-mismatch
+          php /tmp/wp-cli.phar plugin is-active another-wordpress-classifieds-plugin --path=/tmp/wordpress-mismatch
+      - name: Activate candidate CMS Admin
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp -R workbench/labs/chattanooga-cms-admin/candidate /tmp/wordpress-mismatch/wp-content/plugins/chattanooga-cms-admin
+          php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin --path=/tmp/wordpress-mismatch
+      - name: Verify version mismatch fails closed
+        run: CMSA_EXPECT_AWPCP_DEPENDENCY=version-mismatch php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/awpcp-marketplace-candidate-dependency-cli.php" --path=/tmp/wordpress-mismatch
+
+  content-regression:
+    name: Existing content/member/navigation/media regression
+    needs: static-boundary
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress_content
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mysqli, zip
+      - name: Install disposable WordPress 7.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+          php /tmp/wp-cli.phar core download --version=7.1 --path=/tmp/wordpress-content --force
+          php /tmp/wp-cli.phar config create --path=/tmp/wordpress-content --dbname=wordpress_content --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
+          php /tmp/wp-cli.phar core install --path=/tmp/wordpress-content --url=http://cmsa-content.test --title="CMSA Content Workbench" --admin_user=admin --admin_password="cmsa-content-workbench-only" --admin_email=lab@example.invalid --skip-email
+      - name: Activate candidate CMS Admin plugin
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp -R workbench/labs/chattanooga-cms-admin/candidate /tmp/wordpress-content/wp-content/plugins/chattanooga-cms-admin
+          php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin --path=/tmp/wordpress-content
+          php /tmp/wp-cli.phar plugin is-active chattanooga-cms-admin --path=/tmp/wordpress-content
+      - name: Verify all registered abilities
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/ability-registration-cli.php" --path=/tmp/wordpress-content
+      - name: Verify content ability permissions
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/content-permission-cli.php" --path=/tmp/wordpress-content
+      - name: Verify permanent content deletion permissions
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/content-deletion-permission-cli.php" --path=/tmp/wordpress-content
+      - name: Verify navigation ability permissions
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/navigation-permission-cli.php" --path=/tmp/wordpress-content
+      - name: Verify status ability permissions
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/content-status-permission-cli.php" --path=/tmp/wordpress-content
+      - name: Verify taxonomy ability permissions
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/content-taxonomy-permission-cli.php" --path=/tmp/wordpress-content
+      - name: Verify media ability permissions
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/media-permission-cli.php" --path=/tmp/wordpress-content
+      - name: Verify Weekend Feature permission fail-closed behavior
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/weekend-feature-permission-cli.php" --path=/tmp/wordpress-content
+      - name: Verify member read permissions
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/member-permission-cli.php" --path=/tmp/wordpress-content
+      - name: Verify bounded member reads
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/member-read-cli.php" --path=/tmp/wordpress-content
+      - name: Verify member mutation permissions
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/member-mutation-permission-cli.php" --path=/tmp/wordpress-content
+      - name: Verify member profile and role transactions
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/member-mutation-cli.php" --path=/tmp/wordpress-content
+      - name: Verify bounded post and page transactions
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/content-transaction-cli.php" --path=/tmp/wordpress-content
+      - name: Verify permanent post and page deletion transactions
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/content-deletion-cli.php" --path=/tmp/wordpress-content
+      - name: Verify core navigation transactions
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/navigation-cli.php" --path=/tmp/wordpress-content
+      - name: Verify publication status transactions
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/content-status-cli.php" --path=/tmp/wordpress-content
+      - name: Verify taxonomy term and relationship transactions
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/content-taxonomy-cli.php" --path=/tmp/wordpress-content
+      - name: Verify media upload metadata and featured-image transactions
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/media-transaction-cli.php" --path=/tmp/wordpress-content
+
+  events-regression:
+    name: Existing Events Manager and Weekend Feature regression
+    needs: static-boundary
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress_events
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mysqli, zip
+      - name: Install disposable WordPress 7.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+          php /tmp/wp-cli.phar core download --version=7.1 --path=/tmp/wordpress-events --force
+          php /tmp/wp-cli.phar config create --path=/tmp/wordpress-events --dbname=wordpress_events --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
+          php /tmp/wp-cli.phar core install --path=/tmp/wordpress-events --url=http://cmsa-events.test --title="CMSA Events Workbench" --admin_user=admin --admin_password="cmsa-events-workbench-only" --admin_email=lab@example.invalid --skip-email
+          php /tmp/wp-cli.phar option update timezone_string America/New_York --path=/tmp/wordpress-events
+      - name: Install and initialize Events Manager
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar plugin install events-manager --activate --path=/tmp/wordpress-events
+          php /tmp/wp-cli.phar plugin is-active events-manager --path=/tmp/wordpress-events
+          php /tmp/wp-cli.phar eval 'wp_set_current_user(1); require_once WP_PLUGIN_DIR . "/events-manager/classes/em-admin-notices.php"; require_once WP_PLUGIN_DIR . "/events-manager/em-install.php"; em_install();' --path=/tmp/wordpress-events
+      - name: Activate source-controlled Weekend Feature plugin
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp -R site-plugins/chattanooga-music-scene-core /tmp/wordpress-events/wp-content/plugins/chattanooga-music-scene-core
+          php /tmp/wp-cli.phar plugin activate chattanooga-music-scene-core --path=/tmp/wordpress-events
+          php /tmp/wp-cli.phar plugin is-active chattanooga-music-scene-core --path=/tmp/wordpress-events
+      - name: Activate candidate CMS Admin plugin
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp -R workbench/labs/chattanooga-cms-admin/candidate /tmp/wordpress-events/wp-content/plugins/chattanooga-cms-admin
+          php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin --path=/tmp/wordpress-events
+          php /tmp/wp-cli.phar plugin is-active chattanooga-cms-admin --path=/tmp/wordpress-events
+      - name: Inspect Events Manager runtime model
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/events-manager-model-cli.php" --path=/tmp/wordpress-events
+      - name: Inspect Events Manager taxonomy contract
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/events-manager-taxonomy-model-cli.php" --path=/tmp/wordpress-events
+      - name: Inspect native Events Manager event deletion
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/events-manager-delete-model-cli.php" --path=/tmp/wordpress-events
+      - name: Verify all candidate abilities register with Events Manager
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/ability-registration-cli.php" --path=/tmp/wordpress-events
+      - name: Verify Events Manager read permissions
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/events-manager-permission-cli.php" --path=/tmp/wordpress-events
+      - name: Verify bounded event and location reads
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/events-manager-read-cli.php" --path=/tmp/wordpress-events
+      - name: Verify event and location mutation permissions
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/events-manager-mutation-permission-cli.php" --path=/tmp/wordpress-events
+      - name: Verify ordinary event and venue mutation transactions
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/events-manager-mutation-cli.php" --path=/tmp/wordpress-events
+      - name: Verify event deletion permissions
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/events-manager-deletion-permission-cli.php" --path=/tmp/wordpress-events
+      - name: Verify event trash and permanent deletion transactions
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/events-manager-deletion-cli.php" --path=/tmp/wordpress-events
+      - name: Diagnose Weekend Feature settings scheduler contract
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/weekend-feature-settings-diagnostic-cli.php" --path=/tmp/wordpress-events
+      - name: Verify Weekend Feature settings draft publish and rollback transactions
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/weekend-feature-transaction-cli.php" --path=/tmp/wordpress-events
+
+  woocommerce-regression:
+    name: Existing WooCommerce product regression
+    needs: static-boundary
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress_woocommerce
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mysqli, zip
+      - name: Lint WooCommerce product candidate and probes
+        run: find workbench/labs/chattanooga-cms-admin/candidate workbench/labs/chattanooga-cms-admin/probes -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
+      - name: Install disposable WordPress 7.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+          php /tmp/wp-cli.phar core download --version=7.1 --path=/tmp/wordpress-woocommerce --force
+          php /tmp/wp-cli.phar config create --path=/tmp/wordpress-woocommerce --dbname=wordpress_woocommerce --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
+          php /tmp/wp-cli.phar core install --path=/tmp/wordpress-woocommerce --url=http://cmsa-woocommerce.test --title="CMSA WooCommerce Workbench" --admin_user=admin --admin_password="cmsa-woocommerce-workbench-only" --admin_email=lab@example.invalid --skip-email
+      - name: Install and activate WooCommerce 11.0.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar plugin install woocommerce --version=11.0.1 --activate --path=/tmp/wordpress-woocommerce
+          php /tmp/wp-cli.phar plugin is-active woocommerce --path=/tmp/wordpress-woocommerce
+      - name: Inspect WooCommerce product runtime contract
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/woocommerce-product-model-cli.php" --path=/tmp/wordpress-woocommerce
+      - name: Activate candidate CMS Admin plugin
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp -R workbench/labs/chattanooga-cms-admin/candidate /tmp/wordpress-woocommerce/wp-content/plugins/chattanooga-cms-admin
+          php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin --path=/tmp/wordpress-woocommerce
+          php /tmp/wp-cli.phar plugin is-active chattanooga-cms-admin --path=/tmp/wordpress-woocommerce
+      - name: Verify complete candidate registry
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/ability-registration-cli.php" --path=/tmp/wordpress-woocommerce
+      - name: Verify WooCommerce product permissions and object scope
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/woocommerce-product-permission-cli.php" --path=/tmp/wordpress-woocommerce
+      - name: Verify candidate REST isolation
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/permission-rest-cli.php" --path=/tmp/wordpress-woocommerce
+      - name: Diagnose WooCommerce persisted order baseline
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/woocommerce-order-baseline-cli.php" --path=/tmp/wordpress-woocommerce
+      - name: Verify WooCommerce product transactions and rollback
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/woocommerce-product-transaction-cli.php" --path=/tmp/wordpress-woocommerce
+
+  maintenance-regression:
+    name: Existing maintenance/backup/update regression
+    needs: static-boundary
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress_maintenance
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mysqli, zip
+      - name: Install disposable WordPress 7.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+          php /tmp/wp-cli.phar core download --version=7.1 --path=/tmp/wordpress-maintenance --force
+          php /tmp/wp-cli.phar config create --path=/tmp/wordpress-maintenance --dbname=wordpress_maintenance --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
+          php /tmp/wp-cli.phar core install --path=/tmp/wordpress-maintenance --url=http://cmsa-maintenance.test --title="CMSA Maintenance Workbench" --admin_user=admin --admin_password="cmsa-maintenance-workbench-only" --admin_email=lab@example.invalid --skip-email
+      - name: Activate candidate CMS Admin plugin and fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp -R workbench/labs/chattanooga-cms-admin/candidate /tmp/wordpress-maintenance/wp-content/plugins/chattanooga-cms-admin
+          cp -R workbench/labs/chattanooga-cms-admin/fixtures/cmsa-lab-fixture /tmp/wordpress-maintenance/wp-content/plugins/cmsa-lab-fixture
+          cp -R workbench/labs/chattanooga-cms-admin/fixtures/cmsa-lab-theme /tmp/wordpress-maintenance/wp-content/themes/cmsa-lab-theme
+          php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin --path=/tmp/wordpress-maintenance
+          php /tmp/wp-cli.phar plugin is-active chattanooga-cms-admin --path=/tmp/wordpress-maintenance
+      - name: Run read-only WordPress capability probe
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/runtime-capabilities-cli.php" --path=/tmp/wordpress-maintenance
+      - name: Verify abilities in real WordPress registry
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/ability-registration-cli.php" --path=/tmp/wordpress-maintenance
+      - name: Verify ability permissions and REST isolation
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/permission-rest-cli.php" --path=/tmp/wordpress-maintenance
+      - name: Verify local backup and controlled component rollback
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/backup-rollback-cli.php" --path=/tmp/wordpress-maintenance
+      - name: Verify lifecycle controls and plugin rollback fidelity
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/wordpress-maintenance/wp-content/plugins/cmsa-lab-fixture
+          cp -R workbench/labs/chattanooga-cms-admin/fixtures/cmsa-lab-fixture /tmp/wordpress-maintenance/wp-content/plugins/cmsa-lab-fixture
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/lifecycle-cli.php" --path=/tmp/wordpress-maintenance
+      - name: Verify theme deletion and rollback fidelity
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/wordpress-maintenance/wp-content/themes/cmsa-lab-theme
+          cp -R workbench/labs/chattanooga-cms-admin/fixtures/cmsa-lab-theme /tmp/wordpress-maintenance/wp-content/themes/cmsa-lab-theme
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/theme-lifecycle-cli.php" --path=/tmp/wordpress-maintenance
+      - name: Verify database restore fidelity
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/database-restore-cli.php" --path=/tmp/wordpress-maintenance
+      - name: Verify corrupt and missing backup rejection
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/corrupt-backup-rejection-cli.php" --path=/tmp/wordpress-maintenance
+      - name: Verify unavailable backup storage fails closed
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/storage-failure-cli.php" --path=/tmp/wordpress-maintenance
+      - name: Verify deterministic plugin update edge cases
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/deterministic-plugin-update-cli.php" --path=/tmp/wordpress-maintenance
+      - name: Prepare legacy plugin update fixture
+        run: php /tmp/wp-cli.phar plugin install classic-editor --version=1.6 --path=/tmp/wordpress-maintenance --force
+      - name: Verify error-output redaction
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/error-redaction-cli.php" --path=/tmp/wordpress-maintenance
+      - name: Verify WordPress.org package transactions
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/wordpress-org-package-cli.php" --path=/tmp/wordpress-maintenance
+      - name: Reset legacy plugin for forced rollback probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar plugin install classic-editor --version=1.6 --path=/tmp/wordpress-maintenance --force
+          test "$(php /tmp/wp-cli.phar plugin get classic-editor --field=version --path=/tmp/wordpress-maintenance)" = "1.6"
+      - name: Verify forced plugin update rollback
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/forced-update-rollback-cli.php" --path=/tmp/wordpress-maintenance
+      - name: Prepare legacy theme update fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar theme install twentytwentyone --version=1.8 --path=/tmp/wordpress-maintenance --force
+          test "$(php /tmp/wp-cli.phar theme get twentytwentyone --field=version --path=/tmp/wordpress-maintenance)" = "1.8"
+      - name: Verify theme update and rollback fidelity
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/theme-update-rollback-cli.php" --path=/tmp/wordpress-maintenance
+      - name: Verify WordPress core backup and restore fidelity
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/core-backup-restore-cli.php" --path=/tmp/wordpress-maintenance
+      - name: Verify health reporting and cache control
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/health-cache-cli.php" --path=/tmp/wordpress-maintenance
+      - name: Prepare legacy WordPress core fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar core update --version=7.0 --force --path=/tmp/wordpress-maintenance
+          test "$(php /tmp/wp-cli.phar core version --path=/tmp/wordpress-maintenance)" = "7.0"
+          php /tmp/wp-cli.phar plugin is-active chattanooga-cms-admin --path=/tmp/wordpress-maintenance
+      - name: Verify CMS Admin core update transaction
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/core-update-cli.php" --path=/tmp/wordpress-maintenance
+          test "$(php /tmp/wp-cli.phar core version --path=/tmp/wordpress-maintenance)" != "7.0"
+          php /tmp/wp-cli.phar core is-installed --path=/tmp/wordpress-maintenance
+          php /tmp/wp-cli.phar plugin is-active chattanooga-cms-admin --path=/tmp/wordpress-maintenance
+      - name: Reset legacy core for forced rollback probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar core update --version=7.0 --force --path=/tmp/wordpress-maintenance
+          test "$(php /tmp/wp-cli.phar core version --path=/tmp/wordpress-maintenance)" = "7.0"
+          php /tmp/wp-cli.phar plugin is-active chattanooga-cms-admin --path=/tmp/wordpress-maintenance
+      - name: Verify forced core update rollback
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/forced-core-update-rollback-cli.php" --path=/tmp/wordpress-maintenance
+          test "$(php /tmp/wp-cli.phar core version --path=/tmp/wordpress-maintenance)" = "7.0"
+          php /tmp/wp-cli.phar core is-installed --path=/tmp/wordpress-maintenance
+          php /tmp/wp-cli.phar plugin is-active chattanooga-cms-admin --path=/tmp/wordpress-maintenance
