@@ -11,7 +11,8 @@ Extend Chattanooga CMS Admin from its verified 97-ability workbench position wit
 - Source branch `work/cmsa-media-lifecycle` only.
 - `workbench/tasks/cmsa-media-lifecycle-2026-09-09.md` for the control/evidence record.
 - `workbench/labs/chattanooga-cms-admin/candidate/includes/class-cmsa-media.php` and `class-cmsa-media-abilities.php` only after runtime evidence admits a concrete operation.
-- Existing candidate bootstrap/registry fixtures only if required to register an admitted media ability.
+- `workbench/labs/chattanooga-cms-admin/candidate/includes/class-cmsa-media-lifecycle.php` for the separately evidenced destructive lifecycle state/replacement implementation, keeping file-heavy destructive logic out of the ordinary media inventory/metadata service.
+- Existing candidate bootstrap/registry fixtures only if required to load or register an admitted media lifecycle operation.
 - New or extended disposable probes under `workbench/labs/chattanooga-cms-admin/probes/` and a task-owned workflow if needed for exact media lifecycle verification.
 
 ## Exclusion set
@@ -39,6 +40,7 @@ Extend Chattanooga CMS Admin from its verified 97-ability workbench position wit
 - The same-path replacement fixture intentionally excludes `_wp_attachment_backup_sizes` and companion-file metadata (`original_image`, `source_image`, `animated_video`, `animated_video_poster`). Those complex attachment states remain outside the admitted replacement contract until separately execution-verified.
 - State-token contract run `34388584307` passed and proved the existing generic media `state_token` is insufficient for destructive file replacement conflict control: a primary-file byte change remained invisible when file size and mtime were held constant, and a direct attachment-metadata change was also invisible. Both mutations were restored exactly after the probe.
 - The direct repair line is to preserve the existing lightweight generic `state_token` contract for list/metadata operations and add a separate detailed-read lifecycle state token for destructive media lifecycle operations. That token must bind the generic state to exact attachment metadata, backup-size metadata, and hashes of the primary plus every metadata-owned derivative/companion/backup file. Keeping the lifecycle digest on exact detailed reads avoids turning bounded 100-item media listing into bulk file hashing while still providing exact replacement conflict control.
+- The dedicated lifecycle service is an architectural separation, not a substitute path: ordinary inventory/metadata logic remains in `CMSA_Media`; file-heavy exact-state and replacement logic shares one source-owned service so the token and mutation cannot drift or be duplicated across the ability-registration layer.
 
 ## Mutation set
 
