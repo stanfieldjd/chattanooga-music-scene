@@ -13,6 +13,7 @@ final class CMS_Marketplace {
 	private $products = null;
 	private $cursor = 0;
 	private $remainder_rendered = false;
+	private $integration_ready = null;
 
 	public static function instance() {
 		if ( null === self::$instance ) {
@@ -70,7 +71,22 @@ final class CMS_Marketplace {
 	}
 
 	private function is_marketplace_request() {
-		return ! is_admin() && is_page( self::MARKETPLACE_PAGE_ID );
+		return ! is_admin() && is_page( self::MARKETPLACE_PAGE_ID ) && $this->integration_ready();
+	}
+
+	private function integration_ready() {
+		if ( null !== $this->integration_ready ) {
+			return $this->integration_ready;
+		}
+
+		$content = get_post_field( 'post_content', self::MARKETPLACE_PAGE_ID, 'raw' );
+		if ( ! is_string( $content ) ) {
+			$this->integration_ready = false;
+			return $this->integration_ready;
+		}
+
+		$this->integration_ready = ! has_shortcode( $content, 'products' );
+		return $this->integration_ready;
 	}
 
 	private function next_product() {
