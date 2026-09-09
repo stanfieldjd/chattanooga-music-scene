@@ -31,14 +31,20 @@ Extend Chattanooga CMS Admin from its verified 97-ability workbench position wit
 - Existing media creation already uses native `media_handle_sideload()` and removes a just-created failed-verification attachment through `wp_delete_attachment( $id, true )`, but that rollback use does not establish a safe public permanent-delete contract for pre-existing attachments.
 - The workbench roadmap explicitly identifies media upload/replace/delete as the remaining Layer B media lifecycle surface.
 - Existing queue state identifies media replacement/permanent deletion as a non-automatic target requiring its own evidence and design.
+- WordPress 7.1 media lifecycle run `34385984944` execution-verified permanent attachment deletion on disposable fixtures: the attachment post, primary file, generated derivatives, and attachment metadata are removed; featured-image relationships are cleared; the parent/consumer post is preserved; direct media URLs embedded in post content are not rewritten and therefore become broken references after deletion; native delete permission is object-scoped.
+- WordPress core source confirms `wp_delete_attachment()` clears `_thumbnail_id` relationships and invokes `wp_delete_attachment_files()`, while ordinary post-content references are not rewritten. Core also does not propagate the boolean result from `wp_delete_attachment_files()` through `wp_delete_attachment()`; a guarded delete implementation must independently verify file removal rather than treating the attachment-post return value as sufficient evidence.
+- Initial replacement diagnostic run `34387603787` failed only because the probe incorrectly treated a false return from `wp_update_attachment_metadata()` as proof of persistence failure. WordPress 7.1 source documents that this function also returns false when the supplied metadata equals the existing value, and image sub-size generation itself persists metadata during generation. The probe was repaired to verify exact metadata readback instead of relying on that ambiguous return value.
+- Corrected replacement run `34387997758` passed the complete existing 97-ability registry, existing media permission/transaction regressions, deletion contract, and same-path replacement contract.
+- The corrected replacement runtime established: same attachment ID, same attachment URL/path, same parent, and same MIME are preserved; featured-image and direct content-URL references remain intact; replacement dimensions/primary hash change as expected; WordPress generates a changed derivative set but leaves at least one obsolete derivative requiring explicit old-only cleanup; exact primary/derivative bytes plus metadata can be restored; new-only derivative files can be removed during rollback; a deliberately corrupted post-replacement metadata state was successfully rolled back to the exact prior file hashes, metadata, references, and candidate state token.
+- The same-path replacement fixture intentionally excludes `_wp_attachment_backup_sizes` and companion-file metadata (`original_image`, `source_image`, `animated_video`, `animated_video_poster`). Those complex attachment states remain outside the admitted replacement contract until separately execution-verified.
 
 ## Mutation set
 
 1. Create this dedicated source branch and task record from verified workbench checkpoint `606ccb81f4fb7b02ce9bd2ed5bd5758c2b2804a7`. COMPLETE.
-2. Inspect current media candidate architecture and existing media tests. IN PROGRESS.
-3. Add disposable WordPress runtime diagnostics for native permanent attachment deletion and replacement-relevant file/metadata/reference behavior without admitting a new ability. PENDING.
-4. Verify object-scoped permissions, attachment identity, primary/derived files, attachment metadata, featured-image references, parent state, and deletion/replacement cleanup behavior. PENDING.
-5. Define the narrowest safe lifecycle contract from execution evidence. PENDING.
+2. Inspect current media candidate architecture and existing media tests. COMPLETE.
+3. Add disposable WordPress runtime diagnostics for native permanent attachment deletion and replacement-relevant file/metadata/reference behavior without admitting a new ability. COMPLETE.
+4. Verify object-scoped permissions, attachment identity, primary/derived files, attachment metadata, featured-image references, parent state, and deletion/replacement cleanup behavior. IN PROGRESS — deletion/object scope and replacement identity/file/reference/rollback behavior are verified; exact replacement mutation conflict-token coverage remains to be proved before admission.
+5. Define the narrowest safe lifecycle contract from execution evidence. IN PROGRESS — same-ID/same-path/same-MIME replacement is evidence-supported for ordinary image attachments without backup/companion-file metadata; permanent deletion remains unadmitted because direct content references and independent file-removal verification require a stricter protection contract.
 6. Add only operations justified by that contract, with exact-state guards, explicit confirmation for permanent deletion, reference protection, verification, rollback where technically valid, and bounded auditing. PENDING.
 7. Re-run all existing Chattanooga CMS Admin regressions and integrate into `workbench/mars` only after source/runtime acceptance and explicit integration authorization if required by the current target boundary. PENDING.
 
@@ -46,28 +52,32 @@ Extend Chattanooga CMS Admin from its verified 97-ability workbench position wit
 
 - WordPress permanent attachment deletion can remove the attachment post, original file, generated derivatives, metadata, and relationships; accepting partial cleanup could leave orphaned files or broken references.
 - Existing posts/pages or other objects may reference an attachment as a featured image or by URL/content; deleting or replacing the file without an exact reference policy can break the site.
-- Replacement may preserve attachment identity while changing file path, MIME type, derivative metadata, or URL, or may require a new attachment identity. That behavior is UNKNOWN until verified.
-- File replacement can create orphaned originals/derivatives if cleanup fails or overwrite an existing file before a recoverable checkpoint exists.
+- Same-path replacement preserves attachment identity and URL in the verified ordinary-image fixture, but complex images with backup/original/source/video companion metadata are not yet covered and must fail closed until separately verified.
+- WordPress replacement metadata generation can leave obsolete derivatives from the old dimensions; candidate replacement must enumerate and explicitly remove old-only owned files after successful generation/readback.
+- File replacement can overwrite the primary file before final verification; exact prior primary/derivative bytes and metadata therefore require a recoverable checkpoint before mutation, with removal of new-only files and exact restoration on any failed acceptance test.
+- The current media state token includes file size and mtime but not a primary-file hash or full attachment-metadata digest. Whether it is sufficiently collision-resistant for destructive replacement conflict control remains an evidence question and must be resolved before the replacement ability is admitted.
 - Attachment capabilities are mapped/object-scoped; `upload_files` alone must not be assumed sufficient for destructive operations.
 - A permanent delete is inherently destructive in production. Source/runtime testing may use disposable fixtures, but any future live use requires separate target-specific destructive authorization.
 
 ## Rollback point
 
 - Branch base: `606ccb81f4fb7b02ce9bd2ed5bd5758c2b2804a7`.
+- Pre-replacement runtime rollback is the exact attachment-owned file set plus file bytes/hashes/mtimes and exact attachment metadata captured before mutation; rollback removes new-only files and restores the prior owned set and metadata before readback verification.
 - All runtime fixtures must be disposable and destroyed after verification.
 - No production state is included in this source transaction.
 
 ## Acceptance tests
 
-- [ ] Exact native WordPress permanent-attachment deletion behavior is execution-verified, including primary file, generated derivatives, attachment metadata/post state, and relevant relationship effects.
-- [ ] Exact native permission/object-scope requirements are execution-verified for administrator, owner-scoped/non-owner users where material, and anonymous access.
-- [ ] Replacement semantics are execution-verified before any replacement ability is admitted.
+- [x] Exact native WordPress permanent-attachment deletion behavior is execution-verified, including primary file, generated derivatives, attachment metadata/post state, and relevant relationship effects.
+- [x] Native permanent-delete permission/object scope is execution-verified for administrator, owner/non-owner scope where material, and anonymous access.
+- [x] Same-ID/same-path ordinary-image replacement semantics and exact file/metadata rollback are execution-verified before a replacement ability is admitted.
+- [ ] Exact-state replacement conflict protection is proven to cover file and attachment-metadata state that can materially change replacement/rollback behavior.
 - [ ] Any admitted destructive operation requires exact prior state plus explicit permanent-delete confirmation and fails closed on stale state.
 - [ ] Any admitted operation protects or explicitly governs known references rather than silently breaking them.
-- [ ] Verification failure produces a proven rollback or the operation is not admitted.
-- [ ] Existing five media abilities retain their current validation, privacy, REST-isolation, and rollback behavior.
-- [ ] Complete 97-ability regression baseline remains green until an admitted ability intentionally changes the registry count.
-- [ ] No production mutation or deployment occurs.
+- [x] Replacement verification failure on the ordinary-image contract produces a proven exact file/metadata/reference rollback.
+- [x] Existing five media abilities retain their current validation, privacy, REST-isolation, and rollback behavior through the contract-discovery run.
+- [x] Complete 97-ability regression baseline remains green while no new ability is admitted.
+- [x] No production mutation or deployment occurs.
 
 ## Production state
 
@@ -78,3 +88,6 @@ Production remains independently verified at 82 exposed abilities. This task is 
 ## Result journal
 
 - 2026-09-09: Opened from verified workbench checkpoint `606ccb81f4fb7b02ce9bd2ed5bd5758c2b2804a7`. Selected media lifecycle as the next concrete Layer B gap because list/get/create/metadata/featured-image support already exists while replacement/permanent deletion remain explicitly unimplemented. No lifecycle ability has been admitted yet; exact native semantics and reference/rollback behavior remain the current evidence gate.
+- 2026-09-09: Run `34385984944` passed native permanent-delete contract discovery. The delete removes attachment DB/file state and clears featured-image relationships but leaves direct content URLs unchanged, so permanent deletion is not yet safe to expose as a generic ability. WordPress core also requires independent file-absence verification because attachment deletion does not surface the file-helper boolean.
+- 2026-09-09: Added a same-path replacement diagnostic. First run `34387603787` failed because the probe treated `wp_update_attachment_metadata() === false` as a persistence failure. Direct WordPress 7.1 source inspection showed false also means unchanged metadata and sub-size generation persists metadata incrementally; corrected the probe to use exact readback instead of the ambiguous return value.
+- 2026-09-09: Corrected run `34387997758` passed. Ordinary image replacement can preserve attachment identity, URL/path, MIME, parent, featured-image relationship, and direct content URL while changing primary bytes/dimensions. The diagnostic proved obsolete old derivatives require explicit cleanup and proved exact rollback of primary/derivative files, metadata, state token, and protected references after an injected verification fault. Complex backup/companion-image states remain fail-closed candidates pending separate evidence. No new media ability has been admitted yet.
