@@ -1,6 +1,6 @@
 # Task: cmsa-media-lifecycle-2026-09-09
 
-Status: CONTRACT_DISCOVERY
+Status: REPLACEMENT_IMPLEMENTATION
 
 ## Objective
 
@@ -41,15 +41,17 @@ Extend Chattanooga CMS Admin from its verified 97-ability workbench position wit
 - State-token contract run `34388584307` passed and proved the existing generic media `state_token` is insufficient for destructive file replacement conflict control: a primary-file byte change remained invisible when file size and mtime were held constant, and a direct attachment-metadata change was also invisible. Both mutations were restored exactly after the probe.
 - The direct repair line is to preserve the existing lightweight generic `state_token` contract for list/metadata operations and add a separate detailed-read lifecycle state token for destructive media lifecycle operations. That token must bind the generic state to exact attachment metadata, backup-size metadata, and hashes of the primary plus every metadata-owned derivative/companion/backup file. Keeping the lifecycle digest on exact detailed reads avoids turning bounded 100-item media listing into bulk file hashing while still providing exact replacement conflict control.
 - The dedicated lifecycle service is an architectural separation, not a substitute path: ordinary inventory/metadata logic remains in `CMSA_Media`; file-heavy exact-state and replacement logic shares one source-owned service so the token and mutation cannot drift or be duplicated across the ability-registration layer.
+- Lifecycle-token implementation checkpoint `1951a7c18eec4026dfbf98dc715f3a8c51e6883e` adds `CMSA_Media_Lifecycle`, loads it from the candidate bootstrap, and augments exact `get-media` output with `lifecycle_state_token`, `lifecycle_file_count`, and `lifecycle_complete` without adding file hashing to bounded list-media inventory.
+- WordPress 7.1 run `34389611120` passed the complete 97-ability registry, existing media permission and transaction probes, native deletion/replacement discovery probes, and the dedicated lifecycle-token probe. The lifecycle probe proved the generic token remains blind to same-size/same-mtime primary-byte mutation, derivative-byte mutation, attachment metadata mutation, and backup-size metadata mutation while the new lifecycle token detects all four and returns to the identical original value after exact restoration. The verified ordinary-image fixture enumerated three owned files.
 
 ## Mutation set
 
 1. Create this dedicated source branch and task record from verified workbench checkpoint `606ccb81f4fb7b02ce9bd2ed5bd5758c2b2804a7`. COMPLETE.
 2. Inspect current media candidate architecture and existing media tests. COMPLETE.
 3. Add disposable WordPress runtime diagnostics for native permanent attachment deletion and replacement-relevant file/metadata/reference behavior without admitting a new ability. COMPLETE.
-4. Verify object-scoped permissions, attachment identity, primary/derived files, attachment metadata, featured-image references, parent state, and deletion/replacement cleanup behavior. IN PROGRESS — deletion/object scope and replacement identity/file/reference/rollback behavior are verified; the generic token blind spot is execution-verified and the dedicated lifecycle-token repair remains to be implemented and validated.
-5. Define the narrowest safe lifecycle contract from execution evidence. IN PROGRESS — same-ID/same-path/same-MIME replacement is evidence-supported for ordinary image attachments without backup/companion-file metadata; permanent deletion remains unadmitted because direct content references and independent file-removal verification require a stricter protection contract.
-6. Add only operations justified by that contract, with exact-state guards, explicit confirmation for permanent deletion, reference protection, verification, rollback where technically valid, and bounded auditing. PENDING.
+4. Verify object-scoped permissions, attachment identity, primary/derived files, attachment metadata, featured-image references, parent state, deletion/replacement cleanup behavior, and exact lifecycle conflict state. COMPLETE for the ordinary-image replacement contract and native deletion semantics.
+5. Define the narrowest safe lifecycle contract from execution evidence. COMPLETE for same-ID/same-path/same-MIME ordinary image replacement without backup/companion-file metadata. Permanent deletion remains unadmitted because direct content references and independent file-removal verification require a stricter protection contract.
+6. Implement and execution-verify only the admitted guarded ordinary-image replacement operation using the lifecycle token, centralized existing upload validation, exact rollback snapshot, old-only derivative cleanup, protected identity/path/reference invariants, stale/no-change guards, and bounded auditing. IN PROGRESS.
 7. Re-run all existing Chattanooga CMS Admin regressions and integrate into `workbench/mars` only after source/runtime acceptance and explicit integration authorization if required by the current target boundary. PENDING.
 
 ## Risk set
@@ -60,13 +62,14 @@ Extend Chattanooga CMS Admin from its verified 97-ability workbench position wit
 - WordPress replacement metadata generation can leave obsolete derivatives from the old dimensions; candidate replacement must enumerate and explicitly remove old-only owned files after successful generation/readback.
 - File replacement can overwrite the primary file before final verification; exact prior primary/derivative bytes and metadata therefore require a recoverable checkpoint before mutation, with removal of new-only files and exact restoration on any failed acceptance test.
 - The generic media state token is execution-verified blind to same-size/same-mtime primary-byte changes and attachment-metadata-only changes. It must not be reused as the sole destructive replacement guard.
-- Computing complete file hashes on every media list item would materially expand read I/O; destructive lifecycle conflict state should therefore be bound by a dedicated exact-item token rather than weakening exactness or imposing bulk hashing on ordinary inventory reads.
+- Computing complete file hashes on every media list item would materially expand read I/O; destructive lifecycle conflict state is therefore bound by the dedicated exact-item token rather than weakening exactness or imposing bulk hashing on ordinary inventory reads.
 - Attachment capabilities are mapped/object-scoped; `upload_files` alone must not be assumed sufficient for destructive operations.
 - A permanent delete is inherently destructive in production. Source/runtime testing may use disposable fixtures, but any future live use requires separate target-specific destructive authorization.
 
 ## Rollback point
 
 - Branch base: `606ccb81f4fb7b02ce9bd2ed5bd5758c2b2804a7`.
+- Current pre-replacement implementation checkpoint: `1951a7c18eec4026dfbf98dc715f3a8c51e6883e`.
 - Pre-replacement runtime rollback is the exact attachment-owned file set plus file bytes/hashes/mtimes and exact attachment metadata captured before mutation; rollback removes new-only files and restores the prior owned set and metadata before readback verification.
 - All runtime fixtures must be disposable and destroyed after verification.
 - No production state is included in this source transaction.
@@ -76,13 +79,20 @@ Extend Chattanooga CMS Admin from its verified 97-ability workbench position wit
 - [x] Exact native WordPress permanent-attachment deletion behavior is execution-verified, including primary file, generated derivatives, attachment metadata/post state, and relevant relationship effects.
 - [x] Native permanent-delete permission/object scope is execution-verified for administrator, owner/non-owner scope where material, and anonymous access.
 - [x] Same-ID/same-path ordinary-image replacement semantics and exact file/metadata rollback are execution-verified before a replacement ability is admitted.
-- [ ] A dedicated destructive lifecycle state token detects primary/owned-file hash changes and attachment/backup metadata changes that the generic token does not detect, and restores to the identical value after exact rollback.
-- [ ] Any admitted destructive operation requires exact prior lifecycle state plus explicit permanent-delete confirmation where applicable and fails closed on stale state.
-- [ ] Any admitted operation protects or explicitly governs known references rather than silently breaking them.
-- [x] Replacement verification failure on the ordinary-image contract produces a proven exact file/metadata/reference rollback.
-- [x] Existing five media abilities retain their current validation, privacy, REST-isolation, and rollback behavior through the contract-discovery runs.
-- [x] Complete 97-ability regression baseline remains green while no new ability is admitted.
+- [x] A dedicated destructive lifecycle state token detects primary/owned-file hash changes and attachment/backup metadata changes that the generic token does not detect, and restores to the identical value after exact rollback.
+- [ ] The admitted replacement ability requires exact prior lifecycle state, fails closed on stale or incomplete lifecycle state, rejects no-change payloads, and accepts only the verified same-MIME ordinary-image contract.
+- [ ] The admitted replacement operation preserves attachment ID, attached-file path/URL, MIME, parent, featured-image relationships, and direct same-URL content references while removing obsolete old-only derivatives.
+- [ ] Candidate replacement verification failure produces a proven exact file/metadata/lifecycle-token rollback with no new-only derivative residue.
+- [ ] Existing media upload validation remains one centralized implementation and retains the 8 MiB, extension/type, payload MIME, and no-remote-fetch boundaries for both create and replacement inputs.
+- [ ] Existing five media abilities retain their current validation, privacy, REST-isolation, and rollback behavior after replacement admission.
+- [ ] Complete candidate regression suite passes with the intentionally increased registry/media ability count.
 - [x] No production mutation or deployment occurs.
+
+## Source position
+
+- Source branch: `work/cmsa-media-lifecycle`.
+- Observed implementation checkpoint before guarded replacement coding: `1951a7c18eec4026dfbf98dc715f3a8c51e6883e`.
+- Production state: unchanged and not deployed; production remains independently verified at 82 exposed Chattanooga CMS Admin abilities.
 
 ## Production state
 
@@ -97,3 +107,4 @@ Production remains independently verified at 82 exposed abilities. This task is 
 - 2026-09-09: Added a same-path replacement diagnostic. First run `34387603787` failed because the probe treated `wp_update_attachment_metadata() === false` as a persistence failure. Direct WordPress 7.1 source inspection showed false also means unchanged metadata and sub-size generation persists metadata incrementally; corrected the probe to use exact readback instead of the ambiguous return value.
 - 2026-09-09: Corrected run `34387997758` passed. Ordinary image replacement can preserve attachment identity, URL/path, MIME, parent, featured-image relationship, and direct content URL while changing primary bytes/dimensions. The diagnostic proved obsolete old derivatives require explicit cleanup and proved exact rollback of primary/derivative files, metadata, state token, and protected references after an injected verification fault. Complex backup/companion-image states remain fail-closed candidates pending separate evidence. No new media ability has been admitted yet.
 - 2026-09-09: Run `34388584307` proved the current generic media token has two destructive-conflict blind spots: same-size/same-mtime primary file changes and attachment-metadata-only changes. The probe restored both exactly and left the 97-ability baseline green. Selected direct repair: add an exact-item lifecycle digest binding attachment metadata and all owned-file hashes; do not overload ordinary list reads with bulk hashing and do not admit replacement until this new conflict guard is execution-verified.
+- 2026-09-09: Checkpoint `1951a7c18eec4026dfbf98dc715f3a8c51e6883e` implemented the dedicated lifecycle digest and exact `get-media` exposure. Run `34389611120` passed and independently proved the new lifecycle token detects primary, derivative, attachment-metadata, and backup-size changes missed by the generic token, then returns to its identical prior value after exact restoration. Guarded ordinary-image replacement implementation is now the active source-only step; permanent deletion remains unadmitted.
