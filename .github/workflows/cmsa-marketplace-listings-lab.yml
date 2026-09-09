@@ -6,11 +6,13 @@ on:
       - work/cmsa-marketplace-listings
     paths:
       - "workbench/labs/chattanooga-cms-admin/probes/awpcp-marketplace-model-cli.php"
+      - "workbench/labs/chattanooga-cms-admin/probes/awpcp-marketplace-read-contract-cli.php"
       - "workbench/tasks/cmsa-marketplace-listings-2026-09-09.md"
       - ".github/workflows/cmsa-marketplace-listings-lab.yml"
   pull_request:
     paths:
       - "workbench/labs/chattanooga-cms-admin/probes/awpcp-marketplace-model-cli.php"
+      - "workbench/labs/chattanooga-cms-admin/probes/awpcp-marketplace-read-contract-cli.php"
       - "workbench/tasks/cmsa-marketplace-listings-2026-09-09.md"
       - ".github/workflows/cmsa-marketplace-listings-lab.yml"
 
@@ -40,11 +42,12 @@ jobs:
         with:
           php-version: "8.2"
           extensions: mysqli, zip
-      - name: Lint marketplace runtime probe
+      - name: Lint marketplace runtime probes
         shell: bash
         run: |
           set -euo pipefail
           php -l workbench/labs/chattanooga-cms-admin/probes/awpcp-marketplace-model-cli.php >/dev/null
+          php -l workbench/labs/chattanooga-cms-admin/probes/awpcp-marketplace-read-contract-cli.php >/dev/null
       - name: Install disposable WordPress 7.1
         shell: bash
         run: |
@@ -70,3 +73,8 @@ jobs:
         run: |
           set -euo pipefail
           php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/awpcp-marketplace-model-cli.php" --path=/tmp/wordpress
+      - name: Inspect focused marketplace listing read contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/awpcp-marketplace-read-contract-cli.php" --path=/tmp/wordpress
