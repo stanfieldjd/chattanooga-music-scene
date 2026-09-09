@@ -164,7 +164,8 @@ final class CMS_Unified_Marketplace {
 				continue;
 			}
 
-			if ( '' !== trim( (string) $value ) && 0 !== (int) $value ) {
+			$normalized = trim( (string) $value );
+			if ( '' !== $normalized && '0' !== $normalized ) {
 				return true;
 			}
 		}
