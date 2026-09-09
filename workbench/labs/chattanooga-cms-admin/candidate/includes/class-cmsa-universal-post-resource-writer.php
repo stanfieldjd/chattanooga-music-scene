@@ -207,11 +207,11 @@ final class CMSA_Universal_Post_Resource_Writer {
 		}
 
 		return array(
-			'name'          => $name,
-			'post_type'     => $post_type,
-			'controller'    => $controller,
-			'rest_base'     => $post_type->rest_base ? (string) $post_type->rest_base : $name,
-			'rest_namespace'=> $post_type->rest_namespace ? (string) $post_type->rest_namespace : 'wp/v2',
+			'name'           => $name,
+			'post_type'      => $post_type,
+			'controller'     => $controller,
+			'rest_base'      => $post_type->rest_base ? (string) $post_type->rest_base : $name,
+			'rest_namespace' => $post_type->rest_namespace ? (string) $post_type->rest_namespace : 'wp/v2',
 		);
 	}
 
@@ -256,7 +256,7 @@ final class CMSA_Universal_Post_Resource_Writer {
 			return new WP_Error( 'cmsa_universal_post_revision_create', 'Could not establish a rollback revision.' );
 		}
 		$revision = reset( $revisions );
-		if ( ! $revision instanceof WP_Post || ! $this->matches_revision_state( $revision, $this->revision_state( $post ) ) ) {
+		if ( ! $revision instanceof WP_Post || ! $this->revision_matches_before( $revision, $this->revision_state( $post ) ) ) {
 			return new WP_Error( 'cmsa_universal_post_revision_create', 'Existing revision does not match current content state.' );
 		}
 		return (int) $revision->ID;
@@ -269,6 +269,12 @@ final class CMSA_Universal_Post_Resource_Writer {
 		}
 		$post = get_post( (int) $before['id'] );
 		return $post instanceof WP_Post && $this->matches_revision_state( $post, $before );
+	}
+
+	private function revision_matches_before( WP_Post $revision, array $before ) {
+		return (string) $before['title'] === (string) $revision->post_title
+			&& (string) $before['content'] === (string) $revision->post_content
+			&& (string) $before['excerpt'] === (string) $revision->post_excerpt;
 	}
 
 	private function matches_created_draft( WP_Post $post, $resource, WP_REST_Request $request ) {
