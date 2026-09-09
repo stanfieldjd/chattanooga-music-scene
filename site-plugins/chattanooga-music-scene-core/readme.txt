@@ -3,7 +3,7 @@ Contributors: chattanoogamusicscene
 Tags: events, weekend, publishing, marketplace
 Requires at least: 6.4
 Requires PHP: 7.4
-Stable tag: 0.2.4
+Stable tag: 0.2.5
 License: GPLv2 or later
 
 Site-specific publishing and marketplace tools for Chattanooga Music Scene.
@@ -35,6 +35,11 @@ customer-facing label.
 The integration runs only on the Chattanooga Music Marketplace page. Existing
 classified controls, categories, searches, and location information remain under
 AWP Classifieds and are not removed or replaced.
+
+On the first unfiltered Marketplace results page, store products are distributed
+across the available classified listings so all of them remain inside the listing
+stream before pagination. They are not repeated on later classified-results pages,
+and unmapped store products are not inserted into category-filtered AWP results.
 
 The integration does not activate while the legacy [products] shortcode remains
 on the Marketplace page. This prevents duplicate product output during deployment.
