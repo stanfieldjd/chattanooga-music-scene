@@ -12,7 +12,7 @@ final class CMS_Marketplace {
 
 	private $products = null;
 	private $cursor = 0;
-	private $remainder_rendered = false;
+	private $assignments = array();
 	private $integration_ready = null;
 
 	public static function instance() {
@@ -24,8 +24,8 @@ final class CMS_Marketplace {
 	}
 
 	private function __construct() {
+		add_filter( 'awpcp-content-before-listings-pagination', array( $this, 'prepare_interleaving' ), 20, 4 );
 		add_filter( 'awpcp-render-listing-item', array( $this, 'interleave_product' ), 20, 3 );
-		add_filter( 'awpcp-content-after-listings-page', array( $this, 'append_remaining_products' ), 20, 2 );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_styles' ) );
 	}
 
@@ -42,32 +42,46 @@ final class CMS_Marketplace {
 		);
 	}
 
-	public function interleave_product( $rendered_listing, $listing, $position ) {
-		if ( ! $this->is_marketplace_request() ) {
-			return $rendered_listing;
-		}
+	public function prepare_interleaving( $content, $context, $listings, $query_vars ) {
+		$this->cursor      = 0;
+		$this->assignments = array();
 
-		$product = $this->next_product();
-		if ( ! $product ) {
-			return $rendered_listing;
-		}
-
-		return $rendered_listing . $this->render_product_card( $product );
-	}
-
-	public function append_remaining_products( $content, $context ) {
-		if ( ! $this->is_marketplace_request() || $this->remainder_rendered ) {
+		if ( ! $this->is_marketplace_request() || ! $this->is_supported_listing_context( $context, $query_vars ) ) {
 			return $content;
 		}
 
-		$this->remainder_rendered = true;
+		$listing_count = is_countable( $listings ) ? count( $listings ) : 0;
+		$product_count = count( $this->get_products() );
 
-		$remaining = '';
-		while ( $product = $this->next_product() ) {
-			$remaining .= $this->render_product_card( $product );
+		if ( $listing_count < 1 || $product_count < 1 ) {
+			return $content;
 		}
 
-		return $content . $remaining;
+		$base      = intdiv( $product_count, $listing_count );
+		$remainder = $product_count % $listing_count;
+
+		for ( $position = 1; $position <= $listing_count; $position++ ) {
+			$this->assignments[ $position ] = $base + ( $position <= $remainder ? 1 : 0 );
+		}
+
+		return $content;
+	}
+
+	public function interleave_product( $rendered_listing, $listing, $position ) {
+		if ( ! $this->is_marketplace_request() || empty( $this->assignments[ $position ] ) ) {
+			return $rendered_listing;
+		}
+
+		$products = $this->products_for_position( $position );
+		if ( empty( $products ) ) {
+			return $rendered_listing;
+		}
+
+		foreach ( $products as $product ) {
+			$rendered_listing .= $this->render_product_card( $product );
+		}
+
+		return $rendered_listing;
 	}
 
 	private function is_marketplace_request() {
@@ -89,16 +103,52 @@ final class CMS_Marketplace {
 		return $this->integration_ready;
 	}
 
-	private function next_product() {
-		$products = $this->get_products();
-		if ( empty( $products ) || ! isset( $products[ $this->cursor ] ) ) {
-			return null;
+	private function is_supported_listing_context( $context, $query_vars ) {
+		if ( ! is_array( $query_vars ) || ! $this->is_first_results_page( $query_vars ) ) {
+			return false;
 		}
 
-		$product = $products[ $this->cursor ];
-		$this->cursor++;
+		if ( 'main-page' === $context ) {
+			return true;
+		}
 
-		return $product;
+		if ( 'browse-listings' !== $context ) {
+			return false;
+		}
+
+		$classifieds_query = isset( $query_vars['classifieds_query'] ) && is_array( $query_vars['classifieds_query'] )
+			? $query_vars['classifieds_query']
+			: array();
+
+		return empty( $classifieds_query['category'] );
+	}
+
+	private function is_first_results_page( $query_vars ) {
+		$offset = isset( $query_vars['offset'] ) ? absint( $query_vars['offset'] ) : 0;
+		$paged  = isset( $query_vars['paged'] ) ? absint( $query_vars['paged'] ) : 1;
+
+		return 0 === $offset && $paged <= 1;
+	}
+
+	private function products_for_position( $position ) {
+		$count = isset( $this->assignments[ $position ] ) ? absint( $this->assignments[ $position ] ) : 0;
+		if ( $count < 1 ) {
+			return array();
+		}
+
+		$products = $this->get_products();
+		$assigned = array();
+
+		for ( $i = 0; $i < $count; $i++ ) {
+			if ( ! isset( $products[ $this->cursor ] ) ) {
+				break;
+			}
+
+			$assigned[] = $products[ $this->cursor ];
+			$this->cursor++;
+		}
+
+		return $assigned;
 	}
 
 	private function get_products() {
