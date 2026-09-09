@@ -49,10 +49,21 @@ jobs:
         run: |
           mkdir -p build/chattanooga-music-scene-core
           cp -R site-plugins/chattanooga-music-scene-core/. build/chattanooga-music-scene-core/
+          rm -rf build/chattanooga-music-scene-core/tests
           (
             cd build
             zip -qr "../chattanooga-music-scene-core-${VERSION}.zip" chattanooga-music-scene-core
           )
+      - name: Verify production package
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          unzip -l "chattanooga-music-scene-core-${VERSION}.zip"
+          if unzip -l "chattanooga-music-scene-core-${VERSION}.zip" | grep -q '/tests/'; then
+            echo "Production package unexpectedly contains tests." >&2
+            exit 1
+          fi
       - name: Upload installable plugin artifact
         uses: actions/upload-artifact@v4
         with:
