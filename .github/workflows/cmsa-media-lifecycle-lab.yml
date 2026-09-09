@@ -47,6 +47,7 @@ jobs:
           find workbench/labs/chattanooga-cms-admin/candidate -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
           php -l workbench/labs/chattanooga-cms-admin/probes/media-lifecycle-contract-cli.php >/dev/null
           php -l workbench/labs/chattanooga-cms-admin/probes/media-replacement-contract-cli.php >/dev/null
+          php -l workbench/labs/chattanooga-cms-admin/probes/media-state-token-contract-cli.php >/dev/null
       - name: Install disposable WordPress 7.1
         shell: bash
         run: |
@@ -72,3 +73,5 @@ jobs:
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/media-lifecycle-contract-cli.php" --path=/tmp/wordpress
       - name: Discover same-path media replacement contract
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/media-replacement-contract-cli.php" --path=/tmp/wordpress
+      - name: Discover current media state token boundary
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/media-state-token-contract-cli.php" --path=/tmp/wordpress
