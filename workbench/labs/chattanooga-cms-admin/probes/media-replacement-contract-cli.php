@@ -60,7 +60,7 @@ $owned_paths = static function ( $primary, $metadata ) {
 			if ( is_array( $size ) && ! empty( $size['file'] ) ) {
 				$paths[] = path_join( $directory, basename( (string) $size['file'] ) );
 			}
-		}
+	}
 	}
 	foreach ( array( 'original_image', 'source_image', 'animated_video', 'animated_video_poster' ) as $key ) {
 		if ( ! empty( $metadata[ $key ] ) && is_string( $metadata[ $key ] ) ) {
@@ -200,8 +200,10 @@ $apply_replacement = static function ( $attachment_id, $primary, $replacement_te
 	if ( ! is_array( $generated ) || empty( $generated['width'] ) || empty( $generated['height'] ) ) {
 		$fail( 'WordPress did not generate replacement attachment metadata.' );
 	}
-	if ( false === wp_update_attachment_metadata( $attachment_id, $generated ) ) {
-		$fail( 'WordPress did not persist replacement attachment metadata.' );
+	wp_update_attachment_metadata( $attachment_id, $generated );
+	$persisted = wp_get_attachment_metadata( $attachment_id );
+	if ( ! is_array( $persisted ) || $persisted !== $generated ) {
+		$fail( 'WordPress replacement attachment metadata readback does not match generated metadata.' );
 	}
 	return array(
 		'metadata' => $generated,
@@ -227,9 +229,7 @@ $restore_snapshot = static function ( $attachment_id, $primary, array $metadata_
 		}
 		@touch( $path, $state['mtime'] );
 	}
-	if ( false === wp_update_attachment_metadata( $attachment_id, $metadata_before ) ) {
-		return false;
-	}
+	wp_update_attachment_metadata( $attachment_id, $metadata_before );
 	clearstatcache();
 	$current = wp_get_attachment_metadata( $attachment_id );
 	if ( $current !== $metadata_before ) {
@@ -312,9 +312,7 @@ foreach ( $new_only as $path ) {
 $second = $apply_replacement( $attachment_id, $primary, $replacement_temp );
 $fault_metadata = $second['metadata'];
 $fault_metadata['width'] = 1;
-if ( false === wp_update_attachment_metadata( $attachment_id, $fault_metadata ) ) {
-	$fail( 'could not inject replacement verification fault.' );
-}
+wp_update_attachment_metadata( $attachment_id, $fault_metadata );
 $fault_read = wp_get_attachment_metadata( $attachment_id );
 if ( ! is_array( $fault_read ) || 1 !== (int) $fault_read['width'] ) {
 	$fail( 'replacement verification fault did not persist.' );
@@ -338,4 +336,4 @@ if ( ! $target_final instanceof WP_Post || (int) get_post_thumbnail_id( $target_
 wp_delete_attachment( $attachment_id, true );
 wp_delete_post( $target_id, true );
 
-echo 'media-replacement-contract-cli: PASS identity=same-id url=same-path featured=preserved content-url=preserved parent=preserved mime=same orphaned-old-derivatives=' . count( $orphaned_old ) . ' new-only-derivatives=' . count( $new_only ) . ' rollback=exact-files-metadata-state-token fault-rollback=verified state-token=changed\n';
+echo 'media-replacement-contract-cli: PASS identity=same-id url=same-path featured=preserved content-url=preserved parent=preserved mime=same orphaned-old-derivatives=' . count( $orphaned_old ) . ' new-only-derivatives=' . count( $new_only ) . ' rollback=exact-files-metadata-state-token fault-rollback=verified state-token=changed metadata-persistence=readback-verified\n';
