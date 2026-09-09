@@ -6,9 +6,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 final class CMSA_Universal_Control_Plane_Abilities {
 	private $control_plane;
+	private $resource_reader;
 
-	public function __construct( CMSA_Universal_Control_Plane $control_plane ) {
-		$this->control_plane = $control_plane;
+	public function __construct( CMSA_Universal_Control_Plane $control_plane, CMSA_Universal_Resource_Reader $resource_reader ) {
+		$this->control_plane  = $control_plane;
+		$this->resource_reader = $resource_reader;
 	}
 
 	public function register() {
@@ -74,6 +76,53 @@ final class CMSA_Universal_Control_Plane_Abilities {
 				'output_schema' => array( 'type' => 'object' ),
 				'execute_callback' => function ( $input ) {
 					return $this->control_plane->inspect_resource_registry( is_array( $input ) ? $input : array() );
+				},
+				'permission_callback' => static function () {
+					return current_user_can( 'manage_options' );
+				},
+				'meta' => array(
+					'public'       => true,
+					'show_in_rest' => false,
+					'mcp'          => array( 'public' => true ),
+					'annotations'  => array(
+						'readonly'    => true,
+						'destructive' => false,
+						'idempotent'  => true,
+					),
+				),
+			)
+		);
+
+		wp_register_ability(
+			'chattanooga-cms-admin/read-standard-resource',
+			array(
+				'label'       => __( 'Read standard WordPress resource', 'chattanooga-cms-admin' ),
+				'description' => __( 'Reads bounded records from an administratively exposed WordPress post type or taxonomy through the standard WordPress object and capability model. This ability does not read arbitrary metadata or mutate resources.', 'chattanooga-cms-admin' ),
+				'category'    => 'chattanooga-cms-admin',
+				'input_schema' => array(
+					'type'                 => 'object',
+					'properties'           => array(
+						'kind' => array(
+							'type' => 'string',
+							'enum' => array( 'post_type', 'taxonomy' ),
+						),
+						'resource' => array( 'type' => 'string', 'minLength' => 1 ),
+						'operation' => array(
+							'type' => 'string',
+							'enum' => array( 'list', 'get' ),
+						),
+						'id'       => array( 'type' => 'integer', 'minimum' => 1 ),
+						'page'     => array( 'type' => 'integer', 'minimum' => 1, 'default' => 1 ),
+						'per_page' => array( 'type' => 'integer', 'minimum' => 1, 'maximum' => 100, 'default' => 20 ),
+						'status'   => array( 'type' => 'string', 'default' => 'any' ),
+						'search'   => array( 'type' => 'string', 'default' => '' ),
+					),
+					'required'             => array( 'kind', 'resource', 'operation' ),
+					'additionalProperties' => false,
+				),
+				'output_schema' => array( 'type' => 'object' ),
+				'execute_callback' => function ( $input ) {
+					return $this->resource_reader->read( is_array( $input ) ? $input : array() );
 				},
 				'permission_callback' => static function () {
 					return current_user_can( 'manage_options' );
