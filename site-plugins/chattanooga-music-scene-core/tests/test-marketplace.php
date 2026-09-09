@@ -19,11 +19,12 @@ function is_page( $id ) { return 12 === (int) $id; }
 function get_post_field() { return $GLOBALS['cms_test_page_content']; }
 function has_shortcode( $content, $tag ) { return false !== strpos( $content, '[' . $tag ); }
 function wc_get_products() { return $GLOBALS['cms_test_products']; }
+function absint( $value ) { return abs( (int) $value ); }
 
 class WC_Product {
 	private $visible;
 
-	public function __construct( $visible ) {
+	public function __construct( $visible = true ) {
 		$this->visible = (bool) $visible;
 	}
 
@@ -39,10 +40,16 @@ function cms_test_instance() {
 	return $reflection->newInstanceWithoutConstructor();
 }
 
-function cms_test_private( $object, $method ) {
+function cms_test_private( $object, $method, array $args = array() ) {
 	$reflection = new ReflectionMethod( 'CMS_Marketplace', $method );
 	$reflection->setAccessible( true );
-	return $reflection->invoke( $object );
+	return $reflection->invokeArgs( $object, $args );
+}
+
+function cms_test_property( $object, $property ) {
+	$reflection = new ReflectionProperty( 'CMS_Marketplace', $property );
+	$reflection->setAccessible( true );
+	return $reflection->getValue( $object );
 }
 
 function cms_assert_same( $expected, $actual, $message ) {
@@ -89,6 +96,82 @@ cms_assert_same(
 	array( $visible_a, $visible_b ),
 	cms_test_private( $marketplace, 'get_products' ),
 	'Only catalog-visible published products returned by the product query may enter the Marketplace stream.'
+);
+
+$GLOBALS['cms_test_products'] = array(
+	new WC_Product(), new WC_Product(), new WC_Product(), new WC_Product(),
+	new WC_Product(), new WC_Product(), new WC_Product(), new WC_Product(),
+);
+$marketplace = cms_test_instance();
+$listings    = array( (object) array(), (object) array(), (object) array(), (object) array() );
+$marketplace->prepare_interleaving( array(), 'main-page', $listings, array( 'offset' => 0, 'paged' => 1 ) );
+cms_assert_same(
+	array( 1 => 2, 2 => 2, 3 => 2, 4 => 2 ),
+	cms_test_property( $marketplace, 'assignments' ),
+	'Eight products must be distributed evenly across four Marketplace listings.'
+);
+cms_assert_same(
+	2,
+	count( cms_test_private( $marketplace, 'products_for_position', array( 1 ) ) ),
+	'The first listing must receive its assigned product count.'
+);
+cms_assert_same(
+	2,
+	count( cms_test_private( $marketplace, 'products_for_position', array( 2 ) ) ),
+	'The second listing must continue from the shared product cursor.'
+);
+
+$GLOBALS['cms_test_products'] = array(
+	new WC_Product(), new WC_Product(), new WC_Product(), new WC_Product(), new WC_Product(),
+);
+$marketplace = cms_test_instance();
+$marketplace->prepare_interleaving( array(), 'main-page', $listings, array( 'offset' => 0, 'paged' => 1 ) );
+cms_assert_same(
+	array( 1 => 2, 2 => 1, 3 => 1, 4 => 1 ),
+	cms_test_property( $marketplace, 'assignments' ),
+	'An uneven product count must stay inside the listing stream instead of spilling below pagination.'
+);
+
+$marketplace = cms_test_instance();
+$marketplace->prepare_interleaving( array(), 'main-page', $listings, array( 'offset' => 10, 'paged' => 2 ) );
+cms_assert_same(
+	array(),
+	cms_test_property( $marketplace, 'assignments' ),
+	'Products must not repeat on later classified-results pages.'
+);
+
+$marketplace = cms_test_instance();
+$marketplace->prepare_interleaving(
+	array(),
+	'browse-listings',
+	$listings,
+	array(
+		'offset'            => 0,
+		'paged'             => 1,
+		'classifieds_query' => array( 'category' => 96 ),
+	)
+);
+cms_assert_same(
+	array(),
+	cms_test_property( $marketplace, 'assignments' ),
+	'Unmapped store products must not contaminate an AWP category-filtered result set.'
+);
+
+$marketplace = cms_test_instance();
+$marketplace->prepare_interleaving(
+	array(),
+	'browse-listings',
+	$listings,
+	array(
+		'offset'            => 0,
+		'paged'             => 1,
+		'classifieds_query' => array( 'context' => 'public-listings' ),
+	)
+);
+cms_assert_same(
+	array( 1 => 2, 2 => 1, 3 => 1, 4 => 1 ),
+	cms_test_property( $marketplace, 'assignments' ),
+	'Unfiltered Browse Ads must remain part of the unified Marketplace stream.'
 );
 
 echo "Marketplace integration tests passed.\n";
