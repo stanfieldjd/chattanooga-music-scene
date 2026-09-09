@@ -1,4 +1,5 @@
 [
   "chattanooga-cms-admin/inspect-resource-registry",
-  "chattanooga-cms-admin/read-standard-resource"
+  "chattanooga-cms-admin/read-standard-resource",
+  "chattanooga-cms-admin/write-standard-post-resource"
 ]
