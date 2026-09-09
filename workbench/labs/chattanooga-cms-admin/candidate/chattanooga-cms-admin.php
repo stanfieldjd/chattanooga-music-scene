@@ -41,6 +41,7 @@ require_once CMSA_DIR . 'includes/class-cmsa-weekend-feature.php';
 require_once CMSA_DIR . 'includes/class-cmsa-woocommerce-products.php';
 require_once CMSA_DIR . 'includes/class-cmsa-marketplace-listings.php';
 require_once CMSA_DIR . 'includes/class-cmsa-universal-resource-reader.php';
+require_once CMSA_DIR . 'includes/class-cmsa-universal-post-resource-writer.php';
 require_once CMSA_DIR . 'includes/class-cmsa-universal-control-plane.php';
 require_once CMSA_DIR . 'includes/class-cmsa-abilities.php';
 require_once CMSA_DIR . 'includes/class-cmsa-content-abilities.php';
