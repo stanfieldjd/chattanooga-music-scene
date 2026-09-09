@@ -23,6 +23,7 @@ final class CMSA_Plugin {
 	private $weekend_feature_abilities;
 	private $woocommerce_product_abilities;
 	private $marketplace_listing_abilities;
+	private $universal_control_plane_abilities;
 
 	public static function instance() {
 		if ( null === self::$instance ) {
@@ -91,6 +92,9 @@ final class CMSA_Plugin {
 		if ( ! $this->marketplace_listing_abilities ) {
 			$this->marketplace_listing_abilities = new CMSA_Marketplace_Listing_Abilities( new CMSA_Marketplace_Listings() );
 		}
+		if ( ! $this->universal_control_plane_abilities ) {
+			$this->universal_control_plane_abilities = new CMSA_Universal_Control_Plane_Abilities( new CMSA_Universal_Control_Plane() );
+		}
 
 		$this->abilities->register();
 		$this->content_abilities->register();
@@ -108,5 +112,6 @@ final class CMSA_Plugin {
 		$this->weekend_feature_abilities->register();
 		$this->woocommerce_product_abilities->register();
 		$this->marketplace_listing_abilities->register();
+		$this->universal_control_plane_abilities->register();
 	}
 }
