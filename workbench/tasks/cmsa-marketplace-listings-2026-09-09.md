@@ -1,6 +1,6 @@
 # Task: cmsa-marketplace-listings-2026-09-09
 
-Status: READ_CONTRACT_DESIGN
+Status: FIXTURE_CONTRACT_DISCOVERY
 
 ## Objective
 
@@ -10,7 +10,7 @@ Extend Chattanooga CMS Admin with a bounded marketplace-listing administration s
 
 - Source branch `work/cmsa-marketplace-listings` only.
 - `workbench/tasks/cmsa-marketplace-listings-2026-09-09.md` for the control/evidence record.
-- `workbench/labs/chattanooga-cms-admin/probes/` for disposable AWP Classifieds runtime/model and read-contract inspection.
+- `workbench/labs/chattanooga-cms-admin/probes/` for disposable AWP Classifieds runtime/model, read-contract, and fixture-contract inspection.
 - `.github/workflows/cmsa-marketplace-listings-lab.yml` for WordPress 7.1 + AWP Classifieds 4.4.8 + WooCommerce 11.0.1 runtime verification.
 - Chattanooga CMS Admin candidate files only after the exact listing read model, permissions, identifiers, state boundaries, and safe native APIs are execution-verified.
 - Exact expected-ability fixture only after a bounded read ability is admitted.
@@ -34,7 +34,7 @@ Extend Chattanooga CMS Admin with a bounded marketplace-listing administration s
 - WordPress.org identifies AWP Classifieds 4.4.8 as the current installed-version match and documents classified listing inventory plus its own payment/listing lifecycle. The upstream Strategy11 repository is public; third-party source remains an immutable dependency for this workstream.
 - `site-plugins/cms-market-checkout-bridge` is not present at the checked `workbench/mars` repository path. Bridge internals are therefore not treated as known or reconstructed from memory.
 - Runtime workflow `34372812403`, job `102538018793`, passed on WordPress 7.1 + PHP 8.2 + MySQL 8 + AWP Classifieds 4.4.8 + WooCommerce 11.0.1 at branch checkpoint `78dba0d0c023be312d1f17476d0de4df6288667d`.
-- The runtime established `AWPCP_LISTING_POST_TYPE=awpcp_listing`, with registered post type `awpcp_listing`, public=true, map_meta_cap=true, capability type `awpcp_classified_ad`.
+- The first runtime established `AWPCP_LISTING_POST_TYPE=awpcp_listing`, with registered post type `awpcp_listing`, public=true, map_meta_cap=true, capability type `awpcp_classified_ad`.
 - The runtime established hierarchical taxonomy `awpcp_listing_category` attached to `awpcp_listing`; term management/edit/delete uses `manage_categories` and relationship assignment uses `edit_posts`.
 - The runtime administrator has `edit_awpcp_classified_ads`, `edit_others_awpcp_classified_ads`, and `manage_awpcp`.
 - AWP 4.4.8 exposes `AWPCP_ListingsCollection` with bounded listing collection/get methods, `AWPCP_ListingAuthorization` with current-user listing edit/manage checks, `AWPCP_ListingRenderer` with explicit listing getters, and `AWPCP_ListingsAPI` with native lifecycle/mutation methods. Mutation method existence is evidence only and is not admission to this task.
@@ -42,17 +42,26 @@ Extend Chattanooga CMS Admin with a bounded marketplace-listing administration s
 - `AWPCP_ListingRenderer` exposes both useful public-state getters and private/sensitive getters. Explicitly observed sensitive getters include access key, contact email/name/phone, IP address, payment email/status/term, and user. This materially requires a strict output allowlist rather than serializing the renderer/listing object wholesale.
 - AWP payment storage separately contains `payer_email` and transaction/payment state. Payment/customer data remains outside this task.
 - First runtime gate exact terminal result: `awpcp-marketplace-model-cli: PASS version=4.4.8 tables=6 functions=250 classes=300 model=discovered-not-yet-admitted`.
+- Focused read-contract checkpoint `77a739528ecc5d790ac0b3fd1003364941048e1f` passed workflow `34375072418`, job `102545690078` on the same exact WordPress/AWP/WooCommerce version contract.
+- The focused runtime resolved zero-argument factories `awpcp_listings_collection()`, `awpcp_listings_api()`, `awpcp_listing_authorization()`, `awpcp_listing_renderer()`, and `awpcp_query()` to `AWPCP_ListingsCollection`, `AWPCP_ListingsAPI`, `AWPCP_ListingAuthorization`, `AWPCP_ListingRenderer`, and `AWPCP_Query`; `awpcp_listings_query()` does not exist.
+- `AWPCP_ListingsCollection::get($listing_id)`, `find_all_by_id($identifiers)`, `find_listings($query = array())`, `find_enabled_listings($query_vars = array())`, and `find_valid_listings($query_vars = array())` are exact reflected 4.4.8 methods. Reflection alone does not establish the runtime return object or accepted bounded query semantics.
+- The exact post-type capability map includes object capabilities `edit_awpcp_classified_ad`, `read_awpcp_classified_ad`, and `delete_awpcp_classified_ad`; collection-level edit/read-private/publish/delete/create mappings resolve to `edit_others_awpcp_classified_ads` for this plugin version.
+- `AWPCP_ListingAuthorization` exposes exact object methods `is_current_user_allowed_to_edit_listing($listing)` and `is_current_user_allowed_to_manage_listing($listing)`, plus `is_current_user_allowed_to_submit_listing()`; object-scope behavior still requires a disposable real listing fixture.
+- Safe renderer candidates verified by reflection include title, price, start/end dates, views, website/view URL, public/disabled/expired/featured/flagged/pending/verified/review state, and category IDs. Sensitive getters remain explicitly excluded.
+- Focused probe exact terminal result: `awpcp-marketplace-read-contract-cli: PASS helpers=reflected services=resolved signatures=verified fixture=not-created`.
+- Because that focused probe intentionally created no listing, stable listing identifier behavior, actual collection return object, bounded collection query behavior, and owner-vs-nonowner permission semantics remain UNKNOWN and block candidate ability admission until the next disposable fixture gate passes.
 
 ## Mutation set
 
 1. Create this dedicated source branch and task record from the verified 95-ability workbench position. COMPLETE.
 2. Add a disposable WordPress 7.1 runtime workflow pinned to AWP Classifieds 4.4.8 and WooCommerce 11.0.1. COMPLETE.
 3. Add a read-only runtime probe that records the exact AWP version, listing storage/model APIs, identifiers, relevant registered post types/taxonomies/tables, callable listing helpers/classes, and native permissions/capabilities without changing third-party source. COMPLETE.
-4. Add a focused read-contract probe that records exact factory/helper availability and reflected signatures for the listing collection, renderer, authorization and API objects; create only disposable fixture state if required to establish the stable listing identifier/return object and clean it through the plugin-owned lifecycle before the CI environment is discarded.
-5. Use the focused runtime result to define the minimum listing list/get field allowlist and permission contract without direct SQL mutation, raw postmeta access, or unsupported internals.
-6. Only after that evidence passes, add the minimum typed read abilities justified by the verified contract, with explicit output allowlists and no customer/payment/contact leakage.
-7. Verify exact 4.4.8 dependency fail-closed behavior, permissions/object scope, registry uniqueness, public-REST isolation, and bounded list/get behavior using disposable fixtures.
-8. Run all existing Chattanooga CMS Admin regression gates before any workbench integration.
+4. Add a focused read-contract probe that records exact factory/helper availability and reflected signatures for the listing collection, renderer, authorization and API objects. REFLECTION COMPLETE; FIXTURE CONTRACT PENDING.
+5. Inspect the exact AWP 4.4.8 native listing-creation contract, then add a disposable fixture probe that creates only runtime test state, establishes stable identifier/return-object/query/permission behavior, removes the fixture through the plugin-owned lifecycle, and verifies absence before the job passes.
+6. Use the fixture runtime result to define the minimum listing list/get field allowlist and permission contract without direct SQL mutation, raw postmeta access, or unsupported internals.
+7. Only after that evidence passes, add the minimum typed read abilities justified by the verified contract, with explicit output allowlists and no customer/payment/contact leakage.
+8. Verify exact 4.4.8 dependency fail-closed behavior, permissions/object scope, registry uniqueness, public-REST isolation, and bounded list/get behavior using disposable fixtures.
+9. Run all existing Chattanooga CMS Admin regression gates before any workbench integration.
 
 ## Risk set
 
@@ -62,11 +71,13 @@ Extend Chattanooga CMS Admin with a bounded marketplace-listing administration s
 - CMS Market Checkout Bridge may maintain additional relationship state not represented by AWP or WooCommerce alone. That state must remain UNKNOWN until its exact contract is recovered; no inferred bridge behavior may be encoded.
 - AWP version drift can invalidate a typed adapter. The initial contract is pinned to the exact live version 4.4.8.
 - AWP exposes legacy globals/functions and a broad native mutation API. Discovery does not authorize every callable API; the first admitted candidate surface remains read-only and must use the narrowest execution-verified contract.
+- A disposable fixture still exercises AWP lifecycle mutation inside CI. It must be restricted to the ephemeral test WordPress instance, use the exact 4.4.8 native contract, avoid payment/customer state, and be deleted and absence-verified before the runtime gate passes.
 
 ## Rollback point
 
 - Branch/base commit: `42bb803e3cbb0a22ea06a44584c617382d9ae7f4`.
-- Runtime-contract checkpoint before this record update: `78dba0d0c023be312d1f17476d0de4df6288667d`.
+- First runtime-contract checkpoint: `78dba0d0c023be312d1f17476d0de4df6288667d`.
+- Focused read-contract checkpoint: `77a739528ecc5d790ac0b3fd1003364941048e1f`.
 - Restoration path: return the task branch to the verified base/checkpoint. No production state is included in this transaction.
 - Any disposable listing fixture used in CI must be removed through an execution-verified AWP/WordPress lifecycle path before the runtime job is considered passing; the entire disposable WordPress instance is additionally destroyed after the job.
 
@@ -77,10 +88,11 @@ Extend Chattanooga CMS Admin with a bounded marketplace-listing administration s
 - [x] Probe identifies the relevant AWP listing collection/API/renderer/authorization object families and administrator listing capabilities without assuming a generic WordPress content contract.
 - [x] Probe identifies the hierarchical `awpcp_listing_category` relationship and its capability families.
 - [x] Candidate design does not depend on unavailable CMS Market Checkout Bridge internals.
-- [ ] Focused probe establishes exact helper/factory signatures and the stable listing identifier/return-object behavior needed for list/get.
-- [ ] Focused probe establishes the narrow native permission/object-scope test line for list/get.
+- [x] Focused probe establishes exact helper/factory and key method signatures for the 4.4.8 collection, renderer, authorization, and API objects.
+- [ ] Disposable fixture establishes the stable listing identifier, actual collection return-object behavior, and bounded collection-query semantics needed for list/get.
+- [ ] Disposable fixture establishes the narrow native permission/object-scope test line for list/get and proves cleanup/absence through the plugin-owned lifecycle.
 - [ ] Any admitted list/get ability returns only an explicit non-sensitive field allowlist and fails closed when AWP 4.4.8 is unavailable or incompatible.
-- [x] Existing 95-ability candidate and all prior functionality remained unchanged through the first runtime contract gate.
+- [x] Existing 95-ability candidate and all prior functionality remained unchanged through the reflection gates.
 - [ ] Existing 95-ability regressions remain green after any candidate read abilities are added.
 - [x] No production mutation or deployment occurs.
 
@@ -88,7 +100,7 @@ Extend Chattanooga CMS Admin with a bounded marketplace-listing administration s
 
 - Repository: `stanfieldjd/chattanooga-music-scene`
 - Branch: `work/cmsa-marketplace-listings`
-- Observed runtime-contract checkpoint: `78dba0d0c023be312d1f17476d0de4df6288667d`
+- Verified focused read-contract checkpoint: `77a739528ecc5d790ac0b3fd1003364941048e1f`
 
 ## Production state
 
@@ -100,3 +112,4 @@ Production was inspected read-only only to establish the active dependency versi
 
 - 2026-09-09: Opened the marketplace-listing runtime-contract task from the verified 95-ability workbench position. Selected exact AWP Classifieds model inspection before any listing adapter implementation; bridge internals remain UNKNOWN because authoritative bridge source is not present at the checked workbench repository path.
 - 2026-09-09: Runtime run `34372812403` passed exact AWP 4.4.8 model discovery. The listing is registered as post-backed `awpcp_listing` with mapped meta capabilities and `awpcp_listing_category`; current AWP listing collection/renderer/authorization/API classes are loaded. The legacy `AWPCP_TABLE_ADS` constant remains but no `wp_awpcp_ads` table exists in a fresh 4.4.8 install. Renderer/payment surfaces expose sensitive contact/payment fields, so the candidate read contract must be an explicit non-sensitive allowlist rather than generic object/meta serialization. The task advances to focused list/get contract design; no candidate ability or production state has changed.
+- 2026-09-09: Focused workflow `34375072418`, job `102545690078`, passed at checkpoint `77a739528ecc5d790ac0b3fd1003364941048e1f`. Exact AWP 4.4.8 factories and collection/authorization/renderer/API signatures were execution-verified, including the native object-capability map and explicit sensitive getter boundary. The probe created no fixture, so stable ID, actual collection return type/query behavior, and object-scope authorization remain unresolved. Candidate ability code remains unchanged; the next gate is an exact native disposable fixture contract, not a guessed adapter implementation.
