@@ -9,6 +9,35 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 add_action(
+	'init',
+	static function () {
+		register_taxonomy(
+			'fixture_two_label',
+			array( 'post' ),
+			array(
+				'label'        => 'Fixture two labels',
+				'description'  => 'Disposable administratively exposed taxonomy.',
+				'public'       => false,
+				'show_ui'      => true,
+				'show_in_rest' => true,
+				'hierarchical' => false,
+			)
+		);
+
+		register_taxonomy(
+			'fixture_two_hidden',
+			array( 'post' ),
+			array(
+				'label'        => 'Fixture two hidden',
+				'public'       => false,
+				'show_ui'      => false,
+				'show_in_rest' => false,
+			)
+		);
+	}
+);
+
+add_action(
 	'wp_abilities_api_categories_init',
 	static function () {
 		wp_register_ability_category(
