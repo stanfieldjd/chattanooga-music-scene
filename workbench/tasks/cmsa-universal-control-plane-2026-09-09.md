@@ -155,6 +155,41 @@ Recalculated next position:
 
 The universal control plane now covers three standard interface classes without plugin-name-specific integration: native WordPress abilities, registered post-type/taxonomy discovery, and bounded read-only access to those standard resources. Existing bespoke adapters remain only where verified domain semantics exceed those interfaces. The next engineering line is to continue interface-level coverage, not add new plugin-name-specific bridges: identify the next standard WordPress administration surface with a concrete Chattanooga use, define a bounded typed contract, prove permissions/invariants in disposable WordPress, and only then reconsider whether any bespoke code has become redundant.
 
+## Rejected experiment — standard REST-controller mutation contract
+
+Experiment source head: `2e95585a5a321680363d50f7c42c994fb10b6bb9` on `work/cmsa-universal-control-plane`.
+
+Objective:
+
+- Determine whether standard WordPress REST post-type and taxonomy controllers preserve enough registered permission and plugin validation behavior to serve as a future interface-level mutation contract.
+- No universal mutation ability was registered or exposed during the experiment.
+
+Execution evidence:
+
+- GitHub Actions run `34416612901` preserved all established green gates: PHP lint, interface-only/non-proxy checks, WordPress 7.1 installation, fixture activation, 101-ability registry, native ability discovery, standard registry discovery, and universal standard-resource reads all passed.
+- The new REST-controller mutation-contract probe failed at the taxonomy fail-closed validation test.
+- The exact runtime failure included `Undefined property: WP_Error::$name` from `WP_REST_Terms_Controller`, followed by `Taxonomy REST pre-insert contract was not authoritative.`
+- The post-type portion had already passed its permission, rejected-create, accepted-create, rejected-update, accepted-update, and post-insert contract checks before the taxonomy failure was reached.
+
+Engineering conclusion:
+
+- The standard post REST controller remains a possible future source-only research line, but it is not admitted as a universal write ability by this checkpoint.
+- The WordPress 7.1 taxonomy REST controller does not provide the required fail-closed invariant for a generic mutation layer when a `rest_pre_insert_{$taxonomy}` validation filter returns `WP_Error`; the controller proceeds through an object-oriented prepared-term contract rather than safely propagating that error.
+- Therefore a combined generic post-type/taxonomy mutation engine is REJECTED and generic taxonomy mutation is NOT_ADMITTED.
+- This negative result must not be worked around with direct term writes, arbitrary metadata/database access, hidden special cases, or a permissive generic endpoint.
+
+Rollback verification:
+
+- Experimental REST hooks were removed from both disposable fixture plugins.
+- `universal-rest-controller-contract-cli.php` was deleted rather than disabled.
+- The reader-only CI workflow was restored exactly.
+- Tree comparison from verified checkpoint `fe4bee7a917a367331adebc163c530c43fbd06cb` to post-rollback head `e09c2276bfc4ba8913c6d7abc97b3cf5246a40f4` returned zero changed files, proving the failed experiment left no source/test residue.
+- The 101-ability universal reader checkpoint remains the active source position.
+
+Recalculated next position:
+
+Continue standard-interface engineering from the verified 101-ability reader position. A post-type-only REST mutation contract may be investigated separately only when tied to a concrete Chattanooga administrative use and only with exact-state conflict control, readback verification, rollback, permission tests, and plugin-save invariant evidence. Do not generalize that work to taxonomies or to domain-heavy plugin resources without separate proof.
+
 ## Production state
 
 NOT_DEPLOYED
