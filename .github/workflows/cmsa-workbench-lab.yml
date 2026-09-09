@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - workbench/mars
-      - work/cmsa-woocommerce-products
     paths:
       - "workbench/labs/chattanooga-cms-admin/**"
       - ".github/workflows/cmsa-workbench-lab.yml"
