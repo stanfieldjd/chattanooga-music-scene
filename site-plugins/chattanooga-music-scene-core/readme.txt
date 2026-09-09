@@ -1,12 +1,12 @@
 === Chattanooga Music Scene Weekend Feature ===
 Contributors: chattanoogamusicscene
-Tags: events, weekend, publishing
+Tags: events, weekend, publishing, marketplace
 Requires at least: 6.4
 Requires PHP: 7.4
-Stable tag: 0.2.0
+Stable tag: 0.2.2
 License: GPLv2 or later
 
-Site-specific publishing tools for Chattanooga Music Scene.
+Site-specific publishing and marketplace tools for Chattanooga Music Scene.
 
 == Weekend posts ==
 
@@ -23,6 +23,18 @@ transition. No Facebook credentials are stored by this plugin.
 Automatic publishing is disabled until both the enable checkbox and a Thursday
 time are saved. If the weekend contains no published events, the run records an
 error and creates no post.
+
+== Marketplace ==
+
+The Marketplace integration uses AWP Classifieds' supported rendering hooks to
+place published, catalog-visible store products directly into the existing
+Marketplace listing stream. Product cards use the same public Marketplace flow
+without adding a separate store section or exposing the commerce engine as a
+customer-facing label.
+
+The integration runs only on the Chattanooga Music Marketplace page. Existing
+classified controls, categories, searches, and location information remain under
+AWP Classifieds and are not removed or replaced.
 
 == Administration ==
 
@@ -42,3 +54,4 @@ Open Tools > Weekend Posts to:
 * A draft is updated in place when regenerated.
 * Empty weekends do not create empty posts.
 * Only published Events Manager events are included.
+* Hidden or unpublished store products are excluded from the Marketplace stream.
