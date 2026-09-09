@@ -3,7 +3,7 @@ Contributors: chattanoogamusicscene
 Tags: events, weekend, publishing, marketplace
 Requires at least: 6.4
 Requires PHP: 7.4
-Stable tag: 0.2.3
+Stable tag: 0.2.4
 License: GPLv2 or later
 
 Site-specific publishing and marketplace tools for Chattanooga Music Scene.
@@ -61,3 +61,4 @@ Open Tools > Weekend Posts to:
 * Only published Events Manager events are included.
 * Hidden or unpublished store products are excluded from the Marketplace stream.
 * Marketplace interleaving remains inactive until the legacy standalone product block is removed.
+* Source-level tests run in CI but are excluded from the installable production package.
