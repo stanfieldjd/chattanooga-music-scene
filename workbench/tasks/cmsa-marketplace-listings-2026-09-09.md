@@ -1,6 +1,6 @@
 # Task: cmsa-marketplace-listings-2026-09-09
 
-Status: SOURCE_READ_SLICE_VERIFIED_READY_FOR_WORKBENCH_INTEGRATION
+Status: WORKBENCH_INTEGRATED_VERIFIED
 
 ## Objective
 
@@ -8,20 +8,21 @@ Extend Chattanooga CMS Admin with a bounded marketplace-listing administration s
 
 ## Target set
 
-- Source branch `work/cmsa-marketplace-listings` only.
+- Source branch `work/cmsa-marketplace-listings` only for implementation and pre-integration verification.
+- `workbench/mars` only after the user explicitly authorized integration of the verified slice.
 - `workbench/tasks/cmsa-marketplace-listings-2026-09-09.md` for the control/evidence record.
 - `workbench/labs/chattanooga-cms-admin/probes/` for disposable AWP Classifieds runtime/model, read-contract, fixture-contract, and admitted-read validation.
 - `.github/workflows/cmsa-marketplace-listings-lab.yml` for WordPress 7.1 + AWP Classifieds 4.4.8 + WooCommerce 11.0.1 runtime verification.
 - Chattanooga CMS Admin candidate files only after the exact listing read model, permissions, identifiers, state boundaries, and safe native APIs are execution-verified.
 - Exact expected-ability fixture only after a bounded read ability is admitted.
-- The exact current `main` Chattanooga Music Marketplace 0.1.1 source may exist on this task branch byte-for-byte for coexistence testing; its presentation implementation is not an edit target.
+- The exact current `main` Chattanooga Music Marketplace 0.1.1 source may exist on this task branch and workbench byte-for-byte for coexistence testing; its presentation implementation is not an edit target.
 
 ## Exclusion set
 
 - No production WordPress, DreamHost, `main`, `feature/chattanooga-cms-admin`, miniOrange policy, live classified listing, live WooCommerce product/order/customer, payment, checkout, or marketplace transaction mutation.
 - No modification of AWP Classifieds, WooCommerce, CMS Market Checkout Bridge, or Chattanooga Music Marketplace presentation behavior.
 - No guessed direct SQL listing mutations, generic postmeta/CPT backdoor, arbitrary database endpoint, shell endpoint, remote-command endpoint, or public REST relaxation.
-- No listing creation/update/delete/publication ability until a separate mutation contract is justified by runtime evidence and explicitly admitted to this task.
+- No listing creation/update/delete/publication ability until a separate mutation contract is justified by runtime evidence and explicitly admitted to a later task.
 - No checkout, payment, order, customer, seller payout, tax, shipping, coupon, or other financial administration surface in this initial slice.
 - No output of listing access/edit keys, seller/contact email, seller/contact phone, seller/contact name, IP address, payment email, payment status/term, raw user/member records, payment rows, or arbitrary listing metadata.
 - No customer-facing `WooCommerce`, supplier, or equivalent commerce-engine label may be introduced into Marketplace presentation by this workstream.
@@ -65,7 +66,9 @@ Extend Chattanooga CMS Admin with a bounded marketplace-listing administration s
 - Compare evidence from the task branch to current `main` showed the new production-source delta consists of exactly six Marketplace files: its workflow, CSS, plugin bootstrap, unified Marketplace class, readme, and tests.
 - Merge checkpoint `1b79f3e1036b666c50c93ce6158183a71d90f6b7` has parents `430197605ff856c454f4dd2c0981d02c03e32ff7` and current `main` `f1c4c128f29215698a2408880a010e49faccac58`. The Marketplace bootstrap blob on the task branch exactly matches `main` (`6a8d23bfa8192bd04001df4b4319604311a61d07`), establishing branch coexistence against the authoritative Marketplace source without editing its bytes.
 - Candidate checkpoint `8111e184a3a051ebe8ab78d750f02b283787729a` adds exactly two bounded read abilities, `list-marketplace-listings` and `get-marketplace-listing`, through the AWP 4.4.8 native collection/renderer/authorization contract. The candidate registry is 97 abilities. The adapter uses the non-mutating `has_expired()` predicate and does not expose seller/contact/access-key/IP/payment/arbitrary-metadata fields or listing mutation.
-- Full regression gate commit `30275636e5934c859ec54b8f17cab3d778258e45` triggered workflow run `34382766226`. All jobs passed: PHP 7.4 and PHP 8.2 complete CMS Admin source labs, Mars workbench integrity, WordPress 7.1 AWP 4.4.8 Marketplace runtime, AWP 4.4.7 mismatch fail-closed, existing content/member/navigation/media regression, existing Events Manager/Weekend Feature regression, existing WooCommerce product regression, and existing maintenance/backup/update regression.
+- Full regression gate commit `30275636e5934c859ec54b8f17cab3d778258e45` and final source-record checkpoint `8a171a1d0331d3e1e659c06d13ac7733cc4d1102` passed full pre-integration workflow run `34383245023`.
+- User authorized workbench integration; PR #11 merged the verified source slice into `workbench/mars` at `8bcfc44598c6799ba4e8035cbc3cbccb7f4b51c3`, preserving pre-integration workbench commit `42bb803e3cbb0a22ea06a44584c617382d9ae7f4` as the first parent.
+- Post-integration validation on merge commit `8bcfc44598c6799ba4e8035cbc3cbccb7f4b51c3` passed Events Manager `34384047941`, Content Layer `34384047961`, WooCommerce Product `34384047891`, Mars Workbench Integrity `34384047944`, CMS Admin Workbench `34384047900`, and Chattanooga Music Marketplace `34384047916`.
 
 ## Mutation set
 
@@ -79,6 +82,8 @@ Extend Chattanooga CMS Admin with a bounded marketplace-listing administration s
 8. Add only the minimum typed read abilities justified by the verified contract, with explicit output allowlists and no customer/payment/contact leakage. COMPLETE.
 9. Verify exact 4.4.8 dependency fail-closed behavior, version mismatch behavior, administrator-only ability permission scope, object scope, registry uniqueness, public-REST isolation, bounded list/get behavior, and coexistence with Chattanooga Music Marketplace 0.1.1 using disposable fixtures. COMPLETE.
 10. Run all existing Chattanooga CMS Admin regression gates before any workbench integration. COMPLETE.
+11. Integrate the execution-verified 97-ability candidate into `workbench/mars` only after explicit user authorization. COMPLETE.
+12. Re-run all triggered post-integration workbench regressions on the exact merge commit. COMPLETE.
 
 ## Risk set
 
@@ -87,9 +92,9 @@ Extend Chattanooga CMS Admin with a bounded marketplace-listing administration s
 - Legacy table constants remain defined even when their historical table is absent. Using `AWPCP_TABLE_ADS` as current storage would encode stale internals and is prohibited by the verified runtime state.
 - CMS Market Checkout Bridge may maintain additional relationship state not represented by AWP or WooCommerce alone. That state must remain UNKNOWN until its exact contract is recovered; no inferred bridge behavior may be encoded.
 - AWP version drift can invalidate a typed adapter. The initial contract is pinned to the exact live version 4.4.8.
-- AWP exposes legacy globals/functions and a broad native mutation API. Discovery does not authorize every callable API; the first admitted candidate surface remains read-only and must use the narrowest execution-verified contract.
-- The verified owner-vs-nonowner behavior does not by itself require Chattanooga CMS Admin to expose owner-level marketplace inventory. Permission scope must follow the existing candidate architecture and concrete administrative use rather than broaden access by capability coincidence.
-- The source-owned Chattanooga Music Marketplace plugin is now a direct coexistence dependency for this workstream. CMS Admin must administer the underlying listing inventory without replacing its presentation logic, duplicating its WooCommerce interleaving, changing its filter semantics, or adding customer-facing engine labels.
+- AWP exposes legacy globals/functions and a broad native mutation API. Discovery does not authorize every callable API; the admitted candidate surface remains read-only and uses the narrowest execution-verified contract.
+- The verified owner-vs-nonowner behavior does not by itself require Chattanooga CMS Admin to expose owner-level marketplace inventory. Permission scope follows the existing candidate architecture and concrete administrative use rather than broadening access by capability coincidence.
+- The source-owned Chattanooga Music Marketplace plugin is a direct coexistence dependency for this workstream. CMS Admin administers the underlying listing inventory without replacing its presentation logic, duplicating its WooCommerce interleaving, changing its filter semantics, or adding customer-facing engine labels.
 
 ## Rollback point
 
@@ -101,7 +106,9 @@ Extend Chattanooga CMS Admin with a bounded marketplace-listing administration s
 - Marketplace-source reconciliation checkpoint: `1b79f3e1036b666c50c93ce6158183a71d90f6b7`.
 - Marketplace listing read-ability checkpoint: `8111e184a3a051ebe8ab78d750f02b283787729a`.
 - Full-regression gate checkpoint: `30275636e5934c859ec54b8f17cab3d778258e45`.
-- Restoration path: return the task branch to the relevant verified checkpoint. No production state is included in this transaction.
+- Final source-record checkpoint: `8a171a1d0331d3e1e659c06d13ac7733cc4d1102`.
+- Workbench integration checkpoint: `8bcfc44598c6799ba4e8035cbc3cbccb7f4b51c3`.
+- Restoration path: return the task branch to the relevant verified source checkpoint or return `workbench/mars` to first parent `42bb803e3cbb0a22ea06a44584c617382d9ae7f4`. No production state is included in this transaction.
 - The disposable fixture path deletes the listing through AWP's native lifecycle, verifies post absence and collection rejection, deletes fixture users, and then destroys the disposable WordPress/MySQL environment.
 
 ## Acceptance tests
@@ -115,20 +122,24 @@ Extend Chattanooga CMS Admin with a bounded marketplace-listing administration s
 - [x] Disposable fixture establishes the stable listing identifier, actual collection return-object behavior, and bounded collection-query semantics needed for list/get.
 - [x] Disposable fixture establishes native administrator/owner/nonowner/anonymous object-scope behavior and proves cleanup/absence through the plugin-owned lifecycle.
 - [x] Task branch contains the exact current Chattanooga Music Marketplace 0.1.1 source from `main` without implementation edits.
-- [x] Any admitted list/get ability returns only an explicit non-sensitive field allowlist and fails closed when AWP 4.4.8 is unavailable or incompatible.
+- [x] Admitted list/get abilities return only an explicit non-sensitive field allowlist and fail closed when AWP 4.4.8 is unavailable or incompatible.
 - [x] Marketplace coexistence tests remain green and no customer-facing WooCommerce/supplier label is introduced.
 - [x] Existing 95-ability candidate and all prior functionality remained unchanged through the runtime-contract and source-reconciliation gates.
 - [x] Existing 95-ability regressions remain green after the candidate read abilities are added.
+- [x] Exact post-integration workbench regressions pass on the 97-ability merge checkpoint.
 - [x] No production mutation or deployment occurs.
 
 ## Source position
 
 - Repository: `stanfieldjd/chattanooga-music-scene`
-- Branch: `work/cmsa-marketplace-listings`
+- Source branch: `work/cmsa-marketplace-listings`
+- Workbench integration branch: `workbench/mars`
 - Verified fixture-contract checkpoint: `ad669fb64ebcaa0dad5b049e57681cd6ad25a763`.
 - Marketplace-source reconciliation checkpoint: `1b79f3e1036b666c50c93ce6158183a71d90f6b7`.
 - Marketplace listing read-ability checkpoint: `8111e184a3a051ebe8ab78d750f02b283787729a`.
 - Full-regression gate checkpoint: `30275636e5934c859ec54b8f17cab3d778258e45`.
+- Final source-record checkpoint: `8a171a1d0331d3e1e659c06d13ac7733cc4d1102`.
+- Workbench integration checkpoint: `8bcfc44598c6799ba4e8035cbc3cbccb7f4b51c3`.
 
 ## Production state
 
@@ -144,4 +155,5 @@ Production was inspected read-only only to establish the active dependency versi
 - 2026-09-09: Exact upstream `v4.4.8` source and disposable runtime fixture closed the remaining read-contract unknowns. Workflow `34376249894`, job `102549677652`, passed at checkpoint `ad669fb64ebcaa0dad5b049e57681cd6ad25a763`: AWP native create returned post-backed listing identity, collection get/list returned bounded `WP_Post` objects, administrator/owner/nonowner/anonymous authorization behavior was observed, and native deletion plus user/environment cleanup was verified. No candidate ability code or production state changed. The task advanced to existing-candidate architecture inspection before the minimum read abilities are implemented.
 - 2026-09-09: Current `main` was re-inspected after the architecture changed and found to contain Chattanooga Music Marketplace 0.1.1 as the source-owned unified presentation layer. Compare evidence showed exactly six Marketplace-source files on `main` beyond the workbench merge base. Merge checkpoint `1b79f3e1036b666c50c93ce6158183a71d90f6b7` reconciled those exact blobs into the task branch with both the prior task head and `main` as parents; the Marketplace bootstrap blob matches `main` exactly. This preserves the authoritative unified Marketplace implementation while the CMS Admin workstream continues only on the underlying listing administration surface.
 - 2026-09-09: Checkpoint `8111e184a3a051ebe8ab78d750f02b283787729a` implemented only the two verified read abilities and the exact 97-ability registry fixture. Marketplace run `34380951164` passed PHP 7.4/8.2 source boundaries, the unified Marketplace presentation regression, WordPress 7.1 + AWP 4.4.8 candidate runtime, exact registry/read execution, AWP-absence fail-closed behavior, and AWP 4.4.7 version-mismatch rejection.
-- 2026-09-09: Regression gate commit `30275636e5934c859ec54b8f17cab3d778258e45` extended the task-owned Marketplace workflow only to execute the pre-existing CMS Admin regression probes against the 97-ability candidate before integration. Run `34382766226` passed every job, including complete PHP 7.4/8.2 source labs, workbench integrity, Marketplace 4.4.8 and mismatch gates, content/member/navigation/media, Events Manager/Weekend Feature, WooCommerce products, and maintenance/backup/update rollback coverage. Production and the Marketplace presentation source remained unchanged.
+- 2026-09-09: Regression gate commit `30275636e5934c859ec54b8f17cab3d778258e45` extended the task-owned Marketplace workflow only to execute the pre-existing CMS Admin regression probes against the 97-ability candidate before integration. Run `34382766226` passed every job, including complete PHP 7.4/8.2 source labs, workbench integrity, Marketplace 4.4.8 and mismatch gates, content/member/navigation/media, Events Manager/Weekend Feature, WooCommerce products, and maintenance/backup/update rollback coverage.
+- 2026-09-09: Final source-record checkpoint `8a171a1d0331d3e1e659c06d13ac7733cc4d1102` passed run `34383245023`. After explicit user authorization, PR #11 integrated the slice into `workbench/mars` at merge commit `8bcfc44598c6799ba4e8035cbc3cbccb7f4b51c3`. All six triggered post-integration workflows passed: Events Manager `34384047941`, Content Layer `34384047961`, WooCommerce Product `34384047891`, Mars integrity `34384047944`, CMS Admin Workbench `34384047900`, and Chattanooga Music Marketplace `34384047916`. The workbench candidate is now 97 abilities; production remains independently verified at 82 and was not mutated.
