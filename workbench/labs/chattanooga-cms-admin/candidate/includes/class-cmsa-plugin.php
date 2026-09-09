@@ -21,6 +21,7 @@ final class CMSA_Plugin {
 	private $events_manager_deletion_abilities;
 	private $events_manager_taxonomy_abilities;
 	private $weekend_feature_abilities;
+	private $woocommerce_product_abilities;
 
 	public static function instance() {
 		if ( null === self::$instance ) {
@@ -83,6 +84,9 @@ final class CMSA_Plugin {
 		if ( ! $this->weekend_feature_abilities ) {
 			$this->weekend_feature_abilities = new CMSA_Weekend_Feature_Abilities( new CMSA_Weekend_Feature() );
 		}
+		if ( ! $this->woocommerce_product_abilities ) {
+			$this->woocommerce_product_abilities = new CMSA_WooCommerce_Product_Abilities( new CMSA_WooCommerce_Products() );
+		}
 
 		$this->abilities->register();
 		$this->content_abilities->register();
@@ -98,5 +102,6 @@ final class CMSA_Plugin {
 		$this->events_manager_deletion_abilities->register();
 		$this->events_manager_taxonomy_abilities->register();
 		$this->weekend_feature_abilities->register();
+		$this->woocommerce_product_abilities->register();
 	}
 }
