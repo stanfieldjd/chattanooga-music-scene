@@ -7,12 +7,14 @@ on:
     paths:
       - "workbench/labs/chattanooga-cms-admin/probes/awpcp-marketplace-model-cli.php"
       - "workbench/labs/chattanooga-cms-admin/probes/awpcp-marketplace-read-contract-cli.php"
+      - "workbench/labs/chattanooga-cms-admin/probes/awpcp-marketplace-fixture-contract-cli.php"
       - "workbench/tasks/cmsa-marketplace-listings-2026-09-09.md"
       - ".github/workflows/cmsa-marketplace-listings-lab.yml"
   pull_request:
     paths:
       - "workbench/labs/chattanooga-cms-admin/probes/awpcp-marketplace-model-cli.php"
       - "workbench/labs/chattanooga-cms-admin/probes/awpcp-marketplace-read-contract-cli.php"
+      - "workbench/labs/chattanooga-cms-admin/probes/awpcp-marketplace-fixture-contract-cli.php"
       - "workbench/tasks/cmsa-marketplace-listings-2026-09-09.md"
       - ".github/workflows/cmsa-marketplace-listings-lab.yml"
 
@@ -48,6 +50,7 @@ jobs:
           set -euo pipefail
           php -l workbench/labs/chattanooga-cms-admin/probes/awpcp-marketplace-model-cli.php >/dev/null
           php -l workbench/labs/chattanooga-cms-admin/probes/awpcp-marketplace-read-contract-cli.php >/dev/null
+          php -l workbench/labs/chattanooga-cms-admin/probes/awpcp-marketplace-fixture-contract-cli.php >/dev/null
       - name: Install disposable WordPress 7.1
         shell: bash
         run: |
@@ -78,3 +81,8 @@ jobs:
         run: |
           set -euo pipefail
           php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/awpcp-marketplace-read-contract-cli.php" --path=/tmp/wordpress
+      - name: Verify disposable marketplace listing fixture contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/awpcp-marketplace-fixture-contract-cli.php" --path=/tmp/wordpress
