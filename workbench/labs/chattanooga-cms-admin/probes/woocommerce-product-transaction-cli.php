@@ -32,6 +32,15 @@ $fail = static function ( $message ) {
 	fwrite( STDERR, 'woocommerce-product-transaction-cli: ' . $message . "\n" );
 	exit( 1 );
 };
+$order_snapshot = static function ( $order ) {
+	return array(
+		'id'          => (int) $order->get_id(),
+		'status'      => (string) $order->get_status(),
+		'customer_id' => (int) $order->get_customer_id(),
+		'total'       => (string) $order->get_total(),
+		'item_count'  => count( $order->get_items() ),
+	);
+};
 
 $category = wp_insert_term( 'CMSA Woo Category ' . wp_generate_password( 6, false, false ), 'product_cat' );
 $tag = wp_insert_term( 'CMSA Woo Tag ' . wp_generate_password( 6, false, false ), 'product_tag' );
@@ -116,13 +125,11 @@ if ( is_wp_error( $order ) || ! is_object( $order ) ) {
 	$fail( 'order control fixture failed.' );
 }
 $order_id = (int) $order->get_id();
-$order_before = array(
-	'id'          => $order_id,
-	'status'      => (string) $order->get_status(),
-	'customer_id' => (int) $order->get_customer_id(),
-	'total'       => (string) $order->get_total(),
-	'item_count'  => count( $order->get_items() ),
-);
+$persisted_order = wc_get_order( $order_id );
+if ( ! $persisted_order ) {
+	$fail( 'persisted order control fixture could not be reloaded.' );
+}
+$order_before = $order_snapshot( $persisted_order );
 
 $control_product = new WC_Product_Simple();
 $control_product->set_name( 'CMSA Woo unrelated product' );
@@ -412,13 +419,10 @@ if ( $customer_snapshot !== $customer_after_snapshot ) {
 	$fail( 'customer fixture changed during product transactions.' );
 }
 $order_after = wc_get_order( $order_id );
-$order_after_snapshot = array(
-	'id'          => (int) $order_after->get_id(),
-	'status'      => (string) $order_after->get_status(),
-	'customer_id' => (int) $order_after->get_customer_id(),
-	'total'       => (string) $order_after->get_total(),
-	'item_count'  => count( $order_after->get_items() ),
-);
+if ( ! $order_after ) {
+	$fail( 'unrelated order fixture disappeared during product transactions.' );
+}
+$order_after_snapshot = $order_snapshot( $order_after );
 if ( $order_before !== $order_after_snapshot ) {
 	$fail( 'order fixture changed during product transactions.' );
 }
@@ -448,6 +452,13 @@ wp_delete_post( $control_post_id, true );
 wp_delete_post( $control_event_id, true );
 wp_delete_term( $category_id, 'product_cat' );
 wp_delete_term( $tag_id, 'product_tag' );
+$order_cleanup = wc_get_order( $order_id );
+if ( $order_cleanup ) {
+	$order_cleanup->delete( true );
+}
+if ( wc_get_order( $order_id ) ) {
+	$fail( 'disposable order fixture cleanup failed.' );
+}
 require_once ABSPATH . 'wp-admin/includes/user.php';
 wp_delete_user( $customer_id );
 
