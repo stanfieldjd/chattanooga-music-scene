@@ -58,6 +58,7 @@ $required_methods = array(
 	'set_gallery_image_ids',
 	'get_data',
 	'save',
+	'delete',
 );
 
 $classes = array();
@@ -194,4 +195,30 @@ if ( $failures ) {
 	exit( 1 );
 }
 
-echo 'woocommerce-product-model-cli: PASS version=' . WC_VERSION . ' store=' . ( $product_store_class ? $product_store_class : $product_store_wrapper ) . ' product-model=present primitive-capabilities=verified meta-capabilities=object-scoped taxonomies=recorded' . "\n";
+$delete_probe_id = 0;
+try {
+	$delete_probe = new WC_Product_Simple();
+	$delete_probe->set_name( 'CMSA native delete probe' );
+	$delete_probe->set_status( 'draft' );
+	$delete_probe_id = (int) $delete_probe->save();
+	$delete_loaded = $delete_probe_id > 0 ? wc_get_product( $delete_probe_id ) : false;
+	if ( ! $delete_loaded || 'WC_Product_Simple' !== get_class( $delete_loaded ) ) {
+		throw new RuntimeException( 'reload_failed' );
+	}
+	$delete_result = $delete_loaded->delete( true );
+	$delete_verified = false !== $delete_result && false === wc_get_product( $delete_probe_id ) && null === get_post( $delete_probe_id );
+	if ( ! $delete_verified ) {
+		throw new RuntimeException( 'delete_verification_failed' );
+	}
+} catch ( Throwable $error ) {
+	if ( $delete_probe_id > 0 ) {
+		$leftover = wc_get_product( $delete_probe_id );
+		if ( $leftover && method_exists( $leftover, 'delete' ) ) {
+			$leftover->delete( true );
+		}
+	}
+	fwrite( STDERR, "woocommerce-product-model-cli: FAIL native_delete_path\n" );
+	exit( 1 );
+}
+
+echo 'woocommerce-product-model-cli: PASS version=' . WC_VERSION . ' store=' . ( $product_store_class ? $product_store_class : $product_store_wrapper ) . ' product-model=present primitive-capabilities=verified meta-capabilities=object-scoped taxonomies=recorded native-delete=verified' . "\n";
