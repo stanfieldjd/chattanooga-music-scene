@@ -93,7 +93,10 @@ final class CMSA_Plugin {
 			$this->marketplace_listing_abilities = new CMSA_Marketplace_Listing_Abilities( new CMSA_Marketplace_Listings() );
 		}
 		if ( ! $this->universal_control_plane_abilities ) {
-			$this->universal_control_plane_abilities = new CMSA_Universal_Control_Plane_Abilities( new CMSA_Universal_Control_Plane() );
+			$this->universal_control_plane_abilities = new CMSA_Universal_Control_Plane_Abilities(
+				new CMSA_Universal_Control_Plane(),
+				new CMSA_Universal_Resource_Reader()
+			);
 		}
 
 		$this->abilities->register();
