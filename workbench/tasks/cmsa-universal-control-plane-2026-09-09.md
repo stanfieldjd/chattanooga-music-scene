@@ -66,15 +66,15 @@ The end state is one integration architecture inside Chattanooga CMS Admin, not 
 
 ## Acceptance tests
 
-- [ ] A disposable plugin registering one or more native WordPress abilities is discovered by the universal control plane with zero plugin-name-specific CMSA source.
-- [ ] A second unrelated disposable plugin is discovered by the same unchanged control-plane code.
-- [ ] CMSA's own namespace is not recursively proxied or duplicated.
-- [ ] Universal discovery exposes only bounded metadata/schema fields and does not expose callback internals or secrets.
-- [ ] Native target permission behavior remains authoritative.
-- [ ] No universal execute wrapper bypasses miniOrange/NHI ability grants.
-- [ ] Existing 98-ability workbench candidate remains regression-green until a verified migration removes superseded adapters.
-- [ ] New plugin integration no longer requires adding a plugin-specific CMSA class when the plugin exposes a supported standard interface.
-- [ ] Production remains unchanged.
+- [x] A disposable plugin registering one or more native WordPress abilities is discovered by the universal control plane with zero plugin-name-specific CMSA source.
+- [x] A second unrelated disposable plugin is discovered by the same unchanged control-plane code.
+- [x] CMSA's own namespace is not recursively proxied or duplicated.
+- [x] Universal discovery exposes only bounded metadata/schema fields and does not expose callback internals or secrets.
+- [x] Native target permission behavior remains authoritative.
+- [x] No universal execute wrapper bypasses miniOrange/NHI ability grants.
+- [x] Current 101-ability workbench candidate remains regression-green while bespoke adapters remain in place pending verified parity.
+- [x] New plugin integration no longer requires adding a plugin-specific CMSA class when the plugin exposes a supported native ability or read-only standard WordPress post-type/taxonomy interface.
+- [x] Production remains unchanged.
 
 ## Checkpoint — 2026-09-09 universal discovery and standard registry slice
 
@@ -107,9 +107,53 @@ Preserved constraints:
 - miniOrange/NHI policy unchanged.
 - Existing plugin-specific adapters remain present; none has been deleted, hidden, or converted into a fallback path.
 
+## Checkpoint — 2026-09-09 universal standard-resource reader and parity classification
+
+Validated source head before this record: `43ab4f1c76f4b391342d093a39c01df3d2216213` on `work/cmsa-universal-control-plane`.
+
+Verified source changes:
+
+- `CMSA_Universal_Resource_Reader` is loaded by Chattanooga CMS Admin and is now exposed through `chattanooga-cms-admin/read-standard-resource`.
+- The new ability reads only administratively exposed standard WordPress post types and taxonomies, using the registered object capability model and exact object identity checks.
+- Post-type output is bounded to core identity/status/title/excerpt/slug/parent/date fields for list operations, with content added only for an exact get operation.
+- Taxonomy output is bounded to core term identity/name/slug/description/parent/count fields.
+- Arbitrary postmeta, termmeta, options, plugin tables, filesystem access, private plugin APIs, and mutation are not exposed.
+- Hidden registered resources remain rejected.
+- The expected CMSA registry is now 101 abilities.
+- CI statically rejects generic post/term mutation primitives and `$wpdb` usage from the universal resource reader.
+
+Execution evidence:
+
+- GitHub Actions run `34416223499` on head `43ab4f1c76f4b391342d093a39c01df3d2216213` completed successfully.
+- PHP lint passed for the candidate and all universal probes.
+- Interface-only and non-proxy source checks passed.
+- Disposable WordPress 7.1 installation and fixture activation passed.
+- The 101-ability registry test passed.
+- Native ability discovery across unrelated fixtures remained green.
+- Standard registry discovery remained green.
+- `universal-resource-reader-cli.php` passed bounded post-type list/get, bounded taxonomy list/get, hidden-resource rejection, cross-resource identity rejection, permission checks, zero read-side mutation, and absence of a generic mutation/execution proxy.
+
+Parity classification of current bespoke adapters:
+
+- Events Manager: NOT_REPLACEABLE_BY_STANDARD_READER. The adapter carries Events Manager event/location identity, date/time/timezone/location semantics and state tokens through `EM_Event`, `EM_Location`, `EM_Events`, and `EM_Locations`; generic post fields are not equivalent.
+- Weekend Feature: NOT_REPLACEABLE_BY_STANDARD_READER. The adapter owns source-plugin settings, schedule state, current weekend identity, event availability, guarded generation/publication, conflict tokens, readback verification, and rollback behavior; these are not a standard post/taxonomy contract.
+- WooCommerce products: NOT_REPLACEABLE_BY_STANDARD_READER. The adapter deliberately uses WooCommerce product objects/data stores and preserves SKU, pricing, catalog visibility, inventory, taxonomy/image relationships, state-token conflict control, verification, and rollback; a generic product CPT read is not equivalent.
+- Marketplace listings: NOT_REPLACEABLE_BY_STANDARD_READER. The adapter depends on the verified AWP Classifieds collection, renderer, and authorization contracts and exposes bounded domain fields such as price, category IDs, visibility/expiry/featured/review state and view URL; generic post fields do not preserve that contract.
+
+No current bespoke adapter is eligible for deletion from this checkpoint. Keeping them is not a fallback workaround; it is required to preserve domain semantics until an equivalent native/standard contract exists and is execution-verified.
+
+Preserved constraints:
+
+- Production WordPress/DreamHost unchanged.
+- `main` unchanged.
+- `feature/chattanooga-cms-admin` unchanged.
+- miniOrange/NHI policy unchanged.
+- No live content, media, events, products, listings, users, settings, files, or plugin state changed.
+- No existing bespoke adapter was deleted or hidden.
+
 Recalculated next position:
 
-The universal layer now has two generic discovery contracts: native WordPress abilities and standard post-type/taxonomy registries. The next source-only line is parity classification: determine which existing bespoke CMSA adapters can be replaced by a verified native/standard interface without losing domain invariants. Any adapter lacking full parity remains in place. Generic CPT/taxonomy mutation remains prohibited until a concrete interface is execution-tested to preserve the target plugin's save semantics and permission model.
+The universal control plane now covers three standard interface classes without plugin-name-specific integration: native WordPress abilities, registered post-type/taxonomy discovery, and bounded read-only access to those standard resources. Existing bespoke adapters remain only where verified domain semantics exceed those interfaces. The next engineering line is to continue interface-level coverage, not add new plugin-name-specific bridges: identify the next standard WordPress administration surface with a concrete Chattanooga use, define a bounded typed contract, prove permissions/invariants in disposable WordPress, and only then reconsider whether any bespoke code has become redundant.
 
 ## Production state
 
