@@ -40,6 +40,7 @@ require_once CMSA_DIR . 'includes/class-cmsa-events-manager-taxonomy.php';
 require_once CMSA_DIR . 'includes/class-cmsa-weekend-feature.php';
 require_once CMSA_DIR . 'includes/class-cmsa-woocommerce-products.php';
 require_once CMSA_DIR . 'includes/class-cmsa-marketplace-listings.php';
+require_once CMSA_DIR . 'includes/class-cmsa-universal-control-plane.php';
 require_once CMSA_DIR . 'includes/class-cmsa-abilities.php';
 require_once CMSA_DIR . 'includes/class-cmsa-content-abilities.php';
 require_once CMSA_DIR . 'includes/class-cmsa-content-deletion-abilities.php';
@@ -56,6 +57,7 @@ require_once CMSA_DIR . 'includes/class-cmsa-events-manager-taxonomy-abilities.p
 require_once CMSA_DIR . 'includes/class-cmsa-weekend-feature-abilities.php';
 require_once CMSA_DIR . 'includes/class-cmsa-woocommerce-product-abilities.php';
 require_once CMSA_DIR . 'includes/class-cmsa-marketplace-listing-abilities.php';
+require_once CMSA_DIR . 'includes/class-cmsa-universal-control-plane-abilities.php';
 require_once CMSA_DIR . 'includes/class-cmsa-plugin.php';
 
 CMSA_Events_Manager_Cache::register();
