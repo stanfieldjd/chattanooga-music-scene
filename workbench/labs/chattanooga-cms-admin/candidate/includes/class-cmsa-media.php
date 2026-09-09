@@ -65,14 +65,14 @@ final class CMSA_Media {
 		return array( 'item' => $this->normalize_attachment( $attachment, true ) );
 	}
 
-	public function create_from_base64( array $input ) {
+	public function prepare_validated_payload( $filename, $expected_mime, $encoded ) {
 		if ( ! current_user_can( 'upload_files' ) ) {
 			return new WP_Error( 'cmsa_media_permission', 'Current user cannot upload media.' );
 		}
 
-		$filename = isset( $input['filename'] ) ? sanitize_file_name( $input['filename'] ) : '';
-		$expected_mime = isset( $input['mime_type'] ) ? sanitize_mime_type( $input['mime_type'] ) : '';
-		$encoded = isset( $input['data_base64'] ) ? preg_replace( '/\s+/', '', (string) $input['data_base64'] ) : '';
+		$filename = sanitize_file_name( (string) $filename );
+		$expected_mime = sanitize_mime_type( (string) $expected_mime );
+		$encoded = preg_replace( '/\s+/', '', (string) $encoded );
 		if ( '' === $filename || '' === $expected_mime || '' === $encoded ) {
 			return new WP_Error( 'cmsa_media_upload_input', 'Filename, MIME type, and base64 payload are required.' );
 		}
@@ -90,16 +90,7 @@ final class CMSA_Media {
 			return new WP_Error( 'cmsa_media_upload_size', 'Decoded media payload exceeds the bounded upload limit.' );
 		}
 
-		$parent_id = isset( $input['parent_id'] ) ? max( 0, (int) $input['parent_id'] ) : 0;
-		if ( $parent_id ) {
-			$parent = get_post( $parent_id );
-			if ( ! $parent instanceof WP_Post || ! current_user_can( 'edit_post', $parent_id ) ) {
-				return new WP_Error( 'cmsa_media_parent', 'Requested media parent is not available for editing.' );
-			}
-		}
-
 		require_once ABSPATH . 'wp-admin/includes/file.php';
-		require_once ABSPATH . 'wp-admin/includes/media.php';
 		require_once ABSPATH . 'wp-admin/includes/image.php';
 
 		$temp = wp_tempnam( $filename );
@@ -118,11 +109,47 @@ final class CMSA_Media {
 			@unlink( $temp );
 			return $validation;
 		}
-		$before_hash = hash_file( 'sha256', $temp );
-		if ( false === $before_hash ) {
+		$sha256 = hash_file( 'sha256', $temp );
+		if ( ! is_string( $sha256 ) ) {
 			@unlink( $temp );
 			return new WP_Error( 'cmsa_media_upload_hash', 'Could not hash the validated media payload.' );
 		}
+
+		return array(
+			'filename'    => $filename,
+			'mime_type'   => $expected_mime,
+			'temp_path'   => $temp,
+			'byte_length' => $byte_length,
+			'sha256'      => $sha256,
+		);
+	}
+
+	public function create_from_base64( array $input ) {
+		$prepared = $this->prepare_validated_payload(
+			isset( $input['filename'] ) ? $input['filename'] : '',
+			isset( $input['mime_type'] ) ? $input['mime_type'] : '',
+			isset( $input['data_base64'] ) ? $input['data_base64'] : ''
+		);
+		if ( is_wp_error( $prepared ) ) {
+			return $prepared;
+		}
+
+		$filename = $prepared['filename'];
+		$expected_mime = $prepared['mime_type'];
+		$temp = $prepared['temp_path'];
+		$byte_length = (int) $prepared['byte_length'];
+		$before_hash = $prepared['sha256'];
+
+		$parent_id = isset( $input['parent_id'] ) ? max( 0, (int) $input['parent_id'] ) : 0;
+		if ( $parent_id ) {
+			$parent = get_post( $parent_id );
+			if ( ! $parent instanceof WP_Post || ! current_user_can( 'edit_post', $parent_id ) ) {
+				@unlink( $temp );
+				return new WP_Error( 'cmsa_media_parent', 'Requested media parent is not available for editing.' );
+			}
+		}
+
+		require_once ABSPATH . 'wp-admin/includes/media.php';
 
 		$post_data = array();
 		if ( array_key_exists( 'title', $input ) ) {
