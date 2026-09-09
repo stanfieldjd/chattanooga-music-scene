@@ -37,35 +37,6 @@ add_action(
 	}
 );
 
-add_filter(
-	'rest_pre_insert_fixture_two_label',
-	static function ( $prepared_term, $request ) {
-		if ( ! $request instanceof WP_REST_Request || 'approved' !== (string) $request->get_param( 'fixture_contract' ) ) {
-			return new WP_Error( 'fixture_two_rest_contract', 'Fixture two requires its REST mutation contract.' );
-		}
-		return $prepared_term;
-	},
-	10,
-	2
-);
-
-add_action(
-	'rest_after_insert_fixture_two_label',
-	static function ( $term, $request, $creating ) {
-		update_option(
-			'cmsa_universal_fixture_two_rest_contract',
-			array(
-				'id'       => $term instanceof WP_Term ? (int) $term->term_id : 0,
-				'creating' => (bool) $creating,
-				'contract' => $request instanceof WP_REST_Request ? (string) $request->get_param( 'fixture_contract' ) : '',
-			),
-			false
-		);
-	},
-	10,
-	3
-);
-
 add_action(
 	'wp_abilities_api_categories_init',
 	static function () {
