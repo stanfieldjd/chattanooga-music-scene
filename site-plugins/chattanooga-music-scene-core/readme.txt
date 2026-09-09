@@ -3,7 +3,7 @@ Contributors: chattanoogamusicscene
 Tags: events, weekend, publishing, marketplace
 Requires at least: 6.4
 Requires PHP: 7.4
-Stable tag: 0.2.2
+Stable tag: 0.2.3
 License: GPLv2 or later
 
 Site-specific publishing and marketplace tools for Chattanooga Music Scene.
@@ -36,6 +36,11 @@ The integration runs only on the Chattanooga Music Marketplace page. Existing
 classified controls, categories, searches, and location information remain under
 AWP Classifieds and are not removed or replaced.
 
+The integration does not activate while the legacy [products] shortcode remains
+on the Marketplace page. This prevents duplicate product output during deployment.
+After the updated plugin is installed, remove the old standalone product block
+from the page; the interleaved Marketplace feed then becomes active.
+
 == Administration ==
 
 Open Tools > Weekend Posts to:
@@ -55,3 +60,4 @@ Open Tools > Weekend Posts to:
 * Empty weekends do not create empty posts.
 * Only published Events Manager events are included.
 * Hidden or unpublished store products are excluded from the Marketplace stream.
+* Marketplace interleaving remains inactive until the legacy standalone product block is removed.
