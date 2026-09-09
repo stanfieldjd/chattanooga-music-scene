@@ -9,6 +9,33 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 add_action(
+	'init',
+	static function () {
+		register_post_type(
+			'fixture_one_record',
+			array(
+				'label'        => 'Fixture one records',
+				'description'  => 'Disposable administratively exposed post type.',
+				'public'       => false,
+				'show_ui'      => true,
+				'show_in_rest' => true,
+				'supports'     => array( 'title', 'editor' ),
+			)
+		);
+
+		register_post_type(
+			'fixture_one_hidden',
+			array(
+				'label'        => 'Fixture one hidden',
+				'public'       => false,
+				'show_ui'      => false,
+				'show_in_rest' => false,
+			)
+		);
+	}
+);
+
+add_action(
 	'wp_abilities_api_categories_init',
 	static function () {
 		wp_register_ability_category(
