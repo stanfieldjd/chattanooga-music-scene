@@ -100,10 +100,14 @@ if ( ! is_array( $post_row ) ) {
 }
 $post_list_keys = array_keys( $post_row );
 sort( $post_list_keys, SORT_STRING );
-$expected_post_list_keys = array( 'date_gmt', 'excerpt', 'id', 'modified_gmt', 'parent_id', 'post_type', 'slug', 'status', 'title' );
+$expected_post_list_keys = array( 'date_gmt', 'excerpt', 'id', 'modified_gmt', 'parent_id', 'post_type', 'slug', 'state_token', 'status', 'title' );
 sort( $expected_post_list_keys, SORT_STRING );
 if ( $expected_post_list_keys !== $post_list_keys ) {
 	fwrite( STDERR, "Universal post list output escaped its field allowlist.\n" );
+	goto cleanup_failure;
+}
+if ( empty( $post_row['state_token'] ) || 1 !== preg_match( '/^[a-f0-9]{64}$/', (string) $post_row['state_token'] ) ) {
+	fwrite( STDERR, "Universal post list did not expose a valid exact-state token.\n" );
 	goto cleanup_failure;
 }
 
@@ -121,10 +125,14 @@ if ( is_wp_error( $post_get ) || (int) ( $post_get['item']['id'] ?? 0 ) !== (int
 }
 $post_get_keys = array_keys( $post_get['item'] );
 sort( $post_get_keys, SORT_STRING );
-$expected_post_get_keys = array( 'content', 'date_gmt', 'excerpt', 'id', 'modified_gmt', 'parent_id', 'post_type', 'slug', 'status', 'title' );
+$expected_post_get_keys = array( 'content', 'date_gmt', 'excerpt', 'id', 'modified_gmt', 'parent_id', 'post_type', 'slug', 'state_token', 'status', 'title' );
 sort( $expected_post_get_keys, SORT_STRING );
 if ( $expected_post_get_keys !== $post_get_keys || 'Universal reader fixture content.' !== ( $post_get['item']['content'] ?? '' ) ) {
 	fwrite( STDERR, "Universal post get output escaped its field allowlist.\n" );
+	goto cleanup_failure;
+}
+if ( (string) $post_row['state_token'] !== (string) ( $post_get['item']['state_token'] ?? '' ) ) {
+	fwrite( STDERR, "Universal post list/get state-token contract is inconsistent.\n" );
 	goto cleanup_failure;
 }
 
@@ -251,7 +259,7 @@ wp_delete_term( $term_id, 'fixture_two_label' );
 wp_delete_post( $post_id, true );
 wp_delete_post( $other_post_id, true );
 
-echo 'universal-resource-reader-cli: PASS post_list=bounded post_get=bounded taxonomy_list=bounded taxonomy_get=bounded hidden=blocked cross_resource=blocked permissions=preserved mutation_during_read=absent generic_mutation_proxy=absent' . "\n";
+echo 'universal-resource-reader-cli: PASS post_list=bounded post_get=bounded post_state_token=consistent taxonomy_list=bounded taxonomy_get=bounded hidden=blocked cross_resource=blocked permissions=preserved mutation_during_read=absent generic_mutation_proxy=absent' . "\n";
 exit( 0 );
 
 cleanup_failure:
