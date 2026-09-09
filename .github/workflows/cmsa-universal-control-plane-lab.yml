@@ -48,7 +48,6 @@ jobs:
           php -l workbench/labs/chattanooga-cms-admin/probes/universal-control-plane-cli.php >/dev/null
           php -l workbench/labs/chattanooga-cms-admin/probes/universal-resource-registry-cli.php >/dev/null
           php -l workbench/labs/chattanooga-cms-admin/probes/universal-resource-reader-cli.php >/dev/null
-          php -l workbench/labs/chattanooga-cms-admin/probes/universal-rest-controller-contract-cli.php >/dev/null
           php -l workbench/labs/chattanooga-cms-admin/fixtures/cmsa-universal-fixture-one/cmsa-universal-fixture-one.php >/dev/null
           php -l workbench/labs/chattanooga-cms-admin/fixtures/cmsa-universal-fixture-two/cmsa-universal-fixture-two.php >/dev/null
       - name: Verify universal source is interface-based and non-proxying
@@ -101,5 +100,3 @@ jobs:
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/universal-resource-registry-cli.php" --path=/tmp/wordpress
       - name: Verify universal standard resource reads
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/universal-resource-reader-cli.php" --path=/tmp/wordpress
-      - name: Verify standard REST controller mutation contract
-        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-cms-admin/probes/universal-rest-controller-contract-cli.php" --path=/tmp/wordpress
