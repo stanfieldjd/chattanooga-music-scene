@@ -61,6 +61,25 @@ add_filter(
 	2
 );
 
+$GLOBALS['cmsa_probe_install_result'] = null;
+add_filter(
+	'upgrader_post_install',
+	static function ( $response, $hook_extra, $result ) use ( $plugin ) {
+		if ( isset( $hook_extra['plugin'] ) && $plugin === $hook_extra['plugin'] ) {
+			$GLOBALS['cmsa_probe_install_result'] = array(
+				'source'             => isset( $result['source'] ) ? (string) $result['source'] : '',
+				'destination'        => isset( $result['destination'] ) ? (string) $result['destination'] : '',
+				'destination_name'   => isset( $result['destination_name'] ) ? (string) $result['destination_name'] : '',
+				'remote_destination' => isset( $result['remote_destination'] ) ? (string) $result['remote_destination'] : '',
+				'source_files'       => isset( $result['source_files'] ) ? array_values( (array) $result['source_files'] ) : array(),
+			);
+		}
+		return $response;
+	},
+	99,
+	3
+);
+
 $offer = new stdClass();
 $offer->slug = 'cua-upgrade-fixture';
 $offer->plugin = $plugin;
@@ -81,7 +100,7 @@ $success = $ability->execute(
 if ( is_wp_error( $success ) ) {
 	fwrite(
 		STDERR,
-		'Successful plugin update failed: ' . $success->get_error_code() . ' ' . $success->get_error_message() . ' data=' . wp_json_encode( $success->get_error_data() ) . "\n"
+		'Successful plugin update failed: ' . $success->get_error_code() . ' ' . $success->get_error_message() . ' data=' . wp_json_encode( $success->get_error_data() ) . ' install=' . wp_json_encode( $GLOBALS['cmsa_probe_install_result'] ) . "\n"
 	);
 	exit( 1 );
 }
