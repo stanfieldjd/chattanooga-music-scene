@@ -83,6 +83,7 @@ jobs:
           grep -Rq -- '->execute' "$source_dir"
           grep -Rq 'Plugin_Upgrader' "$source_dir"
           grep -Rq 'Theme_Upgrader' "$source_dir"
+          grep -Rq 'move_to_temp_backup_dir' "$source_dir"
           grep -Rq 'restore_temp_backup' "$source_dir"
           grep -Rq 'activate_plugin' "$source_dir"
           grep -Rq 'CUA_Control_Plane_Guard' "$source_dir/includes/class-cua-rest-bridge.php"
@@ -167,3 +168,6 @@ jobs:
           (cd "$packages/v110" && zip -qr "$packages/cua-upgrade-theme-1.1.0.zip" cua-upgrade-theme)
           (cd "$packages/mismatch" && zip -qr "$packages/cua-upgrade-theme-mismatch.zip" cua-upgrade-theme)
           CMSA_THEME_PACKAGE_DIR="$packages" php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-universal-admin/probes/cmsa-theme-upgrade-cli.php" --path=/tmp/wordpress
+
+      - name: Verify reversible component deletion and restore
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-universal-admin/probes/cmsa-component-lifecycle-cli.php" --path=/tmp/wordpress
