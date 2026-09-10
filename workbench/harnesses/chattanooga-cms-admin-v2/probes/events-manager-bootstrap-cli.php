@@ -33,7 +33,6 @@ $prior_cwd = getcwd();
 if ( false === chdir( $classes_dir ) ) {
 	cmsa_v2_em_bootstrap_fail( 'Could not enter Events Manager classes directory.' );
 }
-require_once $classes_dir . '/em-admin-notice.php';
 require_once $classes_dir . '/em-admin-notices.php';
 if ( false !== $prior_cwd ) {
 	chdir( $prior_cwd );
