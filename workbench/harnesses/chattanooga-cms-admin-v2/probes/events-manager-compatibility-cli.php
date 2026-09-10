@@ -90,6 +90,7 @@ function cmsa_v2_em_extract_id( $value ) {
 			if ( isset( $value[ $key ] ) && is_numeric( $value[ $key ] ) && (int) $value[ $key ] > 0 ) {
 				return (int) $value[ $key ];
 			}
+		}
 		foreach ( $value as $child ) {
 			$id = cmsa_v2_em_extract_id( $child );
 			if ( $id > 0 ) {
