@@ -51,7 +51,7 @@ final class CUA_Platform_Settings {
 					'type'                 => 'object',
 					'properties'           => array(
 						'setting'              => array( 'type' => 'string', 'minLength' => 1, 'maxLength' => 191 ),
-						'value'                => array(),
+						'value'                => array( 'type' => array( 'array', 'object', 'string', 'number', 'integer', 'boolean', 'null' ) ),
 						'expected_state_token' => array( 'type' => 'string', 'pattern' => '^[a-f0-9]{64}$' ),
 					),
 					'required'             => array( 'setting', 'value', 'expected_state_token' ),
