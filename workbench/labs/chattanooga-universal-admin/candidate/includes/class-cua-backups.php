@@ -116,8 +116,13 @@ final class CUA_Backups {
 		}
 
 		if ( in_array( $scope, array( 'wp-content', 'full' ), true ) ) {
+			$storage_root = CUA_Local_Storage::directory();
+			if ( is_wp_error( $storage_root ) ) {
+				self::cleanup_paths( $created );
+				return $storage_root;
+			}
 			$content_path = trailingslashit( $directory ) . $id . '.wp-content.zip';
-			$content_result = self::zip_directory( WP_CONTENT_DIR, $content_path, array( CUA_Local_Storage::directory() ) );
+			$content_result = self::zip_directory( WP_CONTENT_DIR, $content_path, array( $storage_root ) );
 			if ( is_wp_error( $content_result ) ) {
 				self::cleanup_paths( $created );
 				return $content_result;
@@ -162,7 +167,6 @@ final class CUA_Backups {
 		if ( is_wp_error( $directory ) ) {
 			return $directory;
 		}
-
 		$backups = array();
 		foreach ( glob( trailingslashit( $directory ) . '*' . self::META_SUFFIX ) ?: array() as $path ) {
 			$data = json_decode( (string) @file_get_contents( $path ), true );
@@ -171,12 +175,7 @@ final class CUA_Backups {
 			}
 			$backups[] = self::public_meta( $data );
 		}
-		usort(
-			$backups,
-			static function ( $a, $b ) {
-				return strcmp( (string) ( $b['created_at'] ?? '' ), (string) ( $a['created_at'] ?? '' ) );
-			}
-		);
+		usort( $backups, static function ( $a, $b ) { return strcmp( (string) ( $b['created_at'] ?? '' ), (string) ( $a['created_at'] ?? '' ) ); } );
 		return array( 'backups' => $backups );
 	}
 
@@ -186,10 +185,7 @@ final class CUA_Backups {
 			return $id;
 		}
 		$meta = self::read_meta_file( $id );
-		if ( is_wp_error( $meta ) ) {
-			return $meta;
-		}
-		return self::verify_meta( $meta );
+		return is_wp_error( $meta ) ? $meta : self::verify_meta( $meta );
 	}
 
 	public static function restore_database_backup( $input ) {
@@ -201,12 +197,10 @@ final class CUA_Backups {
 		if ( is_wp_error( $meta ) ) {
 			return $meta;
 		}
-
 		$verification = self::verify_meta( $meta );
 		if ( is_wp_error( $verification ) || empty( $verification['valid'] ) ) {
 			return new WP_Error( 'cmsa_restore_verify', 'Backup integrity verification failed; database restore was not attempted.' );
 		}
-
 		$database = self::artifact_path( $meta, 'database' );
 		if ( is_wp_error( $database ) ) {
 			return $database;
@@ -272,14 +266,10 @@ final class CUA_Backups {
 			$exists = '' !== $name && is_file( $path );
 			$size = $exists ? (int) filesize( $path ) : 0;
 			$hash = $exists ? (string) hash_file( 'sha256', $path ) : '';
-			$matches = $exists
-				&& isset( $file['size'], $file['sha256'] )
-				&& $size === (int) $file['size']
-				&& hash_equals( (string) $file['sha256'], $hash );
+			$matches = $exists && isset( $file['size'], $file['sha256'] ) && $size === (int) $file['size'] && hash_equals( (string) $file['sha256'], $hash );
 			$valid = $valid && $matches;
 			$checks[] = array( 'name' => $name, 'exists' => $exists, 'size' => $size, 'sha256' => $hash, 'matches' => $matches );
 		}
-
 		return array( 'id' => (string) $meta['id'], 'valid' => $valid, 'checks' => $checks );
 	}
 
@@ -297,7 +287,6 @@ final class CUA_Backups {
 		if ( ! $handle ) {
 			return new WP_Error( 'cmsa_database_file', 'Could not create the database snapshot file.' );
 		}
-
 		$header = array( 'kind' => 'header', 'format' => self::FORMAT, 'base_prefix' => $wpdb->base_prefix, 'table_count' => count( $tables ) );
 		if ( ! self::write_json_line( $handle, $header ) ) {
 			fclose( $handle );
@@ -313,14 +302,7 @@ final class CUA_Backups {
 				@unlink( $path );
 				return $schema;
 			}
-
-			$begin = array(
-				'kind'     => 'table',
-				'name'     => $table,
-				'create'   => $schema['create'],
-				'columns'  => $schema['columns'],
-				'order_by' => $schema['order_by'],
-			);
+			$begin = array( 'kind' => 'table', 'name' => $table, 'create' => $schema['create'], 'columns' => $schema['columns'], 'order_by' => $schema['order_by'] );
 			if ( ! self::write_json_line( $handle, $begin ) ) {
 				fclose( $handle );
 				@unlink( $path );
@@ -338,9 +320,9 @@ final class CUA_Backups {
 					return $rows;
 				}
 				foreach ( $rows as $row ) {
-					$encoded_values = self::encode_row( $row );
-					$canonical = wp_json_encode( $encoded_values, JSON_UNESCAPED_SLASHES );
-					if ( ! is_string( $canonical ) || ! self::write_json_line( $handle, array( 'kind' => 'row', 'values' => $encoded_values ) ) ) {
+					$encoded = self::encode_row( $row );
+					$canonical = wp_json_encode( $encoded, JSON_UNESCAPED_SLASHES );
+					if ( ! is_string( $canonical ) || ! self::write_json_line( $handle, array( 'kind' => 'row', 'values' => $encoded ) ) ) {
 						fclose( $handle );
 						@unlink( $path );
 						return new WP_Error( 'cmsa_database_write', 'Could not write a database row to the snapshot.' );
@@ -364,7 +346,6 @@ final class CUA_Backups {
 			@unlink( $path );
 			return new WP_Error( 'cmsa_database_write', 'The database snapshot file could not be finalized.' );
 		}
-
 		return array( 'format' => self::FORMAT, 'base_prefix' => $wpdb->base_prefix, 'tables' => $table_summary );
 	}
 
@@ -377,7 +358,6 @@ final class CUA_Backups {
 		if ( (string) $manifest['base_prefix'] !== (string) $wpdb->base_prefix ) {
 			return new WP_Error( 'cmsa_database_prefix_mismatch', 'The database snapshot belongs to a different WordPress table prefix.' );
 		}
-
 		$current_tables = self::wordpress_tables();
 		if ( is_wp_error( $current_tables ) ) {
 			return $current_tables;
@@ -450,21 +430,15 @@ final class CUA_Backups {
 		fclose( $handle );
 		$wpdb->query( 'SET FOREIGN_KEY_CHECKS=1' );
 		wp_cache_flush();
-
 		$verified = self::verify_live_database( $manifest );
-		if ( is_wp_error( $verified ) ) {
-			return $verified;
-		}
-		return array( 'tables_verified' => $verified );
+		return is_wp_error( $verified ) ? $verified : array( 'tables_verified' => $verified );
 	}
 
 	private static function preflight_database_file( $path ) {
-		global $wpdb;
 		$handle = @fopen( $path, 'rb' );
 		if ( ! $handle ) {
 			return new WP_Error( 'cmsa_database_read', 'Could not open the database snapshot.' );
 		}
-
 		$header = null;
 		$current = null;
 		$tables = array();
@@ -502,12 +476,12 @@ final class CUA_Backups {
 					return new WP_Error( 'cmsa_database_snapshot_invalid', 'Database snapshot table schema does not match its table identity.' );
 				}
 				$current = array(
-					'name' => $name,
-					'create' => (string) $record['create'],
-					'columns' => array_values( array_map( 'strval', (array) $record['columns'] ) ),
-					'order_by' => array_values( array_map( 'strval', (array) $record['order_by'] ) ),
-					'count' => 0,
-					'digest' => hash_init( 'sha256' ),
+					'name'      => $name,
+					'create'    => (string) $record['create'],
+					'columns'   => array_values( array_map( 'strval', (array) $record['columns'] ) ),
+					'order_by'  => array_values( array_map( 'strval', (array) $record['order_by'] ) ),
+					'count'     => 0,
+					'digest'    => hash_init( 'sha256' ),
 				);
 				continue;
 			}
@@ -542,10 +516,10 @@ final class CUA_Backups {
 					return new WP_Error( 'cmsa_database_snapshot_invalid', 'Database snapshot table row integrity metadata does not match.' );
 				}
 				$tables[ $current['name'] ] = array(
-					'create' => $current['create'],
-					'columns' => $current['columns'],
-					'order_by' => $current['order_by'],
-					'row_count' => $current['count'],
+					'create'     => $current['create'],
+					'columns'    => $current['columns'],
+					'order_by'   => $current['order_by'],
+					'row_count'  => $current['count'],
 					'row_sha256' => $digest,
 				);
 				$current = null;
@@ -555,7 +529,6 @@ final class CUA_Backups {
 			return new WP_Error( 'cmsa_database_snapshot_invalid', 'Database snapshot contains an unknown record type.' );
 		}
 		fclose( $handle );
-
 		if ( null === $header || null !== $current || count( $tables ) !== (int) ( $header['table_count'] ?? -1 ) ) {
 			return new WP_Error( 'cmsa_database_snapshot_invalid', 'Database snapshot did not terminate cleanly.' );
 		}
@@ -568,13 +541,12 @@ final class CUA_Backups {
 			return $tables;
 		}
 		$expected = array_keys( $manifest['tables'] );
-		sort( $expected );
 		$actual = $tables;
+		sort( $expected );
 		sort( $actual );
 		if ( $expected !== $actual ) {
 			return new WP_Error( 'cmsa_database_restore_verification_failed', 'The restored WordPress table set does not match the verified snapshot.' );
 		}
-
 		foreach ( $manifest['tables'] as $table => $state ) {
 			$rows = self::read_all_table_rows_for_digest( $table, $state['columns'], $state['order_by'] );
 			if ( is_wp_error( $rows ) ) {
@@ -618,15 +590,12 @@ final class CUA_Backups {
 			return new WP_Error( 'cmsa_database_schema', 'Could not read a WordPress database table schema.' );
 		}
 		$definitions = $wpdb->get_results( 'SHOW COLUMNS FROM ' . $identifier, ARRAY_A );
-		if ( empty( $definitions ) ) {
+		if ( ! is_array( $definitions ) || empty( $definitions ) ) {
 			return new WP_Error( 'cmsa_database_columns', 'Could not read WordPress database table columns.' );
 		}
 		$columns = array();
 		foreach ( $definitions as $definition ) {
-			if ( empty( $definition['Field'] ) ) {
-				continue;
-			}
-			if ( false !== stripos( (string) ( $definition['Extra'] ?? '' ), 'GENERATED' ) ) {
+			if ( empty( $definition['Field'] ) || false !== stripos( (string) ( $definition['Extra'] ?? '' ), 'GENERATED' ) ) {
 				continue;
 			}
 			$columns[] = (string) $definition['Field'];
@@ -635,13 +604,19 @@ final class CUA_Backups {
 			return new WP_Error( 'cmsa_database_columns', 'Database table has no restorable columns.' );
 		}
 
-		$indexes = $wpdb->get_results( 'SHOW INDEX FROM ' . $identifier . " WHERE Key_name = 'PRIMARY' ORDER BY Seq_in_index", ARRAY_A );
-		$order_by = array();
-		foreach ( (array) $indexes as $index ) {
-			if ( ! empty( $index['Column_name'] ) ) {
-				$order_by[] = (string) $index['Column_name'];
-			}
+		$indexes = $wpdb->get_results( 'SHOW INDEX FROM ' . $identifier, ARRAY_A );
+		if ( ! is_array( $indexes ) ) {
+			return new WP_Error( 'cmsa_database_indexes', 'Could not read database indexes needed for deterministic backup ordering.' );
 		}
+		$primary = array();
+		foreach ( $indexes as $index ) {
+			if ( 'PRIMARY' !== (string) ( $index['Key_name'] ?? '' ) || empty( $index['Column_name'] ) ) {
+				continue;
+			}
+			$primary[] = array( 'sequence' => (int) ( $index['Seq_in_index'] ?? 0 ), 'column' => (string) $index['Column_name'] );
+		}
+		usort( $primary, static function ( $a, $b ) { return $a['sequence'] <=> $b['sequence']; } );
+		$order_by = array_values( array_map( static function ( $index ) { return $index['column']; }, $primary ) );
 		if ( empty( $order_by ) ) {
 			$order_by = $columns;
 		}
@@ -650,14 +625,17 @@ final class CUA_Backups {
 
 	private static function read_table_rows( $table, array $columns, array $order_by, $offset, $limit ) {
 		global $wpdb;
+		if ( empty( $columns ) || empty( $order_by ) ) {
+			return new WP_Error( 'cmsa_database_order', 'Database backup cannot read a table without deterministic columns and ordering.' );
+		}
 		$select = implode( ',', array_map( array( __CLASS__, 'quote_identifier' ), $columns ) );
 		$order = implode( ',', array_map( array( __CLASS__, 'quote_identifier' ), $order_by ) );
 		$sql = 'SELECT ' . $select . ' FROM ' . self::quote_identifier( $table ) . ' ORDER BY ' . $order . ' LIMIT ' . max( 1, (int) $limit ) . ' OFFSET ' . max( 0, (int) $offset );
 		$rows = $wpdb->get_results( $sql, ARRAY_N );
-		if ( null === $rows || ( ! is_array( $rows ) && false === $rows ) ) {
+		if ( ! is_array( $rows ) ) {
 			return new WP_Error( 'cmsa_database_read', 'Could not read database table rows for backup or verification.' );
 		}
-		return is_array( $rows ) ? $rows : array();
+		return $rows;
 	}
 
 	private static function wordpress_tables() {
@@ -670,10 +648,7 @@ final class CUA_Backups {
 		}
 		$tables = array();
 		foreach ( $rows as $row ) {
-			if ( ! isset( $row[0] ) ) {
-				continue;
-			}
-			if ( isset( $row[1] ) && 'BASE TABLE' !== strtoupper( (string) $row[1] ) ) {
+			if ( ! isset( $row[0] ) || ( isset( $row[1] ) && 'BASE TABLE' !== strtoupper( (string) $row[1] ) ) ) {
 				continue;
 			}
 			$tables[] = (string) $row[0];
@@ -698,7 +673,14 @@ final class CUA_Backups {
 		if ( ! is_dir( $source ) ) {
 			return new WP_Error( 'cmsa_backup_source', 'The wp-content directory is unavailable.' );
 		}
-		$excluded = array_filter( array_map( 'wp_normalize_path', $excluded ), 'is_string' );
+		$normalized_excluded = array();
+		foreach ( $excluded as $excluded_path ) {
+			if ( ! is_string( $excluded_path ) || '' === trim( $excluded_path ) ) {
+				return new WP_Error( 'cmsa_backup_exclusion', 'A backup exclusion path is invalid.' );
+			}
+			$normalized_excluded[] = untrailingslashit( wp_normalize_path( $excluded_path ) );
+		}
+
 		$zip = new ZipArchive();
 		if ( true !== $zip->open( $destination, ZipArchive::CREATE | ZipArchive::OVERWRITE ) ) {
 			return new WP_Error( 'cmsa_zip_open', 'Could not create the wp-content backup archive.' );
@@ -709,8 +691,7 @@ final class CUA_Backups {
 		foreach ( $iterator as $item ) {
 			$path = wp_normalize_path( $item->getPathname() );
 			$skip = false;
-			foreach ( $excluded as $excluded_path ) {
-				$excluded_path = untrailingslashit( $excluded_path );
+			foreach ( $normalized_excluded as $excluded_path ) {
 				if ( $path === $excluded_path || 0 === strpos( $path, $excluded_path . '/' ) ) {
 					$skip = true;
 					break;
