@@ -6,7 +6,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 wp_set_current_user( 1 );
-$admin = new WP_User( 1 );
+$admin = wp_get_current_user();
 $admin->add_cap( 'edit_nova_settings' );
 
 $list = wp_get_ability( 'chattanooga-cms-admin/list-registered-settings' );
@@ -188,6 +188,7 @@ if ( false !== $list->check_permissions( array() ) || false !== $get->check_perm
 }
 
 wp_set_current_user( 1 );
+$admin = wp_get_current_user();
 $admin->remove_cap( 'edit_nova_settings' );
 wp_delete_user( $user_id );
 delete_option( 'nova_private_setting' );
