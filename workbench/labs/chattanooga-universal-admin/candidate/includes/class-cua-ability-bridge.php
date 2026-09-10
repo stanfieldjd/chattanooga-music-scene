@@ -154,6 +154,11 @@ final class CUA_Ability_Bridge {
 			return false;
 		}
 
+		$guard = self::guard_target( $target, $input );
+		if ( is_wp_error( $guard ) || false === $guard ) {
+			return $guard;
+		}
+
 		if ( is_array( $target->get_input_schema() ) ) {
 			return $target->check_permissions( $input );
 		}
@@ -171,6 +176,14 @@ final class CUA_Ability_Bridge {
 			return new WP_Error( 'cua_target_forbidden', 'The current user is not permitted to use the universal administration bridge.' );
 		}
 
+		$guard = self::guard_target( $target, $input );
+		if ( is_wp_error( $guard ) ) {
+			return $guard;
+		}
+		if ( false === $guard ) {
+			return new WP_Error( 'cua_target_forbidden', 'The control-plane guard denied the current request.' );
+		}
+
 		$has_input = is_array( $target->get_input_schema() );
 		$permission = $has_input ? $target->check_permissions( $input ) : $target->check_permissions();
 		if ( is_wp_error( $permission ) ) {
@@ -181,6 +194,13 @@ final class CUA_Ability_Bridge {
 		}
 
 		return $has_input ? $target->execute( $input ) : $target->execute();
+	}
+
+	private static function guard_target( WP_Ability $target, $input ) {
+		if ( ! class_exists( 'CUA_Control_Plane_Guard' ) ) {
+			return false;
+		}
+		return CUA_Control_Plane_Guard::validate_ability_input( $target, $input );
 	}
 
 	private static function is_bridgeable( WP_Ability $ability ) {
