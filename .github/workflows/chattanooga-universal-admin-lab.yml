@@ -83,6 +83,9 @@ jobs:
           grep -Rq -- '->execute' "$source_dir"
           grep -Rq 'Plugin_Upgrader' "$source_dir"
           grep -Rq 'restore_temp_backup' "$source_dir"
+          grep -Rq 'activate_plugin' "$source_dir"
+          grep -Rq 'CUA_Control_Plane_Guard' "$source_dir/includes/class-cua-rest-bridge.php"
+          grep -Rq 'CUA_Control_Plane_Guard' "$source_dir/includes/class-cua-ability-bridge.php"
           if grep -R -F -q "\$input['target']" "$source_dir" || grep -R -F -q "\$input[\"target\"]" "$source_dir"; then
             echo "Replacement source exposes a generic target dispatch input." >&2
             exit 1
@@ -126,6 +129,9 @@ jobs:
 
       - name: Verify REST-only dynamic administration
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-universal-admin/probes/cua-rest-bridge-cli.php" --path=/tmp/wordpress
+
+      - name: Verify control-plane self-protection
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-universal-admin/probes/cmsa-control-plane-guard-cli.php" --path=/tmp/wordpress
 
       - name: Verify WordPress core REST replacement parity
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-universal-admin/probes/cmsa-core-rest-parity-cli.php" --path=/tmp/wordpress
