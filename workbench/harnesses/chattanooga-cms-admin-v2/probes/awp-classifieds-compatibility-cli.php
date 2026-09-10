@@ -10,6 +10,32 @@ function cmsa_v2_awp_fail( $message ) {
 	exit( 1 );
 }
 
+function cmsa_v2_awp_hook_count( $hook_name ) {
+	global $wp_filter;
+	$hook = $wp_filter[ $hook_name ] ?? null;
+	if ( ! $hook instanceof WP_Hook ) {
+		return 0;
+	}
+
+	$count = 0;
+	foreach ( $hook->callbacks as $callbacks ) {
+		foreach ( $callbacks as $callback ) {
+			$function = $callback['function'] ?? null;
+			$label = '';
+			if ( is_string( $function ) ) {
+				$label = $function;
+			} elseif ( is_array( $function ) && 2 === count( $function ) ) {
+				$owner = is_object( $function[0] ) ? get_class( $function[0] ) : (string) $function[0];
+				$label = $owner . '::' . (string) $function[1];
+			}
+			if ( false !== stripos( $label, 'mosmcp' ) || false !== stripos( $label, 'miniorange' ) || false !== stripos( $label, 'mcp' ) ) {
+				++$count;
+			}
+		}
+	}
+	return $count;
+}
+
 function cmsa_v2_awp_catalog() {
 	static $items = null;
 	if ( null !== $items ) {
@@ -35,7 +61,18 @@ function cmsa_v2_awp_ability( $target ) {
 		}
 	}
 	if ( 1 !== count( $matches ) ) {
-		cmsa_v2_awp_fail( sprintf( 'Expected one universal facade for %1$s; found %2$d.', $target, count( $matches ) ) );
+		$native = wp_get_ability( $target );
+		cmsa_v2_awp_fail(
+			sprintf(
+				'Expected one universal facade for %1$s; found %2$d. native=%3$s init=%4$d abilities_init=%5$d provider_hooks=%6$d',
+				$target,
+				count( $matches ),
+				$native instanceof WP_Ability ? 'present' : 'absent',
+				did_action( 'init' ),
+				did_action( 'wp_abilities_api_init' ),
+				cmsa_v2_awp_hook_count( 'wp_abilities_api_init' )
+			)
+		);
 	}
 	$ability = wp_get_ability( $matches[0] );
 	if ( ! $ability instanceof WP_Ability ) {
