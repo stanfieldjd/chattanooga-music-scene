@@ -95,8 +95,7 @@ final class CMSA_Plugin {
 		if ( ! $this->universal_control_plane_abilities ) {
 			$this->universal_control_plane_abilities = new CMSA_Universal_Control_Plane_Abilities(
 				new CMSA_Universal_Control_Plane(),
-				new CMSA_Universal_Resource_Reader(),
-				new CMSA_Universal_Post_Resource_Writer()
+				new CMSA_Universal_Resource_Reader()
 			);
 		}
 
