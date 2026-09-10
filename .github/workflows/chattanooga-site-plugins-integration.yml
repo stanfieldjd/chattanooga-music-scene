@@ -1,0 +1,140 @@
+name: Chattanooga Site Plugins Integration
+
+on:
+  push:
+    branches:
+      - main
+      - work/custom-plugin-integration
+    paths:
+      - "site-plugins/chattanooga-cms-admin/**"
+      - "site-plugins/chattanooga-music-marketplace/**"
+      - "site-plugins/chattanooga-music-scene-core/**"
+      - "workbench/harnesses/chattanooga-site-plugins/**"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/events-manager-bootstrap-cli.php"
+      - ".github/workflows/chattanooga-site-plugins-integration.yml"
+  pull_request:
+    paths:
+      - "site-plugins/chattanooga-cms-admin/**"
+      - "site-plugins/chattanooga-music-marketplace/**"
+      - "site-plugins/chattanooga-music-scene-core/**"
+      - "workbench/harnesses/chattanooga-site-plugins/**"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/events-manager-bootstrap-cli.php"
+      - ".github/workflows/chattanooga-site-plugins-integration.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  integration:
+    name: WordPress-native package installation and coexistence
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mysqli, zip, gd, fileinfo
+
+      - name: Validate custom plugin source
+        shell: bash
+        run: |
+          set -euo pipefail
+          for plugin in chattanooga-cms-admin chattanooga-music-marketplace chattanooga-music-scene-core; do
+            test -d "site-plugins/$plugin"
+            find "site-plugins/$plugin" -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
+          done
+          php -l workbench/harnesses/chattanooga-site-plugins/integration-cli.php >/dev/null
+          grep -Fq 'Version: 1.0.0' site-plugins/chattanooga-cms-admin/chattanooga-cms-admin.php
+          grep -Fq 'Version: 0.1.1' site-plugins/chattanooga-music-marketplace/chattanooga-music-marketplace.php
+          grep -Fq 'Version: 0.2.1' site-plugins/chattanooga-music-scene-core/chattanooga-music-scene-core.php
+
+      - name: Run Marketplace source regression test
+        run: php site-plugins/chattanooga-music-marketplace/tests/test-marketplace.php
+
+      - name: Build installable WordPress plugin packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/cms-plugin-build /tmp/cms-plugin-packages
+          mkdir -p /tmp/cms-plugin-build /tmp/cms-plugin-packages
+          for plugin in chattanooga-cms-admin chattanooga-music-marketplace chattanooga-music-scene-core; do
+            cp -R "site-plugins/$plugin" "/tmp/cms-plugin-build/$plugin"
+          done
+          (cd /tmp/cms-plugin-build && zip -qr /tmp/cms-plugin-packages/chattanooga-cms-admin-1.0.0.zip chattanooga-cms-admin)
+          (cd /tmp/cms-plugin-build && zip -qr /tmp/cms-plugin-packages/chattanooga-music-marketplace-0.1.1.zip chattanooga-music-marketplace)
+          (cd /tmp/cms-plugin-build && zip -qr /tmp/cms-plugin-packages/chattanooga-music-scene-core-0.2.1.zip chattanooga-music-scene-core)
+          unzip -l /tmp/cms-plugin-packages/chattanooga-cms-admin-1.0.0.zip | grep -Fq 'chattanooga-cms-admin/chattanooga-cms-admin.php'
+          unzip -l /tmp/cms-plugin-packages/chattanooga-music-marketplace-0.1.1.zip | grep -Fq 'chattanooga-music-marketplace/chattanooga-music-marketplace.php'
+          unzip -l /tmp/cms-plugin-packages/chattanooga-music-scene-core-0.2.1.zip | grep -Fq 'chattanooga-music-scene-core/chattanooga-music-scene-core.php'
+
+      - name: Install disposable WordPress 7.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+          php /tmp/wp-cli.phar core download --version=7.1 --path=/tmp/wordpress --force
+          php /tmp/wp-cli.phar config create --path=/tmp/wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
+          password="$(php -r 'echo bin2hex(random_bytes(20));')"
+          php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://cms-site-plugins.test --title="CMS Site Plugins Integration" --admin_user=admin --admin_password="$password" --admin_email=integration@example.invalid --skip-email
+
+      - name: Install production dependency versions
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar plugin install woocommerce --version=11.0.1 --activate --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin install events-manager --version=7.4.3 --activate --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin install another-wordpress-classifieds-plugin --version=4.4.8 --activate --path=/tmp/wordpress
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/events-manager-bootstrap-cli.php" --path=/tmp/wordpress
+
+      - name: Install custom plugins through WordPress package installer
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar plugin install /tmp/cms-plugin-packages/chattanooga-cms-admin-1.0.0.zip --activate --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin install /tmp/cms-plugin-packages/chattanooga-music-marketplace-0.1.1.zip --activate --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin install /tmp/cms-plugin-packages/chattanooga-music-scene-core-0.2.1.zip --activate --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin is-active chattanooga-cms-admin --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin is-active chattanooga-music-marketplace --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin is-active chattanooga-music-scene-core --path=/tmp/wordpress
+
+      - name: Verify three-plugin integration
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-site-plugins/integration-cli.php" --path=/tmp/wordpress
+
+      - name: Upload installable Chattanooga CMS Admin package
+        uses: actions/upload-artifact@v4
+        with:
+          name: chattanooga-cms-admin-1.0.0
+          path: /tmp/cms-plugin-packages/chattanooga-cms-admin-1.0.0.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload installable Marketplace package
+        uses: actions/upload-artifact@v4
+        with:
+          name: chattanooga-music-marketplace-0.1.1
+          path: /tmp/cms-plugin-packages/chattanooga-music-marketplace-0.1.1.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload installable Weekend Feature package
+        uses: actions/upload-artifact@v4
+        with:
+          name: chattanooga-music-scene-core-0.2.1
+          path: /tmp/cms-plugin-packages/chattanooga-music-scene-core-0.2.1.zip
+          if-no-files-found: error
+          retention-days: 30
