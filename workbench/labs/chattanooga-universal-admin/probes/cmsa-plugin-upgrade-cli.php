@@ -15,9 +15,9 @@ if ( ! $ability instanceof WP_Ability ) {
 }
 
 $plugin = 'cua-upgrade-fixture/cua-upgrade-fixture.php';
-$base_url = rtrim( (string) getenv( 'CMSA_UPGRADE_PACKAGE_BASE' ), '/' );
-if ( '' === $base_url ) {
-	fwrite( STDERR, "Upgrade package base URL is missing.\n" );
+$package_dir = rtrim( (string) getenv( 'CMSA_UPGRADE_PACKAGE_DIR' ), DIRECTORY_SEPARATOR );
+if ( '' === $package_dir || ! is_dir( $package_dir ) ) {
+	fwrite( STDERR, "Upgrade package directory is missing.\n" );
 	exit( 1 );
 }
 
@@ -42,32 +42,14 @@ if ( ! is_wp_error( $conflict_result ) || 'cmsa_plugin_version_conflict' !== $co
 	exit( 1 );
 }
 
-add_filter(
-	'http_request_host_is_external',
-	static function ( $external, $host ) {
-		return '127.0.0.1' === $host ? true : $external;
-	},
-	10,
-	2
-);
-
 $GLOBALS['cmsa_probe_package_result'] = null;
 $GLOBALS['cmsa_probe_process_result'] = null;
 add_filter(
 	'upgrader_install_package_result',
 	static function ( $result, $hook_extra ) {
-		if ( is_wp_error( $result ) ) {
-			$GLOBALS['cmsa_probe_package_result'] = array(
-				'error'   => $result->get_error_code(),
-				'message' => $result->get_error_message(),
-				'hook'    => $hook_extra,
-			);
-		} else {
-			$GLOBALS['cmsa_probe_package_result'] = array(
-				'result' => $result,
-				'hook'   => $hook_extra,
-			);
-		}
+		$GLOBALS['cmsa_probe_package_result'] = is_wp_error( $result )
+			? array( 'error' => $result->get_error_code(), 'message' => $result->get_error_message(), 'hook' => $hook_extra )
+			: array( 'result' => $result, 'hook' => $hook_extra );
 		return $result;
 	},
 	99,
@@ -89,7 +71,7 @@ $offer = new stdClass();
 $offer->slug = 'cua-upgrade-fixture';
 $offer->plugin = $plugin;
 $offer->new_version = '1.1.0';
-$offer->package = $base_url . '/cua-upgrade-fixture-1.1.0.zip';
+$offer->package = $package_dir . DIRECTORY_SEPARATOR . 'cua-upgrade-fixture-1.1.0.zip';
 $updates = new stdClass();
 $updates->last_checked = time();
 $updates->checked = array( $plugin => '1.0.0' );
@@ -122,7 +104,7 @@ $mismatch_offer = new stdClass();
 $mismatch_offer->slug = 'cua-upgrade-fixture';
 $mismatch_offer->plugin = $plugin;
 $mismatch_offer->new_version = '1.2.0';
-$mismatch_offer->package = $base_url . '/cua-upgrade-fixture-mismatch.zip';
+$mismatch_offer->package = $package_dir . DIRECTORY_SEPARATOR . 'cua-upgrade-fixture-mismatch.zip';
 $mismatch_updates = new stdClass();
 $mismatch_updates->last_checked = time();
 $mismatch_updates->checked = array( $plugin => '1.1.0' );
