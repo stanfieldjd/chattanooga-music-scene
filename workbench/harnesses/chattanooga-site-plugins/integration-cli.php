@@ -51,7 +51,10 @@ cms_site_plugins_assert( $health instanceof WP_Ability, 'Chattanooga CMS Admin h
 cms_site_plugins_assert( true === $health->check_permissions( array() ), 'Chattanooga CMS Admin health permission failed for administrator.' );
 $health_result = $health->execute( array() );
 cms_site_plugins_assert( ! is_wp_error( $health_result ), 'Chattanooga CMS Admin health execution failed.' );
-cms_site_plugins_assert( ! empty( $health_result['database_responding'] ), 'Chattanooga CMS Admin health did not verify the database.' );
+cms_site_plugins_assert( get_bloginfo( 'version' ) === ( $health_result['wordpress_version'] ?? '' ), 'Chattanooga CMS Admin health returned the wrong WordPress version.' );
+cms_site_plugins_assert( array_key_exists( 'plugin_dir_writable', $health_result ), 'Chattanooga CMS Admin health omitted plugin-directory state.' );
+global $wpdb;
+cms_site_plugins_assert( '1' === (string) $wpdb->get_var( 'SELECT 1' ), 'WordPress database verification failed.' );
 
 // Weekend Feature must register its public WordPress contracts and remain connected to Events Manager.
 cms_site_plugins_assert( post_type_exists( CMS_Weekend_Posts::POST_TYPE ), 'Weekend Feature post type is not registered.' );
@@ -110,8 +113,8 @@ $product->set_stock_status( 'instock' );
 $product_id = $product->save();
 cms_site_plugins_assert( $product_id > 0, 'Could not create the Marketplace WooCommerce product.' );
 
-$prior_wp_query       = isset( $GLOBALS['wp_query'] ) ? $GLOBALS['wp_query'] : null;
-$GLOBALS['wp_query']  = new WP_Query( array( 'page_id' => CMS_Unified_Marketplace::MARKETPLACE_PAGE_ID, 'post_type' => 'page' ) );
+$prior_wp_query      = isset( $GLOBALS['wp_query'] ) ? $GLOBALS['wp_query'] : null;
+$GLOBALS['wp_query'] = new WP_Query( array( 'page_id' => CMS_Unified_Marketplace::MARKETPLACE_PAGE_ID, 'post_type' => 'page' ) );
 cms_site_plugins_assert( is_page( CMS_Unified_Marketplace::MARKETPLACE_PAGE_ID ), 'Disposable request is not recognized as the Marketplace page.' );
 
 $marketplace = CMS_Unified_Marketplace::instance();
@@ -159,5 +162,5 @@ wp_set_current_user( 0 );
 cms_site_plugins_assert( false === $health->check_permissions( array() ), 'Anonymous CMS Admin access was not denied.' );
 wp_set_current_user( 1 );
 
-echo "cms-site-plugins-integration: PASS cms_admin=1.0.0 marketplace=0.1.1 weekend_feature=0.2.1 wordpress_native_install=verified coexistence=verified marketplace_awp=verified marketplace_woocommerce=verified woocommerce_label=absent location_filter=preserved weekend_events_manager=verified weekend_schedule=verified cms_admin_health=verified admin_boundary=verified\n";
+echo "cms-site-plugins-integration: PASS cms_admin=1.0.0 marketplace=0.1.1 weekend_feature=0.2.1 wordpress_native_install=verified coexistence=verified marketplace_awp=verified marketplace_woocommerce=verified woocommerce_label=absent location_filter=preserved weekend_events_manager=verified weekend_schedule=verified cms_admin_health=verified database=verified admin_boundary=verified\n";
 exit( 0 );
