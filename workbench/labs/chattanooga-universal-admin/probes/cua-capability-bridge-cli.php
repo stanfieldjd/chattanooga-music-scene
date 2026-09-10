@@ -7,9 +7,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 wp_set_current_user( 1 );
 
-$catalog = function_exists( 'wp_get_ability' ) ? wp_get_ability( 'chattanooga-universal-admin/catalog' ) : null;
+$catalog = function_exists( 'wp_get_ability' ) ? wp_get_ability( 'chattanooga-cms-admin/catalog' ) : null;
 if ( ! $catalog instanceof WP_Ability ) {
-	fwrite( STDERR, "Universal catalog ability was not registered.\n" );
+	fwrite( STDERR, "CMS Admin universal catalog ability was not registered.\n" );
 	exit( 1 );
 }
 
@@ -28,8 +28,8 @@ $by_target = array();
 foreach ( $result['items'] as $item ) {
 	$target = isset( $item['target'] ) ? (string) $item['target'] : '';
 	$bridge = isset( $item['bridge'] ) ? (string) $item['bridge'] : '';
-	if ( '' === $target || 0 !== strpos( $bridge, 'chattanooga-universal-admin/' ) ) {
-		fwrite( STDERR, "Catalog contained an invalid bridge mapping.\n" );
+	if ( '' === $target || 0 !== strpos( $bridge, 'chattanooga-cms-admin/' ) ) {
+		fwrite( STDERR, "Catalog contained an invalid CMS Admin bridge mapping.\n" );
 		exit( 1 );
 	}
 	$by_target[ $target ] = $bridge;
@@ -130,5 +130,5 @@ if ( false !== $catalog->check_permissions( array() ) || false !== $core_public_
 wp_set_current_user( 1 );
 delete_option( 'cua_lab_beta_flag' );
 
-echo 'chattanooga-universal-admin-probe: PASS dynamic_discovery=verified standard_public=verified no_input_forwarding=verified public_bridge=verified private_exclusion=verified read_execution=verified mutation_execution=verified admin_boundary=verified target_permissions=preserved denied_execution=blocked direct_universal_mutation=absent' . "\n";
+echo 'chattanooga-cms-admin-probe: PASS namespace=verified dynamic_discovery=verified standard_public=verified no_input_forwarding=verified public_bridge=verified private_exclusion=verified read_execution=verified mutation_execution=verified admin_boundary=verified target_permissions=preserved denied_execution=blocked direct_universal_mutation=absent' . "\n";
 exit( 0 );
