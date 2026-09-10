@@ -10,6 +10,24 @@ function cmsa_v2_rm_fail( $message ) {
 	exit( 1 );
 }
 
+function cmsa_v2_rm_rank_math_hook_count( $hook_name ) {
+	global $wp_filter;
+	if ( empty( $wp_filter[ $hook_name ] ) || empty( $wp_filter[ $hook_name ]->callbacks ) ) {
+		return 0;
+	}
+
+	$count = 0;
+	foreach ( $wp_filter[ $hook_name ]->callbacks as $callbacks ) {
+		foreach ( $callbacks as $callback ) {
+			$function = $callback['function'] ?? null;
+			if ( is_array( $function ) && isset( $function[0] ) && is_object( $function[0] ) && 0 === strpos( get_class( $function[0] ), 'RankMath\\Abilities\\' ) ) {
+				++$count;
+			}
+		}
+	}
+	return $count;
+}
+
 function cmsa_v2_rm_catalog() {
 	static $items = null;
 	if ( null !== $items ) {
@@ -39,7 +57,21 @@ function cmsa_v2_rm_ability( $target ) {
 	}
 
 	if ( 1 !== count( $matches ) ) {
-		cmsa_v2_rm_fail( sprintf( 'Expected one bridged Rank Math ability for %1$s; found %2$d.', $target, count( $matches ) ) );
+		$direct = wp_get_ability( $target );
+		cmsa_v2_rm_fail(
+			sprintf(
+				'Expected one bridged Rank Math ability for %1$s; found %2$d. direct=%3$s init=%4$d abilities_init=%5$d class=%6$s file=%7$s rank_math_ability_hooks=%8$d rank_math_category_hooks=%9$d',
+				$target,
+				count( $matches ),
+				$direct instanceof WP_Ability ? 'present' : 'absent',
+				did_action( 'init' ),
+				did_action( 'wp_abilities_api_init' ),
+				class_exists( 'RankMath\\Abilities\\Abilities' ) ? 'present' : 'absent',
+				file_exists( WP_PLUGIN_DIR . '/seo-by-rank-math/includes/abilities/class-abilities.php' ) ? 'present' : 'absent',
+				cmsa_v2_rm_rank_math_hook_count( 'wp_abilities_api_init' ),
+				cmsa_v2_rm_rank_math_hook_count( 'wp_abilities_api_categories_init' )
+			)
+		);
 	}
 
 	$ability = wp_get_ability( $matches[0] );
@@ -78,6 +110,22 @@ if ( ! function_exists( 'get_plugin_data' ) ) {
 $plugin_data = get_plugin_data( $plugin_file, false, false );
 if ( '1.0.278' !== (string) ( $plugin_data['Version'] ?? '' ) ) {
 	cmsa_v2_rm_fail( 'Rank Math SEO 1.0.278 is not the active compatibility target.' );
+}
+
+$pre_registry_ability_hooks = cmsa_v2_rm_rank_math_hook_count( 'wp_abilities_api_init' );
+$pre_registry_category_hooks = cmsa_v2_rm_rank_math_hook_count( 'wp_abilities_api_categories_init' );
+if ( 0 === $pre_registry_ability_hooks || 0 === $pre_registry_category_hooks ) {
+	cmsa_v2_rm_fail(
+		sprintf(
+			'Rank Math did not attach its Abilities API subscribers before registry access. init=%1$d abilities_init=%2$d class=%3$s file=%4$s ability_hooks=%5$d category_hooks=%6$d',
+			did_action( 'init' ),
+			did_action( 'wp_abilities_api_init' ),
+			class_exists( 'RankMath\\Abilities\\Abilities' ) ? 'present' : 'absent',
+			file_exists( WP_PLUGIN_DIR . '/seo-by-rank-math/includes/abilities/class-abilities.php' ) ? 'present' : 'absent',
+			$pre_registry_ability_hooks,
+			$pre_registry_category_hooks
+		)
+	);
 }
 
 $get_settings = cmsa_v2_rm_ability( 'rank-math/get-settings' );
