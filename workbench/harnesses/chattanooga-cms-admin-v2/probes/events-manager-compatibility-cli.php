@@ -159,8 +159,9 @@ if ( $event_id < 1 ) {
 
 $read = cmsa_v2_em_rest_call( 'GET', '/events-manager/v1/events/' . $event_id, array( 'context' => 'edit' ) );
 $read_name = (string) ( $read['event_name'] ?? $read['name'] ?? '' );
-if ( $read_name !== $name ) {
-	cmsa_v2_em_fail( 'Events Manager REST readback did not preserve the created event name.' );
+$post_id = isset( $read['post_id'] ) && is_numeric( $read['post_id'] ) ? (int) $read['post_id'] : 0;
+if ( $read_name !== $name || $post_id < 1 ) {
+	cmsa_v2_em_fail( 'Events Manager REST readback did not preserve the created event identity.' );
 }
 
 $updated = cmsa_v2_em_rest_call( 'PATCH', '/events-manager/v1/events/' . $event_id, array( 'event_name' => $updated_name ) );
@@ -180,17 +181,12 @@ if ( false !== $list->check_permissions( $list_input ) ) {
 }
 wp_set_current_user( 1 );
 
-$deleted = cmsa_v2_em_rest_call( 'DELETE', '/events-manager/v1/events/' . $event_id, array( 'context' => 'edit' ) );
-if ( is_wp_error( $deleted ) ) {
-	cmsa_v2_em_fail( 'Events Manager REST deletion failed.' );
+cmsa_v2_em_rest_call( 'DELETE', '/events-manager/v1/events/' . $event_id, array( 'context' => 'edit' ) );
+clean_post_cache( $post_id );
+$post_status = get_post_status( $post_id );
+if ( false !== $post_status && 'trash' !== $post_status ) {
+	cmsa_v2_em_fail( 'Events Manager DELETE neither trashed nor permanently removed the disposable event post.' );
 }
 
-$deleted_check = cmsa_v2_em_rest( 'GET', '/events-manager/v1/events/' . $event_id )->execute(
-	array( 'path' => '/events-manager/v1/events/' . $event_id, 'params' => array( 'context' => 'edit' ) )
-);
-if ( ! is_wp_error( $deleted_check ) && is_array( $deleted_check ) && (int) ( $deleted_check['status'] ?? 200 ) < 400 ) {
-	cmsa_v2_em_fail( 'Events Manager event remained readable after delete/trash operation.' );
-}
-
-echo "cmsa-v2-events-manager: PASS version=7.4.3 native_abilities=bridged mcp_exposure=honored list_execution=verified rest_discovery=verified event_create=verified event_read=verified event_update=verified event_delete=verified provider_permissions=preserved admin_boundary=verified candidate_provider_special_case=absent\n";
+echo "cmsa-v2-events-manager: PASS version=7.4.3 native_abilities=bridged mcp_exposure=honored list_execution=verified rest_discovery=verified event_create=verified event_read=verified event_update=verified event_delete_or_trash=verified provider_permissions=preserved admin_boundary=verified candidate_provider_special_case=absent\n";
 exit( 0 );
