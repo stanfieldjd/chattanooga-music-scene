@@ -1,0 +1,216 @@
+name: Deploy Chattanooga CMS Admin
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Deployment action"
+        required: true
+        type: choice
+        options:
+          - deploy
+          - rollback
+          - cleanup-backup
+      backup_name:
+        description: "Rollback directory basename for rollback/cleanup, e.g. .chattanooga-cms-admin.rollback-123456789"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chattanooga-cms-admin-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ inputs.action == 'deploy' }}
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Check out main source
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Validate deployment configuration
+        env:
+          DREAMHOST_HOST: ${{ vars.DREAMHOST_HOST }}
+          DREAMHOST_USER: ${{ vars.DREAMHOST_USER }}
+          DREAMHOST_PLUGIN_DIR: ${{ vars.DREAMHOST_PLUGIN_DIR }}
+          DREAMHOST_SSH_KEY: ${{ secrets.DREAMHOST_SSH_KEY }}
+          DREAMHOST_KNOWN_HOSTS: ${{ secrets.DREAMHOST_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          for name in DREAMHOST_HOST DREAMHOST_USER DREAMHOST_PLUGIN_DIR DREAMHOST_SSH_KEY DREAMHOST_KNOWN_HOSTS; do
+            if [ -z "${!name:-}" ]; then
+              echo "Missing required deployment configuration: ${name}" >&2
+              exit 1
+            fi
+          done
+
+      - name: Verify canonical plugin identity
+        run: |
+          set -euo pipefail
+          test -f site-plugins/chattanooga-cms-admin/chattanooga-cms-admin.php
+          grep -Fq 'Plugin Name: Chattanooga CMS Admin' site-plugins/chattanooga-cms-admin/chattanooga-cms-admin.php
+          grep -Fq 'Version: 1.0.0' site-plugins/chattanooga-cms-admin/chattanooga-cms-admin.php
+          find site-plugins/chattanooga-cms-admin -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+
+      - name: Configure SSH
+        env:
+          DREAMHOST_SSH_KEY: ${{ secrets.DREAMHOST_SSH_KEY }}
+          DREAMHOST_KNOWN_HOSTS: ${{ secrets.DREAMHOST_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DREAMHOST_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$DREAMHOST_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Stage and atomically replace plugin
+        id: swap
+        env:
+          DREAMHOST_HOST: ${{ vars.DREAMHOST_HOST }}
+          DREAMHOST_USER: ${{ vars.DREAMHOST_USER }}
+          DREAMHOST_PLUGIN_DIR: ${{ vars.DREAMHOST_PLUGIN_DIR }}
+        run: |
+          set -euo pipefail
+          remote="${DREAMHOST_USER}@${DREAMHOST_HOST}"
+          staging="${DREAMHOST_PLUGIN_DIR}/.chattanooga-cms-admin.deploy-${GITHUB_RUN_ID}"
+          backup="${DREAMHOST_PLUGIN_DIR}/.chattanooga-cms-admin.rollback-${GITHUB_RUN_ID}"
+          current="${DREAMHOST_PLUGIN_DIR}/chattanooga-cms-admin"
+
+          ssh "$remote" "set -e; rm -rf '$staging'; mkdir -p '$staging'"
+          rsync -az --delete -e ssh site-plugins/chattanooga-cms-admin/ "$remote:$staging/"
+
+          ssh "$remote" "set -e; test -f '$staging/chattanooga-cms-admin.php'; grep -Fq 'Version: 1.0.0' '$staging/chattanooga-cms-admin.php'; find '$staging' -type f -name '*.php' -exec php -l {} \; >/dev/null"
+
+          ssh "$remote" "set -e; test -d '$current'; test ! -e '$backup'; mv '$current' '$backup'; if mv '$staging' '$current'; then exit 0; else mv '$backup' '$current'; exit 1; fi"
+
+          echo "backup_name=$(basename "$backup")" >> "$GITHUB_OUTPUT"
+          echo "Temporary rollback copy: $(basename "$backup")"
+
+      - name: Verify remote replacement files
+        env:
+          DREAMHOST_HOST: ${{ vars.DREAMHOST_HOST }}
+          DREAMHOST_USER: ${{ vars.DREAMHOST_USER }}
+          DREAMHOST_PLUGIN_DIR: ${{ vars.DREAMHOST_PLUGIN_DIR }}
+        run: |
+          set -euo pipefail
+          remote="${DREAMHOST_USER}@${DREAMHOST_HOST}"
+          current="${DREAMHOST_PLUGIN_DIR}/chattanooga-cms-admin"
+          ssh "$remote" "set -e; test -f '$current/chattanooga-cms-admin.php'; grep -Fq 'Plugin Name: Chattanooga CMS Admin' '$current/chattanooga-cms-admin.php'; grep -Fq 'Version: 1.0.0' '$current/chattanooga-cms-admin.php'; find '$current' -type f -name '*.php' -exec php -l {} \; >/dev/null"
+
+      - name: Deployment checkpoint
+        run: |
+          echo "Source files deployed."
+          echo "Rollback directory: ${{ steps.swap.outputs.backup_name }}"
+          echo "Do not remove the rollback directory until live MCP validation succeeds."
+
+  rollback:
+    if: ${{ inputs.action == 'rollback' }}
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Validate rollback input and configuration
+        env:
+          BACKUP_NAME: ${{ inputs.backup_name }}
+          DREAMHOST_HOST: ${{ vars.DREAMHOST_HOST }}
+          DREAMHOST_USER: ${{ vars.DREAMHOST_USER }}
+          DREAMHOST_PLUGIN_DIR: ${{ vars.DREAMHOST_PLUGIN_DIR }}
+          DREAMHOST_SSH_KEY: ${{ secrets.DREAMHOST_SSH_KEY }}
+          DREAMHOST_KNOWN_HOSTS: ${{ secrets.DREAMHOST_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          test -n "$BACKUP_NAME"
+          case "$BACKUP_NAME" in
+            .chattanooga-cms-admin.rollback-*) ;;
+            *) echo "Invalid backup_name" >&2; exit 1 ;;
+          esac
+          for name in DREAMHOST_HOST DREAMHOST_USER DREAMHOST_PLUGIN_DIR DREAMHOST_SSH_KEY DREAMHOST_KNOWN_HOSTS; do
+            if [ -z "${!name:-}" ]; then
+              echo "Missing required deployment configuration: ${name}" >&2
+              exit 1
+            fi
+          done
+
+      - name: Configure SSH
+        env:
+          DREAMHOST_SSH_KEY: ${{ secrets.DREAMHOST_SSH_KEY }}
+          DREAMHOST_KNOWN_HOSTS: ${{ secrets.DREAMHOST_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DREAMHOST_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$DREAMHOST_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Restore previous plugin directory
+        env:
+          BACKUP_NAME: ${{ inputs.backup_name }}
+          DREAMHOST_HOST: ${{ vars.DREAMHOST_HOST }}
+          DREAMHOST_USER: ${{ vars.DREAMHOST_USER }}
+          DREAMHOST_PLUGIN_DIR: ${{ vars.DREAMHOST_PLUGIN_DIR }}
+        run: |
+          set -euo pipefail
+          remote="${DREAMHOST_USER}@${DREAMHOST_HOST}"
+          backup="${DREAMHOST_PLUGIN_DIR}/${BACKUP_NAME}"
+          current="${DREAMHOST_PLUGIN_DIR}/chattanooga-cms-admin"
+          failed="${DREAMHOST_PLUGIN_DIR}/.chattanooga-cms-admin.failed-${GITHUB_RUN_ID}"
+          ssh "$remote" "set -e; test -d '$backup'; test -d '$current'; mv '$current' '$failed'; if mv '$backup' '$current'; then rm -rf '$failed'; else mv '$failed' '$current'; exit 1; fi; test -f '$current/chattanooga-cms-admin.php'; find '$current' -type f -name '*.php' -exec php -l {} \; >/dev/null"
+
+  cleanup-backup:
+    if: ${{ inputs.action == 'cleanup-backup' }}
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Validate cleanup input and configuration
+        env:
+          BACKUP_NAME: ${{ inputs.backup_name }}
+          DREAMHOST_HOST: ${{ vars.DREAMHOST_HOST }}
+          DREAMHOST_USER: ${{ vars.DREAMHOST_USER }}
+          DREAMHOST_PLUGIN_DIR: ${{ vars.DREAMHOST_PLUGIN_DIR }}
+          DREAMHOST_SSH_KEY: ${{ secrets.DREAMHOST_SSH_KEY }}
+          DREAMHOST_KNOWN_HOSTS: ${{ secrets.DREAMHOST_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          test -n "$BACKUP_NAME"
+          case "$BACKUP_NAME" in
+            .chattanooga-cms-admin.rollback-*) ;;
+            *) echo "Invalid backup_name" >&2; exit 1 ;;
+          esac
+          for name in DREAMHOST_HOST DREAMHOST_USER DREAMHOST_PLUGIN_DIR DREAMHOST_SSH_KEY DREAMHOST_KNOWN_HOSTS; do
+            if [ -z "${!name:-}" ]; then
+              echo "Missing required deployment configuration: ${name}" >&2
+              exit 1
+            fi
+          done
+
+      - name: Configure SSH
+        env:
+          DREAMHOST_SSH_KEY: ${{ secrets.DREAMHOST_SSH_KEY }}
+          DREAMHOST_KNOWN_HOSTS: ${{ secrets.DREAMHOST_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DREAMHOST_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$DREAMHOST_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Delete accepted rollback directory
+        env:
+          BACKUP_NAME: ${{ inputs.backup_name }}
+          DREAMHOST_HOST: ${{ vars.DREAMHOST_HOST }}
+          DREAMHOST_USER: ${{ vars.DREAMHOST_USER }}
+          DREAMHOST_PLUGIN_DIR: ${{ vars.DREAMHOST_PLUGIN_DIR }}
+        run: |
+          set -euo pipefail
+          remote="${DREAMHOST_USER}@${DREAMHOST_HOST}"
+          backup="${DREAMHOST_PLUGIN_DIR}/${BACKUP_NAME}"
+          current="${DREAMHOST_PLUGIN_DIR}/chattanooga-cms-admin"
+          ssh "$remote" "set -e; test -d '$current'; test -f '$current/chattanooga-cms-admin.php'; test -d '$backup'; rm -rf '$backup'; test ! -e '$backup'"
