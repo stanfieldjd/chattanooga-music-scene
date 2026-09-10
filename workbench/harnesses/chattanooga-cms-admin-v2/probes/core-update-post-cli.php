@@ -34,7 +34,7 @@ if ( ! $health instanceof WP_Ability || ! $restore instanceof WP_Ability || ! $v
 	fwrite( STDERR, "Replacement abilities were not available in the fresh synthetic-target process.\n" );
 	exit( 1 );
 }
-$health_result = $health->execute();
+$health_result = $health->execute( array() );
 if ( is_wp_error( $health_result ) ) {
 	fwrite( STDERR, "Replacement health ability failed after the synthetic core transition.\n" );
 	exit( 1 );
