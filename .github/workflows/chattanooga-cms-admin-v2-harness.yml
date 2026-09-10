@@ -169,3 +169,56 @@ jobs:
 
           CMSA_V2_CORE_UPDATE_STATE="$state" \
             php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/core-update-final-cli.php" --path=/tmp/wordpress
+
+  events_manager_compatibility:
+    name: Real Events Manager 7.4.3 compatibility
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mysqli, zip, gd, fileinfo
+
+      - name: Install disposable WordPress 7.1 and Events Manager 7.4.3
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+          php /tmp/wp-cli.phar core download --version=7.1 --path=/tmp/wordpress --force
+          php /tmp/wp-cli.phar config create --path=/tmp/wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
+          password="$(php -r 'echo bin2hex(random_bytes(20));')"
+          php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://cmsa-em.test --title="CMS Admin Events Manager Harness" --admin_user=admin --admin_password="$password" --admin_email=lab@example.invalid --skip-email
+          cp -R workbench/labs/chattanooga-universal-admin/candidate /tmp/wordpress/wp-content/plugins/chattanooga-cms-admin
+          php /tmp/wp-cli.phar plugin install events-manager --version=7.4.3 --activate --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin is-active events-manager --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin is-active chattanooga-cms-admin --path=/tmp/wordpress
+          version="$(php /tmp/wp-cli.phar plugin get events-manager --field=version --path=/tmp/wordpress)"
+          test "$version" = "7.4.3"
+
+      - name: Enforce provider-agnostic candidate boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate="workbench/labs/chattanooga-universal-admin/candidate"
+          if grep -REiq 'Events_Manager|events-manager|EM_Event|EM_Events|EM_Location|EM_Booking' "$candidate"; then
+            echo "Candidate contains Events Manager-specific logic." >&2
+            exit 1
+          fi
+
+      - name: Verify real Events Manager universal compatibility
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/events-manager-compatibility-cli.php" --path=/tmp/wordpress
