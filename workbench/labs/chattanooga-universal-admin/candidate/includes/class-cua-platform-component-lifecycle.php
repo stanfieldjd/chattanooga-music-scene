@@ -173,8 +173,8 @@ final class CUA_Platform_Component_Lifecycle {
 			return new WP_Error( 'cmsa_active_theme_delete_forbidden', 'The active theme or its active parent cannot be deleted.' );
 		}
 
-		$theme = wp_get_theme( $stylesheet );
-		if ( ! $theme->exists() ) {
+		$theme = self::theme_object( $stylesheet );
+		if ( ! $theme instanceof WP_Theme ) {
 			return new WP_Error( 'cmsa_theme_not_found', 'The requested theme is not installed.' );
 		}
 		$version = (string) $theme->get( 'Version' );
@@ -190,11 +190,11 @@ final class CUA_Platform_Component_Lifecycle {
 		}
 
 		$moved = $upgrader->move_to_temp_backup_dir( $backup );
-		wp_clean_themes_cache();
-		if ( is_wp_error( $moved ) || true !== $moved || wp_get_theme( $stylesheet )->exists() ) {
+		$after_theme = self::theme_object( $stylesheet );
+		if ( is_wp_error( $moved ) || true !== $moved || $after_theme instanceof WP_Theme ) {
 			if ( true === $moved ) {
 				$upgrader->restore_temp_backup( array( $backup ) );
-				wp_clean_themes_cache();
+				self::theme_object( $stylesheet );
 			}
 			return new WP_Error( 'cmsa_theme_delete_failed', is_wp_error( $moved ) ? $moved->get_error_message() : 'Theme deletion could not be verified.' );
 		}
@@ -235,7 +235,7 @@ final class CUA_Platform_Component_Lifecycle {
 			$backup = array( 'slug' => $slug, 'src' => WP_PLUGIN_DIR, 'dir' => 'plugins' );
 			$upgrader = self::upgrader( array( WP_CONTENT_DIR, WP_PLUGIN_DIR ) );
 		} else {
-			if ( wp_get_theme( $slug )->exists() ) {
+			if ( self::theme_object( $slug ) instanceof WP_Theme ) {
 				return new WP_Error( 'cmsa_component_restore_conflict', 'A theme already exists at the rollback destination.' );
 			}
 			$theme_root = get_theme_root();
@@ -264,12 +264,17 @@ final class CUA_Platform_Component_Lifecycle {
 			return array( 'type' => 'plugin', 'plugin' => $plugin, 'version' => (string) $state['version'], 'restored' => true, 'active' => is_plugin_active( $plugin ) );
 		}
 
-		wp_clean_themes_cache();
-		$theme = wp_get_theme( $slug );
-		if ( ! $theme->exists() || (string) $theme->get( 'Version' ) !== (string) $state['version'] ) {
+		$theme = self::theme_object( $slug );
+		if ( ! $theme instanceof WP_Theme || (string) $theme->get( 'Version' ) !== (string) $state['version'] ) {
 			return new WP_Error( 'cmsa_component_restore_verification_failed', 'The restored theme did not match the recorded rollback state.' );
 		}
 		return array( 'type' => 'theme', 'stylesheet' => $slug, 'version' => (string) $state['version'], 'restored' => true );
+	}
+
+	private static function theme_object( $stylesheet ) {
+		search_theme_directories( true );
+		$themes = wp_get_themes( array( 'errors' => null ) );
+		return isset( $themes[ $stylesheet ] ) && $themes[ $stylesheet ] instanceof WP_Theme ? $themes[ $stylesheet ] : null;
 	}
 
 	private static function upgrader( array $directories ) {
