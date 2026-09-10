@@ -52,7 +52,7 @@ jobs:
           test ! -e "$candidate/chattanooga-universal-admin.php"
           test "$(grep -RIl '^ \* Plugin Name:' "$candidate" --include='*.php' | wc -l)" -eq 1
           grep -q '^ \* Plugin Name: Chattanooga CMS Admin$' "$candidate/chattanooga-cms-admin.php"
-          if grep -REiq 'orbit-fixture|comet-fixture|asteroid-private|saturn-lifecycle|meteor-lifecycle' "$candidate"; then
+          if grep -REiq 'orbit-fixture|comet-fixture|asteroid-private|saturn-lifecycle|meteor-lifecycle|neptune-install|aurora-install' "$candidate"; then
             echo "Candidate contains v2 fixture-specific logic." >&2
             exit 1
           fi
@@ -98,3 +98,13 @@ jobs:
 
       - name: Verify reversible component lifecycle
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/component-lifecycle-cli.php" --path=/tmp/wordpress
+
+      - name: Verify package installation and plugin state lifecycle
+        shell: bash
+        run: |
+          set -euo pipefail
+          packages=/tmp/cmsa-v2-packages
+          mkdir -p "$packages"
+          (cd workbench/harnesses/chattanooga-cms-admin-v2/packages && zip -qr "$packages/neptune-install.zip" neptune-install)
+          (cd workbench/harnesses/chattanooga-cms-admin-v2/packages && zip -qr "$packages/aurora-install.zip" aurora-install)
+          CMSA_V2_PACKAGE_DIR="$packages" php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/package-lifecycle-cli.php" --path=/tmp/wordpress
