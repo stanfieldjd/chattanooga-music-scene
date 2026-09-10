@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Chattanooga CMS Admin
- * Description: Replacement Chattanooga CMS Admin implementation using plugin-agnostic public WordPress contracts.
- * Version: 0.0.1-replacement-lab
+ * Description: Universal Chattanooga CMS Admin replacement using plugin-agnostic public WordPress contracts and verified intrinsic platform services.
+ * Version: 1.0.0
  * Author: Chattanooga Music Scene
  * Requires at least: 7.1
  * Requires PHP: 8.0
@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CUA_VERSION', '0.0.1-replacement-lab' );
+define( 'CUA_VERSION', '1.0.0' );
 define( 'CUA_DIR', plugin_dir_path( __FILE__ ) );
 
 require_once CUA_DIR . 'includes/class-cua-local-storage.php';

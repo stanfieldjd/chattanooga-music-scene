@@ -5,12 +5,12 @@ on:
     branches:
       - work/chattanooga-universal-admin-v2
     paths:
-      - "workbench/labs/chattanooga-universal-admin/candidate/**"
+      - "site-plugins/chattanooga-cms-admin/**"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/replacement-coverage-cli.php"
       - ".github/workflows/chattanooga-cms-admin-v2-acceptance.yml"
   pull_request:
     paths:
-      - "workbench/labs/chattanooga-universal-admin/candidate/**"
+      - "site-plugins/chattanooga-cms-admin/**"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/replacement-coverage-cli.php"
       - ".github/workflows/chattanooga-cms-admin-v2-acceptance.yml"
 
@@ -44,16 +44,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          candidate="workbench/labs/chattanooga-universal-admin/candidate"
-          find "$candidate" -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
-          test -f "$candidate/chattanooga-cms-admin.php"
-          test ! -e "$candidate/chattanooga-universal-admin.php"
-          test "$(grep -RIl '^ \* Plugin Name:' "$candidate" --include='*.php' | wc -l)" -eq 1
-          grep -q '^ \* Plugin Name: Chattanooga CMS Admin$' "$candidate/chattanooga-cms-admin.php"
-          if grep -REiq 'WooCommerce|Events_Manager|events-manager|BuddyBoss|Marketplace|Weekend_Feature|EM_Event|EM_Location|WC_Product' "$candidate"; then
-            echo "Candidate contains provider-specific implementation logic." >&2
+          source="site-plugins/chattanooga-cms-admin"
+          find "$source" -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
+          test -f "$source/chattanooga-cms-admin.php"
+          test ! -e "$source/chattanooga-universal-admin.php"
+          test "$(grep -RIl '^ \* Plugin Name:' "$source" --include='*.php' | wc -l)" -eq 1
+          grep -q '^ \* Plugin Name: Chattanooga CMS Admin$' "$source/chattanooga-cms-admin.php"
+          grep -q '^ \* Version: 1.0.0$' "$source/chattanooga-cms-admin.php"
+          if grep -REiq 'WooCommerce|Events_Manager|events-manager|BuddyBoss|Marketplace|Weekend_Feature|EM_Event|EM_Location|WC_Product' "$source"; then
+            echo "Replacement contains provider-specific implementation logic." >&2
             exit 1
           fi
+          test ! -e workbench/labs/chattanooga-universal-admin/candidate
       - name: Install disposable WordPress 7.1
         shell: bash
         run: |
@@ -63,7 +65,7 @@ jobs:
           php /tmp/wp-cli.phar config create --path=/tmp/wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
           password="$(php -r 'echo bin2hex(random_bytes(20));')"
           php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://cmsa-accept.test --title="CMSA Replacement Acceptance" --admin_user=admin --admin_password="$password" --admin_email=lab@example.invalid --skip-email
-          cp -R workbench/labs/chattanooga-universal-admin/candidate /tmp/wordpress/wp-content/plugins/chattanooga-cms-admin
+          cp -R site-plugins/chattanooga-cms-admin /tmp/wordpress/wp-content/plugins/chattanooga-cms-admin
           php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin --path=/tmp/wordpress
       - name: Verify replacement coverage
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/replacement-coverage-cli.php" --path=/tmp/wordpress

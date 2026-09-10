@@ -5,13 +5,13 @@ on:
     branches:
       - work/chattanooga-universal-admin-v2
     paths:
-      - "workbench/labs/chattanooga-universal-admin/candidate/**"
+      - "site-plugins/chattanooga-cms-admin/**"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/events-manager-*.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/woocommerce-compatibility-cli.php"
       - ".github/workflows/chattanooga-cms-admin-v2-provider-compat.yml"
   pull_request:
     paths:
-      - "workbench/labs/chattanooga-universal-admin/candidate/**"
+      - "site-plugins/chattanooga-cms-admin/**"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/events-manager-*.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/woocommerce-compatibility-cli.php"
       - ".github/workflows/chattanooga-cms-admin-v2-provider-compat.yml"
@@ -51,17 +51,17 @@ jobs:
           php /tmp/wp-cli.phar config create --path=/tmp/wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
           password="$(php -r 'echo bin2hex(random_bytes(20));')"
           php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://cmsa-em.test --title="CMSA EM Compatibility" --admin_user=admin --admin_password="$password" --admin_email=lab@example.invalid --skip-email
-          cp -R workbench/labs/chattanooga-universal-admin/candidate /tmp/wordpress/wp-content/plugins/chattanooga-cms-admin
+          cp -R site-plugins/chattanooga-cms-admin /tmp/wordpress/wp-content/plugins/chattanooga-cms-admin
           php /tmp/wp-cli.phar plugin install events-manager --version=7.4.3 --activate --path=/tmp/wordpress
           php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/events-manager-bootstrap-cli.php" --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin --path=/tmp/wordpress
-      - name: Enforce provider-agnostic candidate
+      - name: Enforce provider-agnostic source
         shell: bash
         run: |
           set -euo pipefail
-          candidate="workbench/labs/chattanooga-universal-admin/candidate"
-          if grep -REiq 'Events_Manager|events-manager|EM_Event|EM_Events|EM_Location|EM_Booking|WooCommerce|WC_Product|wc_get_product' "$candidate"; then
-            echo "Candidate contains provider-specific logic." >&2
+          source="site-plugins/chattanooga-cms-admin"
+          if grep -REiq 'Events_Manager|events-manager|EM_Event|EM_Events|EM_Location|EM_Booking|WooCommerce|WC_Product|wc_get_product' "$source"; then
+            echo "Replacement contains provider-specific logic." >&2
             exit 1
           fi
       - name: Verify Events Manager universal compatibility
@@ -98,17 +98,17 @@ jobs:
           php /tmp/wp-cli.phar config create --path=/tmp/wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
           password="$(php -r 'echo bin2hex(random_bytes(20));')"
           php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://cmsa-wc.test --title="CMSA WooCommerce Compatibility" --admin_user=admin --admin_password="$password" --admin_email=lab@example.invalid --skip-email
-          cp -R workbench/labs/chattanooga-universal-admin/candidate /tmp/wordpress/wp-content/plugins/chattanooga-cms-admin
+          cp -R site-plugins/chattanooga-cms-admin /tmp/wordpress/wp-content/plugins/chattanooga-cms-admin
           php /tmp/wp-cli.phar plugin install woocommerce --version=11.0.1 --activate --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin --path=/tmp/wordpress
           test "$(php /tmp/wp-cli.phar plugin get woocommerce --field=version --path=/tmp/wordpress)" = "11.0.1"
-      - name: Enforce provider-agnostic candidate
+      - name: Enforce provider-agnostic source
         shell: bash
         run: |
           set -euo pipefail
-          candidate="workbench/labs/chattanooga-universal-admin/candidate"
-          if grep -REiq 'WooCommerce|WC_Product|wc_get_product|Events_Manager|events-manager|EM_Event|EM_Events' "$candidate"; then
-            echo "Candidate contains provider-specific logic." >&2
+          source="site-plugins/chattanooga-cms-admin"
+          if grep -REiq 'WooCommerce|WC_Product|wc_get_product|Events_Manager|events-manager|EM_Event|EM_Events' "$source"; then
+            echo "Replacement contains provider-specific logic." >&2
             exit 1
           fi
       - name: Verify WooCommerce universal compatibility

@@ -5,12 +5,12 @@ on:
     branches:
       - work/chattanooga-universal-admin-v2
     paths:
-      - "workbench/labs/chattanooga-universal-admin/candidate/**"
+      - "site-plugins/chattanooga-cms-admin/**"
       - "workbench/harnesses/chattanooga-cms-admin-v2/**"
       - ".github/workflows/chattanooga-cms-admin-v2-harness.yml"
   pull_request:
     paths:
-      - "workbench/labs/chattanooga-universal-admin/candidate/**"
+      - "site-plugins/chattanooga-cms-admin/**"
       - "workbench/harnesses/chattanooga-cms-admin-v2/**"
       - ".github/workflows/chattanooga-cms-admin-v2-harness.yml"
 
@@ -45,19 +45,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          candidate="workbench/labs/chattanooga-universal-admin/candidate"
+          source="site-plugins/chattanooga-cms-admin"
           harness="workbench/harnesses/chattanooga-cms-admin-v2"
-          find "$candidate" "$harness" -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
-          test -f "$candidate/chattanooga-cms-admin.php"
-          test ! -e "$candidate/chattanooga-universal-admin.php"
-          test "$(grep -RIl '^ \* Plugin Name:' "$candidate" --include='*.php' | wc -l)" -eq 1
-          grep -q '^ \* Plugin Name: Chattanooga CMS Admin$' "$candidate/chattanooga-cms-admin.php"
-          if grep -REiq 'orbit-fixture|comet-fixture|asteroid-private|saturn-lifecycle|meteor-lifecycle|neptune-install|aurora-install|quasar-audit|pulsar-core-loopback|nova-settings|nova_private_setting|nova_rest_setting|nova_custom_setting|nova_absent_setting|cmsa_v2_snapshot_fixture|cmsa_v2_extra_after_backup|cmsa_v2_core_restore_marker|cmsa_v2_core_update_db_marker|wp-cmsa-v2-extra|cmsa-v2\.invalid' "$candidate"; then
-            echo "Candidate contains v2 fixture-specific logic." >&2
+          find "$source" "$harness" -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
+          test -f "$source/chattanooga-cms-admin.php"
+          test ! -e "$source/chattanooga-universal-admin.php"
+          test ! -e workbench/labs/chattanooga-universal-admin/candidate
+          test "$(grep -RIl '^ \* Plugin Name:' "$source" --include='*.php' | wc -l)" -eq 1
+          grep -q '^ \* Plugin Name: Chattanooga CMS Admin$' "$source/chattanooga-cms-admin.php"
+          grep -q '^ \* Version: 1.0.0$' "$source/chattanooga-cms-admin.php"
+          if grep -REiq 'orbit-fixture|comet-fixture|asteroid-private|saturn-lifecycle|meteor-lifecycle|neptune-install|aurora-install|quasar-audit|pulsar-core-loopback|nova-settings|nova_private_setting|nova_rest_setting|nova_custom_setting|nova_absent_setting|cmsa_v2_snapshot_fixture|cmsa_v2_extra_after_backup|cmsa_v2_core_restore_marker|cmsa_v2_core_update_db_marker|wp-cmsa-v2-extra|cmsa-v2\.invalid' "$source"; then
+            echo "Replacement contains v2 fixture-specific logic." >&2
             exit 1
           fi
-          if grep -REiq 'WooCommerce|Events_Manager|BuddyBoss|Marketplace|Weekend_Feature' "$candidate"; then
-            echo "Candidate contains production-provider-specific logic." >&2
+          if grep -REiq 'WooCommerce|Events_Manager|events-manager|BuddyBoss|Marketplace|Weekend_Feature|EM_Event|EM_Location|WC_Product' "$source"; then
+            echo "Replacement contains production-provider-specific logic." >&2
             exit 1
           fi
 
@@ -75,7 +77,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cp -R workbench/labs/chattanooga-universal-admin/candidate /tmp/wordpress/wp-content/plugins/chattanooga-cms-admin
+          cp -R site-plugins/chattanooga-cms-admin /tmp/wordpress/wp-content/plugins/chattanooga-cms-admin
           cp -R workbench/harnesses/chattanooga-cms-admin-v2/fixtures/orbit-ability /tmp/wordpress/wp-content/plugins/orbit-ability
           cp -R workbench/harnesses/chattanooga-cms-admin-v2/fixtures/comet-rest /tmp/wordpress/wp-content/plugins/comet-rest
           cp -R workbench/harnesses/chattanooga-cms-admin-v2/fixtures/asteroid-private /tmp/wordpress/wp-content/plugins/asteroid-private
@@ -169,59 +171,3 @@ jobs:
 
           CMSA_V2_CORE_UPDATE_STATE="$state" \
             php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/core-update-final-cli.php" --path=/tmp/wordpress
-
-  events_manager_compatibility:
-    name: Real Events Manager 7.4.3 compatibility
-    runs-on: ubuntu-latest
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: wordpress
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: "8.2"
-          extensions: mysqli, zip, gd, fileinfo
-
-      - name: Install disposable WordPress 7.1 and Events Manager 7.4.3
-        shell: bash
-        run: |
-          set -euo pipefail
-          curl -fsSL -o /tmp/wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
-          php /tmp/wp-cli.phar core download --version=7.1 --path=/tmp/wordpress --force
-          php /tmp/wp-cli.phar config create --path=/tmp/wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
-          password="$(php -r 'echo bin2hex(random_bytes(20));')"
-          php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://cmsa-em.test --title="CMS Admin Events Manager Harness" --admin_user=admin --admin_password="$password" --admin_email=lab@example.invalid --skip-email
-          cp -R workbench/labs/chattanooga-universal-admin/candidate /tmp/wordpress/wp-content/plugins/chattanooga-cms-admin
-          php /tmp/wp-cli.phar plugin install events-manager --version=7.4.3 --activate --path=/tmp/wordpress
-          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/events-manager-bootstrap-cli.php" --path=/tmp/wordpress
-          php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin --path=/tmp/wordpress
-          php /tmp/wp-cli.phar plugin is-active events-manager --path=/tmp/wordpress
-          php /tmp/wp-cli.phar plugin is-active chattanooga-cms-admin --path=/tmp/wordpress
-          version="$(php /tmp/wp-cli.phar plugin get events-manager --field=version --path=/tmp/wordpress)"
-          test "$version" = "7.4.3"
-          db_version="$(php /tmp/wp-cli.phar option get dbem_version --path=/tmp/wordpress)"
-          test "$db_version" = "7.4.3"
-
-      - name: Enforce provider-agnostic candidate boundary
-        shell: bash
-        run: |
-          set -euo pipefail
-          candidate="workbench/labs/chattanooga-universal-admin/candidate"
-          if grep -REiq 'Events_Manager|events-manager|EM_Event|EM_Events|EM_Location|EM_Booking' "$candidate"; then
-            echo "Candidate contains Events Manager-specific logic." >&2
-            exit 1
-          fi
-
-      - name: Verify real Events Manager universal compatibility
-        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/events-manager-compatibility-cli.php" --path=/tmp/wordpress
