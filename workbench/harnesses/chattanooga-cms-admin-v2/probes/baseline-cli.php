@@ -19,11 +19,19 @@ if ( is_wp_error( $result ) || empty( $result['items'] ) || ! is_array( $result[
 }
 
 $ability_bridge = '';
+$mcp_only_bridge = '';
 $rest_bridge = '';
 foreach ( $result['items'] as $item ) {
 	$target = (string) ( $item['target'] ?? '' );
 	if ( 'orbit-fixture/read-marker' === $target ) {
 		$ability_bridge = (string) ( $item['bridge'] ?? '' );
+	}
+	if ( 'orbit-fixture/mcp-only' === $target ) {
+		$mcp_only_bridge = (string) ( $item['bridge'] ?? '' );
+	}
+	if ( in_array( $target, array( 'orbit-fixture/mcp-opt-out', 'orbit-fixture/rest-only' ), true ) ) {
+		fwrite( STDERR, "Ability bridge ignored a client-specific exposure boundary.\n" );
+		exit( 1 );
 	}
 	if ( 'rest' === ( $item['contract'] ?? '' ) && 'GET' === ( $item['method'] ?? '' ) ) {
 		$route = (string) ( $item['route'] ?? '' );
@@ -38,8 +46,8 @@ foreach ( $result['items'] as $item ) {
 	}
 }
 
-if ( '' === $ability_bridge || '' === $rest_bridge ) {
-	fwrite( STDERR, "Fresh providers were not dynamically discovered.\n" );
+if ( '' === $ability_bridge || '' === $mcp_only_bridge || '' === $rest_bridge ) {
+	fwrite( STDERR, "Fresh providers or MCP-specific public ability were not dynamically discovered.\n" );
 	exit( 1 );
 }
 
@@ -52,6 +60,17 @@ if ( ! $ability instanceof WP_Ability || true !== $ability->check_permissions( $
 $ability_result = $ability->execute( $ability_input );
 if ( is_wp_error( $ability_result ) || 12 !== (int) ( $ability_result['marker'] ?? 0 ) ) {
 	fwrite( STDERR, "Ability facade execution failed.\n" );
+	exit( 1 );
+}
+
+$mcp_only = wp_get_ability( $mcp_only_bridge );
+if ( ! $mcp_only instanceof WP_Ability || true !== $mcp_only->check_permissions() ) {
+	fwrite( STDERR, "MCP-specific public ability facade permission failed.\n" );
+	exit( 1 );
+}
+$mcp_result = $mcp_only->execute();
+if ( is_wp_error( $mcp_result ) || 'mcp-only' !== ( $mcp_result['marker'] ?? '' ) ) {
+	fwrite( STDERR, "MCP-specific public ability facade execution failed.\n" );
 	exit( 1 );
 }
 
@@ -68,11 +87,11 @@ if ( is_wp_error( $rest_result ) || 29 !== (int) ( $rest_result['data']['id'] ??
 }
 
 wp_set_current_user( 0 );
-if ( false !== $catalog->check_permissions( array() ) || false !== $ability->check_permissions( $ability_input ) || false !== $rest->check_permissions( $rest_input ) ) {
+if ( false !== $catalog->check_permissions( array() ) || false !== $ability->check_permissions( $ability_input ) || false !== $mcp_only->check_permissions() || false !== $rest->check_permissions( $rest_input ) ) {
 	fwrite( STDERR, "Anonymous administration was not blocked.\n" );
 	exit( 1 );
 }
 
 wp_set_current_user( 1 );
-echo "cmsa-v2-baseline: PASS identity=existing_slot ability_discovery=verified ability_execution=verified rest_discovery=verified rest_execution=verified unsupported_provider=closed admin_boundary=verified\n";
+echo "cmsa-v2-baseline: PASS identity=existing_slot ability_discovery=verified ability_execution=verified mcp_specific_exposure=verified mcp_opt_out=preserved rest_only_not_broadened=verified rest_discovery=verified rest_execution=verified unsupported_provider=closed admin_boundary=verified\n";
 exit( 0 );
