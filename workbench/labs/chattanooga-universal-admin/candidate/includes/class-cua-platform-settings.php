@@ -123,7 +123,7 @@ final class CUA_Platform_Settings {
 		}
 
 		$captured = array( 'seen' => false, 'value' => null );
-		$capture = static function ( $value, $old_value, $option ) use ( $name, &$captured ) {
+		$capture = static function ( $value, $option, $old_value ) use ( $name, &$captured ) {
 			if ( (string) $option === $name ) {
 				$captured['seen'] = true;
 				$captured['value'] = $value;
@@ -277,7 +277,7 @@ final class CUA_Platform_Settings {
 			case 'array':
 				return is_array( $value );
 			case 'object':
-				return is_object( $value ) || ( is_array( $value ) && ! array_is_list( $value ) );
+				return is_object( $value ) || ( is_array( $value ) && self::is_associative_array( $value ) );
 			case 'null':
 				return null === $value;
 			case '':
@@ -285,6 +285,13 @@ final class CUA_Platform_Settings {
 			default:
 				return false;
 		}
+	}
+
+	private static function is_associative_array( array $value ) {
+		if ( empty( $value ) ) {
+			return true;
+		}
+		return array_keys( $value ) !== range( 0, count( $value ) - 1 );
 	}
 
 	private static function name_schema() {
