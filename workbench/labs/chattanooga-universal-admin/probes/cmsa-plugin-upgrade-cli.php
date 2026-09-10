@@ -79,7 +79,10 @@ $success = $ability->execute(
 	)
 );
 if ( is_wp_error( $success ) ) {
-	fwrite( STDERR, 'Successful plugin update failed: ' . $success->get_error_code() . ' ' . $success->get_error_message() . "\n" );
+	fwrite(
+		STDERR,
+		'Successful plugin update failed: ' . $success->get_error_code() . ' ' . $success->get_error_message() . ' data=' . wp_json_encode( $success->get_error_data() ) . "\n"
+	);
 	exit( 1 );
 }
 wp_clean_plugins_cache( false );
