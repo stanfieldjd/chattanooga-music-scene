@@ -65,6 +65,11 @@ add_action(
 				'label'               => 'Denied beta action',
 				'description'         => 'Public control ability that always denies execution.',
 				'category'            => 'cua-lab-beta',
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'properties'           => array(),
+					'additionalProperties' => false,
+				),
 				'execute_callback'    => static function () { return array( 'executed' => true ); },
 				'permission_callback' => static function () { return false; },
 				'meta'                => array(
