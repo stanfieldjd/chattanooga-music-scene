@@ -344,8 +344,7 @@ final class CMS_Weekend_Posts {
 				'post_status'    => array( 'draft', 'pending', 'future', 'publish' ),
 				'posts_per_page' => 1,
 				'fields'         => 'ids',
-				'meta_key'       => self::META_WEEK_KEY,
-				'meta_value'     => $week_key,
+				'name'           => 'chattanooga-music-this-weekend-' . $week_key,
 			)
 		);
 

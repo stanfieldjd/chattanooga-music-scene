@@ -77,8 +77,16 @@ final class CUA_Ability_Bridge {
 			}
 
 			$args = array(
-				'label'               => sprintf( __( 'Universal bridge: %s', 'chattanooga-cms-admin' ), $ability->get_label() ),
-				'description'         => sprintf( __( 'Permission-preserving facade for the public WordPress ability %s.', 'chattanooga-cms-admin' ), $target_name ),
+				'label'               => sprintf(
+					/* translators: %s: label of the public provider ability being bridged. */
+					__( 'Universal bridge: %s', 'chattanooga-cms-admin' ),
+					$ability->get_label()
+				),
+				'description'         => sprintf(
+					/* translators: %s: registered name of the public provider ability being bridged. */
+					__( 'Permission-preserving facade for the public WordPress ability %s.', 'chattanooga-cms-admin' ),
+					$target_name
+				),
 				'category'            => self::CATEGORY,
 				'execute_callback'    => static function ( $input = null ) use ( $target_name ) {
 					return CUA_Ability_Bridge::execute_target( $target_name, $input );

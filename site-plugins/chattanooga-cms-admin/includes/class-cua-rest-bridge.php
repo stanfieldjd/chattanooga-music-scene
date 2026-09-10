@@ -40,8 +40,18 @@ final class CUA_REST_Bridge {
 					wp_register_ability(
 						$bridge_name,
 						array(
-							'label'               => sprintf( __( 'REST %1$s %2$s', 'chattanooga-cms-admin' ), $method, $route_regex ),
-							'description'         => sprintf( __( 'Permission-preserving facade for the registered WordPress REST endpoint %1$s %2$s.', 'chattanooga-cms-admin' ), $method, $route_regex ),
+							'label'               => sprintf(
+								/* translators: 1: HTTP method, 2: registered REST route pattern. */
+								__( 'REST %1$s %2$s', 'chattanooga-cms-admin' ),
+								$method,
+								$route_regex
+							),
+							'description'         => sprintf(
+								/* translators: 1: HTTP method, 2: registered REST route pattern. */
+								__( 'Permission-preserving facade for the registered WordPress REST endpoint %1$s %2$s.', 'chattanooga-cms-admin' ),
+								$method,
+								$route_regex
+							),
 							'category'            => self::CATEGORY,
 							'input_schema'        => self::input_schema(),
 							'output_schema'       => array( 'type' => 'object' ),

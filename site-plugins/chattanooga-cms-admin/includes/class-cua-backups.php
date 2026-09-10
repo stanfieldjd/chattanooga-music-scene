@@ -367,7 +367,8 @@ final class CUA_Backups {
 			return new WP_Error( 'cmsa_database_restore_query', 'Could not disable foreign-key checks for database restore.' );
 		}
 		foreach ( $current_tables as $table ) {
-			if ( false === $wpdb->query( 'DROP TABLE IF EXISTS ' . self::quote_identifier( $table ) ) ) {
+			$drop_query = $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $table );
+			if ( false === $wpdb->query( $drop_query ) ) {
 				$wpdb->query( 'SET FOREIGN_KEY_CHECKS=1' );
 				return new WP_Error( 'cmsa_database_restore_query', 'Could not clear a current WordPress database table.' );
 			}
@@ -584,12 +585,13 @@ final class CUA_Backups {
 
 	private static function table_schema( $table ) {
 		global $wpdb;
-		$identifier = self::quote_identifier( $table );
-		$create = $wpdb->get_row( 'SHOW CREATE TABLE ' . $identifier, ARRAY_N );
+		$create_query = $wpdb->prepare( 'SHOW CREATE TABLE %i', $table );
+		$create = $wpdb->get_row( $create_query, ARRAY_N );
 		if ( ! is_array( $create ) || empty( $create[1] ) ) {
 			return new WP_Error( 'cmsa_database_schema', 'Could not read a WordPress database table schema.' );
 		}
-		$definitions = $wpdb->get_results( 'SHOW COLUMNS FROM ' . $identifier, ARRAY_A );
+		$columns_query = $wpdb->prepare( 'SHOW COLUMNS FROM %i', $table );
+		$definitions = $wpdb->get_results( $columns_query, ARRAY_A );
 		if ( ! is_array( $definitions ) || empty( $definitions ) ) {
 			return new WP_Error( 'cmsa_database_columns', 'Could not read WordPress database table columns.' );
 		}
@@ -604,7 +606,8 @@ final class CUA_Backups {
 			return new WP_Error( 'cmsa_database_columns', 'Database table has no restorable columns.' );
 		}
 
-		$indexes = $wpdb->get_results( 'SHOW INDEX FROM ' . $identifier, ARRAY_A );
+		$indexes_query = $wpdb->prepare( 'SHOW INDEX FROM %i', $table );
+		$indexes = $wpdb->get_results( $indexes_query, ARRAY_A );
 		if ( ! is_array( $indexes ) ) {
 			return new WP_Error( 'cmsa_database_indexes', 'Could not read database indexes needed for deterministic backup ordering.' );
 		}
@@ -628,9 +631,18 @@ final class CUA_Backups {
 		if ( empty( $columns ) || empty( $order_by ) ) {
 			return new WP_Error( 'cmsa_database_order', 'Database backup cannot read a table without deterministic columns and ordering.' );
 		}
-		$select = implode( ',', array_map( array( __CLASS__, 'quote_identifier' ), $columns ) );
-		$order = implode( ',', array_map( array( __CLASS__, 'quote_identifier' ), $order_by ) );
-		$sql = 'SELECT ' . $select . ' FROM ' . self::quote_identifier( $table ) . ' ORDER BY ' . $order . ' LIMIT ' . max( 1, (int) $limit ) . ' OFFSET ' . max( 0, (int) $offset );
+		$select_placeholders = implode( ',', array_fill( 0, count( $columns ), '%i' ) );
+		$order_placeholders = implode( ',', array_fill( 0, count( $order_by ), '%i' ) );
+		$query_args = array_merge(
+			array_values( $columns ),
+			array( $table ),
+			array_values( $order_by ),
+			array( max( 1, (int) $limit ), max( 0, (int) $offset ) )
+		);
+		$sql = $wpdb->prepare(
+			'SELECT ' . $select_placeholders . ' FROM %i ORDER BY ' . $order_placeholders . ' LIMIT %d OFFSET %d',
+			$query_args
+		);
 		$rows = $wpdb->get_results( $sql, ARRAY_N );
 		if ( ! is_array( $rows ) ) {
 			return new WP_Error( 'cmsa_database_read', 'Could not read database table rows for backup or verification.' );
