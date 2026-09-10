@@ -5,8 +5,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class CUA_REST_Bridge {
-	const NAMESPACE_PREFIX = 'chattanooga-universal-admin/';
-	const CATEGORY = 'chattanooga-universal-admin';
+	const NAMESPACE_PREFIX = 'chattanooga-cms-admin/';
+	const CATEGORY = 'chattanooga-cms-admin';
 
 	private static $bridges = array();
 
@@ -40,8 +40,8 @@ final class CUA_REST_Bridge {
 					wp_register_ability(
 						$bridge_name,
 						array(
-							'label'               => sprintf( __( 'REST %1$s %2$s', 'chattanooga-universal-admin' ), $method, $route_regex ),
-							'description'         => sprintf( __( 'Permission-preserving facade for the registered WordPress REST endpoint %1$s %2$s.', 'chattanooga-universal-admin' ), $method, $route_regex ),
+							'label'               => sprintf( __( 'REST %1$s %2$s', 'chattanooga-cms-admin' ), $method, $route_regex ),
+							'description'         => sprintf( __( 'Permission-preserving facade for the registered WordPress REST endpoint %1$s %2$s.', 'chattanooga-cms-admin' ), $method, $route_regex ),
 							'category'            => self::CATEGORY,
 							'input_schema'        => self::input_schema(),
 							'output_schema'       => array( 'type' => 'object' ),
