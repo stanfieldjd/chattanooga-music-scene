@@ -16,9 +16,9 @@ foreach ( wp_get_abilities() as $ability ) {
 	}
 }
 
-$catalog = wp_get_ability( 'chattanooga-universal-admin/catalog' );
+$catalog = wp_get_ability( 'chattanooga-cms-admin/catalog' );
 if ( ! $catalog instanceof WP_Ability ) {
-	fwrite( STDERR, "Universal catalog ability was not registered.\n" );
+	fwrite( STDERR, "CMS Admin universal catalog ability was not registered.\n" );
 	exit( 1 );
 }
 
@@ -39,6 +39,10 @@ foreach ( $catalog_result['items'] as $item ) {
 	$route = (string) ( $item['route'] ?? '' );
 	$method = (string) ( $item['method'] ?? '' );
 	$bridge = (string) ( $item['bridge'] ?? '' );
+	if ( 0 !== strpos( $bridge, 'chattanooga-cms-admin/' ) ) {
+		fwrite( STDERR, "REST facade escaped the CMS Admin namespace.\n" );
+		goto cleanup_failure;
+	}
 	if ( 'GET' === $method && 0 === strpos( $route, '/cua-rest-gamma/v1/records/' ) ) {
 		$read_bridge_name = $bridge;
 	} elseif ( 'POST' === $method && '/cua-rest-gamma/v1/flag' === $route ) {
@@ -138,7 +142,7 @@ wp_set_current_user( 1 );
 delete_option( 'cua_rest_gamma_flag' );
 delete_option( 'cua_rest_gamma_denied_executed' );
 
-echo 'cua-rest-bridge-cli: PASS rest_only_provider=verified route_discovery=verified route_lock=verified hidden_route=blocked read_execution=verified mutation_execution=verified provider_permissions=preserved denied_execution=blocked admin_boundary=verified direct_universal_mutation=absent' . "\n";
+echo 'cua-rest-bridge-cli: PASS namespace=verified rest_only_provider=verified route_discovery=verified route_lock=verified hidden_route=blocked read_execution=verified mutation_execution=verified provider_permissions=preserved denied_execution=blocked admin_boundary=verified direct_universal_mutation=absent' . "\n";
 exit( 0 );
 
 cleanup_failure:
