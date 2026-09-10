@@ -125,3 +125,6 @@ jobs:
 
       - name: Verify WordPress core REST replacement parity
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-universal-admin/probes/cmsa-core-rest-parity-cli.php" --path=/tmp/wordpress
+
+      - name: Verify WordPress platform read services
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-universal-admin/probes/cmsa-platform-read-cli.php" --path=/tmp/wordpress
