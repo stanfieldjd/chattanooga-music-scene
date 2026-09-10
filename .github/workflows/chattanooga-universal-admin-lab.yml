@@ -57,6 +57,11 @@ jobs:
           plugin_headers=$(grep -RIl '^ \* Plugin Name:' "$source_dir" --include='*.php' | wc -l)
           test "$plugin_headers" -eq 1
           grep -q '^ \* Plugin Name: Chattanooga CMS Admin$' "$source_dir/chattanooga-cms-admin.php"
+          if grep -Rq 'chattanooga-universal-admin/' "$source_dir"; then
+            echo "Replacement source still exposes the temporary Universal Admin ability namespace." >&2
+            exit 1
+          fi
+          grep -Rq 'chattanooga-cms-admin/' "$source_dir"
           if grep -REiq 'WooCommerce|Events_Manager|BuddyBoss|Marketplace|Weekend_Feature|cua-lab-alpha|cua-lab-beta|cua-rest-gamma|fixture' "$source_dir"; then
             echo "Replacement source contains provider-identity-specific logic." >&2
             exit 1
@@ -117,3 +122,6 @@ jobs:
 
       - name: Verify REST-only dynamic administration
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-universal-admin/probes/cua-rest-bridge-cli.php" --path=/tmp/wordpress
+
+      - name: Verify WordPress core REST replacement parity
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-universal-admin/probes/cmsa-core-rest-parity-cli.php" --path=/tmp/wordpress
