@@ -88,3 +88,6 @@ jobs:
 
       - name: Run clean universal baseline
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/baseline-cli.php" --path=/tmp/wordpress
+
+      - name: Verify bounded auto-update policy
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/update-policy-cli.php" --path=/tmp/wordpress
