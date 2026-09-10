@@ -27,6 +27,7 @@ require_once CUA_DIR . 'includes/class-cua-platform-component-lifecycle.php';
 require_once CUA_DIR . 'includes/class-cua-platform-update-policy.php';
 require_once CUA_DIR . 'includes/class-cua-platform-package-lifecycle.php';
 require_once CUA_DIR . 'includes/class-cua-backups.php';
+require_once CUA_DIR . 'includes/class-cua-platform-core-maintenance.php';
 require_once CUA_DIR . 'includes/class-cua-rest-bridge.php';
 require_once CUA_DIR . 'includes/class-cua-ability-bridge.php';
 
@@ -43,5 +44,6 @@ add_action( 'wp_abilities_api_init', array( 'CUA_Platform_Update_Policy', 'regis
 add_action( 'wp_abilities_api_init', array( 'CUA_Platform_Package_Lifecycle', 'register_abilities' ), 16 );
 add_action( 'wp_abilities_api_init', array( 'CUA_Audit', 'register_ability' ), 17 );
 add_action( 'wp_abilities_api_init', array( 'CUA_Backups', 'register_abilities' ), 18 );
+add_action( 'wp_abilities_api_init', array( 'CUA_Platform_Core_Maintenance', 'register_abilities' ), 19 );
 add_action( 'wp_abilities_api_init', array( 'CUA_REST_Bridge', 'register_external_bridges' ), 9998 );
 add_action( 'wp_abilities_api_init', array( 'CUA_Ability_Bridge', 'register_external_bridges' ), 9999 );
