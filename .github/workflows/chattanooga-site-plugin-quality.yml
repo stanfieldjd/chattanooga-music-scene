@@ -72,16 +72,27 @@ jobs:
           status=0
           mkdir -p /tmp/plugin-check-results
           for plugin in chattanooga-cms-admin chattanooga-music-marketplace chattanooga-music-scene-core; do
+            report="/tmp/plugin-check-results/$plugin.txt"
             echo "===== Plugin Check: $plugin ====="
             php /tmp/wp-cli.phar plugin check "$plugin" \
               --categories=general,security,performance \
               --format=json \
               --path=/tmp/wordpress \
-              > "/tmp/plugin-check-results/$plugin.json"
+              > "$report" 2>&1
             rc=$?
-            cat "/tmp/plugin-check-results/$plugin.json"
+            cat "$report"
             echo
+
             if [ "$rc" -ne 0 ]; then
+              echo "Plugin Check command failed for $plugin with exit code $rc."
+              status=1
+            fi
+            if [ ! -s "$report" ]; then
+              echo "Plugin Check produced no report for $plugin."
+              status=1
+            fi
+            if grep -Fq '"type":"ERROR"' "$report"; then
+              echo "Plugin Check reported at least one ERROR for $plugin."
               status=1
             fi
           done
