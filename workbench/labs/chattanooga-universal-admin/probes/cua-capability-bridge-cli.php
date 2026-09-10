@@ -99,7 +99,16 @@ if ( false !== $denied_bridge->check_permissions( array() ) ) {
 }
 $denied_result = $denied_bridge->execute( array() );
 if ( ! is_wp_error( $denied_result ) || 'ability_invalid_permissions' !== $denied_result->get_error_code() ) {
+	$diagnostic = array(
+		'type' => is_object( $denied_result ) ? get_class( $denied_result ) : gettype( $denied_result ),
+		'value' => $denied_result,
+	);
+	if ( is_wp_error( $denied_result ) ) {
+		$diagnostic['codes']    = $denied_result->get_error_codes();
+		$diagnostic['messages'] = $denied_result->get_error_messages();
+	}
 	delete_option( 'cua_lab_beta_flag' );
+	fwrite( STDERR, 'Denied bridge diagnostic: ' . wp_json_encode( $diagnostic ) . "\n" );
 	fwrite( STDERR, "Denied target did not remain blocked by the facade permission boundary.\n" );
 	exit( 1 );
 }
