@@ -38,6 +38,7 @@ foreach ( $result['items'] as $item ) {
 $required_targets = array(
 	'cua-lab-alpha/read-record',
 	'cua-lab-alpha/core-public-record',
+	'cua-lab-alpha/mutate-plugin-reference',
 	'cua-lab-beta/set-flag',
 	'cua-lab-beta/denied',
 );
@@ -102,20 +103,46 @@ if ( is_wp_error( $write_result ) || true !== ( $write_result['value'] ?? null )
 	exit( 1 );
 }
 
+$self_guard_bridge = wp_get_ability( $by_target['cua-lab-alpha/mutate-plugin-reference'] );
+if ( ! $self_guard_bridge instanceof WP_Ability ) {
+	delete_option( 'cua_lab_beta_flag' );
+	fwrite( STDERR, "Self-targeting control ability bridge was not registered.\n" );
+	exit( 1 );
+}
+delete_option( 'cua_lab_alpha_mutation_count' );
+$self_guard_input = array( 'plugin' => 'chattanooga-cms-admin/chattanooga-cms-admin.php' );
+$self_guard_permission = $self_guard_bridge->check_permissions( $self_guard_input );
+if ( ! is_wp_error( $self_guard_permission ) || 'cmsa_control_plane_self_mutation_forbidden' !== $self_guard_permission->get_error_code() ) {
+	delete_option( 'cua_lab_beta_flag' );
+	delete_option( 'cua_lab_alpha_mutation_count' );
+	fwrite( STDERR, "Ability facade did not deny a mutation targeting the control plane.\n" );
+	exit( 1 );
+}
+$self_guard_result = $self_guard_bridge->execute( $self_guard_input );
+if ( ! is_wp_error( $self_guard_result ) || 0 !== (int) get_option( 'cua_lab_alpha_mutation_count', 0 ) ) {
+	delete_option( 'cua_lab_beta_flag' );
+	delete_option( 'cua_lab_alpha_mutation_count' );
+	fwrite( STDERR, "Ability facade executed a mutation targeting the control plane.\n" );
+	exit( 1 );
+}
+
 $denied_bridge = wp_get_ability( $by_target['cua-lab-beta/denied'] );
 if ( ! $denied_bridge instanceof WP_Ability ) {
 	delete_option( 'cua_lab_beta_flag' );
+	delete_option( 'cua_lab_alpha_mutation_count' );
 	fwrite( STDERR, "Denied control bridge was not registered.\n" );
 	exit( 1 );
 }
 if ( false !== $denied_bridge->check_permissions( array() ) ) {
 	delete_option( 'cua_lab_beta_flag' );
+	delete_option( 'cua_lab_alpha_mutation_count' );
 	fwrite( STDERR, "Denied target permission was not preserved.\n" );
 	exit( 1 );
 }
 $denied_result = $denied_bridge->execute( array() );
 if ( ! is_wp_error( $denied_result ) || 'ability_invalid_permissions' !== $denied_result->get_error_code() ) {
 	delete_option( 'cua_lab_beta_flag' );
+	delete_option( 'cua_lab_alpha_mutation_count' );
 	fwrite( STDERR, "Denied target did not remain blocked by the facade permission boundary.\n" );
 	exit( 1 );
 }
@@ -123,12 +150,14 @@ if ( ! is_wp_error( $denied_result ) || 'ability_invalid_permissions' !== $denie
 wp_set_current_user( 0 );
 if ( false !== $catalog->check_permissions( array() ) || false !== $core_public_bridge->check_permissions() ) {
 	delete_option( 'cua_lab_beta_flag' );
+	delete_option( 'cua_lab_alpha_mutation_count' );
 	fwrite( STDERR, "Universal administration facade allowed an anonymous user.\n" );
 	exit( 1 );
 }
 
 wp_set_current_user( 1 );
 delete_option( 'cua_lab_beta_flag' );
+delete_option( 'cua_lab_alpha_mutation_count' );
 
-echo 'chattanooga-cms-admin-probe: PASS namespace=verified dynamic_discovery=verified standard_public=verified no_input_forwarding=verified public_bridge=verified private_exclusion=verified read_execution=verified mutation_execution=verified admin_boundary=verified target_permissions=preserved denied_execution=blocked direct_universal_mutation=absent' . "\n";
+echo 'chattanooga-cms-admin-probe: PASS namespace=verified dynamic_discovery=verified standard_public=verified no_input_forwarding=verified public_bridge=verified private_exclusion=verified read_execution=verified mutation_execution=verified self_mutation=blocked admin_boundary=verified target_permissions=preserved denied_execution=blocked direct_universal_mutation=absent' . "\n";
 exit( 0 );
