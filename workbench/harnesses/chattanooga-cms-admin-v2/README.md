@@ -1,26 +1,29 @@
 # Chattanooga CMS Admin v2 Engineering Harness
 
-This harness is the active verification environment for the universal Chattanooga CMS Admin replacement on branch `work/chattanooga-universal-admin-v2`.
+This is the active verification environment for the universal Chattanooga CMS Admin replacement on branch `work/chattanooga-universal-admin-v2`.
 
-The prior `work/chattanooga-universal-admin` branch and its lab harness are historical evidence only. They are not modified by v2 engineering.
+## Canonical source
+
+The replacement WordPress plugin source exists only at:
+
+`site-plugins/chattanooga-cms-admin/`
+
+Its production identity is `Chattanooga CMS Admin`, its entrypoint is `chattanooga-cms-admin.php`, and the accepted engineering version is `1.0.0`. The former `workbench/labs/chattanooga-universal-admin` tree has been deleted and must not be recreated.
 
 ## Harness rules
 
-- The production plugin identity remains `Chattanooga CMS Admin`; this harness does not create a third production plugin.
-- The replacement source is the single candidate under `workbench/labs/chattanooga-universal-admin/candidate/` on this branch.
-- Harness fixtures must be unrelated capability providers and must never be named or special-cased in candidate source.
-- Provider functionality is admissible only through public WordPress Abilities API or registered REST contracts.
-- Unsupported/private functionality must fail closed.
-- Platform administration implemented by Chattanooga CMS Admin must use bounded WordPress core interfaces and preserve permissions, verification, rollback, and self-protection.
+- The harness does not create a separate Universal Admin production plugin.
+- Test fixtures remain outside canonical plugin source and may never be named or special-cased by the replacement.
+- Provider functionality is bridged only when the provider exposes a public WordPress Ability contract or an indexed registered REST route.
+- Explicitly private provider abilities remain private and are not re-exposed by Chattanooga CMS Admin.
+- Registered Settings API administration is bounded to registered settings and preserves capability, sanitization, conflict, verification, and rollback behavior.
+- Intrinsic platform administration uses bounded WordPress core interfaces and preserves permissions, verification, rollback, and control-plane self-protection.
 - No test may weaken a production acceptance rule merely to obtain a passing run.
 
-## Baseline acceptance
+## Verified scope
 
-1. Candidate has exactly one plugin entrypoint and the `Chattanooga CMS Admin` identity.
-2. A previously unknown public Ability provider is discovered and executed through a generated facade.
-3. A previously unknown REST-only provider is discovered and executed through a generated facade.
-4. A provider exposing neither public contract is not represented as administrable.
-5. Anonymous access is denied.
-6. Candidate source contains none of the fixture provider identities.
+The clean harness covers dynamic Ability and REST discovery, plugin/theme lifecycle, package installation, update policy, audit, registered settings, WordPress core content and user REST administration, local/database/core backups and rollback, and an actual Core Upgrader transition followed by verified rollback.
 
-Further platform lifecycle tests are added only after this clean baseline passes.
+The provider compatibility workflow separately verifies real Events Manager, WooCommerce, and Rank Math execution through public contracts and verifies that AWP Classifieds' private generic CPT Ability remains excluded from the universal namespace.
+
+Production deployment is outside this harness and remains a separately authorized transition.
