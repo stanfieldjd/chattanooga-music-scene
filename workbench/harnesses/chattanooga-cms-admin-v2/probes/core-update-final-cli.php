@@ -34,7 +34,7 @@ if ( ! $health instanceof WP_Ability || ! $catalog instanceof WP_Ability || ! $v
 	fwrite( STDERR, "Replacement ability registry was incomplete after final core rollback.\n" );
 	exit( 1 );
 }
-if ( is_wp_error( $health->execute() ) || is_wp_error( $catalog->execute() ) ) {
+if ( is_wp_error( $health->execute( array() ) ) || is_wp_error( $catalog->execute( array() ) ) ) {
 	fwrite( STDERR, "Replacement abilities failed in the final restored process.\n" );
 	exit( 1 );
 }
