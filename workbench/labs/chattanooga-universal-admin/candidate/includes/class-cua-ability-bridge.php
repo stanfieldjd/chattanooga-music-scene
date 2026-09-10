@@ -5,8 +5,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class CUA_Ability_Bridge {
-	const NAMESPACE_PREFIX = 'chattanooga-universal-admin/';
-	const CATEGORY = 'chattanooga-universal-admin';
+	const NAMESPACE_PREFIX = 'chattanooga-cms-admin/';
+	const CATEGORY = 'chattanooga-cms-admin';
 
 	private static $bridges = array();
 
@@ -18,8 +18,8 @@ final class CUA_Ability_Bridge {
 		wp_register_ability_category(
 			self::CATEGORY,
 			array(
-				'label'       => __( 'Chattanooga Universal Admin', 'chattanooga-universal-admin' ),
-				'description' => __( 'Runtime-discovered administrative abilities exposed through public WordPress contracts.', 'chattanooga-universal-admin' ),
+				'label'       => __( 'Chattanooga CMS Admin', 'chattanooga-cms-admin' ),
+				'description' => __( 'Runtime-discovered administrative abilities exposed through public WordPress contracts.', 'chattanooga-cms-admin' ),
 			)
 		);
 	}
@@ -32,8 +32,8 @@ final class CUA_Ability_Bridge {
 		wp_register_ability(
 			self::NAMESPACE_PREFIX . 'catalog',
 			array(
-				'label'               => __( 'Universal capability catalog', 'chattanooga-universal-admin' ),
-				'description'         => __( 'Lists runtime-generated facade abilities discovered from public WordPress contracts in the active environment.', 'chattanooga-universal-admin' ),
+				'label'               => __( 'Universal capability catalog', 'chattanooga-cms-admin' ),
+				'description'         => __( 'Lists runtime-generated facade abilities discovered from public WordPress contracts in the active environment.', 'chattanooga-cms-admin' ),
 				'category'            => self::CATEGORY,
 				'input_schema'        => array(
 					'type'                 => 'object',
@@ -77,8 +77,8 @@ final class CUA_Ability_Bridge {
 			}
 
 			$args = array(
-				'label'               => sprintf( __( 'Universal bridge: %s', 'chattanooga-universal-admin' ), $ability->get_label() ),
-				'description'         => sprintf( __( 'Permission-preserving facade for the public WordPress ability %s.', 'chattanooga-universal-admin' ), $target_name ),
+				'label'               => sprintf( __( 'Universal bridge: %s', 'chattanooga-cms-admin' ), $ability->get_label() ),
+				'description'         => sprintf( __( 'Permission-preserving facade for the public WordPress ability %s.', 'chattanooga-cms-admin' ), $target_name ),
 				'category'            => self::CATEGORY,
 				'execute_callback'    => static function ( $input = null ) use ( $target_name ) {
 					return CUA_Ability_Bridge::execute_target( $target_name, $input );
