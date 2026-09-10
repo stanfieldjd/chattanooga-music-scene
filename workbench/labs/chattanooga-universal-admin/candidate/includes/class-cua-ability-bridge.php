@@ -210,7 +210,11 @@ final class CUA_Ability_Bridge {
 		}
 
 		$meta = $ability->get_meta();
-		return ! empty( $meta['public'] );
+		if ( isset( $meta['mcp'] ) && is_array( $meta['mcp'] ) && array_key_exists( 'public', $meta['mcp'] ) && null !== $meta['mcp']['public'] ) {
+			return true === $meta['mcp']['public'];
+		}
+
+		return true === ( $meta['public'] ?? false );
 	}
 
 	private static function bridge_name( $target_name ) {
