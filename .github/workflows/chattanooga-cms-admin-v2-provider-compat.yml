@@ -1,0 +1,216 @@
+name: Chattanooga CMS Admin v2 Provider Compatibility
+
+on:
+  push:
+    branches:
+      - work/chattanooga-universal-admin-v2
+    paths:
+      - "site-plugins/chattanooga-cms-admin/**"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/events-manager-*.php"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/woocommerce-compatibility-cli.php"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/rank-math-compatibility-cli.php"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/awp-classifieds-compatibility-cli.php"
+      - ".github/workflows/chattanooga-cms-admin-v2-provider-compat.yml"
+  pull_request:
+    paths:
+      - "site-plugins/chattanooga-cms-admin/**"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/events-manager-*.php"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/woocommerce-compatibility-cli.php"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/rank-math-compatibility-cli.php"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/awp-classifieds-compatibility-cli.php"
+      - ".github/workflows/chattanooga-cms-admin-v2-provider-compat.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  events_manager:
+    name: Events Manager 7.4.3
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mysqli, zip, gd, fileinfo
+      - name: Install WordPress and provider
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+          php /tmp/wp-cli.phar core download --version=7.1 --path=/tmp/wordpress --force
+          php /tmp/wp-cli.phar config create --path=/tmp/wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
+          password="$(php -r 'echo bin2hex(random_bytes(20));')"
+          php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://cmsa-em.test --title="CMSA EM Compatibility" --admin_user=admin --admin_password="$password" --admin_email=lab@example.invalid --skip-email
+          cp -R site-plugins/chattanooga-cms-admin /tmp/wordpress/wp-content/plugins/chattanooga-cms-admin
+          php /tmp/wp-cli.phar plugin install events-manager --version=7.4.3 --activate --path=/tmp/wordpress
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/events-manager-bootstrap-cli.php" --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin --path=/tmp/wordpress
+      - name: Enforce provider-agnostic source
+        shell: bash
+        run: |
+          set -euo pipefail
+          source="site-plugins/chattanooga-cms-admin"
+          if grep -REiq 'Events_Manager|events-manager|EM_Event|EM_Events|EM_Location|EM_Booking|WooCommerce|WC_Product|wc_get_product|Rank_Math|rank-math|seo-by-rank-math|awpcp|classified' "$source"; then
+            echo "Replacement contains provider-specific logic." >&2
+            exit 1
+          fi
+      - name: Verify Events Manager universal compatibility
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/events-manager-compatibility-cli.php" --path=/tmp/wordpress
+
+  woocommerce:
+    name: WooCommerce 11.0.1
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mysqli, zip, gd, fileinfo
+      - name: Install WordPress and provider
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+          php /tmp/wp-cli.phar core download --version=7.1 --path=/tmp/wordpress --force
+          php /tmp/wp-cli.phar config create --path=/tmp/wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
+          password="$(php -r 'echo bin2hex(random_bytes(20));')"
+          php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://cmsa-wc.test --title="CMSA WooCommerce Compatibility" --admin_user=admin --admin_password="$password" --admin_email=lab@example.invalid --skip-email
+          cp -R site-plugins/chattanooga-cms-admin /tmp/wordpress/wp-content/plugins/chattanooga-cms-admin
+          php /tmp/wp-cli.phar plugin install woocommerce --version=11.0.1 --activate --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin --path=/tmp/wordpress
+          test "$(php /tmp/wp-cli.phar plugin get woocommerce --field=version --path=/tmp/wordpress)" = "11.0.1"
+      - name: Enforce provider-agnostic source
+        shell: bash
+        run: |
+          set -euo pipefail
+          source="site-plugins/chattanooga-cms-admin"
+          if grep -REiq 'WooCommerce|WC_Product|wc_get_product|Events_Manager|events-manager|EM_Event|EM_Events|Rank_Math|rank-math|seo-by-rank-math|awpcp|classified' "$source"; then
+            echo "Replacement contains provider-specific logic." >&2
+            exit 1
+          fi
+      - name: Verify WooCommerce universal compatibility
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/woocommerce-compatibility-cli.php" --path=/tmp/wordpress
+
+  rank_math:
+    name: Rank Math SEO 1.0.278
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mysqli, zip, gd, fileinfo
+      - name: Install WordPress and provider
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+          php /tmp/wp-cli.phar core download --version=7.1 --path=/tmp/wordpress --force
+          php /tmp/wp-cli.phar config create --path=/tmp/wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
+          php /tmp/wp-cli.phar config set RANK_MATH_REGISTRATION_SKIP true --raw --path=/tmp/wordpress
+          password="$(php -r 'echo bin2hex(random_bytes(20));')"
+          php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://cmsa-rm.test --title="CMSA Rank Math Compatibility" --admin_user=admin --admin_password="$password" --admin_email=lab@example.invalid --skip-email
+          cp -R site-plugins/chattanooga-cms-admin /tmp/wordpress/wp-content/plugins/chattanooga-cms-admin
+          php /tmp/wp-cli.phar plugin install seo-by-rank-math --version=1.0.278 --activate --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin --path=/tmp/wordpress
+          test "$(php /tmp/wp-cli.phar plugin get seo-by-rank-math --field=version --path=/tmp/wordpress)" = "1.0.278"
+      - name: Enforce provider-agnostic source
+        shell: bash
+        run: |
+          set -euo pipefail
+          source="site-plugins/chattanooga-cms-admin"
+          if grep -REiq 'Rank_Math|rank-math|seo-by-rank-math|miniOrange|miniorange|WooCommerce|WC_Product|Events_Manager|events-manager|EM_Event|awpcp|classified' "$source"; then
+            echo "Replacement contains provider-specific logic." >&2
+            exit 1
+          fi
+      - name: Verify Rank Math universal compatibility
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/rank-math-compatibility-cli.php" --path=/tmp/wordpress
+
+  awp_classifieds:
+    name: AWP Classifieds private-contract boundary
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mysqli, zip, gd, fileinfo
+      - name: Install WordPress and providers
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+          php /tmp/wp-cli.phar core download --version=7.1 --path=/tmp/wordpress --force
+          php /tmp/wp-cli.phar config create --path=/tmp/wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
+          password="$(php -r 'echo bin2hex(random_bytes(20));')"
+          php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://cmsa-awp.test --title="CMSA AWP Compatibility" --admin_user=admin --admin_password="$password" --admin_email=lab@example.invalid --skip-email
+          cp -R site-plugins/chattanooga-cms-admin /tmp/wordpress/wp-content/plugins/chattanooga-cms-admin
+          php /tmp/wp-cli.phar plugin install another-wordpress-classifieds-plugin --version=4.4.8 --activate --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin install miniorange-secure-mcp-server --version=1.4.10 --activate --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin --path=/tmp/wordpress
+          test "$(php /tmp/wp-cli.phar plugin get another-wordpress-classifieds-plugin --field=version --path=/tmp/wordpress)" = "4.4.8"
+          test "$(php /tmp/wp-cli.phar plugin get miniorange-secure-mcp-server --field=version --path=/tmp/wordpress)" = "1.4.10"
+      - name: Enforce provider-agnostic source
+        shell: bash
+        run: |
+          set -euo pipefail
+          source="site-plugins/chattanooga-cms-admin"
+          if grep -REiq 'awpcp|classified|another-wordpress-classifieds-plugin|miniOrange|miniorange|Rank_Math|rank-math|WooCommerce|Events_Manager|events-manager' "$source"; then
+            echo "Replacement contains provider-specific logic." >&2
+            exit 1
+          fi
+      - name: Verify AWP private-contract boundary
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/awp-classifieds-compatibility-cli.php" --path=/tmp/wordpress

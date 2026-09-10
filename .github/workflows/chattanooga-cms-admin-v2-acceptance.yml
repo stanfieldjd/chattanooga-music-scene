@@ -1,0 +1,73 @@
+name: Chattanooga CMS Admin v2 Replacement Acceptance
+
+on:
+  push:
+    branches:
+      - work/chattanooga-universal-admin-v2
+    paths:
+      - "site-plugins/chattanooga-cms-admin/**"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/replacement-coverage-cli.php"
+      - "workbench/labs/chattanooga-universal-admin/**"
+      - ".github/workflows/chattanooga-cms-admin-v2-acceptance.yml"
+  pull_request:
+    paths:
+      - "site-plugins/chattanooga-cms-admin/**"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/replacement-coverage-cli.php"
+      - "workbench/labs/chattanooga-universal-admin/**"
+      - ".github/workflows/chattanooga-cms-admin-v2-acceptance.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  coverage:
+    name: Replacement coverage and boundary
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mysqli, zip, gd, fileinfo
+      - name: Lint and enforce one-plugin boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          source="site-plugins/chattanooga-cms-admin"
+          find "$source" -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
+          test -f "$source/chattanooga-cms-admin.php"
+          test ! -e "$source/chattanooga-universal-admin.php"
+          test "$(grep -RIl '^ \* Plugin Name:' "$source" --include='*.php' | wc -l)" -eq 1
+          grep -q '^ \* Plugin Name: Chattanooga CMS Admin$' "$source/chattanooga-cms-admin.php"
+          grep -q '^ \* Version: 1.0.0$' "$source/chattanooga-cms-admin.php"
+          if grep -REiq 'WooCommerce|WC_Product|wc_get_product|Events_Manager|events-manager|EM_Event|EM_Location|BuddyBoss|Marketplace|Weekend_Feature|Rank_Math|rank-math|seo-by-rank-math|awpcp|another-wordpress-classifieds-plugin|miniOrange|miniorange' "$source"; then
+            echo "Replacement contains provider-specific implementation logic." >&2
+            exit 1
+          fi
+          test ! -e workbench/labs/chattanooga-universal-admin
+      - name: Install disposable WordPress 7.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+          php /tmp/wp-cli.phar core download --version=7.1 --path=/tmp/wordpress --force
+          php /tmp/wp-cli.phar config create --path=/tmp/wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
+          password="$(php -r 'echo bin2hex(random_bytes(20));')"
+          php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://cmsa-accept.test --title="CMSA Replacement Acceptance" --admin_user=admin --admin_password="$password" --admin_email=lab@example.invalid --skip-email
+          cp -R site-plugins/chattanooga-cms-admin /tmp/wordpress/wp-content/plugins/chattanooga-cms-admin
+          php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin --path=/tmp/wordpress
+      - name: Verify replacement coverage
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/replacement-coverage-cli.php" --path=/tmp/wordpress
