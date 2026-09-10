@@ -204,11 +204,14 @@ jobs:
           php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://cmsa-em.test --title="CMS Admin Events Manager Harness" --admin_user=admin --admin_password="$password" --admin_email=lab@example.invalid --skip-email
           cp -R workbench/labs/chattanooga-universal-admin/candidate /tmp/wordpress/wp-content/plugins/chattanooga-cms-admin
           php /tmp/wp-cli.phar plugin install events-manager --version=7.4.3 --activate --path=/tmp/wordpress
+          php /tmp/wp-cli.phar option get dbem_version --user=1 --context=admin --path=/tmp/wordpress >/dev/null
           php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin is-active events-manager --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin is-active chattanooga-cms-admin --path=/tmp/wordpress
           version="$(php /tmp/wp-cli.phar plugin get events-manager --field=version --path=/tmp/wordpress)"
           test "$version" = "7.4.3"
+          db_version="$(php /tmp/wp-cli.phar option get dbem_version --path=/tmp/wordpress)"
+          test "$db_version" = "7.4.3"
 
       - name: Enforce provider-agnostic candidate boundary
         shell: bash
