@@ -7,11 +7,13 @@ on:
     paths:
       - "site-plugins/chattanooga-cms-admin/**"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/replacement-coverage-cli.php"
+      - "workbench/labs/chattanooga-universal-admin/**"
       - ".github/workflows/chattanooga-cms-admin-v2-acceptance.yml"
   pull_request:
     paths:
       - "site-plugins/chattanooga-cms-admin/**"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/replacement-coverage-cli.php"
+      - "workbench/labs/chattanooga-universal-admin/**"
       - ".github/workflows/chattanooga-cms-admin-v2-acceptance.yml"
 
 permissions:
@@ -51,11 +53,11 @@ jobs:
           test "$(grep -RIl '^ \* Plugin Name:' "$source" --include='*.php' | wc -l)" -eq 1
           grep -q '^ \* Plugin Name: Chattanooga CMS Admin$' "$source/chattanooga-cms-admin.php"
           grep -q '^ \* Version: 1.0.0$' "$source/chattanooga-cms-admin.php"
-          if grep -REiq 'WooCommerce|Events_Manager|events-manager|BuddyBoss|Marketplace|Weekend_Feature|EM_Event|EM_Location|WC_Product' "$source"; then
+          if grep -REiq 'WooCommerce|WC_Product|wc_get_product|Events_Manager|events-manager|EM_Event|EM_Location|BuddyBoss|Marketplace|Weekend_Feature|Rank_Math|rank-math|seo-by-rank-math|awpcp|another-wordpress-classifieds-plugin|miniOrange|miniorange' "$source"; then
             echo "Replacement contains provider-specific implementation logic." >&2
             exit 1
           fi
-          test ! -e workbench/labs/chattanooga-universal-admin/candidate
+          test ! -e workbench/labs/chattanooga-universal-admin
       - name: Install disposable WordPress 7.1
         shell: bash
         run: |
