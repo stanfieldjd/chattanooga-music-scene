@@ -97,14 +97,9 @@ final class CUA_REST_Bridge {
 			return $request;
 		}
 
-		$valid = $request->has_valid_params();
-		if ( is_wp_error( $valid ) ) {
-			return $valid;
-		}
-
-		$sanitized = $request->sanitize_params();
-		if ( is_wp_error( $sanitized ) ) {
-			return $sanitized;
+		$prepared = self::validate_and_guard_request( $request, $method );
+		if ( is_wp_error( $prepared ) || false === $prepared ) {
+			return $prepared;
 		}
 
 		if ( empty( $handler['permission_callback'] ) || ! is_callable( $handler['permission_callback'] ) ) {
@@ -134,6 +129,14 @@ final class CUA_REST_Bridge {
 			return $request;
 		}
 
+		$prepared = self::validate_and_guard_request( $request, $method );
+		if ( is_wp_error( $prepared ) ) {
+			return $prepared;
+		}
+		if ( false === $prepared ) {
+			return new WP_Error( 'cua_rest_forbidden', 'The control-plane guard denied the current REST request.' );
+		}
+
 		$response = rest_do_request( $request );
 		if ( ! $response instanceof WP_REST_Response ) {
 			return new WP_Error( 'cua_rest_invalid_response', 'The registered REST endpoint did not return a WordPress REST response.' );
@@ -146,6 +149,24 @@ final class CUA_REST_Bridge {
 			'status' => (int) $response->get_status(),
 			'data'   => $response->get_data(),
 		);
+	}
+
+	private static function validate_and_guard_request( WP_REST_Request $request, $method ) {
+		$valid = $request->has_valid_params();
+		if ( is_wp_error( $valid ) ) {
+			return $valid;
+		}
+
+		$sanitized = $request->sanitize_params();
+		if ( is_wp_error( $sanitized ) ) {
+			return $sanitized;
+		}
+
+		if ( ! class_exists( 'CUA_Control_Plane_Guard' ) ) {
+			return false;
+		}
+
+		return CUA_Control_Plane_Guard::validate_rest_request( $request, $method );
 	}
 
 	private static function handler_is_bridgeable( $handler ) {
