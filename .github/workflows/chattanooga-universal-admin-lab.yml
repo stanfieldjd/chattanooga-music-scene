@@ -62,7 +62,7 @@ jobs:
             exit 1
           fi
           grep -Rq 'chattanooga-cms-admin/' "$source_dir"
-          if grep -REiq 'WooCommerce|Events_Manager|BuddyBoss|Marketplace|Weekend_Feature|cua-lab-alpha|cua-lab-beta|cua-rest-gamma|cua-upgrade-fixture|fixture' "$source_dir"; then
+          if grep -REiq 'WooCommerce|Events_Manager|BuddyBoss|Marketplace|Weekend_Feature|cua-lab-alpha|cua-lab-beta|cua-rest-gamma|cua-upgrade-fixture|cua-upgrade-theme|fixture' "$source_dir"; then
             echo "Replacement source contains provider-identity-specific logic." >&2
             exit 1
           fi
@@ -82,6 +82,7 @@ jobs:
           grep -Rq 'check_permissions' "$source_dir"
           grep -Rq -- '->execute' "$source_dir"
           grep -Rq 'Plugin_Upgrader' "$source_dir"
+          grep -Rq 'Theme_Upgrader' "$source_dir"
           grep -Rq 'restore_temp_backup' "$source_dir"
           grep -Rq 'activate_plugin' "$source_dir"
           grep -Rq 'CUA_Control_Plane_Guard' "$source_dir/includes/class-cua-rest-bridge.php"
@@ -113,6 +114,7 @@ jobs:
           cp -R workbench/labs/chattanooga-universal-admin/providers/cua-lab-beta /tmp/wordpress/wp-content/plugins/cua-lab-beta
           cp -R workbench/labs/chattanooga-universal-admin/providers/cua-rest-gamma /tmp/wordpress/wp-content/plugins/cua-rest-gamma
           cp -R workbench/labs/chattanooga-universal-admin/providers/cua-upgrade-fixture /tmp/wordpress/wp-content/plugins/cua-upgrade-fixture
+          cp -R workbench/labs/chattanooga-universal-admin/themes/cua-upgrade-theme /tmp/wordpress/wp-content/themes/cua-upgrade-theme
           php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin cua-lab-alpha cua-lab-beta cua-rest-gamma cua-upgrade-fixture --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin is-active chattanooga-cms-admin --path=/tmp/wordpress
           if php /tmp/wp-cli.phar plugin is-installed chattanooga-universal-admin --path=/tmp/wordpress; then
@@ -123,6 +125,7 @@ jobs:
           php /tmp/wp-cli.phar plugin is-active cua-lab-beta --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin is-active cua-rest-gamma --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin is-active cua-upgrade-fixture --path=/tmp/wordpress
+          php /tmp/wp-cli.phar theme is-installed cua-upgrade-theme --path=/tmp/wordpress
 
       - name: Verify Abilities API dynamic administration
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-universal-admin/probes/cua-capability-bridge-cli.php" --path=/tmp/wordpress
@@ -150,3 +153,17 @@ jobs:
           (cd "$packages/v110" && zip -qr "$packages/cua-upgrade-fixture-1.1.0.zip" cua-upgrade-fixture)
           (cd "$packages/mismatch" && zip -qr "$packages/cua-upgrade-fixture-mismatch.zip" cua-upgrade-fixture)
           CMSA_UPGRADE_PACKAGE_DIR="$packages" php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-universal-admin/probes/cmsa-plugin-upgrade-cli.php" --path=/tmp/wordpress
+
+      - name: Verify rollback-guarded WordPress theme upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          packages=/tmp/cmsa-theme-packages
+          mkdir -p "$packages/v110/cua-upgrade-theme" "$packages/mismatch/cua-upgrade-theme"
+          sed 's/Version: 1.0.0/Version: 1.1.0/' workbench/labs/chattanooga-universal-admin/themes/cua-upgrade-theme/style.css > "$packages/v110/cua-upgrade-theme/style.css"
+          cp workbench/labs/chattanooga-universal-admin/themes/cua-upgrade-theme/index.php "$packages/v110/cua-upgrade-theme/index.php"
+          sed 's/Version: 1.0.0/Version: 1.1.1/' workbench/labs/chattanooga-universal-admin/themes/cua-upgrade-theme/style.css > "$packages/mismatch/cua-upgrade-theme/style.css"
+          cp workbench/labs/chattanooga-universal-admin/themes/cua-upgrade-theme/index.php "$packages/mismatch/cua-upgrade-theme/index.php"
+          (cd "$packages/v110" && zip -qr "$packages/cua-upgrade-theme-1.1.0.zip" cua-upgrade-theme)
+          (cd "$packages/mismatch" && zip -qr "$packages/cua-upgrade-theme-mismatch.zip" cua-upgrade-theme)
+          CMSA_THEME_PACKAGE_DIR="$packages" php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-universal-admin/probes/cmsa-theme-upgrade-cli.php" --path=/tmp/wordpress
