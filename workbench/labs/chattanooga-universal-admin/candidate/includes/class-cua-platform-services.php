@@ -49,7 +49,7 @@ final class CUA_Platform_Services {
 			self::PREFIX . 'update-plugin',
 			array(
 				'label'               => __( 'Update installed plugin', 'chattanooga-cms-admin' ),
-				'description'         => __( 'Updates one installed plugin from the current WordPress update offer, using WordPress core temporary-backup rollback and exact version conflict checking.', 'chattanooga-cms-admin' ),
+				'description'         => __( 'Updates one installed plugin from the current WordPress update offer, using WordPress core temporary-backup rollback, exact version conflict checking, and active-state restoration.', 'chattanooga-cms-admin' ),
 				'category'            => self::CATEGORY,
 				'input_schema'        => array(
 					'type'                 => 'object',
@@ -218,6 +218,7 @@ final class CUA_Platform_Services {
 			'dir'  => 'plugins',
 		);
 		$was_active = is_plugin_active( $plugin );
+		$was_network_active = is_multisite() && is_plugin_active_for_network( $plugin );
 		$skin = new Automatic_Upgrader_Skin();
 		$upgrader = new Plugin_Upgrader( $skin );
 		$result = $upgrader->upgrade( $plugin, array( 'clear_update_cache' => false ) );
@@ -226,19 +227,18 @@ final class CUA_Platform_Services {
 		$after_plugins = get_plugins();
 		$after_version = isset( $after_plugins[ $plugin ]['Version'] ) ? (string) $after_plugins[ $plugin ]['Version'] : '';
 
-		if ( false === $result || is_wp_error( $result ) ) {
-			$rolled_back = false;
-			if ( $after_version !== $current_version ) {
-				$restore = $upgrader->restore_temp_backup( array( $backup ) );
-				wp_clean_plugins_cache( false );
-				$restored_plugins = get_plugins();
-				$restored_version = isset( $restored_plugins[ $plugin ]['Version'] ) ? (string) $restored_plugins[ $plugin ]['Version'] : '';
-				$rolled_back = ! is_wp_error( $restore ) && true === $restore && $restored_version === $current_version;
-				if ( ! $rolled_back ) {
-					return new WP_Error( 'cmsa_plugin_update_rollback_failed', 'Plugin update failed and the previous version could not be verified after rollback.' );
-				}
-			} else {
-				$rolled_back = true;
+		if ( true !== $result ) {
+			$rollback = self::restore_plugin_transaction_state(
+				$upgrader,
+				$backup,
+				$plugin,
+				$current_version,
+				$was_active,
+				$was_network_active,
+				$after_version !== $current_version
+			);
+			if ( is_wp_error( $rollback ) ) {
+				return $rollback;
 			}
 
 			$message = is_wp_error( $result ) ? $result->get_error_message() : 'WordPress did not complete the plugin update.';
@@ -247,29 +247,72 @@ final class CUA_Platform_Services {
 				$message,
 				array(
 					'previous_version' => $current_version,
-					'rolled_back'      => $rolled_back,
+					'rolled_back'      => true,
 				)
 			);
 		}
 
 		if ( $after_version !== $new_version ) {
-			$restore = $upgrader->restore_temp_backup( array( $backup ) );
-			wp_clean_plugins_cache( false );
-			$restored_plugins = get_plugins();
-			$restored_version = isset( $restored_plugins[ $plugin ]['Version'] ) ? (string) $restored_plugins[ $plugin ]['Version'] : '';
-			if ( is_wp_error( $restore ) || true !== $restore || $restored_version !== $current_version ) {
-				return new WP_Error( 'cmsa_plugin_update_verification_rollback_failed', 'Plugin update verification failed and the previous version could not be restored.' );
+			$rollback = self::restore_plugin_transaction_state(
+				$upgrader,
+				$backup,
+				$plugin,
+				$current_version,
+				$was_active,
+				$was_network_active,
+				true
+			);
+			if ( is_wp_error( $rollback ) ) {
+				return $rollback;
 			}
 
 			return new WP_Error(
 				'cmsa_plugin_update_verification_failed',
-				'The installed plugin version did not match the offered version after update; the previous version was restored.',
+				'The installed plugin version did not match the offered version after update; the previous version and activation state were restored.',
 				array(
 					'expected_new_version' => $new_version,
 					'observed_version'     => $after_version,
-					'restored_version'     => $restored_version,
+					'restored_version'     => $current_version,
 				)
 			);
+		}
+
+		if ( $was_active && ! is_plugin_active( $plugin ) ) {
+			$activated = activate_plugin( $plugin, '', $was_network_active, true );
+			if ( is_wp_error( $activated ) || ! is_plugin_active( $plugin ) || ( $was_network_active && ! is_plugin_active_for_network( $plugin ) ) ) {
+				$rollback = self::restore_plugin_transaction_state(
+					$upgrader,
+					$backup,
+					$plugin,
+					$current_version,
+					$was_active,
+					$was_network_active,
+					true
+				);
+				if ( is_wp_error( $rollback ) ) {
+					return $rollback;
+				}
+				return new WP_Error(
+					'cmsa_plugin_reactivation_failed',
+					is_wp_error( $activated ) ? $activated->get_error_message() : 'The updated plugin could not be verified active; the previous version was restored.'
+				);
+			}
+		}
+
+		if ( ! $was_active && is_plugin_active( $plugin ) ) {
+			deactivate_plugins( $plugin, true, $was_network_active );
+			if ( is_plugin_active( $plugin ) ) {
+				$rollback = self::restore_plugin_transaction_state(
+					$upgrader,
+					$backup,
+					$plugin,
+					$current_version,
+					false,
+					false,
+					true
+				);
+				return is_wp_error( $rollback ) ? $rollback : new WP_Error( 'cmsa_plugin_state_verification_failed', 'The updated plugin did not preserve its previous inactive state; the previous version was restored.' );
+			}
 		}
 
 		return array(
@@ -278,8 +321,44 @@ final class CUA_Platform_Services {
 			'version'          => $after_version,
 			'active'           => is_plugin_active( $plugin ),
 			'was_active'       => $was_active,
+			'network_active'   => is_multisite() && is_plugin_active_for_network( $plugin ),
 			'rollback'         => 'wordpress_temp_backup',
 		);
+	}
+
+	private static function restore_plugin_transaction_state( Plugin_Upgrader $upgrader, array $backup, $plugin, $version, $was_active, $was_network_active, $restore_files ) {
+		if ( is_plugin_active( $plugin ) ) {
+			deactivate_plugins( $plugin, true, $was_network_active );
+		}
+
+		if ( $restore_files ) {
+			$restore = $upgrader->restore_temp_backup( array( $backup ) );
+			if ( is_wp_error( $restore ) || true !== $restore ) {
+				return new WP_Error( 'cmsa_plugin_update_rollback_failed', 'Plugin update failed and WordPress could not restore the temporary backup.' );
+			}
+		}
+
+		wp_clean_plugins_cache( false );
+		$plugins = get_plugins();
+		$restored_version = isset( $plugins[ $plugin ]['Version'] ) ? (string) $plugins[ $plugin ]['Version'] : '';
+		if ( $restored_version !== $version ) {
+			return new WP_Error(
+				'cmsa_plugin_update_rollback_failed',
+				'Plugin rollback did not restore the expected previous version.',
+				array( 'restored_version' => $restored_version )
+			);
+		}
+
+		if ( $was_active ) {
+			$activated = activate_plugin( $plugin, '', $was_network_active, true );
+			if ( is_wp_error( $activated ) || ! is_plugin_active( $plugin ) || ( $was_network_active && ! is_plugin_active_for_network( $plugin ) ) ) {
+				return new WP_Error( 'cmsa_plugin_update_rollback_failed', 'Plugin files were restored but the prior activation state could not be restored.' );
+			}
+		} elseif ( is_plugin_active( $plugin ) ) {
+			return new WP_Error( 'cmsa_plugin_update_rollback_failed', 'Plugin rollback did not restore the prior inactive state.' );
+		}
+
+		return true;
 	}
 
 	private static function empty_input_schema() {
