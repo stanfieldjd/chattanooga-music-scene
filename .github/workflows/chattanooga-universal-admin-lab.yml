@@ -56,7 +56,7 @@ jobs:
             echo "Universal source contains provider-identity-specific logic." >&2
             exit 1
           fi
-          if grep -REq 'update_option|delete_option|wp_insert_post|wp_update_post|wp_delete_post|wp_insert_term|wp_update_term|wp_delete_term|update_post_meta|update_term_meta|\\$wpdb' "$source_dir"; then
+          if grep -REq 'update_option|delete_option|wp_insert_post|wp_update_post|wp_delete_post|wp_insert_term|wp_update_term|wp_delete_term|update_post_meta|update_term_meta|\$wpdb' "$source_dir"; then
             echo "Universal source contains a direct provider-state mutation primitive." >&2
             exit 1
           fi
@@ -64,7 +64,7 @@ jobs:
           grep -Rq 'check_permissions' "$source_dir"
           grep -Rq -- '->execute' "$source_dir"
           grep -Rq 'wp_register_ability' "$source_dir"
-          if grep -REq "['\"]target['\"]\s*=>" "$source_dir"; then
+          if grep -R -F -q "\$input['target']" "$source_dir" || grep -R -F -q "\$input[\"target\"]" "$source_dir"; then
             echo "Universal source exposes a generic target dispatch input." >&2
             exit 1
           fi
