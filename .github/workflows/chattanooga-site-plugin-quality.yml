@@ -1,0 +1,88 @@
+name: Chattanooga Site Plugin Quality
+
+on:
+  push:
+    branches:
+      - work/custom-plugin-quality-audit
+    paths:
+      - "site-plugins/chattanooga-cms-admin/**"
+      - "site-plugins/chattanooga-music-marketplace/**"
+      - "site-plugins/chattanooga-music-scene-core/**"
+      - ".github/workflows/chattanooga-site-plugin-quality.yml"
+  pull_request:
+    paths:
+      - "site-plugins/chattanooga-cms-admin/**"
+      - "site-plugins/chattanooga-music-marketplace/**"
+      - "site-plugins/chattanooga-music-scene-core/**"
+      - ".github/workflows/chattanooga-site-plugin-quality.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  plugin-check:
+    name: WordPress Plugin Check — general, security, performance
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mysqli, zip, gd, fileinfo
+
+      - name: Install disposable WordPress and Plugin Check
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+          php /tmp/wp-cli.phar core download --version=7.1 --path=/tmp/wordpress --force
+          php /tmp/wp-cli.phar config create --path=/tmp/wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
+          password="$(php -r 'echo bin2hex(random_bytes(20));')"
+          php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://cms-plugin-quality.test --title="CMS Plugin Quality" --admin_user=admin --admin_password="$password" --admin_email=quality@example.invalid --skip-email
+          php /tmp/wp-cli.phar plugin install plugin-check --version=2.1.0 --activate --path=/tmp/wordpress
+
+      - name: Stage canonical custom plugins for static analysis
+        shell: bash
+        run: |
+          set -euo pipefail
+          for plugin in chattanooga-cms-admin chattanooga-music-marketplace chattanooga-music-scene-core; do
+            rm -rf "/tmp/wordpress/wp-content/plugins/$plugin"
+            cp -R "site-plugins/$plugin" "/tmp/wordpress/wp-content/plugins/$plugin"
+          done
+
+      - name: Run stable static quality checks
+        shell: bash
+        run: |
+          set +e
+          status=0
+          mkdir -p /tmp/plugin-check-results
+          for plugin in chattanooga-cms-admin chattanooga-music-marketplace chattanooga-music-scene-core; do
+            echo "===== Plugin Check: $plugin ====="
+            php /tmp/wp-cli.phar plugin check "$plugin" \
+              --categories=general,security,performance \
+              --format=json \
+              --path=/tmp/wordpress \
+              > "/tmp/plugin-check-results/$plugin.json"
+            rc=$?
+            cat "/tmp/plugin-check-results/$plugin.json"
+            echo
+            if [ "$rc" -ne 0 ]; then
+              status=1
+            fi
+          done
+          exit "$status"
