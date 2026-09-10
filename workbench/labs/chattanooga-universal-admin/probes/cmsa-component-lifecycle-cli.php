@@ -74,9 +74,10 @@ if ( '1.1.0' !== (string) ( $plugins[ $plugin ]['Version'] ?? '' ) || ! is_plugi
 }
 
 $theme = 'cua-upgrade-theme';
-wp_clean_themes_cache();
-$theme_object = wp_get_theme( $theme );
-if ( ! $theme_object->exists() || '1.1.0' !== (string) $theme_object->get( 'Version' ) || get_stylesheet() === $theme || get_template() === $theme ) {
+search_theme_directories( true );
+$themes = wp_get_themes( array( 'errors' => null ) );
+$theme_object = isset( $themes[ $theme ] ) ? $themes[ $theme ] : null;
+if ( ! $theme_object instanceof WP_Theme || '1.1.0' !== (string) $theme_object->get( 'Version' ) || get_stylesheet() === $theme || get_template() === $theme ) {
 	fwrite( STDERR, "Updated theme fixture is not ready as an inactive deletion target.\n" );
 	exit( 1 );
 }
@@ -106,9 +107,10 @@ if ( is_wp_error( $theme_delete ) || empty( $theme_delete['deleted'] ) || empty(
 	fwrite( STDERR, 'Theme reversible delete failed: ' . ( is_wp_error( $theme_delete ) ? $theme_delete->get_error_code() . ' ' . $theme_delete->get_error_message() : 'invalid result' ) . "\n" );
 	exit( 1 );
 }
-wp_clean_themes_cache();
-if ( wp_get_theme( $theme )->exists() ) {
-	fwrite( STDERR, "Deleted theme remained installed.\n" );
+search_theme_directories( true );
+$themes = wp_get_themes( array( 'errors' => null ) );
+if ( isset( $themes[ $theme ] ) ) {
+	fwrite( STDERR, "Deleted theme remained installed after a forced WordPress directory rescan.\n" );
 	exit( 1 );
 }
 
@@ -117,9 +119,10 @@ if ( is_wp_error( $theme_restore ) ) {
 	fwrite( STDERR, 'Theme restore failed: ' . $theme_restore->get_error_code() . ' ' . $theme_restore->get_error_message() . "\n" );
 	exit( 1 );
 }
-wp_clean_themes_cache();
-$theme_object = wp_get_theme( $theme );
-if ( ! $theme_object->exists() || '1.1.0' !== (string) $theme_object->get( 'Version' ) || get_stylesheet() !== $active_stylesheet ) {
+search_theme_directories( true );
+$themes = wp_get_themes( array( 'errors' => null ) );
+$theme_object = isset( $themes[ $theme ] ) ? $themes[ $theme ] : null;
+if ( ! $theme_object instanceof WP_Theme || '1.1.0' !== (string) $theme_object->get( 'Version' ) || get_stylesheet() !== $active_stylesheet ) {
 	fwrite( STDERR, "Theme restore did not recover the deleted theme without changing the active theme.\n" );
 	exit( 1 );
 }
@@ -133,5 +136,5 @@ if ( false !== $delete_plugin->check_permissions( array( 'plugin' => $plugin, 'e
 }
 
 wp_set_current_user( 1 );
-echo 'cmsa-component-lifecycle-cli: PASS plugin_delete=verified plugin_restore=verified activation=preserved self_delete=blocked theme_delete=verified theme_restore=verified active_theme_delete=blocked signed_rollback_id=verified tamper=blocked admin_boundary=verified direct_filesystem_path_input=absent' . "\n";
+echo 'cmsa-component-lifecycle-cli: PASS plugin_delete=verified plugin_restore=verified activation=preserved self_delete=blocked theme_delete=verified forced_theme_rescan=verified theme_restore=verified active_theme_delete=blocked signed_rollback_id=verified tamper=blocked admin_boundary=verified direct_filesystem_path_input=absent' . "\n";
 exit( 0 );
