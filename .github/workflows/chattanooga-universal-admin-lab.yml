@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   universal-admin:
-    name: WordPress 7.1 plugin-agnostic capability proof
+    name: WordPress 7.1 plugin-agnostic public-contract proof
     runs-on: ubuntu-latest
     services:
       mysql:
@@ -52,7 +52,7 @@ jobs:
         run: |
           set -euo pipefail
           source_dir="workbench/labs/chattanooga-universal-admin/candidate"
-          if grep -REiq 'WooCommerce|Events_Manager|BuddyBoss|Marketplace|Weekend_Feature|cua-lab-alpha|cua-lab-beta|fixture' "$source_dir"; then
+          if grep -REiq 'WooCommerce|Events_Manager|BuddyBoss|Marketplace|Weekend_Feature|cua-lab-alpha|cua-lab-beta|cua-rest-gamma|fixture' "$source_dir"; then
             echo "Universal source contains provider-identity-specific logic." >&2
             exit 1
           fi
@@ -60,12 +60,23 @@ jobs:
             echo "Universal source contains a direct provider-state mutation primitive." >&2
             exit 1
           fi
+          if grep -Rq 'register_rest_route' "$source_dir"; then
+            echo "Universal source registers provider-specific REST routes instead of discovering them." >&2
+            exit 1
+          fi
           grep -Rq 'wp_get_abilities' "$source_dir"
+          grep -Rq 'wp_register_ability' "$source_dir"
+          grep -Rq 'rest_get_server' "$source_dir"
+          grep -Rq 'get_routes' "$source_dir"
+          grep -Rq 'rest_do_request' "$source_dir"
           grep -Rq 'check_permissions' "$source_dir"
           grep -Rq -- '->execute' "$source_dir"
-          grep -Rq 'wp_register_ability' "$source_dir"
           if grep -R -F -q "\$input['target']" "$source_dir" || grep -R -F -q "\$input[\"target\"]" "$source_dir"; then
             echo "Universal source exposes a generic target dispatch input." >&2
+            exit 1
+          fi
+          if grep -Rq 'wp_register_ability' workbench/labs/chattanooga-universal-admin/providers/cua-rest-gamma; then
+            echo "REST-only provider unexpectedly contains an Abilities API registration." >&2
             exit 1
           fi
 
@@ -85,10 +96,15 @@ jobs:
           cp -R workbench/labs/chattanooga-universal-admin/candidate /tmp/wordpress/wp-content/plugins/chattanooga-universal-admin
           cp -R workbench/labs/chattanooga-universal-admin/providers/cua-lab-alpha /tmp/wordpress/wp-content/plugins/cua-lab-alpha
           cp -R workbench/labs/chattanooga-universal-admin/providers/cua-lab-beta /tmp/wordpress/wp-content/plugins/cua-lab-beta
-          php /tmp/wp-cli.phar plugin activate chattanooga-universal-admin cua-lab-alpha cua-lab-beta --path=/tmp/wordpress
+          cp -R workbench/labs/chattanooga-universal-admin/providers/cua-rest-gamma /tmp/wordpress/wp-content/plugins/cua-rest-gamma
+          php /tmp/wp-cli.phar plugin activate chattanooga-universal-admin cua-lab-alpha cua-lab-beta cua-rest-gamma --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin is-active chattanooga-universal-admin --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin is-active cua-lab-alpha --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin is-active cua-lab-beta --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin is-active cua-rest-gamma --path=/tmp/wordpress
 
-      - name: Verify dynamic permission-preserving administration
+      - name: Verify Abilities API dynamic administration
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-universal-admin/probes/cua-capability-bridge-cli.php" --path=/tmp/wordpress
+
+      - name: Verify REST-only dynamic administration
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-universal-admin/probes/cua-rest-bridge-cli.php" --path=/tmp/wordpress

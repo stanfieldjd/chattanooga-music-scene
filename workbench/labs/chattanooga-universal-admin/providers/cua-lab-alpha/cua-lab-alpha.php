@@ -62,6 +62,31 @@ add_action(
 		);
 
 		wp_register_ability(
+			'cua-lab-alpha/core-public-record',
+			array(
+				'label'               => 'Core-public alpha record',
+				'description'         => 'Public WordPress ability with no channel-specific MCP metadata and no input.',
+				'category'            => 'cua-lab-alpha',
+				'output_schema'       => array( 'type' => 'object' ),
+				'execute_callback'    => static function () {
+					return array( 'source' => 'alpha-core-public' );
+				},
+				'permission_callback' => static function () {
+					return current_user_can( 'manage_options' );
+				},
+				'meta'                => array(
+					'public'       => true,
+					'show_in_rest' => false,
+					'annotations'  => array(
+						'readonly'    => true,
+						'destructive' => false,
+						'idempotent'  => true,
+					),
+				),
+			)
+		);
+
+		wp_register_ability(
 			'cua-lab-alpha/private-record',
 			array(
 				'label'               => 'Private alpha record',

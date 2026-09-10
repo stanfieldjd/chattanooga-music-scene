@@ -28,7 +28,7 @@ $by_target = array();
 foreach ( $result['items'] as $item ) {
 	$target = isset( $item['target'] ) ? (string) $item['target'] : '';
 	$bridge = isset( $item['bridge'] ) ? (string) $item['bridge'] : '';
-	if ( '' === $target || 0 !== strpos( $bridge, 'chattanooga-universal-admin/bridge-' ) ) {
+	if ( '' === $target || 0 !== strpos( $bridge, 'chattanooga-universal-admin/' ) ) {
 		fwrite( STDERR, "Catalog contained an invalid bridge mapping.\n" );
 		exit( 1 );
 	}
@@ -37,6 +37,7 @@ foreach ( $result['items'] as $item ) {
 
 $required_targets = array(
 	'cua-lab-alpha/read-record',
+	'cua-lab-alpha/core-public-record',
 	'cua-lab-beta/set-flag',
 	'cua-lab-beta/denied',
 );
@@ -65,6 +66,21 @@ if ( true !== $read_bridge->check_permissions( $read_input ) ) {
 $read_result = $read_bridge->execute( $read_input );
 if ( is_wp_error( $read_result ) || 17 !== (int) ( $read_result['id'] ?? 0 ) || 'alpha' !== ( $read_result['source'] ?? '' ) ) {
 	fwrite( STDERR, "Read bridge did not execute the provider ability correctly.\n" );
+	exit( 1 );
+}
+
+$core_public_bridge = wp_get_ability( $by_target['cua-lab-alpha/core-public-record'] );
+if ( ! $core_public_bridge instanceof WP_Ability ) {
+	fwrite( STDERR, "Core-public ability without channel-specific metadata was not bridged.\n" );
+	exit( 1 );
+}
+if ( true !== $core_public_bridge->check_permissions() ) {
+	fwrite( STDERR, "No-input core-public ability permission was not preserved.\n" );
+	exit( 1 );
+}
+$core_public_result = $core_public_bridge->execute();
+if ( is_wp_error( $core_public_result ) || 'alpha-core-public' !== ( $core_public_result['source'] ?? '' ) ) {
+	fwrite( STDERR, "No-input core-public ability did not execute through its facade.\n" );
 	exit( 1 );
 }
 
@@ -105,14 +121,14 @@ if ( ! is_wp_error( $denied_result ) || 'ability_invalid_permissions' !== $denie
 }
 
 wp_set_current_user( 0 );
-if ( false !== $catalog->check_permissions( array() ) ) {
+if ( false !== $catalog->check_permissions( array() ) || false !== $core_public_bridge->check_permissions() ) {
 	delete_option( 'cua_lab_beta_flag' );
-	fwrite( STDERR, "Anonymous user unexpectedly passed the universal catalog permission check.\n" );
+	fwrite( STDERR, "Universal administration facade allowed an anonymous user.\n" );
 	exit( 1 );
 }
 
 wp_set_current_user( 1 );
 delete_option( 'cua_lab_beta_flag' );
 
-echo 'chattanooga-universal-admin-probe: PASS dynamic_discovery=verified public_bridge=verified private_exclusion=verified read_execution=verified mutation_execution=verified target_permissions=preserved denied_execution=blocked direct_universal_mutation=absent' . "\n";
+echo 'chattanooga-universal-admin-probe: PASS dynamic_discovery=verified standard_public=verified no_input_forwarding=verified public_bridge=verified private_exclusion=verified read_execution=verified mutation_execution=verified admin_boundary=verified target_permissions=preserved denied_execution=blocked direct_universal_mutation=absent' . "\n";
 exit( 0 );
