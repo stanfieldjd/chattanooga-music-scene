@@ -9,15 +9,19 @@ wp_set_current_user( 1 );
 
 $health = wp_get_ability( 'chattanooga-cms-admin/get-health' );
 $updates = wp_get_ability( 'chattanooga-cms-admin/list-updates' );
+$plugins = wp_get_ability( 'chattanooga-cms-admin/list-plugins' );
+$themes = wp_get_ability( 'chattanooga-cms-admin/list-themes' );
+$clear_cache = wp_get_ability( 'chattanooga-cms-admin/clear-cache' );
 
-if ( ! $health instanceof WP_Ability || ! $updates instanceof WP_Ability ) {
-	fwrite( STDERR, "Required platform abilities were not registered.\n" );
-	exit( 1 );
-}
-
-if ( true !== $health->check_permissions( array() ) || true !== $updates->check_permissions( array() ) ) {
-	fwrite( STDERR, "Administrator platform permissions were not preserved.\n" );
-	exit( 1 );
+foreach ( array( $health, $updates, $plugins, $themes, $clear_cache ) as $ability ) {
+	if ( ! $ability instanceof WP_Ability ) {
+		fwrite( STDERR, "Required platform ability was not registered.\n" );
+		exit( 1 );
+	}
+	if ( true !== $ability->check_permissions( array() ) ) {
+		fwrite( STDERR, "Administrator platform permissions were not preserved.\n" );
+		exit( 1 );
+	}
 }
 
 $health_result = $health->execute( array() );
@@ -55,13 +59,48 @@ foreach ( array( 'core', 'plugins', 'themes' ) as $key ) {
 	}
 }
 
-wp_set_current_user( 0 );
-if ( false !== $health->check_permissions( array() ) || false !== $updates->check_permissions( array() ) ) {
-	fwrite( STDERR, "Platform abilities allowed an anonymous user.\n" );
+$plugins_result = $plugins->execute( array() );
+if ( is_wp_error( $plugins_result ) || empty( $plugins_result['count'] ) || empty( $plugins_result['items'] ) || ! is_array( $plugins_result['items'] ) ) {
+	fwrite( STDERR, "Installed-plugin inventory was not returned.\n" );
 	exit( 1 );
+}
+$replacement_found = false;
+foreach ( $plugins_result['items'] as $item ) {
+	if ( 'chattanooga-cms-admin/chattanooga-cms-admin.php' === ( $item['plugin'] ?? '' ) ) {
+		$replacement_found = true;
+		if ( empty( $item['active'] ) || '0.0.1-replacement-lab' !== ( $item['version'] ?? '' ) ) {
+			fwrite( STDERR, "Replacement plugin inventory state was incorrect.\n" );
+			exit( 1 );
+		}
+	}
+}
+if ( ! $replacement_found ) {
+	fwrite( STDERR, "Replacement plugin was absent from platform inventory.\n" );
+	exit( 1 );
+}
+
+$themes_result = $themes->execute( array() );
+if ( is_wp_error( $themes_result ) || empty( $themes_result['count'] ) || empty( $themes_result['items'] ) || ! is_array( $themes_result['items'] ) ) {
+	fwrite( STDERR, "Installed-theme inventory was not returned.\n" );
+	exit( 1 );
+}
+
+wp_cache_set( 'cmsa_platform_cache_probe', 'present', 'cmsa-platform' );
+$cache_result = $clear_cache->execute( array() );
+if ( is_wp_error( $cache_result ) || empty( $cache_result['object_cache_flushed'] ) || false !== wp_cache_get( 'cmsa_platform_cache_probe', 'cmsa-platform' ) ) {
+	fwrite( STDERR, "Core object-cache flush did not verify.\n" );
+	exit( 1 );
+}
+
+wp_set_current_user( 0 );
+foreach ( array( $health, $updates, $plugins, $themes, $clear_cache ) as $ability ) {
+	if ( false !== $ability->check_permissions( array() ) ) {
+		fwrite( STDERR, "Platform ability allowed an anonymous user.\n" );
+		exit( 1 );
+	}
 }
 
 wp_set_current_user( 1 );
 
-echo 'cmsa-platform-read-cli: PASS health=verified update_inventory=verified admin_boundary=verified provider_specific_logic=absent' . "\n";
+echo 'cmsa-platform-read-cli: PASS health=verified update_inventory=verified plugin_inventory=verified theme_inventory=verified object_cache_flush=verified admin_boundary=verified provider_specific_logic=absent' . "\n";
 exit( 0 );
