@@ -98,9 +98,9 @@ if ( false !== $denied_bridge->check_permissions( array() ) ) {
 	exit( 1 );
 }
 $denied_result = $denied_bridge->execute( array() );
-if ( ! is_wp_error( $denied_result ) || 'cua_target_forbidden' !== $denied_result->get_error_code() ) {
+if ( ! is_wp_error( $denied_result ) || 'ability_invalid_permissions' !== $denied_result->get_error_code() ) {
 	delete_option( 'cua_lab_beta_flag' );
-	fwrite( STDERR, "Denied target executed through the bridge.\n" );
+	fwrite( STDERR, "Denied target did not remain blocked by the facade permission boundary.\n" );
 	exit( 1 );
 }
 
