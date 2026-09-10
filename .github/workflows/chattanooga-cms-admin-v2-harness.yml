@@ -52,7 +52,7 @@ jobs:
           test ! -e "$candidate/chattanooga-universal-admin.php"
           test "$(grep -RIl '^ \* Plugin Name:' "$candidate" --include='*.php' | wc -l)" -eq 1
           grep -q '^ \* Plugin Name: Chattanooga CMS Admin$' "$candidate/chattanooga-cms-admin.php"
-          if grep -REiq 'orbit-fixture|comet-fixture|asteroid-private' "$candidate"; then
+          if grep -REiq 'orbit-fixture|comet-fixture|asteroid-private|saturn-lifecycle|meteor-lifecycle' "$candidate"; then
             echo "Candidate contains v2 fixture-specific logic." >&2
             exit 1
           fi
@@ -79,8 +79,12 @@ jobs:
           cp -R workbench/harnesses/chattanooga-cms-admin-v2/fixtures/orbit-ability /tmp/wordpress/wp-content/plugins/orbit-ability
           cp -R workbench/harnesses/chattanooga-cms-admin-v2/fixtures/comet-rest /tmp/wordpress/wp-content/plugins/comet-rest
           cp -R workbench/harnesses/chattanooga-cms-admin-v2/fixtures/asteroid-private /tmp/wordpress/wp-content/plugins/asteroid-private
-          php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin orbit-ability comet-rest asteroid-private --path=/tmp/wordpress
+          cp -R workbench/harnesses/chattanooga-cms-admin-v2/fixtures/saturn-lifecycle /tmp/wordpress/wp-content/plugins/saturn-lifecycle
+          cp -R workbench/harnesses/chattanooga-cms-admin-v2/themes/meteor-lifecycle /tmp/wordpress/wp-content/themes/meteor-lifecycle
+          php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin orbit-ability comet-rest asteroid-private saturn-lifecycle --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin is-active chattanooga-cms-admin --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin is-active saturn-lifecycle --path=/tmp/wordpress
+          php /tmp/wp-cli.phar theme is-installed meteor-lifecycle --path=/tmp/wordpress
           if php /tmp/wp-cli.phar plugin is-installed chattanooga-universal-admin --path=/tmp/wordpress; then
             echo "A separate Universal Admin plugin exists in the clean harness." >&2
             exit 1
@@ -91,3 +95,6 @@ jobs:
 
       - name: Verify bounded auto-update policy
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/update-policy-cli.php" --path=/tmp/wordpress
+
+      - name: Verify reversible component lifecycle
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/component-lifecycle-cli.php" --path=/tmp/wordpress
