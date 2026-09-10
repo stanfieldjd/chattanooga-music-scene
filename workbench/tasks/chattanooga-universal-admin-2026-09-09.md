@@ -121,10 +121,10 @@ No AWP-specific adapter was added.
 
 ## Verification evidence
 
-### Full clean v2 harness
+### Final post-cleanup full v2 harness
 
 Workflow: `Chattanooga CMS Admin v2 Clean Harness`
-Run: `34504260432`
+Run: `34504939807`
 Result: SUCCESS
 
 The same run passed:
@@ -143,10 +143,10 @@ The same run passed:
 - core/database rollback; and
 - actual `Core_Upgrader` transition followed by verified rollback.
 
-### Real-provider compatibility suite
+### Final real-provider compatibility suite
 
 Workflow: `Chattanooga CMS Admin v2 Provider Compatibility`
-Run: `34504260411`
+Run: `34505114334`
 Result: SUCCESS
 
 Jobs:
@@ -183,7 +183,7 @@ The obsolete Phase-1 `workbench/labs/chattanooga-universal-admin` probes/provide
 
 SOURCE ENGINEERING: COMPLETE / VERIFIED.
 
-The canonical `1.0.0` replacement has passed the clean universal harness, replacement-coverage acceptance gate, real Events Manager compatibility, real WooCommerce compatibility, real Rank Math SEO compatibility, and the AWP private-contract boundary test.
+The canonical `1.0.0` replacement has passed the final post-cleanup universal harness, replacement-coverage acceptance gate, real Events Manager compatibility, real WooCommerce compatibility, real Rank Math SEO compatibility, and the AWP private-contract boundary test.
 
 This decision applies to source engineering only.
 
