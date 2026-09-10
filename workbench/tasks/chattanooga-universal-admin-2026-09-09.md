@@ -19,7 +19,8 @@ The candidate WordPress plugin occupies the existing Chattanooga CMS Admin plugi
 - WordPress plugin name: `Chattanooga CMS Admin`;
 - production folder target: `chattanooga-cms-admin`;
 - entrypoint target: `chattanooga-cms-admin.php`;
-- no second `Chattanooga Universal Admin` plugin entrypoint may exist;
+- administration ability namespace: `chattanooga-cms-admin/`;
+- no second `Chattanooga Universal Admin` plugin entrypoint or temporary administration namespace may exist;
 - the lab branch/folder may retain the historical `chattanooga-universal-admin` engineering name, but that is workbench naming only and must not create another WordPress plugin.
 
 Production transition, when separately authorized, must be one-for-one: the replacement takes the Chattanooga CMS Admin slot rather than being installed beside the old implementation.
@@ -114,31 +115,105 @@ The candidate source does not contain the provider's identity.
 
 GitHub Actions run `34422232141` completed successfully on disposable WordPress 7.1 / PHP 8.2.
 
-Verified Ability-contract result:
+The Phase 2 commit differed from the prior clean checkpoint only in intended candidate, fixture, probe, workflow, and task-record files. No production deployment occurred.
 
-`chattanooga-universal-admin-probe: PASS dynamic_discovery=verified standard_public=verified no_input_forwarding=verified public_bridge=verified private_exclusion=verified read_execution=verified mutation_execution=verified admin_boundary=verified target_permissions=preserved denied_execution=blocked direct_universal_mutation=absent`
-
-Verified REST-contract result:
-
-`cua-rest-bridge-cli: PASS rest_only_provider=verified route_discovery=verified route_lock=verified hidden_route=blocked read_execution=verified mutation_execution=verified provider_permissions=preserved denied_execution=blocked admin_boundary=verified direct_universal_mutation=absent`
-
-The Phase 2 commit differs from the prior clean checkpoint only in the nine intended candidate, fixture, probe, workflow, and task-record files. No production deployment occurred.
-
-## Replacement identity correction — current checkpoint target
+## Replacement packaging and namespace correction
 
 The prior lab candidate was incorrectly packaged as a separate WordPress plugin named `Chattanooga Universal Admin`. That packaging contradicted the project objective even though the universal engine itself was valid.
 
-The candidate has now been repackaged as the replacement `Chattanooga CMS Admin` plugin. The separate `chattanooga-universal-admin.php` WordPress entrypoint has been deleted. CI must install the candidate only as `chattanooga-cms-admin`, verify exactly one plugin header exists in the candidate, and fail if a separate Chattanooga Universal Admin plugin is installed.
+The candidate was repackaged as the replacement `Chattanooga CMS Admin` plugin. The separate `chattanooga-universal-admin.php` WordPress entrypoint was deleted. CI installs the candidate only as `chattanooga-cms-admin`, verifies exactly one plugin header exists in the candidate, and fails if a separate Chattanooga Universal Admin plugin is installed.
 
-The already-verified Abilities and REST behavior must continue to pass unchanged after this replacement packaging correction.
+A second replacement-identity defect was then found: generated facade abilities still used the temporary `chattanooga-universal-admin/` namespace. Both bridge engines and both execution probes were changed to use and require `chattanooga-cms-admin/`. CI now fails if the temporary administration namespace returns.
+
+## Phase 3 — WordPress core REST replacement parity
+
+### Objective
+
+Determine how much of the old Chattanooga CMS Admin's hand-written WordPress-core administration surface is unnecessary because the unchanged universal REST engine can operate the corresponding core controllers directly.
+
+### Execution probe
+
+`workbench/labs/chattanooga-universal-admin/probes/cmsa-core-rest-parity-cli.php`
+
+The probe locates generated facades only through `chattanooga-cms-admin/catalog`; it contains no replacement adapter code. On disposable WordPress 7.1 it executes through the generated core REST facades and verifies:
+
+- post create, read, update, and draft-to-published status transition;
+- page create and update;
+- category create and update;
+- tag create and update;
+- member creation plus profile and role update;
+- navigation menu create/update and menu-item create/update;
+- plugin inventory read;
+- theme inventory read; and
+- menu-location inventory read.
+
+Disposable objects are deleted only by the probe cleanup code. Candidate source remains free of direct content/user/menu mutation primitives.
+
+### Verified checkpoint
+
+`458a59643009bf34c6f101557ff985624b8bcf38`
+
+GitHub Actions run `34427584215`, job `102715987016`, completed successfully on disposable WordPress 7.1 / PHP 8.2.
+
+Verified outputs:
+
+`chattanooga-cms-admin-probe: PASS namespace=verified dynamic_discovery=verified standard_public=verified no_input_forwarding=verified public_bridge=verified private_exclusion=verified read_execution=verified mutation_execution=verified admin_boundary=verified target_permissions=preserved denied_execution=blocked direct_universal_mutation=absent`
+
+`cua-rest-bridge-cli: PASS namespace=verified rest_only_provider=verified route_discovery=verified route_lock=verified hidden_route=blocked read_execution=verified mutation_execution=verified provider_permissions=preserved denied_execution=blocked admin_boundary=verified direct_universal_mutation=absent`
+
+`cmsa-core-rest-parity-cli: PASS posts=read_create_update_status pages=create_update categories=create_update tags=create_update members=create_profile_roles navigation=menu_item_create_update plugin_inventory=read theme_inventory=read menu_locations=read candidate_adapters=none`
+
+This is functional REST coverage, not yet semantic parity with the old plugin's custom conflict tokens, rollback snapshots, guarded permanent-deletion rules, revision handling, or other transaction controls.
+
+## Live old-plugin inventory for replacement analysis
+
+Read-only live ability discovery shows the existing Chattanooga CMS Admin currently exposes 82 abilities, grouped as:
+
+- 24 system/maintenance operations;
+- 18 post/page operations;
+- 12 category/tag/relationship operations;
+- 8 navigation operations;
+- 6 member operations; and
+- 14 Events Manager operations.
+
+This inventory is a replacement checklist, not a requirement to preserve the old implementation's one-class-per-domain architecture.
+
+## Native provider ability findings
+
+Read-only live discovery found that Events Manager already exposes a large native `events-manager__...` ability surface covering event, location, ticket, booking, category/tag, media, and related operations. Therefore the replacement must consume that public native ability contract dynamically; no Events Manager adapter is to be added.
+
+Read-only live discovery also found native `woocommerce__...` abilities for product and order administration, plus an additional broad WooCommerce ability surface exposed by the active MCP environment. Therefore no WooCommerce adapter is to be added to the replacement.
+
+Searches for `marketplace` and `classified` returned no native ability surface. Marketplace/AWP Classifieds remains an uncovered domain pending investigation of indexed REST or another standard public contract. Absence of a native ability is not authorization to create a provider-specific adapter.
+
+## Registered Settings API finding
+
+The WordPress Settings API provides registered-setting discovery, sanitization metadata, and settings-group capability rules, but the standard wp-admin save path ultimately performs direct option mutation. No reusable public execution dispatcher analogous to `WP_Ability::execute()` or `rest_do_request()` has been established for non-REST registered settings.
+
+Under the current architectural exclusion against generic direct `update_option()` mutation, a universal Settings API write bridge is therefore NOT_ADMITTED on current evidence. Registered settings already exposed through REST remain reachable through the existing REST engine. This finding prevents using the Settings API as a disguised arbitrary-option backdoor.
+
+## Current replacement coverage state
+
+VERIFIED functional universal paths:
+
+1. public WordPress Abilities API registrations;
+2. indexed registered WordPress REST routes;
+3. core post/page/category/tag/member/navigation administration exercised through generated REST facades;
+4. core plugin/theme/menu-location inventory reads through generated REST facades; and
+5. live existence of native Events Manager and WooCommerce ability surfaces that match the replacement's generic Ability contract.
+
+INCOMPLETE / remaining replacement blockers:
+
+1. system/maintenance semantics: health, core/plugin/theme updates, backups, backup verification, restoration, cache clearing, audit log, auto-update policy, and rollback guarantees;
+2. theme mutation beyond the read-only core theme REST surface;
+3. Marketplace/AWP Classifieds if no indexed REST or public ability contract exists;
+4. old-plugin safety semantics that exceed ordinary REST behavior, including conflict checks, revisions, guarded destructive actions, verification and rollback; and
+5. execution evidence with the actual replacement installed in place of the old implementation on a safe non-production target before production transition.
 
 ## Current conclusion boundary
 
-The experiment execution-verifies one plugin-agnostic engine administering unrelated providers through two public WordPress contracts without provider-specific candidate code:
+The experiment execution-verifies one plugin-agnostic Chattanooga CMS Admin replacement engine administering unrelated providers through public WordPress contracts without provider-specific candidate code. Core WordPress content/member/navigation administration is now also execution-verified through that same engine.
 
-1. public WordPress Abilities API registrations; and
-2. indexed registered WordPress REST routes, including a provider that registers no ability.
-
-The target product is now explicitly the replacement Chattanooga CMS Admin plugin, not an additional plugin. Full replacement is not yet complete because the old Chattanooga CMS Admin capability surface has not yet been proven unnecessary across all required site administration functions. Private, undocumented, deliberately hidden, direct-PHP/internal, administrative-HTML-only, and other uncovered interfaces still require investigation. Those gaps must not be filled with per-plugin adapters merely to increase apparent coverage.
+The target remains one replacement plugin, not an additional plugin. Full replacement is not yet complete. Gaps must not be filled with per-plugin adapters merely to increase apparent coverage.
 
 Final replacement acceptance requires execution evidence that required site administration remains available after the old implementation is absent. Only then may the old implementation be removed during a separately authorized production transition.
