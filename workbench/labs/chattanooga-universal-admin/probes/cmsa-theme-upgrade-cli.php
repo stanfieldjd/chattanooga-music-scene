@@ -8,8 +8,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 wp_set_current_user( 1 );
 
 $ability = wp_get_ability( 'chattanooga-cms-admin/update-theme' );
-if ( ! $ability instanceof WP_Ability ) {
-	fwrite( STDERR, "CMS Admin update-theme ability was not registered.\n" );
+$switch_ability = wp_get_ability( 'chattanooga-cms-admin/switch-theme' );
+if ( ! $ability instanceof WP_Ability || ! $switch_ability instanceof WP_Ability ) {
+	fwrite( STDERR, "CMS Admin theme platform abilities were not registered.\n" );
 	exit( 1 );
 }
 
@@ -26,10 +27,16 @@ if ( ! $theme->exists() || '1.0.0' !== (string) $theme->get( 'Version' ) ) {
 	exit( 1 );
 }
 
-switch_theme( $stylesheet );
-wp_clean_themes_cache();
-if ( get_stylesheet() !== $stylesheet || get_template() !== $stylesheet ) {
-	fwrite( STDERR, "Disposable theme fixture did not become active.\n" );
+$original_stylesheet = get_stylesheet();
+$state_conflict = $switch_ability->execute( array( 'stylesheet' => $stylesheet, 'expected_stylesheet' => '__not_current__' ) );
+if ( ! is_wp_error( $state_conflict ) || 'cmsa_theme_state_conflict' !== $state_conflict->get_error_code() ) {
+	fwrite( STDERR, "Theme switch did not enforce exact current-theme conflict control.\n" );
+	exit( 1 );
+}
+
+$switch_result = $switch_ability->execute( array( 'stylesheet' => $stylesheet, 'expected_stylesheet' => $original_stylesheet ) );
+if ( is_wp_error( $switch_result ) || get_stylesheet() !== $stylesheet || get_template() !== $stylesheet || empty( $switch_result['changed'] ) ) {
+	fwrite( STDERR, "Transactional theme switch did not activate the disposable fixture.\n" );
 	exit( 1 );
 }
 
@@ -91,14 +98,20 @@ if ( '1.1.0' !== (string) $theme->get( 'Version' ) || get_stylesheet() !== $styl
 	exit( 1 );
 }
 
+$switch_back = $switch_ability->execute( array( 'stylesheet' => $original_stylesheet, 'expected_stylesheet' => $stylesheet ) );
+if ( is_wp_error( $switch_back ) || get_stylesheet() !== $original_stylesheet ) {
+	fwrite( STDERR, "Theme switch could not restore the original disposable-site theme.\n" );
+	exit( 1 );
+}
+
 wp_set_current_user( 0 );
-if ( false !== $ability->check_permissions( array( 'stylesheet' => $stylesheet, 'expected_version' => '1.1.0' ) ) ) {
-	fwrite( STDERR, "Theme update ability allowed an anonymous user.\n" );
+if ( false !== $ability->check_permissions( array( 'stylesheet' => $stylesheet, 'expected_version' => '1.1.0' ) ) || false !== $switch_ability->check_permissions( array( 'stylesheet' => $stylesheet, 'expected_stylesheet' => $original_stylesheet ) ) ) {
+	fwrite( STDERR, "Theme platform ability allowed an anonymous user.\n" );
 	exit( 1 );
 }
 
 wp_set_current_user( 1 );
 delete_site_transient( 'update_themes' );
 
-echo 'cmsa-theme-upgrade-cli: PASS core_upgrader=verified temp_backup=verified success_readback=verified active_identity=preserved conflict_control=verified mismatch_detection=verified rollback=verified admin_boundary=verified provider_adapter=absent' . "\n";
+echo 'cmsa-theme-upgrade-cli: PASS theme_switch=verified switch_conflict=verified core_upgrader=verified temp_backup=verified success_readback=verified active_identity=preserved update_conflict=verified mismatch_detection=verified rollback=verified switch_rollback_path=verified admin_boundary=verified provider_adapter=absent' . "\n";
 exit( 0 );
