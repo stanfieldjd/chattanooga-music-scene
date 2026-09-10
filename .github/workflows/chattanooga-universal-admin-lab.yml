@@ -62,7 +62,7 @@ jobs:
             exit 1
           fi
           grep -Rq 'chattanooga-cms-admin/' "$source_dir"
-          if grep -REiq 'WooCommerce|Events_Manager|BuddyBoss|Marketplace|Weekend_Feature|cua-lab-alpha|cua-lab-beta|cua-rest-gamma|fixture' "$source_dir"; then
+          if grep -REiq 'WooCommerce|Events_Manager|BuddyBoss|Marketplace|Weekend_Feature|cua-lab-alpha|cua-lab-beta|cua-rest-gamma|cua-upgrade-fixture|fixture' "$source_dir"; then
             echo "Replacement source contains provider-identity-specific logic." >&2
             exit 1
           fi
@@ -81,6 +81,8 @@ jobs:
           grep -Rq 'rest_do_request' "$source_dir"
           grep -Rq 'check_permissions' "$source_dir"
           grep -Rq -- '->execute' "$source_dir"
+          grep -Rq 'Plugin_Upgrader' "$source_dir"
+          grep -Rq 'restore_temp_backup' "$source_dir"
           if grep -R -F -q "\$input['target']" "$source_dir" || grep -R -F -q "\$input[\"target\"]" "$source_dir"; then
             echo "Replacement source exposes a generic target dispatch input." >&2
             exit 1
@@ -107,7 +109,8 @@ jobs:
           cp -R workbench/labs/chattanooga-universal-admin/providers/cua-lab-alpha /tmp/wordpress/wp-content/plugins/cua-lab-alpha
           cp -R workbench/labs/chattanooga-universal-admin/providers/cua-lab-beta /tmp/wordpress/wp-content/plugins/cua-lab-beta
           cp -R workbench/labs/chattanooga-universal-admin/providers/cua-rest-gamma /tmp/wordpress/wp-content/plugins/cua-rest-gamma
-          php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin cua-lab-alpha cua-lab-beta cua-rest-gamma --path=/tmp/wordpress
+          cp -R workbench/labs/chattanooga-universal-admin/providers/cua-upgrade-fixture /tmp/wordpress/wp-content/plugins/cua-upgrade-fixture
+          php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin cua-lab-alpha cua-lab-beta cua-rest-gamma cua-upgrade-fixture --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin is-active chattanooga-cms-admin --path=/tmp/wordpress
           if php /tmp/wp-cli.phar plugin is-installed chattanooga-universal-admin --path=/tmp/wordpress; then
             echo "Separate Chattanooga Universal Admin plugin unexpectedly exists." >&2
@@ -116,6 +119,7 @@ jobs:
           php /tmp/wp-cli.phar plugin is-active cua-lab-alpha --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin is-active cua-lab-beta --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin is-active cua-rest-gamma --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin is-active cua-upgrade-fixture --path=/tmp/wordpress
 
       - name: Verify Abilities API dynamic administration
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-universal-admin/probes/cua-capability-bridge-cli.php" --path=/tmp/wordpress
@@ -128,3 +132,19 @@ jobs:
 
       - name: Verify WordPress platform read services
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-universal-admin/probes/cmsa-platform-read-cli.php" --path=/tmp/wordpress
+
+      - name: Verify rollback-guarded WordPress plugin upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          packages=/tmp/cmsa-upgrade-packages
+          mkdir -p "$packages/v110/cua-upgrade-fixture" "$packages/mismatch/cua-upgrade-fixture"
+          sed -e 's/Version: 1.0.0/Version: 1.1.0/' -e "s/return '1.0.0';/return '1.1.0';/" workbench/labs/chattanooga-universal-admin/providers/cua-upgrade-fixture/cua-upgrade-fixture.php > "$packages/v110/cua-upgrade-fixture/cua-upgrade-fixture.php"
+          sed -e 's/Version: 1.0.0/Version: 1.1.1/' -e "s/return '1.0.0';/return '1.1.1';/" workbench/labs/chattanooga-universal-admin/providers/cua-upgrade-fixture/cua-upgrade-fixture.php > "$packages/mismatch/cua-upgrade-fixture/cua-upgrade-fixture.php"
+          (cd "$packages/v110" && zip -qr "$packages/cua-upgrade-fixture-1.1.0.zip" cua-upgrade-fixture)
+          (cd "$packages/mismatch" && zip -qr "$packages/cua-upgrade-fixture-mismatch.zip" cua-upgrade-fixture)
+          python3 -m http.server 8765 --bind 127.0.0.1 --directory "$packages" >/tmp/cmsa-package-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          sleep 1
+          CMSA_UPGRADE_PACKAGE_BASE=http://127.0.0.1:8765 php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-universal-admin/probes/cmsa-plugin-upgrade-cli.php" --path=/tmp/wordpress
