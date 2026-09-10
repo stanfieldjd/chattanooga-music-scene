@@ -16,6 +16,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'CUA_VERSION', '0.0.1-replacement-lab' );
 define( 'CUA_DIR', plugin_dir_path( __FILE__ ) );
 
+require_once CUA_DIR . 'includes/class-cua-local-storage.php';
+require_once CUA_DIR . 'includes/class-cua-audit.php';
 require_once CUA_DIR . 'includes/class-cua-control-plane-guard.php';
 require_once CUA_DIR . 'includes/class-cua-platform-services.php';
 require_once CUA_DIR . 'includes/class-cua-platform-inventory.php';
@@ -27,6 +29,8 @@ require_once CUA_DIR . 'includes/class-cua-platform-package-lifecycle.php';
 require_once CUA_DIR . 'includes/class-cua-rest-bridge.php';
 require_once CUA_DIR . 'includes/class-cua-ability-bridge.php';
 
+CUA_Audit::bootstrap();
+
 add_action( 'wp_abilities_api_categories_init', array( 'CUA_Ability_Bridge', 'register_category' ) );
 add_action( 'wp_abilities_api_init', array( 'CUA_Ability_Bridge', 'register_catalog_ability' ), 5 );
 add_action( 'wp_abilities_api_init', array( 'CUA_Platform_Services', 'register_abilities' ), 10 );
@@ -36,5 +40,6 @@ add_action( 'wp_abilities_api_init', array( 'CUA_Platform_Theme_Lifecycle', 'reg
 add_action( 'wp_abilities_api_init', array( 'CUA_Platform_Component_Lifecycle', 'register_abilities' ), 14 );
 add_action( 'wp_abilities_api_init', array( 'CUA_Platform_Update_Policy', 'register_abilities' ), 15 );
 add_action( 'wp_abilities_api_init', array( 'CUA_Platform_Package_Lifecycle', 'register_abilities' ), 16 );
+add_action( 'wp_abilities_api_init', array( 'CUA_Audit', 'register_ability' ), 17 );
 add_action( 'wp_abilities_api_init', array( 'CUA_REST_Bridge', 'register_external_bridges' ), 9998 );
 add_action( 'wp_abilities_api_init', array( 'CUA_Ability_Bridge', 'register_external_bridges' ), 9999 );
