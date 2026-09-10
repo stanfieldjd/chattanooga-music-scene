@@ -1,4 +1,4 @@
-name: Chattanooga Universal Admin Lab
+name: Chattanooga CMS Admin Replacement Lab
 
 on:
   push:
@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   universal-admin:
-    name: WordPress 7.1 plugin-agnostic public-contract proof
+    name: WordPress 7.1 CMS Admin replacement proof
     runs-on: ubuntu-latest
     services:
       mysql:
@@ -47,21 +47,26 @@ jobs:
           set -euo pipefail
           find workbench/labs/chattanooga-universal-admin -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
 
-      - name: Enforce plugin-agnostic source boundary
+      - name: Enforce replacement identity and plugin-agnostic source boundary
         shell: bash
         run: |
           set -euo pipefail
           source_dir="workbench/labs/chattanooga-universal-admin/candidate"
+          test -f "$source_dir/chattanooga-cms-admin.php"
+          test ! -e "$source_dir/chattanooga-universal-admin.php"
+          plugin_headers=$(grep -RIl '^ \* Plugin Name:' "$source_dir" --include='*.php' | wc -l)
+          test "$plugin_headers" -eq 1
+          grep -q '^ \* Plugin Name: Chattanooga CMS Admin$' "$source_dir/chattanooga-cms-admin.php"
           if grep -REiq 'WooCommerce|Events_Manager|BuddyBoss|Marketplace|Weekend_Feature|cua-lab-alpha|cua-lab-beta|cua-rest-gamma|fixture' "$source_dir"; then
-            echo "Universal source contains provider-identity-specific logic." >&2
+            echo "Replacement source contains provider-identity-specific logic." >&2
             exit 1
           fi
           if grep -REq 'update_option|delete_option|wp_insert_post|wp_update_post|wp_delete_post|wp_insert_term|wp_update_term|wp_delete_term|update_post_meta|update_term_meta|\$wpdb' "$source_dir"; then
-            echo "Universal source contains a direct provider-state mutation primitive." >&2
+            echo "Replacement source contains a direct provider-state mutation primitive." >&2
             exit 1
           fi
           if grep -Rq 'register_rest_route' "$source_dir"; then
-            echo "Universal source registers provider-specific REST routes instead of discovering them." >&2
+            echo "Replacement source registers provider-specific REST routes instead of discovering them." >&2
             exit 1
           fi
           grep -Rq 'wp_get_abilities' "$source_dir"
@@ -72,7 +77,7 @@ jobs:
           grep -Rq 'check_permissions' "$source_dir"
           grep -Rq -- '->execute' "$source_dir"
           if grep -R -F -q "\$input['target']" "$source_dir" || grep -R -F -q "\$input[\"target\"]" "$source_dir"; then
-            echo "Universal source exposes a generic target dispatch input." >&2
+            echo "Replacement source exposes a generic target dispatch input." >&2
             exit 1
           fi
           if grep -Rq 'wp_register_ability' workbench/labs/chattanooga-universal-admin/providers/cua-rest-gamma; then
@@ -87,18 +92,22 @@ jobs:
           curl -fsSL -o /tmp/wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
           php /tmp/wp-cli.phar core download --version=7.1 --path=/tmp/wordpress --force
           php /tmp/wp-cli.phar config create --path=/tmp/wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
-          php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://cua-lab.test --title="Chattanooga Universal Admin Lab" --admin_user=admin --admin_password="cua-lab-only" --admin_email=lab@example.invalid --skip-email
+          php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://cua-lab.test --title="Chattanooga CMS Admin Replacement Lab" --admin_user=admin --admin_password="cua-lab-only" --admin_email=lab@example.invalid --skip-email
 
-      - name: Activate clean plugin and unrelated providers
+      - name: Activate replacement plugin and unrelated providers
         shell: bash
         run: |
           set -euo pipefail
-          cp -R workbench/labs/chattanooga-universal-admin/candidate /tmp/wordpress/wp-content/plugins/chattanooga-universal-admin
+          cp -R workbench/labs/chattanooga-universal-admin/candidate /tmp/wordpress/wp-content/plugins/chattanooga-cms-admin
           cp -R workbench/labs/chattanooga-universal-admin/providers/cua-lab-alpha /tmp/wordpress/wp-content/plugins/cua-lab-alpha
           cp -R workbench/labs/chattanooga-universal-admin/providers/cua-lab-beta /tmp/wordpress/wp-content/plugins/cua-lab-beta
           cp -R workbench/labs/chattanooga-universal-admin/providers/cua-rest-gamma /tmp/wordpress/wp-content/plugins/cua-rest-gamma
-          php /tmp/wp-cli.phar plugin activate chattanooga-universal-admin cua-lab-alpha cua-lab-beta cua-rest-gamma --path=/tmp/wordpress
-          php /tmp/wp-cli.phar plugin is-active chattanooga-universal-admin --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin cua-lab-alpha cua-lab-beta cua-rest-gamma --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin is-active chattanooga-cms-admin --path=/tmp/wordpress
+          if php /tmp/wp-cli.phar plugin is-installed chattanooga-universal-admin --path=/tmp/wordpress; then
+            echo "Separate Chattanooga Universal Admin plugin unexpectedly exists." >&2
+            exit 1
+          fi
           php /tmp/wp-cli.phar plugin is-active cua-lab-alpha --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin is-active cua-lab-beta --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin is-active cua-rest-gamma --path=/tmp/wordpress
