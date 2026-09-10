@@ -88,8 +88,13 @@ $required_rest = array(
 	array( 'GET', '#^/wp/v2/users(?:/|$)#' ),
 	array( 'POST', '#^/wp/v2/users(?:/|$)#' ),
 	array( 'DELETE', '#^/wp/v2/users(?:/|$)#' ),
-	array( 'GET', '#^/wp/v2/navigation(?:/|$)#' ),
-	array( 'POST', '#^/wp/v2/navigation(?:/|$)#' ),
+	array( 'GET', '#^/wp/v2/menus(?:/|$)#' ),
+	array( 'POST', '#^/wp/v2/menus(?:/|$)#' ),
+	array( 'DELETE', '#^/wp/v2/menus(?:/|$)#' ),
+	array( 'GET', '#^/wp/v2/menu-items(?:/|$)#' ),
+	array( 'POST', '#^/wp/v2/menu-items(?:/|$)#' ),
+	array( 'DELETE', '#^/wp/v2/menu-items(?:/|$)#' ),
+	array( 'GET', '#^/wp/v2/menu-locations(?:/|$)#' ),
 );
 
 foreach ( $required_rest as $requirement ) {
@@ -112,7 +117,7 @@ foreach ( $required_rest as $requirement ) {
 
 $settings_required = array(
 	'chattanooga-cms-admin/list-registered-settings',
-	'chattanooga-cms-admin/inspect-registered-setting',
+	'chattanooga-cms-admin/get-registered-setting',
 	'chattanooga-cms-admin/update-registered-setting',
 );
 foreach ( $settings_required as $name ) {
