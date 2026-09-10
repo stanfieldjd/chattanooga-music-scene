@@ -52,7 +52,7 @@ jobs:
           test ! -e "$candidate/chattanooga-universal-admin.php"
           test "$(grep -RIl '^ \* Plugin Name:' "$candidate" --include='*.php' | wc -l)" -eq 1
           grep -q '^ \* Plugin Name: Chattanooga CMS Admin$' "$candidate/chattanooga-cms-admin.php"
-          if grep -REiq 'orbit-fixture|comet-fixture|asteroid-private|saturn-lifecycle|meteor-lifecycle|neptune-install|aurora-install|quasar-audit' "$candidate"; then
+          if grep -REiq 'orbit-fixture|comet-fixture|asteroid-private|saturn-lifecycle|meteor-lifecycle|neptune-install|aurora-install|quasar-audit|cmsa_v2_snapshot_fixture|cmsa_v2_extra_after_backup' "$candidate"; then
             echo "Candidate contains v2 fixture-specific logic." >&2
             exit 1
           fi
@@ -113,3 +113,6 @@ jobs:
 
       - name: Verify generic administration audit
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/audit-cli.php" --path=/tmp/wordpress
+
+      - name: Verify local backups and database rollback
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/backups-cli.php" --path=/tmp/wordpress
