@@ -16,6 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'CUA_VERSION', '0.0.1-replacement-lab' );
 define( 'CUA_DIR', plugin_dir_path( __FILE__ ) );
 
+require_once CUA_DIR . 'includes/class-cua-control-plane-guard.php';
 require_once CUA_DIR . 'includes/class-cua-platform-services.php';
 require_once CUA_DIR . 'includes/class-cua-rest-bridge.php';
 require_once CUA_DIR . 'includes/class-cua-ability-bridge.php';
