@@ -143,8 +143,4 @@ jobs:
           sed -e 's/Version: 1.0.0/Version: 1.1.1/' -e "s/return '1.0.0';/return '1.1.1';/" workbench/labs/chattanooga-universal-admin/providers/cua-upgrade-fixture/cua-upgrade-fixture.php > "$packages/mismatch/cua-upgrade-fixture/cua-upgrade-fixture.php"
           (cd "$packages/v110" && zip -qr "$packages/cua-upgrade-fixture-1.1.0.zip" cua-upgrade-fixture)
           (cd "$packages/mismatch" && zip -qr "$packages/cua-upgrade-fixture-mismatch.zip" cua-upgrade-fixture)
-          python3 -m http.server 8765 --bind 127.0.0.1 --directory "$packages" >/tmp/cmsa-package-server.log 2>&1 &
-          server_pid=$!
-          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
-          sleep 1
-          CMSA_UPGRADE_PACKAGE_BASE=http://127.0.0.1:8765 php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-universal-admin/probes/cmsa-plugin-upgrade-cli.php" --path=/tmp/wordpress
+          CMSA_UPGRADE_PACKAGE_DIR="$packages" php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/labs/chattanooga-universal-admin/probes/cmsa-plugin-upgrade-cli.php" --path=/tmp/wordpress
