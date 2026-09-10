@@ -62,15 +62,17 @@ function cmsa_v2_awp_ability( $target ) {
 	}
 	if ( 1 !== count( $matches ) ) {
 		$native = wp_get_ability( $target );
+		$meta = $native instanceof WP_Ability ? $native->get_meta() : null;
 		cmsa_v2_awp_fail(
 			sprintf(
-				'Expected one universal facade for %1$s; found %2$d. native=%3$s init=%4$d abilities_init=%5$d provider_hooks=%6$d',
+				'Expected one universal facade for %1$s; found %2$d. native=%3$s init=%4$d abilities_init=%5$d provider_hooks=%6$d meta=%7$s',
 				$target,
 				count( $matches ),
 				$native instanceof WP_Ability ? 'present' : 'absent',
 				did_action( 'init' ),
 				did_action( 'wp_abilities_api_init' ),
-				cmsa_v2_awp_hook_count( 'wp_abilities_api_init' )
+				cmsa_v2_awp_hook_count( 'wp_abilities_api_init' ),
+				wp_json_encode( $meta )
 			)
 		);
 	}
