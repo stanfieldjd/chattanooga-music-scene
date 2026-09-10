@@ -211,7 +211,6 @@ final class CMSA_Universal_Resource_Reader {
 			'parent_id'    => (int) $post->post_parent,
 			'date_gmt'     => (string) $post->post_date_gmt,
 			'modified_gmt' => (string) $post->post_modified_gmt,
-			'state_token'  => CMSA_Universal_Post_State::token( $post ),
 		);
 		if ( $include_content ) {
 			$item['content'] = (string) $post->post_content;
