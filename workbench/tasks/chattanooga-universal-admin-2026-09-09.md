@@ -1,39 +1,57 @@
-# Chattanooga Universal Admin — from-scratch engineering experiment
+# Chattanooga CMS Admin — universal replacement engineering experiment
 
 Date: 2026-09-09
-Status: IN_PROGRESS
+Status: REPLACEMENT_IN_PROGRESS
 Branch: `work/chattanooga-universal-admin`
 Base: `main` at `f1c4c128f29215698a2408880a010e49faccac58`
 Production state: NOT_DEPLOYED
 
 ## Objective
 
-Determine whether one new WordPress plugin can administer functionality exposed by an arbitrary active plugin without Chattanooga-specific source code knowing that plugin's identity in advance.
+Replace the existing Chattanooga CMS Admin plugin with a plugin-agnostic implementation that can administer functionality exposed by arbitrary active plugins without its source code knowing those plugins' identities in advance.
+
+The universal architecture is the new implementation of Chattanooga CMS Admin. It is not a third production plugin and is not intended to coexist with the old Chattanooga CMS Admin implementation after replacement acceptance is complete.
+
+## Replacement identity rule
+
+The candidate WordPress plugin occupies the existing Chattanooga CMS Admin plugin slot:
+
+- WordPress plugin name: `Chattanooga CMS Admin`;
+- production folder target: `chattanooga-cms-admin`;
+- entrypoint target: `chattanooga-cms-admin.php`;
+- no second `Chattanooga Universal Admin` plugin entrypoint may exist;
+- the lab branch/folder may retain the historical `chattanooga-universal-admin` engineering name, but that is workbench naming only and must not create another WordPress plugin.
+
+Production transition, when separately authorized, must be one-for-one: the replacement takes the Chattanooga CMS Admin slot rather than being installed beside the old implementation.
 
 ## Architectural rule
 
-The candidate plugin may depend only on public WordPress contracts. It must not import, branch on, register adapters for, or otherwise special-case provider/plugin identities. New providers must become usable through runtime discovery rather than source modification.
+The replacement may depend only on public WordPress contracts. It must not import, branch on, register adapters for, or otherwise special-case provider/plugin identities. New providers must become usable through runtime discovery rather than source modification.
+
+The replacement is not accepted merely because it can coexist with the old plugin. Acceptance requires sufficient verified coverage that the old Chattanooga CMS Admin implementation can be removed rather than hidden or retained as a fallback.
 
 ## Exclusions
 
 - No changes to `main`.
 - No deployment or installation on the production WordPress site.
-- No modification of Chattanooga CMS Admin, miniOrange, Weekend Feature, Marketplace, WooCommerce, Events Manager, BuddyBoss, or other existing production integrations.
+- No modification of miniOrange, Weekend Feature, Marketplace, WooCommerce, Events Manager, BuddyBoss, or other existing production integrations.
+- No production co-installation of a separate Chattanooga Universal Admin plugin.
 - No provider/plugin names in candidate source.
 - No direct database, option, post, term, metadata, filesystem, or plugin-private-state mutation in candidate source.
 - No private or deliberately undiscoverable provider interface exposure.
 - No bypass of provider-owned WordPress permission callbacks.
 - No unrestricted `target + command` dispatch endpoint.
+- No deletion of the live Chattanooga CMS Admin implementation until replacement parity is execution-verified and deployment is explicitly authorized.
 
 ## Rollback point
 
-Delete or abandon `work/chattanooga-universal-admin`; `main` remains unchanged at the experiment base.
+Delete or abandon `work/chattanooga-universal-admin`; `main` and the production Chattanooga CMS Admin plugin remain unchanged.
 
 ## Phase 1 — WordPress Abilities API
 
 ### Selected line
 
-Use the WordPress Abilities API as the first executable contract. At runtime the candidate enumerates public abilities and registers explicit facade abilities under its own namespace. Each facade preserves the provider ability's schema and permission callback. The candidate does not contain provider identities and does not perform provider state mutation itself.
+Use the WordPress Abilities API as the first executable contract. At runtime the replacement enumerates public abilities and registers explicit facade abilities under its administration namespace. Each facade preserves the provider ability's schema and permission callback. The replacement does not contain provider identities and does not perform provider state mutation itself.
 
 ### Verified checkpoint
 
@@ -60,9 +78,9 @@ WordPress 7.1 defines `meta.public` as the high-level signal that an ability is 
 
 ### Selected line
 
-Extend the same candidate with a standard-contract module that enumerates the live `WP_REST_Server` route map during Abilities API registration. For each indexed route handler and supported HTTP method, register a deterministic, route-locked facade ability. The facade accepts a concrete path plus request parameters, verifies that the path matches only its captured route expression, applies the route's registered argument validation/sanitization and permission callback, then executes through `rest_do_request()` so WordPress remains the dispatcher.
+Extend the same replacement with a standard-contract module that enumerates the live `WP_REST_Server` route map during Abilities API registration. For each indexed route handler and supported HTTP method, register a deterministic, route-locked facade ability. The facade accepts a concrete path plus request parameters, verifies that the path matches only its captured route expression, applies the route's registered argument validation/sanitization and permission callback, then executes through `rest_do_request()` so WordPress remains the dispatcher.
 
-The candidate does not register provider REST routes, call provider callbacks directly for execution, or mutate provider state itself.
+The replacement does not register provider REST routes, call provider callbacks directly for execution, or mutate provider state itself.
 
 ### REST-only provider control
 
@@ -106,11 +124,21 @@ Verified REST-contract result:
 
 The Phase 2 commit differs from the prior clean checkpoint only in the nine intended candidate, fixture, probe, workflow, and task-record files. No production deployment occurred.
 
+## Replacement identity correction — current checkpoint target
+
+The prior lab candidate was incorrectly packaged as a separate WordPress plugin named `Chattanooga Universal Admin`. That packaging contradicted the project objective even though the universal engine itself was valid.
+
+The candidate has now been repackaged as the replacement `Chattanooga CMS Admin` plugin. The separate `chattanooga-universal-admin.php` WordPress entrypoint has been deleted. CI must install the candidate only as `chattanooga-cms-admin`, verify exactly one plugin header exists in the candidate, and fail if a separate Chattanooga Universal Admin plugin is installed.
+
+The already-verified Abilities and REST behavior must continue to pass unchanged after this replacement packaging correction.
+
 ## Current conclusion boundary
 
-The experiment now execution-verifies one unchanged candidate plugin administering unrelated providers through two public WordPress contracts without provider-specific candidate code:
+The experiment execution-verifies one plugin-agnostic engine administering unrelated providers through two public WordPress contracts without provider-specific candidate code:
 
 1. public WordPress Abilities API registrations; and
 2. indexed registered WordPress REST routes, including a provider that registers no ability.
 
-This materially supports the feasibility of a single plugin-agnostic administration bridge. It does not yet establish universal administration of functionality that is private, undocumented, deliberately hidden, available only through direct PHP/internal data structures, or exposed only through an administrative HTML interface. Those remaining interface classes must be investigated independently; they must not be filled with per-plugin adapters merely to increase apparent coverage.
+The target product is now explicitly the replacement Chattanooga CMS Admin plugin, not an additional plugin. Full replacement is not yet complete because the old Chattanooga CMS Admin capability surface has not yet been proven unnecessary across all required site administration functions. Private, undocumented, deliberately hidden, direct-PHP/internal, administrative-HTML-only, and other uncovered interfaces still require investigation. Those gaps must not be filled with per-plugin adapters merely to increase apparent coverage.
+
+Final replacement acceptance requires execution evidence that required site administration remains available after the old implementation is absent. Only then may the old implementation be removed during a separately authorized production transition.
