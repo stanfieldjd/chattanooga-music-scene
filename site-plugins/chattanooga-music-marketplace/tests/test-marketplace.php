@@ -14,6 +14,7 @@ $GLOBALS['cms_marketplace_test_product_terms'] = array(
 	293 => (object) array( 'term_id' => 293, 'name' => 'Guitar Accessories', 'slug' => 'guitar-accessories' ),
 );
 
+function add_shortcode() {}
 function add_filter() {}
 function add_action() {}
 function wp_enqueue_style() {}
@@ -145,12 +146,6 @@ function cms_marketplace_test_private( $object, $method, array $args = array() )
 	return $reflection->invokeArgs( $object, $args );
 }
 
-function cms_marketplace_test_property( $object, $property ) {
-	$reflection = new ReflectionProperty( 'CMS_Unified_Marketplace', $property );
-	$reflection->setAccessible( true );
-	return $reflection->getValue( $object );
-}
-
 function cms_marketplace_assert_same( $expected, $actual, $message ) {
 	if ( $expected !== $actual ) {
 		fwrite( STDERR, "FAIL: {$message}\n" );
@@ -165,15 +160,39 @@ $marketplace = cms_marketplace_test_instance();
 cms_marketplace_assert_same(
 	false,
 	cms_marketplace_test_private( $marketplace, 'integration_ready' ),
-	'Unified rendering must remain inactive while the legacy standalone product block exists.'
+	'Unified rendering must remain inactive while legacy Marketplace shortcodes remain.'
 );
 
 $GLOBALS['cms_marketplace_test_page_content'] = '<p>[AWPCPCLASSIFIEDSUI]</p>';
 $marketplace = cms_marketplace_test_instance();
 cms_marketplace_assert_same(
+	false,
+	cms_marketplace_test_private( $marketplace, 'integration_ready' ),
+	'The legacy AWP shortcode alone must not activate the direct unified renderer.'
+);
+
+$GLOBALS['cms_marketplace_test_page_content'] = '<p>[cms_marketplace]</p>';
+$marketplace = cms_marketplace_test_instance();
+cms_marketplace_assert_same(
 	true,
 	cms_marketplace_test_private( $marketplace, 'integration_ready' ),
-	'Unified rendering must activate only after the standalone product block is removed.'
+	'The dedicated Marketplace shortcode must activate the unified renderer.'
+);
+
+$GLOBALS['cms_marketplace_test_page_content'] = '<p>[cms_marketplace]</p><p>[products limit="12"]</p>';
+$marketplace = cms_marketplace_test_instance();
+cms_marketplace_assert_same(
+	false,
+	cms_marketplace_test_private( $marketplace, 'integration_ready' ),
+	'The unified renderer must fail closed if the standalone product shortcode is still present.'
+);
+
+$GLOBALS['cms_marketplace_test_page_content'] = '<p>[cms_marketplace]</p><p>[AWPCPCLASSIFIEDSUI]</p>';
+$marketplace = cms_marketplace_test_instance();
+cms_marketplace_assert_same(
+	false,
+	cms_marketplace_test_private( $marketplace, 'integration_ready' ),
+	'The unified renderer must fail closed if the legacy AWP shortcode is still present.'
 );
 
 $GLOBALS['cms_marketplace_test_page_content'] = '<p>ordinary page content</p>';
@@ -181,7 +200,37 @@ $marketplace = cms_marketplace_test_instance();
 cms_marketplace_assert_same(
 	false,
 	cms_marketplace_test_private( $marketplace, 'integration_ready' ),
-	'The feature must not activate when the Marketplace listing interface is absent.'
+	'The feature must not activate when the dedicated Marketplace shortcode is absent.'
+);
+
+$listing_items = array( 'L1', 'L2', 'L3', 'L4' );
+$product_items = array( 'P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8' );
+$marketplace   = cms_marketplace_test_instance();
+cms_marketplace_assert_same(
+	array( 'L1', 'P1', 'P2', 'L2', 'P3', 'P4', 'L3', 'P5', 'P6', 'L4', 'P7', 'P8' ),
+	cms_marketplace_test_private( $marketplace, 'merge_rendered_items', array( $listing_items, $product_items ) ),
+	'Products must be distributed through the rendered community listing stream.'
+);
+
+$marketplace = cms_marketplace_test_instance();
+cms_marketplace_assert_same(
+	array( 'P1', 'P2' ),
+	cms_marketplace_test_private( $marketplace, 'merge_rendered_items', array( array(), array( 'P1', 'P2' ) ) ),
+	'Product-only results must remain real list items so AWP does not render a false empty-state message.'
+);
+
+$marketplace = cms_marketplace_test_instance();
+cms_marketplace_assert_same(
+	$listing_items,
+	cms_marketplace_test_private( $marketplace, 'merge_rendered_items', array( $listing_items, array() ) ),
+	'Community-only results must remain unchanged when there are no matching store products.'
+);
+
+$marketplace = cms_marketplace_test_instance();
+cms_marketplace_assert_same(
+	false,
+	cms_marketplace_test_private( $marketplace, 'is_first_results_page', array( array( 'paged' => 2 ) ) ),
+	'Store products must not repeat on later Marketplace pages.'
 );
 
 $visible_a = new WC_Product( true, 'Visible A' );
@@ -193,28 +242,6 @@ cms_marketplace_assert_same(
 	array( $visible_a, $visible_b ),
 	cms_marketplace_test_private( $marketplace, 'get_catalog_products' ),
 	'Only catalog-visible published products may enter the Marketplace stream.'
-);
-
-$GLOBALS['cms_marketplace_test_products'] = array(
-	new WC_Product(), new WC_Product(), new WC_Product(), new WC_Product(),
-	new WC_Product(), new WC_Product(), new WC_Product(), new WC_Product(),
-);
-$GLOBALS['cms_marketplace_test_page_content'] = '<p>[AWPCPCLASSIFIEDSUI]</p>';
-$marketplace = cms_marketplace_test_instance();
-$listings    = array( (object) array(), (object) array(), (object) array(), (object) array() );
-$marketplace->prepare_interleaving( array(), 'main-page', $listings, array( 'offset' => 0, 'paged' => 1 ) );
-cms_marketplace_assert_same(
-	array( 1 => 2, 2 => 2, 3 => 2, 4 => 2 ),
-	cms_marketplace_test_property( $marketplace, 'assignments' ),
-	'Products must be distributed across the existing Marketplace listing stream.'
-);
-
-$marketplace = cms_marketplace_test_instance();
-$marketplace->prepare_interleaving( array(), 'browse-listings', $listings, array( 'offset' => 10, 'paged' => 2 ) );
-cms_marketplace_assert_same(
-	array(),
-	cms_marketplace_test_property( $marketplace, 'assignments' ),
-	'Products must not repeat on later listing pages.'
 );
 
 $accessory = new WC_Product( true, 'Steel Guitar Slide', array( 293 ), '9.99' );
