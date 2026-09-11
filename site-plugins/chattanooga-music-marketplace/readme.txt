@@ -23,12 +23,23 @@ when opened.
 
 == Deployment guard ==
 
-The feature remains inactive while the Marketplace page still contains the legacy
-standalone [products] block. This prevents duplicate product output during a
-future deployment transition. The existing community listing shortcode must also
-remain present.
+The feature activates only when the Marketplace page uses the dedicated
+[cms_marketplace] shortcode. It remains inactive while either legacy
+[AWPCPCLASSIFIEDSUI] or standalone [products] output is still present on that
+page. This fail-closed transition prevents duplicate or split Marketplace output
+while the old page content is being replaced.
 
-== Filter behavior ==
+The dedicated shortcode renders the community-listing stream and catalog-visible
+store products together. The old community-listing and store-product shortcodes
+therefore must be removed from the Marketplace page when the transition is made;
+they must not be hidden with CSS or left behind as duplicate renderers.
+
+== Browse and search behavior ==
+
+The same unified renderer is used by the AWP Classifieds Browse and Search routes
+through their public replacement hooks. If another integration has already
+provided non-null replacement output, this feature leaves that output unchanged
+instead of taking ownership of the route.
 
 Unfiltered Marketplace results interleave catalog-visible store products with
 community listings. Text search and price filters also apply to store products.
@@ -47,4 +58,5 @@ location label.
 * Hidden or internal products stay excluded through catalog visibility.
 * Later listing pages do not repeat store products.
 * Category mappings are evidence-based exact matches, not inferred aliases.
+* AWP Browse and Search keep any replacement output already owned by another integration.
 * The Weekend Feature is not loaded, modified or depended on by this feature.
