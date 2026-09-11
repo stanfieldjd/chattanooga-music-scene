@@ -164,6 +164,7 @@ final class CMS_Unified_Marketplace {
 					function ( $product ) use ( $product_category_ids ) {
 						return ! empty( array_intersect( $product_category_ids, array_map( 'absint', $product->get_category_ids() ) ) );
 					}
+				)
 			);
 		}
 
@@ -187,6 +188,7 @@ final class CMS_Unified_Marketplace {
 					function ( $product ) use ( $min_price, $max_price ) {
 						return $this->product_matches_price_range( $product, $min_price, $max_price );
 					}
+				)
 			);
 		}
 
