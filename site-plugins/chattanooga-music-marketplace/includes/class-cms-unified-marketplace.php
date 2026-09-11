@@ -569,7 +569,6 @@ final class CMS_Unified_Marketplace {
 					$category_ids = array_merge( $category_ids, array_map( 'absint', $children ) );
 				}
 			}
-		}
 
 		return array_values( array_unique( array_filter( $category_ids ) ) );
 	}
@@ -736,7 +735,7 @@ final class CMS_Unified_Marketplace {
 				</a>
 			</div>
 			<div class="cms-marketplace-item__content">
-				<h4 class="cms-marketplace-item__title">
+				<h4 class="awpcp-listing-title cms-marketplace-item__title">
 					<a href="<?php echo esc_url( $url ); ?>"><?php echo esc_html( $title ); ?></a>
 				</h4>
 				<?php if ( $description ) : ?>
