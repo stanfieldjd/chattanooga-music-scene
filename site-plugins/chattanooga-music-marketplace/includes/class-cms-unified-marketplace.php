@@ -440,6 +440,7 @@ final class CMS_Unified_Marketplace {
 					$product_ids[] = $product_id;
 				}
 			}
+		}
 
 		if ( empty( $product_ids ) ) {
 			return array();
