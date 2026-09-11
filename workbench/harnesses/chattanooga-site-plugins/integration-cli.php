@@ -108,7 +108,7 @@ $product->set_name( 'Integration Test Guitar Strings' );
 $product->set_status( 'publish' );
 $product->set_catalog_visibility( 'visible' );
 $product->set_regular_price( '12.99' );
-$product->set_short_description( 'Fresh strings for the integration test.' );
+$product->set_short_description( 'Fresh strings for the integration test and stage use with reliable tone, comfortable feel, balanced tension, durable winding, smooth playability, clear response, and dependable performance for rehearsals, recording sessions, and live shows.' );
 $product->set_stock_status( 'instock' );
 $product_id = $product->save();
 cms_site_plugins_assert( $product_id > 0, 'Could not create the Marketplace WooCommerce product.' );
@@ -137,6 +137,8 @@ $rendered = $marketplace->interleave_product( '<article>Community listing</artic
 cms_site_plugins_assert( false !== strpos( $rendered, 'Integration Test Guitar Strings' ), 'Store product was not interleaved into the Marketplace stream.' );
 cms_site_plugins_assert( false !== strpos( wp_strip_all_tags( $rendered ), 'Price:' ), 'Marketplace product price is missing.' );
 cms_site_plugins_assert( false === stripos( wp_strip_all_tags( $rendered ), 'WooCommerce' ), 'Marketplace rendered a customer-facing WooCommerce label.' );
+cms_site_plugins_assert( false === strpos( $rendered, '&amp;hellip;' ), 'Marketplace double-escaped the description truncation suffix.' );
+cms_site_plugins_assert( false !== strpos( $rendered, '…' ), 'Marketplace did not render a visible ellipsis for a truncated description.' );
 
 $multi_term_search = cms_site_plugins_private(
 	$marketplace,
@@ -178,5 +180,5 @@ wp_set_current_user( 0 );
 cms_site_plugins_assert( false === $health->check_permissions( array() ), 'Anonymous CMS Admin access was not denied.' );
 wp_set_current_user( 1 );
 
-echo "cms-site-plugins-integration: PASS cms_admin=1.0.0 marketplace=0.1.1 weekend_feature=0.2.1 wordpress_native_install=verified coexistence=verified marketplace_awp=verified marketplace_woocommerce=verified marketplace_search=verified woocommerce_label=absent location_filter=preserved weekend_events_manager=verified weekend_schedule=verified cms_admin_health=verified database=verified admin_boundary=verified\n";
+echo "cms-site-plugins-integration: PASS cms_admin=1.0.0 marketplace=0.1.1 weekend_feature=0.2.1 wordpress_native_install=verified coexistence=verified marketplace_awp=verified marketplace_woocommerce=verified marketplace_search=verified marketplace_truncation=verified woocommerce_label=absent location_filter=preserved weekend_events_manager=verified weekend_schedule=verified cms_admin_health=verified database=verified admin_boundary=verified\n";
 exit( 0 );
