@@ -164,7 +164,6 @@ final class CMS_Unified_Marketplace {
 					function ( $product ) use ( $product_category_ids ) {
 						return ! empty( array_intersect( $product_category_ids, array_map( 'absint', $product->get_category_ids() ) ) );
 					}
-				)
 			);
 		}
 
@@ -188,7 +187,6 @@ final class CMS_Unified_Marketplace {
 					function ( $product ) use ( $min_price, $max_price ) {
 						return $this->product_matches_price_range( $product, $min_price, $max_price );
 					}
-				)
 			);
 		}
 
@@ -447,7 +445,7 @@ final class CMS_Unified_Marketplace {
 			$description = $product->get_description();
 		}
 
-		$description = wp_trim_words( wp_strip_all_tags( strip_shortcodes( $description ) ), 28, '&hellip;' );
+		$description = wp_trim_words( wp_strip_all_tags( strip_shortcodes( $description ) ), 28, '…' );
 		$price_html  = $product->get_price_html();
 		$image_html  = $product->get_image(
 			'medium',
