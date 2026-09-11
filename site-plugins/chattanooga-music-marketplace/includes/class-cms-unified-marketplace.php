@@ -149,9 +149,11 @@ final class CMS_Unified_Marketplace {
 			return array();
 		}
 
-		$category_id = isset( $classifieds_query['category'] ) ? absint( $classifieds_query['category'] ) : 0;
-		if ( $category_id > 0 ) {
-			$product_category_ids = $this->resolve_product_category_ids( $category_id );
+		$category_ids = isset( $classifieds_query['category'] )
+			? $this->normalize_category_ids( $classifieds_query['category'] )
+			: array();
+		if ( ! empty( $category_ids ) ) {
+			$product_category_ids = $this->resolve_product_category_ids( $category_ids );
 			if ( empty( $product_category_ids ) ) {
 				return array();
 			}
@@ -226,30 +228,54 @@ final class CMS_Unified_Marketplace {
 		return '' !== $normalized && '0' !== $normalized;
 	}
 
-	private function resolve_product_category_ids( $awpcp_category_id ) {
+	private function normalize_category_ids( $categories ) {
+		if ( ! is_array( $categories ) ) {
+			$categories = array( $categories );
+		}
+
+		$category_ids = array();
+		foreach ( $categories as $category ) {
+			if ( is_array( $category ) ) {
+				$category_ids = array_merge( $category_ids, $this->normalize_category_ids( $category ) );
+				continue;
+			}
+
+			$category_id = absint( $category );
+			if ( $category_id > 0 ) {
+				$category_ids[] = $category_id;
+			}
+		}
+
+		return array_values( array_unique( $category_ids ) );
+	}
+
+	private function resolve_product_category_ids( $awpcp_category_ids ) {
 		if ( ! function_exists( 'get_term' ) || ! function_exists( 'get_term_by' ) ) {
 			return array();
 		}
 
-		$awpcp_term = get_term( $awpcp_category_id, 'awpcp_listing_category' );
-		if ( ! $awpcp_term || is_wp_error( $awpcp_term ) ) {
-			return array();
-		}
+		$category_ids = array();
+		foreach ( $this->normalize_category_ids( $awpcp_category_ids ) as $awpcp_category_id ) {
+			$awpcp_term = get_term( $awpcp_category_id, 'awpcp_listing_category' );
+			if ( ! $awpcp_term || is_wp_error( $awpcp_term ) ) {
+				continue;
+			}
 
-		$product_term = get_term_by( 'slug', $awpcp_term->slug, 'product_cat' );
-		if ( ! $product_term ) {
-			$product_term = get_term_by( 'name', $awpcp_term->name, 'product_cat' );
-		}
+			$product_term = get_term_by( 'slug', $awpcp_term->slug, 'product_cat' );
+			if ( ! $product_term ) {
+				$product_term = get_term_by( 'name', $awpcp_term->name, 'product_cat' );
+			}
 
-		if ( ! $product_term || is_wp_error( $product_term ) ) {
-			return array();
-		}
+			if ( ! $product_term || is_wp_error( $product_term ) ) {
+				continue;
+			}
 
-		$category_ids = array( absint( $product_term->term_id ) );
-		if ( function_exists( 'get_term_children' ) ) {
-			$children = get_term_children( $product_term->term_id, 'product_cat' );
-			if ( is_array( $children ) ) {
-				$category_ids = array_merge( $category_ids, array_map( 'absint', $children ) );
+			$category_ids[] = absint( $product_term->term_id );
+			if ( function_exists( 'get_term_children' ) ) {
+				$children = get_term_children( $product_term->term_id, 'product_cat' );
+				if ( is_array( $children ) ) {
+					$category_ids = array_merge( $category_ids, array_map( 'absint', $children ) );
+				}
 			}
 		}
 
