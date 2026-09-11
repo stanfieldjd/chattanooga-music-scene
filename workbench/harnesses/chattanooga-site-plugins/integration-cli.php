@@ -22,6 +22,24 @@ function cms_site_plugins_private( $object, $method, array $args = array() ) {
 	return $reflection->invokeArgs( $object, $args );
 }
 
+function cms_site_plugins_set_request( array $values ) {
+	$_GET     = $values;
+	$_POST    = array();
+	$_REQUEST = $values;
+}
+
+function cms_site_plugins_set_page_query( $page_id ) {
+	$query = new WP_Query(
+		array(
+			'page_id'   => (int) $page_id,
+			'post_type' => 'page',
+		)
+	);
+
+	$GLOBALS['wp_query']     = $query;
+	$GLOBALS['wp_the_query'] = $query;
+}
+
 wp_set_current_user( 1 );
 
 require_once ABSPATH . 'wp-admin/includes/plugin.php';
@@ -128,8 +146,14 @@ $product->set_stock_status( 'instock' );
 $product_id = $product->save();
 cms_site_plugins_assert( $product_id > 0, 'Could not create the Marketplace WooCommerce product.' );
 
-$prior_wp_query      = isset( $GLOBALS['wp_query'] ) ? $GLOBALS['wp_query'] : null;
-$GLOBALS['wp_query'] = new WP_Query( array( 'page_id' => CMS_Unified_Marketplace::MARKETPLACE_PAGE_ID, 'post_type' => 'page' ) );
+$prior_wp_query     = isset( $GLOBALS['wp_query'] ) ? $GLOBALS['wp_query'] : null;
+$prior_wp_the_query = isset( $GLOBALS['wp_the_query'] ) ? $GLOBALS['wp_the_query'] : null;
+$prior_get          = $_GET;
+$prior_post         = $_POST;
+$prior_request      = $_REQUEST;
+
+cms_site_plugins_set_request( array() );
+cms_site_plugins_set_page_query( CMS_Unified_Marketplace::MARKETPLACE_PAGE_ID );
 cms_site_plugins_assert( is_page( CMS_Unified_Marketplace::MARKETPLACE_PAGE_ID ), 'Disposable request is not recognized as the Marketplace page.' );
 
 $rendered = do_shortcode( '[cms_marketplace]' );
@@ -174,15 +198,97 @@ $location_filtered = cms_site_plugins_private(
 );
 cms_site_plugins_assert( array() === $location_filtered, 'Marketplace incorrectly inserted a store product into a location-filtered result.' );
 
+// Exercise AWP's real Browse route. The Marketplace filter must replace the zero-listing output with the same product stream.
+$browse_page_id = absint( awpcp_get_page_id_by_ref( 'browse-ads-page-name' ) );
+cms_site_plugins_assert( $browse_page_id > 0, 'AWP Browse Listings page is unavailable.' );
+cms_site_plugins_set_request( array() );
+cms_site_plugins_set_page_query( $browse_page_id );
+$browse_rendered = awpcp_browse_listings_page()->dispatch();
+cms_site_plugins_assert( false !== strpos( $browse_rendered, 'Integration Test Guitar Strings' ), 'AWP Browse route did not render the store product in the unified Marketplace stream.' );
+cms_site_plugins_assert( false === strpos( $browse_rendered, 'There were no listings found.' ), 'AWP Browse route rendered a false empty-state message while a store product exists.' );
+cms_site_plugins_assert( false === stripos( wp_strip_all_tags( $browse_rendered ), 'WooCommerce' ), 'AWP Browse route exposed the commerce engine label.' );
+cms_site_plugins_assert( false === stripos( wp_strip_all_tags( $browse_rendered ), 'CJ Dropshipping' ), 'AWP Browse route exposed the supplier label.' );
+
+// Exercise AWP's real Search route with a matching product-only result.
+$search_page_id = absint( awpcp_get_page_id_by_ref( 'search-ads-page-name' ) );
+cms_site_plugins_assert( $search_page_id > 0, 'AWP Search Listings page is unavailable.' );
+cms_site_plugins_set_request(
+	array(
+		'awpcp-step'      => 'dosearch',
+		'keywordphrase'   => 'Integration Strings',
+		'searchname'      => '',
+		'searchpricemin'  => '',
+		'searchpricemax'  => '',
+		'searchcategory'  => array(),
+		'regions'         => array(),
+	)
+);
+cms_site_plugins_set_page_query( $search_page_id );
+$search_rendered = awpcp_search_listings_page()->dispatch();
+cms_site_plugins_assert( false !== strpos( $search_rendered, 'Integration Test Guitar Strings' ), 'AWP Search route did not render the matching store product.' );
+cms_site_plugins_assert( false === strpos( $search_rendered, 'There were no listings found.' ), 'AWP Search route rendered a false empty-state message while a matching store product exists.' );
+cms_site_plugins_assert( false === stripos( wp_strip_all_tags( $search_rendered ), 'WooCommerce' ), 'AWP Search route exposed the commerce engine label.' );
+cms_site_plugins_assert( false === stripos( wp_strip_all_tags( $search_rendered ), 'CJ Dropshipping' ), 'AWP Search route exposed the supplier label.' );
+
+// A location-filtered AWP search must not inject store products that have no Marketplace location data.
+cms_site_plugins_set_request(
+	array(
+		'awpcp-step'      => 'dosearch',
+		'keywordphrase'   => '',
+		'searchname'      => '',
+		'searchpricemin'  => '',
+		'searchpricemax'  => '',
+		'searchcategory'  => array(),
+		'regions'         => array( 'city' => 'Chattanooga' ),
+	)
+);
+cms_site_plugins_set_page_query( $search_page_id );
+$location_search_rendered = awpcp_search_listings_page()->dispatch();
+cms_site_plugins_assert( false === strpos( $location_search_rendered, 'Integration Test Guitar Strings' ), 'AWP Search route inserted a store product into a location-filtered result.' );
+
+// Respect another integration that has already claimed an AWP replacement hook.
+$earlier_replacement = static function ( $output ) {
+	return null === $output ? '<div class="integration-owner">Earlier integration owns this output.</div>' : $output;
+};
+add_filter( 'awpcp-browse-listings-content-replacement', $earlier_replacement, 10, 2 );
+cms_site_plugins_set_request( array() );
+cms_site_plugins_set_page_query( $browse_page_id );
+$claimed_browse = awpcp_browse_listings_page()->dispatch();
+cms_site_plugins_assert( false !== strpos( $claimed_browse, 'Earlier integration owns this output.' ), 'Marketplace overrode a Browse replacement already supplied by another integration.' );
+remove_filter( 'awpcp-browse-listings-content-replacement', $earlier_replacement, 10 );
+
+add_filter( 'awpcp-search-listings-content-replacement', $earlier_replacement, 10, 2 );
+cms_site_plugins_set_request(
+	array(
+		'awpcp-step'      => 'dosearch',
+		'keywordphrase'   => 'Integration Strings',
+		'searchname'      => '',
+		'searchpricemin'  => '',
+		'searchpricemax'  => '',
+		'searchcategory'  => array(),
+		'regions'         => array(),
+	)
+);
+cms_site_plugins_set_page_query( $search_page_id );
+$claimed_search = awpcp_search_listings_page()->dispatch();
+cms_site_plugins_assert( false !== strpos( $claimed_search, 'Earlier integration owns this output.' ), 'Marketplace overrode a Search replacement already supplied by another integration.' );
+remove_filter( 'awpcp-search-listings-content-replacement', $earlier_replacement, 10 );
+
 wp_delete_post( $product_id, true );
 wp_delete_post( CMS_Unified_Marketplace::MARKETPLACE_PAGE_ID, true );
+$_GET     = $prior_get;
+$_POST    = $prior_post;
+$_REQUEST = $prior_request;
 if ( null !== $prior_wp_query ) {
 	$GLOBALS['wp_query'] = $prior_wp_query;
+}
+if ( null !== $prior_wp_the_query ) {
+	$GLOBALS['wp_the_query'] = $prior_wp_the_query;
 }
 
 wp_set_current_user( 0 );
 cms_site_plugins_assert( false === $health->check_permissions( array() ), 'Anonymous CMS Admin access was not denied.' );
 wp_set_current_user( 1 );
 
-echo "cms-site-plugins-integration: PASS cms_admin=1.0.0 marketplace=0.1.1 weekend_feature=0.2.1 wordpress_native_install=verified coexistence=verified marketplace_awp=verified marketplace_woocommerce=verified marketplace_product_only=verified marketplace_empty_state=absent marketplace_search=verified marketplace_truncation=verified woocommerce_label=absent supplier_label=absent location_filter=preserved weekend_events_manager=verified weekend_schedule=verified cms_admin_health=verified database=verified admin_boundary=verified\n";
+echo "cms-site-plugins-integration: PASS cms_admin=1.0.0 marketplace=0.1.1 weekend_feature=0.2.1 wordpress_native_install=verified coexistence=verified marketplace_awp=verified marketplace_woocommerce=verified marketplace_product_only=verified marketplace_empty_state=absent marketplace_browse_route=verified marketplace_search_route=verified marketplace_route_ownership=preserved marketplace_search=verified marketplace_truncation=verified woocommerce_label=absent supplier_label=absent location_filter=preserved weekend_events_manager=verified weekend_schedule=verified cms_admin_health=verified database=verified admin_boundary=verified\n";
 exit( 0 );
