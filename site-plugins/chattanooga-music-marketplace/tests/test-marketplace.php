@@ -191,6 +191,28 @@ cms_marketplace_assert_same(
 
 $marketplace = cms_marketplace_test_instance();
 cms_marketplace_assert_same(
+	array( $accessory ),
+	cms_marketplace_test_private(
+		$marketplace,
+		'get_products_for_query',
+		array( 'search', array( 'classifieds_query' => array( 'category' => array( 43 ) ) ) )
+	),
+	'AWP search category arrays must preserve the selected Marketplace category.'
+);
+
+$marketplace = cms_marketplace_test_instance();
+cms_marketplace_assert_same(
+	array( $accessory ),
+	cms_marketplace_test_private(
+		$marketplace,
+		'get_products_for_query',
+		array( 'search', array( 'classifieds_query' => array( 'category' => array( 42, 43 ) ) ) )
+	),
+	'Multiple AWP search categories must include products from every exact category mapping.'
+);
+
+$marketplace = cms_marketplace_test_instance();
+cms_marketplace_assert_same(
 	array(),
 	cms_marketplace_test_private(
 		$marketplace,
