@@ -138,6 +138,22 @@ cms_site_plugins_assert( false !== strpos( $rendered, 'Integration Test Guitar S
 cms_site_plugins_assert( false !== strpos( wp_strip_all_tags( $rendered ), 'Price:' ), 'Marketplace product price is missing.' );
 cms_site_plugins_assert( false === stripos( wp_strip_all_tags( $rendered ), 'WooCommerce' ), 'Marketplace rendered a customer-facing WooCommerce label.' );
 
+$multi_term_search = cms_site_plugins_private(
+	$marketplace,
+	'get_products_for_query',
+	array(
+		'search',
+		array(
+			's'                 => 'Integration Strings',
+			'classifieds_query' => array(),
+		),
+	)
+);
+cms_site_plugins_assert(
+	1 === count( $multi_term_search ) && $product_id === (int) $multi_term_search[0]->get_id(),
+	'Marketplace product search does not preserve WordPress multi-term search semantics.'
+);
+
 $location_filtered = cms_site_plugins_private(
 	$marketplace,
 	'get_products_for_query',
@@ -162,5 +178,5 @@ wp_set_current_user( 0 );
 cms_site_plugins_assert( false === $health->check_permissions( array() ), 'Anonymous CMS Admin access was not denied.' );
 wp_set_current_user( 1 );
 
-echo "cms-site-plugins-integration: PASS cms_admin=1.0.0 marketplace=0.1.1 weekend_feature=0.2.1 wordpress_native_install=verified coexistence=verified marketplace_awp=verified marketplace_woocommerce=verified woocommerce_label=absent location_filter=preserved weekend_events_manager=verified weekend_schedule=verified cms_admin_health=verified database=verified admin_boundary=verified\n";
+echo "cms-site-plugins-integration: PASS cms_admin=1.0.0 marketplace=0.1.1 weekend_feature=0.2.1 wordpress_native_install=verified coexistence=verified marketplace_awp=verified marketplace_woocommerce=verified marketplace_search=verified woocommerce_label=absent location_filter=preserved weekend_events_manager=verified weekend_schedule=verified cms_admin_health=verified database=verified admin_boundary=verified\n";
 exit( 0 );
