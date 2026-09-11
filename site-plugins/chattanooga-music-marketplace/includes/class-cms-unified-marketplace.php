@@ -25,10 +25,14 @@ final class CMS_Unified_Marketplace {
 	private function __construct() {
 		add_shortcode( self::SHORTCODE, array( $this, 'render_shortcode' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_styles' ) );
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- AWP Classifieds owns this public extension hook.
+		add_filter( 'awpcp-browse-listings-content-replacement', array( $this, 'replace_browse_listings_content' ), 20, 2 );
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- AWP Classifieds owns this public extension hook.
+		add_filter( 'awpcp-search-listings-content-replacement', array( $this, 'replace_search_listings_content' ), 20, 2 );
 	}
 
 	public function enqueue_styles() {
-		if ( ! $this->is_marketplace_request() ) {
+		if ( ! $this->is_marketplace_surface_request() ) {
 			return;
 		}
 
@@ -75,9 +79,93 @@ final class CMS_Unified_Marketplace {
 		return $this->render_unified_listings_in_page( $query, 'main-page' );
 	}
 
+	public function replace_browse_listings_content( $output, $category_id ) {
+		if ( null !== $output || ! $this->integration_ready() || ! $this->dependencies_ready() ) {
+			return $output;
+		}
+
+		$query = array(
+			'classifieds_query' => array(
+				'context' => 'public-listings',
+			),
+			'orderby'           => get_awpcp_option( 'groupbrowseadsby' ),
+		);
+
+		$category_id = absint( $category_id );
+		if ( $category_id > 0 ) {
+			$query['classifieds_query']['category'] = $category_id;
+		}
+
+		$page    = awpcp_browse_listings_page();
+		$options = array( 'page' => $page->page );
+
+		return $this->render_unified_listings_in_page( $query, 'browse-listings', $options );
+	}
+
+	public function replace_search_listings_content( $output, $form ) {
+		if ( null !== $output || ! is_array( $form ) || ! $this->integration_ready() || ! $this->dependencies_ready() ) {
+			return $output;
+		}
+
+		$query = array(
+			's'                 => isset( $form['query'] ) ? $form['query'] : '',
+			'classifieds_query' => array(
+				'context'      => 'public-listings',
+				'category'     => isset( $form['category'] ) ? $form['category'] : null,
+				'contact_name' => isset( $form['name'] ) ? $form['name'] : '',
+				'min_price'    => isset( $form['min_price'] ) ? $form['min_price'] : null,
+				'max_price'    => isset( $form['max_price'] ) ? $form['max_price'] : null,
+				'regions'      => isset( $form['regions'] ) ? $form['regions'] : null,
+			),
+			'posts_per_page'    => awpcp_get_var(
+				array(
+					'param'    => 'results',
+					'default'  => get_awpcp_option( 'adresultsperpage', 10 ),
+					'sanitize' => 'absint',
+				)
+			),
+			'offset'            => awpcp_get_var(
+				array(
+					'param'    => 'offset',
+					'default'  => 0,
+					'sanitize' => 'absint',
+				)
+			),
+			'orderby'           => get_awpcp_option( 'search-results-order' ),
+		);
+
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- AWP Classifieds owns this public extension hook.
+		$query = apply_filters( 'awpcp-search-listings-query', $query, $form );
+
+		$page    = awpcp_search_listings_page();
+		$options = array(
+			'show_intro_message'         => true,
+			'show_menu_items'            => false,
+			'show_category_selector'     => false,
+			'show_pagination'            => true,
+			'classifieds_bar_components' => array( 'search_bar' => false ),
+		);
+
+		$position = get_awpcp_option( 'search-form-in-results' );
+		if ( 'above' === $position ) {
+			$options['before_pagination'] = $this->render_search_form( $form );
+		}
+		if ( 'below' === $position ) {
+			$options['after_pagination'] = $this->render_search_form( $form );
+		}
+		if ( 'none' === $position ) {
+			$options['before_list'] = $page->build_return_link();
+		}
+
+		$search_results = $this->render_unified_listings( $query, 'search', $options );
+
+		return $page->render( 'content', $search_results );
+	}
+
 	private function dependencies_ready() {
 		$required_functions = array(
 			'awpcp_array_merge_recursive',
+			'awpcp_browse_listings_page',
 			'awpcp_categories_switcher',
 			'awpcp_current_url',
 			'awpcp_display_the_classifieds_page_body',
@@ -85,12 +173,15 @@ final class CMS_Unified_Marketplace {
 			'awpcp_flatten_array',
 			'awpcp_get_current_page_name',
 			'awpcp_get_option',
+			'awpcp_get_page_id_by_ref',
 			'awpcp_get_results_offset',
 			'awpcp_get_results_per_page',
 			'awpcp_get_var',
 			'awpcp_listings_collection',
 			'awpcp_pagination',
 			'awpcp_render_listings_items',
+			'awpcp_search_listings_page',
+			'awpcp_template_renderer',
 			'wc_get_products',
 		);
 
@@ -105,6 +196,33 @@ final class CMS_Unified_Marketplace {
 
 	private function is_marketplace_request() {
 		return ! is_admin() && is_page( self::MARKETPLACE_PAGE_ID ) && $this->integration_ready();
+	}
+
+	private function is_marketplace_surface_request() {
+		if ( is_admin() || ! $this->integration_ready() ) {
+			return false;
+		}
+
+		if ( is_page( self::MARKETPLACE_PAGE_ID ) ) {
+			return true;
+		}
+
+		if ( ! function_exists( 'awpcp_get_page_id_by_ref' ) ) {
+			return false;
+		}
+
+		$page_ids = array(
+			absint( awpcp_get_page_id_by_ref( 'browse-ads-page-name' ) ),
+			absint( awpcp_get_page_id_by_ref( 'search-ads-page-name' ) ),
+		);
+
+		foreach ( array_filter( $page_ids ) as $page_id ) {
+			if ( is_page( $page_id ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	private function integration_ready() {
@@ -123,6 +241,31 @@ final class CMS_Unified_Marketplace {
 			&& ! has_shortcode( $content, 'products' );
 
 		return $this->integration_ready;
+	}
+
+	private function render_search_form( $form ) {
+		$errors = array();
+		$ui     = array(
+			'module-extra-fields'                      => ! empty( $GLOBALS['hasextrafieldsmodule'] ),
+			'posted-by-field'                          => get_awpcp_option( 'displaypostedbyfield' ),
+			'price-field'                              => get_awpcp_option( 'display_price_field_on_search_form' ),
+			'allow-user-to-search-in-multiple-regions' => get_awpcp_option( 'allow-user-to-search-in-multiple-regions' ),
+		);
+
+		$url_params = wp_parse_args( wp_parse_url( awpcp_current_url(), PHP_URL_QUERY ) );
+		foreach ( $form as $name => $value ) {
+			if ( isset( $url_params[ $name ] ) ) {
+				unset( $url_params[ $name ] );
+			}
+		}
+		unset( $url_params['searchcategory'] );
+
+		$action_url = awpcp_current_url();
+		$hidden     = array_merge( $url_params, array( 'awpcp-step' => 'dosearch' ) );
+		$params     = compact( 'action_url', 'ui', 'form', 'hidden', 'errors' );
+		$template   = AWPCP_DIR . '/frontend/templates/page-search-ads.tpl.php';
+
+		return awpcp_template_renderer()->render_template( $template, $params );
 	}
 
 	private function render_unified_listings_in_page( $query, $context, $options = array() ) {
@@ -444,7 +587,6 @@ final class CMS_Unified_Marketplace {
 				if ( $product_id > 0 ) {
 					$product_ids[] = $product_id;
 				}
-			}
 		}
 
 		if ( empty( $product_ids ) ) {
