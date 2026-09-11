@@ -88,7 +88,7 @@ def inject_fixture(driver, css_text):
     )
 
 
-def validation_failures(name, metrics):
+def validation_failures(name, metrics, requested_width):
     failures = []
     if metrics["card_display"] != "grid":
         failures.append(f"{name}: Marketplace product card is not rendered as a grid.")
@@ -105,7 +105,11 @@ def validation_failures(name, metrics):
     if metrics["price_width"] <= 0 or metrics["price_height"] <= 0:
         failures.append(f"{name}: Marketplace product price is not visibly rendered.")
     if metrics["overlaps_previous"] or metrics["overlaps_next"]:
-        failures.append(f"{name}: Marketplace product card overlaps an adjacent AWP listing.")
+        failures.append(f"{name}: Marketplace product card geometrically overlaps an adjacent visible AWP item.")
+    if name == "mobile" and abs(metrics["viewport_width"] - requested_width) > 1:
+        failures.append(
+            f"{name}: expected a {requested_width}px CSS viewport but captured {metrics['viewport_width']}px."
+        )
     return failures
 
 
@@ -113,6 +117,19 @@ def capture_viewport(width, height, name, css_text):
     driver = webdriver.Chrome(options=browser_options(width, height))
     driver.set_page_load_timeout(45)
     try:
+        if name == "mobile":
+            driver.execute_cdp_cmd(
+                "Emulation.setDeviceMetricsOverride",
+                {
+                    "mobile": True,
+                    "width": width,
+                    "height": height,
+                    "deviceScaleFactor": 1,
+                    "screenWidth": width,
+                    "screenHeight": height,
+                },
+            )
+
         driver.get(MARKETPLACE_URL)
         WebDriverWait(driver, 30).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, ".awpcp-listing-excerpt"))
@@ -147,6 +164,19 @@ def capture_viewport(width, height, name, css_text):
                 };
             }
 
+            function intersectionArea(first, second) {
+                if (!first || !second) return 0;
+                const firstStyle = getComputedStyle(first);
+                const secondStyle = getComputedStyle(second);
+                if (firstStyle.display === 'none' || secondStyle.display === 'none') return 0;
+                const a = first.getBoundingClientRect();
+                const b = second.getBoundingClientRect();
+                if (a.width <= 0 || a.height <= 0 || b.width <= 0 || b.height <= 0) return 0;
+                const width = Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left));
+                const height = Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+                return width * height;
+            }
+
             const card = document.querySelector('[data-cms-marketplace-visual-fixture]');
             const previous = card.previousElementSibling;
             const next = card.nextElementSibling;
@@ -157,8 +187,8 @@ def capture_viewport(width, height, name, css_text):
             const imageRect = image.getBoundingClientRect();
             const titleRect = title.getBoundingClientRect();
             const priceRect = price.getBoundingClientRect();
-            const previousRect = previous ? previous.getBoundingClientRect() : null;
-            const nextRect = next ? next.getBoundingClientRect() : null;
+            const previousIntersectionArea = intersectionArea(card, previous);
+            const nextIntersectionArea = intersectionArea(card, next);
             const style = getComputedStyle(card);
             const parentStyle = card.parentElement ? getComputedStyle(card.parentElement) : null;
             return {
@@ -188,15 +218,17 @@ def capture_viewport(width, height, name, css_text):
                 price_height: priceRect.height,
                 previous: nodeInfo(previous),
                 next: nodeInfo(next),
-                previous_overlap_pixels: previousRect ? Math.max(0, previousRect.bottom - rect.top) : 0,
-                next_overlap_pixels: nextRect ? Math.max(0, rect.bottom - nextRect.top) : 0,
-                overlaps_previous: previousRect ? previousRect.bottom > rect.top + 1 : false,
-                overlaps_next: nextRect ? rect.bottom > nextRect.top + 1 : false,
+                previous_intersection_area: previousIntersectionArea,
+                next_intersection_area: nextIntersectionArea,
+                overlaps_previous: previousIntersectionArea > 1,
+                overlaps_next: nextIntersectionArea > 1,
             };
             """
         )
 
-        failures = validation_failures(name, metrics)
+        failures = validation_failures(name, metrics, width)
+        metrics["requested_width"] = width
+        metrics["requested_height"] = height
         metrics["failures"] = failures
 
         screenshot = OUTPUT_DIR / f"marketplace-{name}.png"
