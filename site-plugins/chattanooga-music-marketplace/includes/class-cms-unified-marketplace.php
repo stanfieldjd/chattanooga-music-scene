@@ -7,13 +7,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class CMS_Unified_Marketplace {
 	const MARKETPLACE_PAGE_ID = 12;
 	const PRODUCT_LIMIT       = 100;
+	const SHORTCODE           = 'cms_marketplace';
 
 	private static $instance;
 
 	private $catalog_products = null;
-	private $products = array();
-	private $cursor = 0;
-	private $assignments = array();
 	private $integration_ready = null;
 
 	public static function instance() {
@@ -25,8 +23,7 @@ final class CMS_Unified_Marketplace {
 	}
 
 	private function __construct() {
-		add_filter( 'awpcp-content-before-listings-pagination', array( $this, 'prepare_interleaving' ), 20, 4 );
-		add_filter( 'awpcp-render-listing-item', array( $this, 'interleave_product' ), 20, 3 );
+		add_shortcode( self::SHORTCODE, array( $this, 'render_shortcode' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_styles' ) );
 	}
 
@@ -43,62 +40,67 @@ final class CMS_Unified_Marketplace {
 		);
 	}
 
-	public function prepare_interleaving( $before_pagination, $context, $listings, $query_vars ) {
-		$this->cursor      = 0;
-		$this->assignments = array();
-		$this->products    = array();
-
-		if ( ! $this->is_marketplace_request() || ! $this->is_supported_listing_context( $context, $query_vars ) ) {
-			return $before_pagination;
+	public function render_shortcode() {
+		if ( ! $this->is_marketplace_request() || ! $this->dependencies_ready() ) {
+			return '';
 		}
 
-		$this->products = $this->get_products_for_query( $context, $query_vars );
+		$awpcp_page_name = sanitize_title( awpcp_get_current_page_name() );
 
-		$listing_count = is_countable( $listings ) ? count( $listings ) : 0;
-		$product_count = count( $this->products );
-
-		if ( $product_count < 1 ) {
-			return $before_pagination;
+		if ( ! get_awpcp_option( 'main_page_display' ) ) {
+			return awpcp_display_the_classifieds_page_body( $awpcp_page_name );
 		}
 
-		if ( $listing_count < 1 ) {
-			if ( ! is_array( $before_pagination ) ) {
-				return $before_pagination;
-			}
+		awpcp_enqueue_main_script();
 
-			if ( ! isset( $before_pagination[15] ) || ! is_array( $before_pagination[15] ) ) {
-				$before_pagination[15] = array();
-			}
+		$query = array(
+			'context' => 'public-listings',
+			'limit'   => awpcp_get_var(
+				array(
+					'param'    => 'results',
+					'default'  => get_awpcp_option( 'adresultsperpage', 10 ),
+					'sanitize' => 'absint',
+				)
+			),
+			'offset'  => awpcp_get_var(
+				array(
+					'param'    => 'offset',
+					'default'  => 0,
+					'sanitize' => 'absint',
+				)
+			),
+			'orderby' => get_awpcp_option( 'groupbrowseadsby' ),
+		);
 
-			$before_pagination[15]['cms-marketplace-products'] = $this->render_remaining_products();
-			return $before_pagination;
-		}
-
-		$base      = intdiv( $product_count, $listing_count );
-		$remainder = $product_count % $listing_count;
-
-		for ( $position = 1; $position <= $listing_count; $position++ ) {
-			$this->assignments[ $position ] = $base + ( $position <= $remainder ? 1 : 0 );
-		}
-
-		return $before_pagination;
+		return $this->render_unified_listings_in_page( $query, 'main-page' );
 	}
 
-	public function interleave_product( $rendered_listing, $listing, $position ) {
-		if ( ! $this->is_marketplace_request() || empty( $this->assignments[ $position ] ) ) {
-			return $rendered_listing;
+	private function dependencies_ready() {
+		$required_functions = array(
+			'awpcp_array_merge_recursive',
+			'awpcp_categories_switcher',
+			'awpcp_current_url',
+			'awpcp_display_the_classifieds_page_body',
+			'awpcp_enqueue_main_script',
+			'awpcp_flatten_array',
+			'awpcp_get_current_page_name',
+			'awpcp_get_option',
+			'awpcp_get_results_offset',
+			'awpcp_get_results_per_page',
+			'awpcp_get_var',
+			'awpcp_listings_collection',
+			'awpcp_pagination',
+			'awpcp_render_listings_items',
+			'wc_get_products',
+		);
+
+		foreach ( $required_functions as $function_name ) {
+			if ( ! function_exists( $function_name ) ) {
+				return false;
+			}
 		}
 
-		$products = $this->products_for_position( $position );
-		if ( empty( $products ) ) {
-			return $rendered_listing;
-		}
-
-		foreach ( $products as $product ) {
-			$rendered_listing .= $this->render_product_card( $product );
-		}
-
-		return $rendered_listing;
+		return defined( 'AWPCP_DIR' );
 	}
 
 	private function is_marketplace_request() {
@@ -116,16 +118,166 @@ final class CMS_Unified_Marketplace {
 			return $this->integration_ready;
 		}
 
-		$this->integration_ready = has_shortcode( $content, 'AWPCPCLASSIFIEDSUI' ) && ! has_shortcode( $content, 'products' );
+		$this->integration_ready = has_shortcode( $content, self::SHORTCODE )
+			&& ! has_shortcode( $content, 'AWPCPCLASSIFIEDSUI' )
+			&& ! has_shortcode( $content, 'products' );
+
 		return $this->integration_ready;
 	}
 
-	private function is_supported_listing_context( $context, $query_vars ) {
-		if ( ! is_array( $query_vars ) || ! $this->is_first_results_page( $query_vars ) ) {
-			return false;
+	private function render_unified_listings_in_page( $query, $context, $options = array() ) {
+		$options = wp_parse_args(
+			$options,
+			array(
+				'show_intro_message'     => true,
+				'show_menu_items'        => true,
+				'show_category_selector' => ! awpcp_get_option( 'hide-categories-selector', false ),
+				'show_pagination'        => true,
+			)
+		);
+
+		return $this->render_unified_listings( $query, $context, $options );
+	}
+
+	private function render_unified_listings( $query_vars, $context, $options ) {
+		$options = wp_parse_args(
+			$options,
+			array(
+				'page'                       => false,
+				'show_intro_message'         => false,
+				'show_menu_items'            => false,
+				'show_category_selector'     => false,
+				'show_pagination'            => false,
+				'featured'                   => false,
+				'classifieds_bar_components' => array(),
+				'before_content'             => '',
+				'before_pagination'          => '',
+				'before_list'                => '',
+				'after_pagination'           => '',
+				'after_content'              => '',
+			)
+		);
+
+		if ( isset( $query_vars['context'] ) && ! isset( $query_vars['classifieds_query'] ) ) {
+			$query_vars['classifieds_query'] = array(
+				'context' => $query_vars['context'],
+			);
 		}
 
-		return in_array( $context, array( 'main-page', 'browse-listings', 'search' ), true );
+		$results_per_page = awpcp_get_results_per_page( $query_vars );
+		$results_offset   = awpcp_get_results_offset( $results_per_page, $query_vars );
+
+		$query_vars['posts_per_page'] = $results_per_page;
+		$query_vars['paged']          = 1 + floor( $results_offset / $results_per_page );
+
+		unset( $query_vars['results'], $query_vars['limit'], $query_vars['offset'] );
+
+		$listings_collection = awpcp_listings_collection();
+		$listings            = $listings_collection->find_enabled_listings( $query_vars );
+		$query               = $listings_collection->get_last_query();
+
+		$before_content = apply_filters( 'awpcp-content-before-listings-page', $options['before_content'], $context );
+
+		$before_pagination = array();
+		if ( $options['show_category_selector'] ) {
+			$before_pagination[15]['category-selector'] = awpcp_categories_switcher()->render( array( 'required' => false ) );
+		}
+		if ( is_array( $options['before_pagination'] ) ) {
+			$before_pagination = awpcp_array_merge_recursive( $before_pagination, $options['before_pagination'] );
+		} else {
+			$before_pagination[20]['user-content'] = $options['before_pagination'];
+		}
+		$before_pagination = apply_filters( 'awpcp-content-before-listings-pagination', $before_pagination, $context, $listings, $query_vars );
+		ksort( $before_pagination );
+		$before_pagination = awpcp_flatten_array( $before_pagination );
+
+		$before_list = apply_filters( 'awpcp-content-before-listings-list', $options['before_list'], $context );
+
+		$top_pagination    = '';
+		$bottom_pagination = '';
+		$listing_items     = array();
+
+		if ( $query->found_posts > 0 ) {
+			if ( $options['show_pagination'] ) {
+				$top_pagination_options = array(
+					'query'         => $query,
+					'results'       => $results_per_page,
+					'offset'        => $results_offset,
+					'total'         => $query->found_posts,
+					'show_dropdown' => false,
+				);
+
+				$bottom_pagination_options = $top_pagination_options;
+				unset( $bottom_pagination_options['show_dropdown'] );
+
+				$top_pagination    = awpcp_pagination( $top_pagination_options, awpcp_current_url() );
+				$bottom_pagination = awpcp_pagination( $bottom_pagination_options, awpcp_current_url() );
+			}
+
+			$listing_items = awpcp_render_listings_items( $listings, $context, $options );
+		}
+
+		$product_items = array();
+		if ( $this->is_first_results_page( $query_vars ) ) {
+			foreach ( $this->get_products_for_query( $context, $query_vars ) as $product ) {
+				$product_items[] = $this->render_product_card( $product );
+			}
+		}
+
+		$items = $this->merge_rendered_items( $listing_items, $product_items );
+
+		$after_pagination = array( 'user-content' => $options['after_pagination'] );
+		$after_pagination = apply_filters( 'awpcp-content-after-listings-pagination', $after_pagination, $context );
+
+		$after_content = apply_filters( 'awpcp-content-after-listings-page', $options['after_content'], $context );
+
+		ob_start();
+		include AWPCP_DIR . '/templates/frontend/listings.tpl.php';
+		$content = ob_get_contents();
+		ob_end_clean();
+
+		return $content;
+	}
+
+	private function merge_rendered_items( $listing_items, $product_items ) {
+		$listing_items = is_array( $listing_items ) ? array_values( $listing_items ) : array();
+		$product_items = is_array( $product_items ) ? array_values( $product_items ) : array();
+
+		if ( empty( $listing_items ) ) {
+			return $product_items;
+		}
+
+		if ( empty( $product_items ) ) {
+			return $listing_items;
+		}
+
+		$merged        = array();
+		$listing_count = count( $listing_items );
+		$product_count = count( $product_items );
+		$base          = intdiv( $product_count, $listing_count );
+		$remainder     = $product_count % $listing_count;
+		$product_index = 0;
+
+		foreach ( $listing_items as $position => $listing_item ) {
+			$merged[] = $listing_item;
+			$count    = $base + ( $position < $remainder ? 1 : 0 );
+
+			for ( $i = 0; $i < $count; $i++ ) {
+				if ( ! isset( $product_items[ $product_index ] ) ) {
+					break;
+				}
+
+				$merged[] = $product_items[ $product_index ];
+				$product_index++;
+			}
+		}
+
+		while ( isset( $product_items[ $product_index ] ) ) {
+			$merged[] = $product_items[ $product_index ];
+			$product_index++;
+		}
+
+		return $merged;
 	}
 
 	private function is_first_results_page( $query_vars ) {
@@ -288,7 +440,6 @@ final class CMS_Unified_Marketplace {
 					$product_ids[] = $product_id;
 				}
 			}
-		}
 
 		if ( empty( $product_ids ) ) {
 			return array();
@@ -369,37 +520,6 @@ final class CMS_Unified_Marketplace {
 			'min' => (float) $min,
 			'max' => (float) $max,
 		);
-	}
-
-	private function products_for_position( $position ) {
-		$count = isset( $this->assignments[ $position ] ) ? absint( $this->assignments[ $position ] ) : 0;
-		if ( $count < 1 ) {
-			return array();
-		}
-
-		$assigned = array();
-
-		for ( $i = 0; $i < $count; $i++ ) {
-			if ( ! isset( $this->products[ $this->cursor ] ) ) {
-				break;
-			}
-
-			$assigned[] = $this->products[ $this->cursor ];
-			$this->cursor++;
-		}
-
-		return $assigned;
-	}
-
-	private function render_remaining_products() {
-		$rendered = '';
-
-		while ( isset( $this->products[ $this->cursor ] ) ) {
-			$rendered .= $this->render_product_card( $this->products[ $this->cursor ] );
-			$this->cursor++;
-		}
-
-		return $rendered;
 	}
 
 	private function get_catalog_products() {
