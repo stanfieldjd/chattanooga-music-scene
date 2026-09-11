@@ -60,13 +60,10 @@ final class CUA_Bridge_Gateway {
 			return $resolved;
 		}
 
-		$ability   = $resolved['ability'];
-		$arguments = $resolved['arguments'];
-		if ( is_array( $ability->get_input_schema() ) ) {
-			return $ability->check_permissions( $arguments );
-		}
-
-		return $ability->check_permissions();
+		$ability = $resolved['ability'];
+		return $resolved['has_arguments']
+			? $ability->check_permissions( $resolved['arguments'] )
+			: $ability->check_permissions();
 	}
 
 	public static function execute( $input, $readonly ) {
@@ -79,10 +76,10 @@ final class CUA_Bridge_Gateway {
 			return $resolved;
 		}
 
-		$ability   = $resolved['ability'];
-		$arguments = $resolved['arguments'];
-		$has_input = is_array( $ability->get_input_schema() );
-		$permission = $has_input ? $ability->check_permissions( $arguments ) : $ability->check_permissions();
+		$ability = $resolved['ability'];
+		$permission = $resolved['has_arguments']
+			? $ability->check_permissions( $resolved['arguments'] )
+			: $ability->check_permissions();
 		if ( is_wp_error( $permission ) ) {
 			return $permission;
 		}
@@ -90,7 +87,9 @@ final class CUA_Bridge_Gateway {
 			return new WP_Error( 'cua_bridge_gateway_forbidden', 'The selected bridge denied the current request.' );
 		}
 
-		$result = $has_input ? $ability->execute( $arguments ) : $ability->execute();
+		$result = $resolved['has_arguments']
+			? $ability->execute( $resolved['arguments'] )
+			: $ability->execute();
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}
@@ -131,15 +130,17 @@ final class CUA_Bridge_Gateway {
 			return new WP_Error( 'cua_bridge_gateway_unavailable', 'The selected catalog bridge is no longer registered.' );
 		}
 
-		$arguments = isset( $input['input'] ) ? $input['input'] : array();
-		if ( ! is_array( $arguments ) ) {
+		$has_arguments = array_key_exists( 'input', $input );
+		$arguments = $has_arguments ? $input['input'] : null;
+		if ( $has_arguments && ! is_array( $arguments ) ) {
 			return new WP_Error( 'cua_bridge_gateway_invalid_arguments', 'Bridge arguments must be an object.' );
 		}
 
 		return array(
-			'bridge'    => $bridge,
-			'ability'   => $ability,
-			'arguments' => $arguments,
+			'bridge'        => $bridge,
+			'ability'       => $ability,
+			'has_arguments' => $has_arguments,
+			'arguments'     => $arguments,
 		);
 	}
 
