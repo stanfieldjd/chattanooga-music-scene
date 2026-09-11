@@ -55,7 +55,7 @@ jobs:
           test ! -e workbench/labs/chattanooga-universal-admin/candidate
           test "$(grep -RIl '^ \* Plugin Name:' "$source" --include='*.php' | wc -l)" -eq 1
           grep -q '^ \* Plugin Name: Chattanooga CMS Admin$' "$source/chattanooga-cms-admin.php"
-          grep -q '^ \* Version: 1.0.1$' "$source/chattanooga-cms-admin.php"
+          grep -q '^ \* Version: 1.0.2$' "$source/chattanooga-cms-admin.php"
           if grep -REiq 'orbit-fixture|comet-fixture|asteroid-private|saturn-lifecycle|meteor-lifecycle|neptune-install|aurora-install|quasar-audit|pulsar-core-loopback|nova-settings|nova_private_setting|nova_rest_setting|nova_custom_setting|nova_absent_setting|cmsa_v2_snapshot_fixture|cmsa_v2_extra_after_backup|cmsa_v2_core_restore_marker|cmsa_v2_core_update_db_marker|wp-cmsa-v2-extra|cmsa-v2\.invalid' "$source"; then
             echo "Replacement contains v2 fixture-specific logic." >&2
             exit 1

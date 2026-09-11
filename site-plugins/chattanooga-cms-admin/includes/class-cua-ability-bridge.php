@@ -228,7 +228,7 @@ final class CUA_Ability_Bridge {
 		return array(
 			'public'       => true,
 			'show_in_rest' => false,
-			'mcp'          => array( 'public' => true ),
+			'mcp'          => array( 'public' => false ),
 			'annotations'  => array(
 				'readonly'    => array_key_exists( 'readonly', $annotations ) && null !== $annotations['readonly'] ? (bool) $annotations['readonly'] : null,
 				'destructive' => array_key_exists( 'destructive', $annotations ) && null !== $annotations['destructive'] ? (bool) $annotations['destructive'] : null,

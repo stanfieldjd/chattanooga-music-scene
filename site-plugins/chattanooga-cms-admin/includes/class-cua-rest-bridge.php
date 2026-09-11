@@ -295,7 +295,7 @@ final class CUA_REST_Bridge {
 		return array(
 			'public'       => true,
 			'show_in_rest' => false,
-			'mcp'          => array( 'public' => true ),
+			'mcp'          => array( 'public' => false ),
 			'annotations'  => self::annotations( $method ),
 		);
 	}
