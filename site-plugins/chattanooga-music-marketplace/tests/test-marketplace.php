@@ -75,6 +75,7 @@ class WC_Product {
 		$this->variation_max     = $variation_max;
 	}
 
+	public function get_id() { return spl_object_id( $this ); }
 	public function is_visible() { return $this->visible; }
 	public function get_name() { return $this->name; }
 	public function get_short_description() { return $this->short_description; }
@@ -87,6 +88,47 @@ class WC_Product {
 	public function set_descriptions( $short_description, $description ) {
 		$this->short_description = $short_description;
 		$this->description       = $description;
+	}
+}
+
+class WP_Query {
+	public $posts = array();
+
+	public function __construct( $args = array() ) {
+		$included = isset( $args['post__in'] ) ? array_map( 'intval', (array) $args['post__in'] ) : array();
+		$search   = isset( $args['s'] ) ? trim( (string) $args['s'] ) : '';
+		$terms    = preg_split( '/\s+/', strtolower( $search ), -1, PREG_SPLIT_NO_EMPTY );
+
+		foreach ( $GLOBALS['cms_marketplace_test_products'] as $product ) {
+			$product_id = (int) $product->get_id();
+			if ( ! empty( $included ) && ! in_array( $product_id, $included, true ) ) {
+				continue;
+			}
+
+			$haystack = strtolower(
+				implode(
+					' ',
+					array(
+						$product->get_name(),
+						$product->get_short_description(),
+						$product->get_description(),
+					)
+				)
+			);
+
+			$matches = true;
+			foreach ( $terms as $term ) {
+				$term = trim( $term, "\"'" );
+				if ( '' !== $term && false === strpos( $haystack, $term ) ) {
+					$matches = false;
+					break;
+				}
+			}
+
+			if ( $matches ) {
+				$this->posts[] = $product_id;
+			}
+		}
 	}
 }
 
@@ -235,6 +277,17 @@ cms_marketplace_assert_same(
 		array( 'search', array( 's' => 'wireless', 'classifieds_query' => array() ) )
 	),
 	'Marketplace text search must include matching store products.'
+);
+
+$marketplace = cms_marketplace_test_instance();
+cms_marketplace_assert_same(
+	array( $wireless ),
+	cms_marketplace_test_private(
+		$marketplace,
+		'get_products_for_query',
+		array( 'search', array( 's' => 'wireless recording', 'classifieds_query' => array() ) )
+	),
+	'Marketplace text search must preserve WordPress multi-term matching instead of requiring one contiguous phrase.'
 );
 
 $cheap    = new WC_Product( true, 'Budget Accessory', array(), '8.00' );
