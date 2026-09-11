@@ -587,6 +587,7 @@ final class CMS_Unified_Marketplace {
 				if ( $product_id > 0 ) {
 					$product_ids[] = $product_id;
 				}
+			}
 		}
 
 		if ( empty( $product_ids ) ) {
