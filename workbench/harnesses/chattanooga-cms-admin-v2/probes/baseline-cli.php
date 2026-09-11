@@ -29,12 +29,16 @@ if ( is_wp_error( $result ) || empty( $result['items'] ) || ! is_array( $result[
 }
 
 $ability_bridge = '';
+$write_provider_bridge = '';
 $mcp_only_bridge = '';
 $rest_bridge = '';
 foreach ( $result['items'] as $item ) {
 	$target = (string) ( $item['target'] ?? '' );
 	if ( 'orbit-fixture/read-marker' === $target ) {
 		$ability_bridge = (string) ( $item['bridge'] ?? '' );
+	}
+	if ( 'orbit-fixture/write-marker' === $target ) {
+		$write_provider_bridge = (string) ( $item['bridge'] ?? '' );
 	}
 	if ( 'orbit-fixture/mcp-only' === $target ) {
 		$mcp_only_bridge = (string) ( $item['bridge'] ?? '' );
@@ -56,8 +60,8 @@ foreach ( $result['items'] as $item ) {
 	}
 }
 
-if ( '' === $ability_bridge || '' === $mcp_only_bridge || '' === $rest_bridge ) {
-	fwrite( STDERR, "Fresh providers or MCP-specific public ability were not dynamically discovered.\n" );
+if ( '' === $ability_bridge || '' === $write_provider_bridge || '' === $mcp_only_bridge || '' === $rest_bridge ) {
+	fwrite( STDERR, "Fresh providers, a mutating provider, or MCP-specific public ability were not dynamically discovered.\n" );
 	exit( 1 );
 }
 
@@ -106,6 +110,37 @@ if ( true === $write_gateway->check_permissions( $gateway_ability_input ) ) {
 	exit( 1 );
 }
 
+$write_option = 'cmsa_v2_orbit_write_marker';
+$missing_marker = '__cmsa_v2_missing__';
+$original_write_value = get_option( $write_option, $missing_marker );
+$gateway_write_input = array(
+	'bridge' => $write_provider_bridge,
+	'input'  => array( 'value' => 41 ),
+);
+if ( true !== $write_gateway->check_permissions( $gateway_write_input ) ) {
+	fwrite( STDERR, "Write gateway did not preserve mutating Ability permission.\n" );
+	exit( 1 );
+}
+if ( true === $read_gateway->check_permissions( $gateway_write_input ) ) {
+	fwrite( STDERR, "Read gateway accepted a mutating bridge.\n" );
+	exit( 1 );
+}
+$gateway_write_result = $write_gateway->execute( $gateway_write_input );
+if ( is_wp_error( $gateway_write_result ) || 41 !== (int) ( $gateway_write_result['result']['current'] ?? 0 ) || 41 !== (int) get_option( $write_option, 0 ) ) {
+	fwrite( STDERR, "Write gateway Ability execution did not persist the disposable marker.\n" );
+	exit( 1 );
+}
+if ( $missing_marker === $original_write_value ) {
+	delete_option( $write_option );
+} else {
+	update_option( $write_option, $original_write_value, false );
+}
+$restored_write_value = get_option( $write_option, $missing_marker );
+if ( $restored_write_value !== $original_write_value ) {
+	fwrite( STDERR, "Write gateway fixture rollback did not restore the original state.\n" );
+	exit( 1 );
+}
+
 $mcp_only = wp_get_ability( $mcp_only_bridge );
 if ( ! $mcp_only instanceof WP_Ability || true !== $mcp_only->check_permissions() ) {
 	fwrite( STDERR, "MCP-specific public ability facade permission failed.\n" );
@@ -151,11 +186,12 @@ if (
 	|| false !== $mcp_only->check_permissions()
 	|| false !== $rest->check_permissions( $rest_input )
 	|| false !== $read_gateway->check_permissions( $gateway_ability_input )
+	|| false !== $write_gateway->check_permissions( $gateway_write_input )
 ) {
 	fwrite( STDERR, "Anonymous administration was not blocked.\n" );
 	exit( 1 );
 }
 
 wp_set_current_user( 1 );
-echo "cmsa-v2-baseline: PASS identity=existing_slot ability_discovery=verified ability_execution=verified mcp_specific_exposure=verified mcp_opt_out=preserved rest_only_not_broadened=verified rest_discovery=verified rest_execution=verified mcp_discovery_compaction=verified bounded_gateway_execution=verified unsupported_provider=closed admin_boundary=verified\n";
+echo "cmsa-v2-baseline: PASS identity=existing_slot ability_discovery=verified ability_execution=verified write_gateway_execution=verified write_gateway_rollback=verified mcp_specific_exposure=verified mcp_opt_out=preserved rest_only_not_broadened=verified rest_discovery=verified rest_execution=verified mcp_discovery_compaction=verified bounded_gateway_execution=verified unsupported_provider=closed admin_boundary=verified\n";
 exit( 0 );
