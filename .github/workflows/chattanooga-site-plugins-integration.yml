@@ -75,6 +75,7 @@ jobs:
           for plugin in chattanooga-cms-admin chattanooga-music-marketplace chattanooga-music-scene-core; do
             cp -R "site-plugins/$plugin" "/tmp/cms-plugin-build/$plugin"
           done
+          rm -rf /tmp/cms-plugin-build/chattanooga-music-marketplace/tests
           (cd /tmp/cms-plugin-build && zip -qr /tmp/cms-plugin-packages/chattanooga-cms-admin-1.0.0.zip chattanooga-cms-admin)
           (cd /tmp/cms-plugin-build && zip -qr /tmp/cms-plugin-packages/chattanooga-music-marketplace-0.1.1.zip chattanooga-music-marketplace)
           (cd /tmp/cms-plugin-build && zip -qr /tmp/cms-plugin-packages/chattanooga-music-scene-core-0.2.1.zip chattanooga-music-scene-core)
@@ -99,6 +100,10 @@ jobs:
           unzip -l /tmp/cms-plugin-packages/chattanooga-cms-admin-1.0.0.zip | grep -Fq 'chattanooga-cms-admin/chattanooga-cms-admin.php'
           unzip -l /tmp/cms-plugin-packages/chattanooga-music-marketplace-0.1.1.zip | grep -Fq 'chattanooga-music-marketplace/chattanooga-music-marketplace.php'
           unzip -l /tmp/cms-plugin-packages/chattanooga-music-scene-core-0.2.1.zip | grep -Fq 'chattanooga-music-scene-core/chattanooga-music-scene-core.php'
+          if unzip -l /tmp/cms-plugin-packages/chattanooga-music-marketplace-0.1.1.zip | grep -Fq 'chattanooga-music-marketplace/tests/'; then
+            echo 'Marketplace installable package must not contain engineering tests.' >&2
+            exit 1
+          fi
 
       - name: Install disposable WordPress 7.1
         shell: bash
