@@ -1,0 +1,68 @@
+name: Chattanooga Music Marketplace Plugin Check
+
+on:
+  push:
+    paths:
+      - "site-plugins/chattanooga-music-marketplace/**"
+      - ".github/workflows/chattanooga-music-marketplace-plugin-check.yml"
+  pull_request:
+    paths:
+      - "site-plugins/chattanooga-music-marketplace/**"
+      - ".github/workflows/chattanooga-music-marketplace-plugin-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  plugin-check:
+    name: WordPress Plugin Check
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mysqli, zip, gd, fileinfo
+
+      - name: Install disposable WordPress and Plugin Check
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+          php /tmp/wp-cli.phar core download --version=7.1 --path=/tmp/wordpress --force
+          php /tmp/wp-cli.phar config create --path=/tmp/wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
+          password="$(php -r 'echo bin2hex(random_bytes(20));')"
+          php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://cms-marketplace-check.test --title="Marketplace Plugin Check" --admin_user=admin --admin_password="$password" --admin_email=plugin-check@example.invalid --skip-email
+          php /tmp/wp-cli.phar plugin install plugin-check --activate --path=/tmp/wordpress
+
+      - name: Install Marketplace package in disposable WordPress
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/cms-marketplace-build /tmp/chattanooga-music-marketplace.zip
+          mkdir -p /tmp/cms-marketplace-build
+          cp -R site-plugins/chattanooga-music-marketplace /tmp/cms-marketplace-build/chattanooga-music-marketplace
+          (cd /tmp/cms-marketplace-build && zip -qr /tmp/chattanooga-music-marketplace.zip chattanooga-music-marketplace)
+          php /tmp/wp-cli.phar plugin install /tmp/chattanooga-music-marketplace.zip --activate --path=/tmp/wordpress
+          test "$(php /tmp/wp-cli.phar plugin get chattanooga-music-marketplace --field=version --path=/tmp/wordpress)" = "0.1.1"
+
+      - name: Run WordPress Plugin Check
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar plugin check chattanooga-music-marketplace --format=table --path=/tmp/wordpress
