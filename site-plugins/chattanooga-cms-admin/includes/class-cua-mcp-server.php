@@ -128,7 +128,10 @@ final class CUA_MCP_Server {
 				return self::success_response( $id, self::initialize_result( $version ), false, $version );
 
 			case 'ping':
-				return self::success_response( $id, array(), $modern, $modern ? self::MODERN_VERSION : '' );
+				if ( $modern ) {
+					return self::protocol_error_response( $id, -32601, 'ping is not available in MCP 2026-07-28.', 400, true );
+				}
+				return self::success_response( $id, array(), false, '' );
 
 			case 'tools/list':
 				return self::success_response( $id, self::list_tools_result( $modern ), $modern, $modern ? self::MODERN_VERSION : '' );
