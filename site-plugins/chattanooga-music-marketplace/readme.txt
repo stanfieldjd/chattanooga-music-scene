@@ -42,7 +42,7 @@ location label.
 == Safety ==
 
 * Only published, catalog-visible store products enter the stream.
-* Hidden checkout-bridge products stay excluded through catalog visibility.
+* Hidden or internal products stay excluded through catalog visibility.
 * Later listing pages do not repeat store products.
 * Category mappings are evidence-based exact matches, not inferred aliases.
 * The Weekend Feature is not loaded, modified or depended on by this feature.
