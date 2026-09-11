@@ -176,6 +176,7 @@ final class CMS_Unified_Marketplace {
 		$listings            = $listings_collection->find_enabled_listings( $query_vars );
 		$query               = $listings_collection->get_last_query();
 
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- AWP Classifieds owns this public extension hook.
 		$before_content = apply_filters( 'awpcp-content-before-listings-page', $options['before_content'], $context );
 
 		$before_pagination = array();
@@ -187,10 +188,12 @@ final class CMS_Unified_Marketplace {
 		} else {
 			$before_pagination[20]['user-content'] = $options['before_pagination'];
 		}
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- AWP Classifieds owns this public extension hook.
 		$before_pagination = apply_filters( 'awpcp-content-before-listings-pagination', $before_pagination, $context, $listings, $query_vars );
 		ksort( $before_pagination );
 		$before_pagination = awpcp_flatten_array( $before_pagination );
 
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- AWP Classifieds owns this public extension hook.
 		$before_list = apply_filters( 'awpcp-content-before-listings-list', $options['before_list'], $context );
 
 		$top_pagination    = '';
@@ -227,8 +230,10 @@ final class CMS_Unified_Marketplace {
 		$items = $this->merge_rendered_items( $listing_items, $product_items );
 
 		$after_pagination = array( 'user-content' => $options['after_pagination'] );
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- AWP Classifieds owns this public extension hook.
 		$after_pagination = apply_filters( 'awpcp-content-after-listings-pagination', $after_pagination, $context );
 
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- AWP Classifieds owns this public extension hook.
 		$after_content = apply_filters( 'awpcp-content-after-listings-page', $options['after_content'], $context );
 
 		ob_start();
