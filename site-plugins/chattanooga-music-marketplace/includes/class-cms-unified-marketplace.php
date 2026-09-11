@@ -569,6 +569,7 @@ final class CMS_Unified_Marketplace {
 					$category_ids = array_merge( $category_ids, array_map( 'absint', $children ) );
 				}
 			}
+		}
 
 		return array_values( array_unique( array_filter( $category_ids ) ) );
 	}
