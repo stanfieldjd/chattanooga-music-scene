@@ -4,6 +4,8 @@
  * Description: Unified Marketplace presentation for Chattanooga Music Scene.
  * Version: 0.1.1
  * Author: Chattanooga Music Scene
+ * License: GPLv2 or later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Requires at least: 6.4
  * Requires PHP: 7.4
  * Text Domain: chattanooga-music-marketplace
