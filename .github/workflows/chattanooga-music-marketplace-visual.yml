@@ -53,6 +53,7 @@ jobs:
           python workbench/harnesses/chattanooga-site-plugins/marketplace-visual.py
 
       - name: Upload Marketplace visual evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: chattanooga-music-marketplace-visual
