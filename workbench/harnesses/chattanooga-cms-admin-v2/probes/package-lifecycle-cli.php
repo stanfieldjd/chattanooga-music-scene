@@ -7,16 +7,21 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 wp_set_current_user( 1 );
 
-$install_plugin   = wp_get_ability( 'chattanooga-cms-admin/install-plugin' );
-$install_theme    = wp_get_ability( 'chattanooga-cms-admin/install-theme' );
-$activate_plugin  = wp_get_ability( 'chattanooga-cms-admin/activate-plugin' );
-$deactivate_plugin = wp_get_ability( 'chattanooga-cms-admin/deactivate-plugin' );
-if ( ! $install_plugin instanceof WP_Ability || ! $install_theme instanceof WP_Ability || ! $activate_plugin instanceof WP_Ability || ! $deactivate_plugin instanceof WP_Ability ) {
+$install_plugin         = wp_get_ability( 'chattanooga-cms-admin/install-plugin' );
+$install_plugin_package = wp_get_ability( 'chattanooga-cms-admin/install-plugin-package' );
+$install_theme          = wp_get_ability( 'chattanooga-cms-admin/install-theme' );
+$activate_plugin        = wp_get_ability( 'chattanooga-cms-admin/activate-plugin' );
+$deactivate_plugin      = wp_get_ability( 'chattanooga-cms-admin/deactivate-plugin' );
+if ( ! $install_plugin instanceof WP_Ability
+	|| ! $install_plugin_package instanceof WP_Ability
+	|| ! $install_theme instanceof WP_Ability
+	|| ! $activate_plugin instanceof WP_Ability
+	|| ! $deactivate_plugin instanceof WP_Ability ) {
 	fwrite( STDERR, "Package lifecycle abilities are missing.\n" );
 	exit( 1 );
 }
 
-$package_dir = rtrim( (string) getenv( 'CMSA_V2_PACKAGE_DIR' ), DIRECTORY_SEPARATOR );
+$package_dir    = rtrim( (string) getenv( 'CMSA_V2_PACKAGE_DIR' ), DIRECTORY_SEPARATOR );
 $plugin_package = $package_dir . DIRECTORY_SEPARATOR . 'neptune-install.zip';
 $theme_package  = $package_dir . DIRECTORY_SEPARATOR . 'aurora-install.zip';
 if ( ! is_file( $plugin_package ) || ! is_file( $theme_package ) ) {
@@ -119,6 +124,64 @@ if ( is_wp_error( $deactivation_repeat ) || ! empty( $deactivation_repeat['chang
 	exit( 1 );
 }
 
+$official_cleanup = delete_plugins( array( $plugin_file ) );
+wp_clean_plugins_cache( false );
+if ( is_wp_error( $official_cleanup ) || false === $official_cleanup || isset( get_plugins()[ $plugin_file ] ) ) {
+	fwrite( STDERR, "Official plugin installation could not be removed before custom-package verification.\n" );
+	exit( 1 );
+}
+
+$plugin_bytes = file_get_contents( $plugin_package );
+if ( false === $plugin_bytes || '' === $plugin_bytes ) {
+	fwrite( STDERR, "Custom plugin package fixture could not be read.\n" );
+	exit( 1 );
+}
+$plugin_sha256 = hash( 'sha256', $plugin_bytes );
+$custom_input = array(
+	'content_base64'   => base64_encode( $plugin_bytes ),
+	'expected_sha256'  => $plugin_sha256,
+	'expected_plugin'  => $plugin_file,
+	'expected_version' => '3.2.1',
+);
+
+$hash_mismatch_input = $custom_input;
+$hash_mismatch_input['expected_sha256'] = str_repeat( '0', 64 );
+$hash_mismatch = $install_plugin_package->execute( $hash_mismatch_input );
+wp_clean_plugins_cache( false );
+if ( ! is_wp_error( $hash_mismatch )
+	|| 'cmsa_plugin_package_hash_mismatch' !== $hash_mismatch->get_error_code()
+	|| isset( get_plugins()[ $plugin_file ] ) ) {
+	fwrite( STDERR, "Custom plugin package hash mismatch did not fail closed before installation.\n" );
+	exit( 1 );
+}
+
+$custom_install = $install_plugin_package->execute( $custom_input );
+if ( is_wp_error( $custom_install ) ) {
+	fwrite( STDERR, 'Custom package install failed: ' . $custom_install->get_error_code() . ' ' . $custom_install->get_error_message() . "\n" );
+	exit( 1 );
+}
+wp_clean_plugins_cache( false );
+$plugins = get_plugins();
+if ( ! isset( $plugins[ $plugin_file ] )
+	|| '3.2.1' !== (string) $plugins[ $plugin_file ]['Version']
+	|| is_plugin_active( $plugin_file ) ) {
+	fwrite( STDERR, "Custom package install did not produce the exact verified inactive plugin state.\n" );
+	exit( 1 );
+}
+if ( $plugin_file !== ( $custom_install['plugin'] ?? '' )
+	|| '3.2.1' !== ( $custom_install['version'] ?? '' )
+	|| $plugin_sha256 !== ( $custom_install['sha256'] ?? '' )
+	|| empty( $custom_install['installed'] )
+	|| ! empty( $custom_install['active'] ) ) {
+	fwrite( STDERR, "Custom package install result did not report verified identity/version/hash/state.\n" );
+	exit( 1 );
+}
+$custom_repeat = $install_plugin_package->execute( $custom_input );
+if ( ! is_wp_error( $custom_repeat ) || 'cmsa_plugin_already_installed' !== $custom_repeat->get_error_code() ) {
+	fwrite( STDERR, "Custom plugin package re-install did not fail closed.\n" );
+	exit( 1 );
+}
+
 $theme_install = $install_theme->execute( array( 'slug' => $theme_slug ) );
 if ( is_wp_error( $theme_install ) ) {
 	fwrite( STDERR, 'Theme install failed: ' . $theme_install->get_error_code() . ' ' . $theme_install->get_error_message() . "\n" );
@@ -142,6 +205,7 @@ if ( ! is_wp_error( $theme_repeat ) || 'cmsa_theme_already_installed' !== $theme
 
 wp_set_current_user( 0 );
 if ( false !== $install_plugin->check_permissions( array( 'slug' => $plugin_slug ) )
+	|| false !== $install_plugin_package->check_permissions( $custom_input )
 	|| false !== $install_theme->check_permissions( array( 'slug' => $theme_slug ) )
 	|| false !== $activate_plugin->check_permissions( array( 'plugin' => $plugin_file ) )
 	|| false !== $deactivate_plugin->check_permissions( array( 'plugin' => $plugin_file ) ) ) {
@@ -164,5 +228,5 @@ if ( is_wp_error( $plugin_cleanup ) || false === $plugin_cleanup || is_wp_error(
 	exit( 1 );
 }
 
-echo "cmsa-v2-package-lifecycle: PASS plugin_install=verified theme_install=verified official_api_contract=verified package_input=absent activation=verified deactivation=verified repeated_state=idempotent self_deactivation=blocked invalid_slug=blocked reinstall=blocked admin_boundary=verified final_state=restored\n";
+echo "cmsa-v2-package-lifecycle: PASS plugin_install=verified theme_install=verified official_api_contract=verified custom_package=verified package_hash=verified package_input=verified activation=verified deactivation=verified repeated_state=idempotent self_deactivation=blocked invalid_slug=blocked reinstall=blocked admin_boundary=verified final_state=restored\n";
 exit( 0 );
