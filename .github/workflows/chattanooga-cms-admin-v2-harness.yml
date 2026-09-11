@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - work/chattanooga-universal-admin-v2
+      - work/custom-plugin-integration
     paths:
       - "site-plugins/chattanooga-cms-admin/**"
       - "workbench/harnesses/chattanooga-cms-admin-v2/**"
