@@ -60,6 +60,41 @@ add_action(
 		);
 
 		wp_register_ability(
+			'orbit-fixture/write-marker',
+			array(
+				'label'               => 'Write marker',
+				'description'         => 'Persists one disposable marker so the bounded mutating gateway can be regression tested.',
+				'category'            => 'orbit-fixture',
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'properties'           => array(
+						'value' => array( 'type' => 'integer' ),
+					),
+					'required'             => array( 'value' ),
+					'additionalProperties' => false,
+				),
+				'output_schema'       => array( 'type' => 'object' ),
+				'execute_callback'    => static function ( $input ) {
+					$previous = get_option( 'cmsa_v2_orbit_write_marker', null );
+					update_option( 'cmsa_v2_orbit_write_marker', (int) $input['value'], false );
+					return array(
+						'previous' => $previous,
+						'current'  => (int) get_option( 'cmsa_v2_orbit_write_marker', 0 ),
+					);
+				},
+				'permission_callback' => $permission,
+				'meta'                => array(
+					'public'      => true,
+					'annotations' => array(
+						'readonly'    => false,
+						'destructive' => false,
+						'idempotent'  => true,
+					),
+				),
+			)
+		);
+
+		wp_register_ability(
 			'orbit-fixture/mcp-only',
 			array(
 				'label'               => 'MCP-only marker',
