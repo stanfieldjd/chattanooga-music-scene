@@ -274,6 +274,92 @@ $claimed_search = awpcp_search_listings_page()->dispatch();
 cms_site_plugins_assert( false !== strpos( $claimed_search, 'Earlier integration owns this output.' ), 'Marketplace overrode a Search replacement already supplied by another integration.' );
 remove_filter( 'awpcp-search-listings-content-replacement', $earlier_replacement, 10 );
 
+// Create a valid community listing through AWP's production API and verify the real mixed stream.
+$category_result = wp_insert_term(
+	'Integration Test Instruments',
+	AWPCP_CATEGORY_TAXONOMY,
+	array( 'slug' => 'integration-test-instruments' )
+);
+cms_site_plugins_assert( ! is_wp_error( $category_result ), 'Could not create the disposable AWP listing category.' );
+$category_id = absint( $category_result['term_id'] );
+cms_site_plugins_assert( $category_id > 0, 'Disposable AWP listing category has no valid term ID.' );
+
+$start_date = ( new DateTimeImmutable( '-1 day', wp_timezone() ) )->format( 'Y-m-d H:i:s' );
+$end_date   = ( new DateTimeImmutable( '+30 days', wp_timezone() ) )->format( 'Y-m-d H:i:s' );
+
+try {
+	$community_listing = awpcp_listings_api()->create_listing(
+		array(
+			'post_fields' => array(
+				'post_author'  => 1,
+				'post_title'   => 'Integration Strings Community Listing',
+				'post_content' => 'Integration Strings community listing created through the AWP production listing API for mixed Marketplace verification.',
+			),
+			'terms'       => array(
+				AWPCP_CATEGORY_TAXONOMY => array( $category_id ),
+			),
+			'metadata'    => array(
+				'_awpcp_contact_name'   => 'Integration Seller',
+				'_awpcp_contact_email'  => 'integration@example.test',
+				'_awpcp_price'          => 1500,
+				'_awpcp_payment_status' => AWPCP_Payment_Transaction::PAYMENT_STATUS_COMPLETED,
+				'_awpcp_is_paid'        => true,
+				'_awpcp_verified'       => true,
+				'_awpcp_start_date'     => $start_date,
+				'_awpcp_end_date'       => $end_date,
+			),
+		)
+	);
+} catch ( AWPCP_Exception $exception ) {
+	cms_site_plugins_fail( 'Could not create a valid AWP community listing: ' . $exception->getMessage() );
+}
+
+cms_site_plugins_assert( $community_listing instanceof WP_Post, 'AWP production API did not return a listing post.' );
+cms_site_plugins_assert( awpcp_listings_api()->enable_listing_without_triggering_actions( $community_listing ), 'AWP production API could not enable the disposable community listing.' );
+
+$enabled_listings = awpcp_listings_collection()->find_enabled_listings(
+	array(
+		'posts_per_page' => -1,
+		'classifieds_query' => array( 'context' => 'public-listings' ),
+	)
+);
+$enabled_listing_ids = wp_list_pluck( $enabled_listings, 'ID' );
+cms_site_plugins_assert( in_array( $community_listing->ID, $enabled_listing_ids, true ), 'Disposable community listing does not satisfy AWP enabled-listing rules.' );
+
+cms_site_plugins_set_request( array() );
+cms_site_plugins_set_page_query( CMS_Unified_Marketplace::MARKETPLACE_PAGE_ID );
+$mixed_rendered = do_shortcode( '[cms_marketplace]' );
+$community_position = strpos( $mixed_rendered, 'Integration Strings Community Listing' );
+$product_position   = strpos( $mixed_rendered, 'Integration Test Guitar Strings' );
+cms_site_plugins_assert( false !== $community_position, 'Unified Marketplace did not render the real AWP community listing.' );
+cms_site_plugins_assert( false !== $product_position, 'Unified Marketplace lost the store product after a real community listing was added.' );
+cms_site_plugins_assert( $community_position < $product_position, 'Unified Marketplace did not interleave the store product after the real community listing.' );
+cms_site_plugins_assert( false === strpos( $mixed_rendered, 'There were no listings found.' ), 'Unified mixed Marketplace rendered a false empty-state message.' );
+
+cms_site_plugins_set_request( array() );
+cms_site_plugins_set_page_query( $browse_page_id );
+$mixed_browse_rendered = awpcp_browse_listings_page()->dispatch();
+cms_site_plugins_assert( false !== strpos( $mixed_browse_rendered, 'Integration Strings Community Listing' ), 'AWP Browse route did not render the real community listing.' );
+cms_site_plugins_assert( false !== strpos( $mixed_browse_rendered, 'Integration Test Guitar Strings' ), 'AWP Browse route did not keep the store product in the mixed stream.' );
+
+cms_site_plugins_set_request(
+	array(
+		'awpcp-step'      => 'dosearch',
+		'keywordphrase'   => 'Integration Strings',
+		'searchname'      => '',
+		'searchpricemin'  => '',
+		'searchpricemax'  => '',
+		'searchcategory'  => array(),
+		'regions'         => array(),
+	)
+);
+cms_site_plugins_set_page_query( $search_page_id );
+$mixed_search_rendered = awpcp_search_listings_page()->dispatch();
+cms_site_plugins_assert( false !== strpos( $mixed_search_rendered, 'Integration Strings Community Listing' ), 'AWP Search route did not return the matching real community listing.' );
+cms_site_plugins_assert( false !== strpos( $mixed_search_rendered, 'Integration Test Guitar Strings' ), 'AWP Search route did not keep the matching store product in the mixed result.' );
+
+wp_delete_post( $community_listing->ID, true );
+wp_delete_term( $category_id, AWPCP_CATEGORY_TAXONOMY );
 wp_delete_post( $product_id, true );
 wp_delete_post( CMS_Unified_Marketplace::MARKETPLACE_PAGE_ID, true );
 $_GET     = $prior_get;
@@ -290,5 +376,5 @@ wp_set_current_user( 0 );
 cms_site_plugins_assert( false === $health->check_permissions( array() ), 'Anonymous CMS Admin access was not denied.' );
 wp_set_current_user( 1 );
 
-echo "cms-site-plugins-integration: PASS cms_admin=1.0.0 marketplace=0.1.1 weekend_feature=0.2.1 wordpress_native_install=verified coexistence=verified marketplace_awp=verified marketplace_woocommerce=verified marketplace_product_only=verified marketplace_empty_state=absent marketplace_browse_route=verified marketplace_search_route=verified marketplace_route_ownership=preserved marketplace_search=verified marketplace_truncation=verified woocommerce_label=absent supplier_label=absent location_filter=preserved weekend_events_manager=verified weekend_schedule=verified cms_admin_health=verified database=verified admin_boundary=verified\n";
+echo "cms-site-plugins-integration: PASS cms_admin=1.0.0 marketplace=0.1.1 weekend_feature=0.2.1 wordpress_native_install=verified coexistence=verified marketplace_awp=verified marketplace_woocommerce=verified marketplace_product_only=verified marketplace_empty_state=absent marketplace_browse_route=verified marketplace_search_route=verified marketplace_route_ownership=preserved marketplace_mixed_stream=verified marketplace_mixed_browse=verified marketplace_mixed_search=verified awpcp_public_listing_api=verified marketplace_search=verified marketplace_truncation=verified woocommerce_label=absent supplier_label=absent location_filter=preserved weekend_events_manager=verified weekend_schedule=verified cms_admin_health=verified database=verified admin_boundary=verified\n";
 exit( 0 );
