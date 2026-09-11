@@ -6,7 +6,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 final class CMS_Unified_Marketplace {
 	const MARKETPLACE_PAGE_ID = 12;
-	const PRODUCT_LIMIT       = 100;
 	const SHORTCODE           = 'cms_marketplace';
 
 	private static $instance;
@@ -685,7 +684,7 @@ final class CMS_Unified_Marketplace {
 		$products = wc_get_products(
 			array(
 				'status'  => 'publish',
-				'limit'   => self::PRODUCT_LIMIT,
+				'limit'   => -1,
 				'orderby' => 'date',
 				'order'   => 'DESC',
 				'return'  => 'objects',
