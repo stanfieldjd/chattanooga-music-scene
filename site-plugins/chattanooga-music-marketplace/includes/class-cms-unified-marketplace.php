@@ -176,14 +176,7 @@ final class CMS_Unified_Marketplace {
 		}
 
 		if ( '' !== $search ) {
-			$products = array_values(
-				array_filter(
-					$products,
-					function ( $product ) use ( $search ) {
-						return $this->product_matches_search( $product, $search );
-					}
-				)
-			);
+			$products = $this->filter_products_by_search( $products, $search );
 		}
 
 		$min_price = $this->read_price_filter( $classifieds_query, 'min_price' );
@@ -282,18 +275,51 @@ final class CMS_Unified_Marketplace {
 		return array_values( array_unique( array_filter( $category_ids ) ) );
 	}
 
-	private function product_matches_search( WC_Product $product, $search ) {
-		$haystack = implode(
-			' ',
+	private function filter_products_by_search( $products, $search ) {
+		if ( empty( $products ) ) {
+			return array();
+		}
+
+		$product_ids = array();
+		foreach ( $products as $product ) {
+			if ( $product instanceof WC_Product ) {
+				$product_id = absint( $product->get_id() );
+				if ( $product_id > 0 ) {
+					$product_ids[] = $product_id;
+				}
+			}
+		}
+
+		if ( empty( $product_ids ) ) {
+			return array();
+		}
+
+		$query = new WP_Query(
 			array(
-				$product->get_name(),
-				$product->get_short_description(),
-				$product->get_description(),
+				'post_type'              => 'product',
+				'post_status'            => 'publish',
+				'post__in'               => $product_ids,
+				'posts_per_page'         => count( $product_ids ),
+				'orderby'                => 'post__in',
+				'fields'                 => 'ids',
+				's'                      => $search,
+				'ignore_sticky_posts'    => true,
+				'no_found_rows'          => true,
+				'update_post_meta_cache' => false,
+				'update_post_term_cache' => false,
 			)
 		);
 
-		$haystack = wp_strip_all_tags( strip_shortcodes( $haystack ) );
-		return false !== stripos( $haystack, $search );
+		$matching_ids = array_fill_keys( array_map( 'absint', $query->posts ), true );
+
+		return array_values(
+			array_filter(
+				$products,
+				function ( $product ) use ( $matching_ids ) {
+					return $product instanceof WC_Product && isset( $matching_ids[ absint( $product->get_id() ) ] );
+				}
+			)
+		);
 	}
 
 	private function read_price_filter( $classifieds_query, $key ) {
