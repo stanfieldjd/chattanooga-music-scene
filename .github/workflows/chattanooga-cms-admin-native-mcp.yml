@@ -7,11 +7,13 @@ on:
     paths:
       - "site-plugins/chattanooga-cms-admin/**"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php"
       - ".github/workflows/chattanooga-cms-admin-native-mcp.yml"
   pull_request:
     paths:
       - "site-plugins/chattanooga-cms-admin/**"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php"
       - ".github/workflows/chattanooga-cms-admin-native-mcp.yml"
 
 permissions:
@@ -48,7 +50,9 @@ jobs:
         run: |
           set -euo pipefail
           source="site-plugins/chattanooga-cms-admin"
-          find "$source" workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
+          find "$source" -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
+          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php >/dev/null
+          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php >/dev/null
           grep -q '^ \* Plugin Name: Chattanooga CMS Admin$' "$source/chattanooga-cms-admin.php"
           grep -q '^ \* Version: 1.1.0$' "$source/chattanooga-cms-admin.php"
           grep -Fq "add_action( 'rest_api_init', array( 'CUA_MCP_Server', 'register_route' ) );" "$source/chattanooga-cms-admin.php"
@@ -73,6 +77,9 @@ jobs:
 
       - name: Verify native MCP transport
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php" --path=/tmp/wordpress
+
+      - name: Verify MCP protocol era boundaries
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php" --path=/tmp/wordpress
 
       - name: Verify existing replacement coverage
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/replacement-coverage-cli.php" --path=/tmp/wordpress
