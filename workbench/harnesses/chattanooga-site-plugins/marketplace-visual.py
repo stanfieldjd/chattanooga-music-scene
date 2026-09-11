@@ -88,6 +88,27 @@ def inject_fixture(driver, css_text):
     )
 
 
+def validation_failures(name, metrics):
+    failures = []
+    if metrics["card_display"] != "grid":
+        failures.append(f"{name}: Marketplace product card is not rendered as a grid.")
+    if metrics["card_width"] < 240:
+        failures.append(f"{name}: Marketplace product card is unexpectedly narrow.")
+    if metrics["card_left"] < -1 or metrics["card_right"] > metrics["viewport_width"] + 1:
+        failures.append(f"{name}: Marketplace product card extends beyond the viewport.")
+    if metrics["page_scroll_width"] > metrics["page_client_width"] + 2:
+        failures.append(f"{name}: Marketplace fixture introduced horizontal page overflow.")
+    if metrics["image_width"] < 70 or metrics["image_height"] < 50:
+        failures.append(f"{name}: Marketplace product image is not visibly rendered.")
+    if metrics["title_width"] <= 0 or metrics["title_height"] <= 0:
+        failures.append(f"{name}: Marketplace product title is not visibly rendered.")
+    if metrics["price_width"] <= 0 or metrics["price_height"] <= 0:
+        failures.append(f"{name}: Marketplace product price is not visibly rendered.")
+    if metrics["overlaps_previous"] or metrics["overlaps_next"]:
+        failures.append(f"{name}: Marketplace product card overlaps an adjacent AWP listing.")
+    return failures
+
+
 def capture_viewport(width, height, name, css_text):
     driver = webdriver.Chrome(options=browser_options(width, height))
     driver.set_page_load_timeout(45)
@@ -105,6 +126,27 @@ def capture_viewport(width, height, name, css_text):
 
         metrics = driver.execute_script(
             """
+            function nodeInfo(element) {
+                if (!element) return null;
+                const rect = element.getBoundingClientRect();
+                const style = getComputedStyle(element);
+                return {
+                    tag: element.tagName,
+                    class_name: element.className || '',
+                    top: rect.top,
+                    bottom: rect.bottom,
+                    left: rect.left,
+                    right: rect.right,
+                    width: rect.width,
+                    height: rect.height,
+                    display: style.display,
+                    position: style.position,
+                    float: style.float,
+                    clear: style.clear,
+                    overflow: style.overflow,
+                };
+            }
+
             const card = document.querySelector('[data-cms-marketplace-visual-fixture]');
             const previous = card.previousElementSibling;
             const next = card.nextElementSibling;
@@ -118,6 +160,7 @@ def capture_viewport(width, height, name, css_text):
             const previousRect = previous ? previous.getBoundingClientRect() : null;
             const nextRect = next ? next.getBoundingClientRect() : null;
             const style = getComputedStyle(card);
+            const parentStyle = card.parentElement ? getComputedStyle(card.parentElement) : null;
             return {
                 viewport_width: window.innerWidth,
                 viewport_height: window.innerHeight,
@@ -130,38 +173,36 @@ def capture_viewport(width, height, name, css_text):
                 card_width: rect.width,
                 card_height: rect.height,
                 card_display: style.display,
+                card_position: style.position,
+                card_float: style.float,
+                card_clear: style.clear,
+                card_overflow: style.overflow,
                 grid_template_columns: style.gridTemplateColumns,
+                parent_display: parentStyle ? parentStyle.display : null,
+                parent_class_name: card.parentElement ? card.parentElement.className : null,
                 image_width: imageRect.width,
                 image_height: imageRect.height,
                 title_width: titleRect.width,
                 title_height: titleRect.height,
                 price_width: priceRect.width,
                 price_height: priceRect.height,
+                previous: nodeInfo(previous),
+                next: nodeInfo(next),
+                previous_overlap_pixels: previousRect ? Math.max(0, previousRect.bottom - rect.top) : 0,
+                next_overlap_pixels: nextRect ? Math.max(0, rect.bottom - nextRect.top) : 0,
                 overlaps_previous: previousRect ? previousRect.bottom > rect.top + 1 : false,
                 overlaps_next: nextRect ? rect.bottom > nextRect.top + 1 : false,
             };
             """
         )
 
-        if metrics["card_display"] != "grid":
-            fail(f"{name}: Marketplace product card is not rendered as a grid.")
-        if metrics["card_width"] < 240:
-            fail(f"{name}: Marketplace product card is unexpectedly narrow.")
-        if metrics["card_left"] < -1 or metrics["card_right"] > metrics["viewport_width"] + 1:
-            fail(f"{name}: Marketplace product card extends beyond the viewport.")
-        if metrics["page_scroll_width"] > metrics["page_client_width"] + 2:
-            fail(f"{name}: Marketplace fixture introduced horizontal page overflow.")
-        if metrics["image_width"] < 70 or metrics["image_height"] < 50:
-            fail(f"{name}: Marketplace product image is not visibly rendered.")
-        if metrics["title_width"] <= 0 or metrics["title_height"] <= 0:
-            fail(f"{name}: Marketplace product title is not visibly rendered.")
-        if metrics["price_width"] <= 0 or metrics["price_height"] <= 0:
-            fail(f"{name}: Marketplace product price is not visibly rendered.")
-        if metrics["overlaps_previous"] or metrics["overlaps_next"]:
-            fail(f"{name}: Marketplace product card overlaps an adjacent AWP listing.")
+        failures = validation_failures(name, metrics)
+        metrics["failures"] = failures
 
         screenshot = OUTPUT_DIR / f"marketplace-{name}.png"
         driver.save_screenshot(str(screenshot))
+        metrics_path = OUTPUT_DIR / f"marketplace-{name}-metrics.json"
+        metrics_path.write_text(json.dumps(metrics, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         return metrics
     finally:
         driver.quit()
@@ -184,6 +225,11 @@ def main():
     report_path = OUTPUT_DIR / "marketplace-visual-report.json"
     report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(report, sort_keys=True))
+
+    failures = report["desktop"]["failures"] + report["mobile"]["failures"]
+    if failures:
+        fail(" | ".join(failures))
+
     print("cms-marketplace-visual: PASS desktop=rendered mobile=rendered overflow=absent overlap=absent")
 
 
