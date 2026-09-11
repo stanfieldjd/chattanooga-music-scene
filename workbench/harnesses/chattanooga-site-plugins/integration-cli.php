@@ -86,7 +86,7 @@ $next_run = cms_site_plugins_private( $weekend, 'next_thursday_timestamp', array
 cms_site_plugins_assert( $next_run > time(), 'Weekend Feature next Thursday schedule is not in the future.' );
 cms_site_plugins_assert( '4 08:00' === wp_date( 'N H:i', $next_run, wp_timezone() ), 'Weekend Feature schedule is not Thursday at 08:00 site time.' );
 
-// Build a real Marketplace request and a real WooCommerce product.
+// Build a real Marketplace request with zero community listings and one real store product.
 $existing_12 = get_post( CMS_Unified_Marketplace::MARKETPLACE_PAGE_ID );
 if ( $existing_12 ) {
 	wp_delete_post( CMS_Unified_Marketplace::MARKETPLACE_PAGE_ID, true );
@@ -97,11 +97,26 @@ $page_id = wp_insert_post(
 		'post_type'    => 'page',
 		'post_status'  => 'publish',
 		'post_title'   => 'Marketplace Integration Test',
-		'post_content' => '[AWPCPCLASSIFIEDSUI]',
+		'post_content' => '[cms_marketplace]',
 	),
 	true
 );
 cms_site_plugins_assert( ! is_wp_error( $page_id ) && CMS_Unified_Marketplace::MARKETPLACE_PAGE_ID === (int) $page_id, 'Could not create the Marketplace page at its configured ID.' );
+cms_site_plugins_assert( shortcode_exists( 'cms_marketplace' ), 'Marketplace unified shortcode is not registered.' );
+cms_site_plugins_assert( awpcp_update_plugin_page_id( 'main-page-name', $page_id ), 'Could not assign the disposable Marketplace page as the AWP main page.' );
+cms_site_plugins_assert( awpcp()->settings->update_option( 'main_page_display', 1, true ), 'Could not enable AWP main-page listing display for the Marketplace test.' );
+
+$existing_listings = get_posts(
+	array(
+		'post_type'      => AWPCP_LISTING_POST_TYPE,
+		'post_status'    => 'any',
+		'posts_per_page' => -1,
+		'fields'         => 'ids',
+	)
+);
+foreach ( $existing_listings as $listing_id ) {
+	wp_delete_post( $listing_id, true );
+}
 
 $product = new WC_Product_Simple();
 $product->set_name( 'Integration Test Guitar Strings' );
@@ -117,29 +132,18 @@ $prior_wp_query      = isset( $GLOBALS['wp_query'] ) ? $GLOBALS['wp_query'] : nu
 $GLOBALS['wp_query'] = new WP_Query( array( 'page_id' => CMS_Unified_Marketplace::MARKETPLACE_PAGE_ID, 'post_type' => 'page' ) );
 cms_site_plugins_assert( is_page( CMS_Unified_Marketplace::MARKETPLACE_PAGE_ID ), 'Disposable request is not recognized as the Marketplace page.' );
 
-$marketplace = CMS_Unified_Marketplace::instance();
-cms_site_plugins_assert(
-	false !== has_filter( 'awpcp-content-before-listings-pagination', array( $marketplace, 'prepare_interleaving' ) ),
-	'Marketplace is not connected to the AWP listing stream.'
-);
-cms_site_plugins_assert(
-	false !== has_filter( 'awpcp-render-listing-item', array( $marketplace, 'interleave_product' ) ),
-	'Marketplace item interleaving hook is missing.'
-);
-
-$marketplace->prepare_interleaving(
-	array(),
-	'main-page',
-	array( (object) array( 'id' => 1 ) ),
-	array( 'offset' => 0, 'paged' => 1 )
-);
-$rendered = $marketplace->interleave_product( '<article>Community listing</article>', (object) array(), 1 );
-cms_site_plugins_assert( false !== strpos( $rendered, 'Integration Test Guitar Strings' ), 'Store product was not interleaved into the Marketplace stream.' );
+$rendered = do_shortcode( '[cms_marketplace]' );
+cms_site_plugins_assert( false !== strpos( $rendered, 'Integration Test Guitar Strings' ), 'Store product was not rendered inside the unified Marketplace item stream.' );
+cms_site_plugins_assert( false !== strpos( $rendered, 'cms-marketplace-product' ), 'Unified Marketplace product item marker is missing.' );
+cms_site_plugins_assert( false !== strpos( $rendered, 'awpcp-listings' ), 'Marketplace no longer renders inside the AWP listings container.' );
 cms_site_plugins_assert( false !== strpos( wp_strip_all_tags( $rendered ), 'Price:' ), 'Marketplace product price is missing.' );
+cms_site_plugins_assert( false === strpos( $rendered, 'There were no listings found.' ), 'Marketplace rendered AWP empty-state text even though a store product exists.' );
 cms_site_plugins_assert( false === stripos( wp_strip_all_tags( $rendered ), 'WooCommerce' ), 'Marketplace rendered a customer-facing WooCommerce label.' );
+cms_site_plugins_assert( false === stripos( wp_strip_all_tags( $rendered ), 'CJ Dropshipping' ), 'Marketplace rendered a customer-facing supplier label.' );
 cms_site_plugins_assert( false === strpos( $rendered, '&amp;hellip;' ), 'Marketplace double-escaped the description truncation suffix.' );
 cms_site_plugins_assert( false !== strpos( $rendered, '…' ), 'Marketplace did not render a visible ellipsis for a truncated description.' );
 
+$marketplace = CMS_Unified_Marketplace::instance();
 $multi_term_search = cms_site_plugins_private(
 	$marketplace,
 	'get_products_for_query',
@@ -180,5 +184,5 @@ wp_set_current_user( 0 );
 cms_site_plugins_assert( false === $health->check_permissions( array() ), 'Anonymous CMS Admin access was not denied.' );
 wp_set_current_user( 1 );
 
-echo "cms-site-plugins-integration: PASS cms_admin=1.0.0 marketplace=0.1.1 weekend_feature=0.2.1 wordpress_native_install=verified coexistence=verified marketplace_awp=verified marketplace_woocommerce=verified marketplace_search=verified marketplace_truncation=verified woocommerce_label=absent location_filter=preserved weekend_events_manager=verified weekend_schedule=verified cms_admin_health=verified database=verified admin_boundary=verified\n";
+echo "cms-site-plugins-integration: PASS cms_admin=1.0.0 marketplace=0.1.1 weekend_feature=0.2.1 wordpress_native_install=verified coexistence=verified marketplace_awp=verified marketplace_woocommerce=verified marketplace_product_only=verified marketplace_empty_state=absent marketplace_search=verified marketplace_truncation=verified woocommerce_label=absent supplier_label=absent location_filter=preserved weekend_events_manager=verified weekend_schedule=verified cms_admin_health=verified database=verified admin_boundary=verified\n";
 exit( 0 );
