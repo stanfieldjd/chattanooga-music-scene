@@ -30,6 +30,22 @@ final class CUA_Platform_Package_Lifecycle {
 		);
 
 		wp_register_ability(
+			self::PREFIX . 'install-plugin-package',
+			array(
+				'label'               => __( 'Install verified plugin package', 'chattanooga-cms-admin' ),
+				'description'         => __( 'Installs one exact ZIP plugin package after SHA-256, package-root, plugin-file, and version verification. The plugin is left inactive and failed verification is rolled back.', 'chattanooga-cms-admin' ),
+				'category'            => self::CATEGORY,
+				'input_schema'        => self::plugin_package_schema(),
+				'output_schema'       => array( 'type' => 'object' ),
+				'execute_callback'    => array( __CLASS__, 'install_plugin_package' ),
+				'permission_callback' => static function () {
+					return current_user_can( 'install_plugins' ) && current_user_can( 'delete_plugins' );
+				},
+				'meta'                => self::mutation_meta(),
+			)
+		);
+
+		wp_register_ability(
 			self::PREFIX . 'install-theme',
 			array(
 				'label'               => __( 'Install WordPress.org theme', 'chattanooga-cms-admin' ),
@@ -134,6 +150,84 @@ final class CUA_Platform_Package_Lifecycle {
 			'slug'      => $slug,
 			'plugin'    => $plugin,
 			'version'   => $version,
+			'installed' => true,
+			'active'    => false,
+		);
+	}
+
+	public static function install_plugin_package( $input ) {
+		$package = self::read_plugin_package( $input );
+		if ( is_wp_error( $package ) ) {
+			return $package;
+		}
+
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+		require_once ABSPATH . 'wp-admin/includes/class-plugin-upgrader.php';
+		require_once ABSPATH . 'wp-admin/includes/class-automatic-upgrader-skin.php';
+
+		$expected_plugin  = $package['expected_plugin'];
+		$expected_version = $package['expected_version'];
+		$expected_sha256  = $package['expected_sha256'];
+		$bytes            = $package['bytes'];
+
+		$before = get_plugins();
+		if ( isset( $before[ $expected_plugin ] ) ) {
+			return new WP_Error( 'cmsa_plugin_already_installed', 'The requested plugin is already installed.' );
+		}
+
+		$self = plugin_basename( CUA_DIR . 'chattanooga-cms-admin.php' );
+		if ( $expected_plugin === $self ) {
+			return new WP_Error( 'cmsa_self_package_install_forbidden', 'Chattanooga CMS Admin cannot replace its own running control-plane package through this ability.' );
+		}
+
+		$temp = wp_tempnam( 'cmsa-plugin-package.zip' );
+		if ( ! is_string( $temp ) || '' === $temp ) {
+			return new WP_Error( 'cmsa_plugin_package_temp_failed', 'WordPress could not create temporary storage for the plugin package.' );
+		}
+
+		$written = file_put_contents( $temp, $bytes );
+		if ( strlen( $bytes ) !== $written ) {
+			@unlink( $temp );
+			return new WP_Error( 'cmsa_plugin_package_write_failed', 'WordPress could not persist the complete verified plugin package.' );
+		}
+
+		$preflight = self::verify_plugin_package_archive( $temp, $expected_plugin );
+		if ( is_wp_error( $preflight ) ) {
+			@unlink( $temp );
+			return $preflight;
+		}
+
+		$upgrader = new Plugin_Upgrader( new Automatic_Upgrader_Skin() );
+		$result = $upgrader->install( $temp );
+		@unlink( $temp );
+
+		wp_clean_plugins_cache( false );
+		$after = get_plugins();
+
+		if ( true !== $result ) {
+			$rollback = self::rollback_new_plugins( $before, $after );
+			if ( is_wp_error( $rollback ) ) {
+				return $rollback;
+			}
+			return new WP_Error( 'cmsa_plugin_package_install_failed', is_wp_error( $result ) ? $result->get_error_message() : 'WordPress did not complete the verified plugin package installation.' );
+		}
+
+		$unexpected = array_diff( array_keys( $after ), array_keys( $before ), array( $expected_plugin ) );
+		$version = isset( $after[ $expected_plugin ]['Version'] ) ? (string) $after[ $expected_plugin ]['Version'] : '';
+		if ( ! isset( $after[ $expected_plugin ] ) || $unexpected || $expected_version !== $version || is_plugin_active( $expected_plugin ) ) {
+			$rollback = self::rollback_new_plugins( $before, $after );
+			if ( is_wp_error( $rollback ) ) {
+				return $rollback;
+			}
+			return new WP_Error( 'cmsa_plugin_package_install_verification_failed', 'The installed package did not match the expected plugin identity/version or was unexpectedly activated; the installation was removed.' );
+		}
+
+		return array(
+			'plugin'    => $expected_plugin,
+			'version'   => $version,
+			'sha256'    => $expected_sha256,
 			'installed' => true,
 			'active'    => false,
 		);
@@ -262,6 +356,84 @@ final class CUA_Platform_Package_Lifecycle {
 		return $plugin;
 	}
 
+	private static function read_plugin_package( $input ) {
+		if ( ! is_array( $input ) ) {
+			return new WP_Error( 'cmsa_invalid_plugin_package', 'Verified plugin package input must be an object.' );
+		}
+
+		$content_base64   = isset( $input['content_base64'] ) ? (string) $input['content_base64'] : '';
+		$expected_sha256 = isset( $input['expected_sha256'] ) ? strtolower( trim( (string) $input['expected_sha256'] ) ) : '';
+		$expected_plugin = isset( $input['expected_plugin'] ) ? trim( (string) $input['expected_plugin'] ) : '';
+		$expected_version = isset( $input['expected_version'] ) ? trim( (string) $input['expected_version'] ) : '';
+
+		if ( '' === $content_base64
+			|| ! preg_match( '/^[a-f0-9]{64}$/', $expected_sha256 )
+			|| '' === $expected_plugin
+			|| 0 !== validate_file( $expected_plugin )
+			|| '.php' !== substr( $expected_plugin, -4 )
+			|| '.' === dirname( $expected_plugin )
+			|| '' === $expected_version
+			|| strlen( $expected_version ) > 64 ) {
+			return new WP_Error( 'cmsa_invalid_plugin_package', 'Exact package bytes, SHA-256, plugin file, and expected version are required.' );
+		}
+
+		$bytes = base64_decode( $content_base64, true );
+		if ( false === $bytes || '' === $bytes ) {
+			return new WP_Error( 'cmsa_invalid_plugin_package', 'Plugin package bytes were not valid base64-encoded content.' );
+		}
+
+		$actual_sha256 = hash( 'sha256', $bytes );
+		if ( ! hash_equals( $expected_sha256, $actual_sha256 ) ) {
+			return new WP_Error(
+				'cmsa_plugin_package_hash_mismatch',
+				'The plugin package SHA-256 did not match the expected digest.',
+				array( 'actual_sha256' => $actual_sha256 )
+			);
+		}
+
+		return array(
+			'bytes'            => $bytes,
+			'expected_sha256'  => $expected_sha256,
+			'expected_plugin'  => $expected_plugin,
+			'expected_version' => $expected_version,
+		);
+	}
+
+	private static function verify_plugin_package_archive( $path, $expected_plugin ) {
+		if ( ! class_exists( 'ZipArchive' ) ) {
+			return new WP_Error( 'cmsa_plugin_package_zip_unavailable', 'ZipArchive is required to verify custom plugin package structure.' );
+		}
+
+		$zip = new ZipArchive();
+		if ( true !== $zip->open( $path ) ) {
+			return new WP_Error( 'cmsa_plugin_package_invalid_zip', 'The verified plugin package could not be opened as a ZIP archive.' );
+		}
+
+		$root = dirname( $expected_plugin );
+		$found_expected = false;
+		for ( $index = 0; $index < $zip->numFiles; $index++ ) {
+			$name = (string) $zip->getNameIndex( $index );
+			if ( '' === $name
+				|| 0 === strpos( $name, '/' )
+				|| false !== strpos( $name, '\\' )
+				|| preg_match( '#(^|/)\.\.(/|$)#', $name )
+				|| ( $name !== $root && 0 !== strpos( $name, $root . '/' ) ) ) {
+				$zip->close();
+				return new WP_Error( 'cmsa_plugin_package_structure_mismatch', 'The plugin package contains files outside the expected plugin directory.' );
+			}
+			if ( $name === $expected_plugin ) {
+				$found_expected = true;
+			}
+		}
+		$zip->close();
+
+		if ( ! $found_expected ) {
+			return new WP_Error( 'cmsa_plugin_package_identity_mismatch', 'The expected plugin file was not present in the verified package.' );
+		}
+
+		return true;
+	}
+
 	private static function plugin_file_for_slug( $slug, array $plugins ) {
 		foreach ( array_keys( $plugins ) as $plugin_file ) {
 			$directory = dirname( $plugin_file );
@@ -310,6 +482,20 @@ final class CUA_Platform_Package_Lifecycle {
 			'type'                 => 'object',
 			'properties'           => array( 'slug' => array( 'type' => 'string', 'minLength' => 1, 'maxLength' => 191 ) ),
 			'required'             => array( 'slug' ),
+			'additionalProperties' => false,
+		);
+	}
+
+	private static function plugin_package_schema() {
+		return array(
+			'type'                 => 'object',
+			'properties'           => array(
+				'content_base64' => array( 'type' => 'string', 'minLength' => 4 ),
+				'expected_sha256' => array( 'type' => 'string', 'pattern' => '^[A-Fa-f0-9]{64}$' ),
+				'expected_plugin' => array( 'type' => 'string', 'minLength' => 3, 'maxLength' => 255 ),
+				'expected_version' => array( 'type' => 'string', 'minLength' => 1, 'maxLength' => 64 ),
+			),
+			'required'             => array( 'content_base64', 'expected_sha256', 'expected_plugin', 'expected_version' ),
 			'additionalProperties' => false,
 		);
 	}
