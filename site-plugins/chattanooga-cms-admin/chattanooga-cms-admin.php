@@ -31,11 +31,13 @@ require_once CUA_DIR . 'includes/class-cua-platform-core-maintenance.php';
 require_once CUA_DIR . 'includes/class-cua-platform-settings.php';
 require_once CUA_DIR . 'includes/class-cua-rest-bridge.php';
 require_once CUA_DIR . 'includes/class-cua-ability-bridge.php';
+require_once CUA_DIR . 'includes/class-cua-bridge-gateway.php';
 
 CUA_Audit::bootstrap();
 
 add_action( 'wp_abilities_api_categories_init', array( 'CUA_Ability_Bridge', 'register_category' ) );
 add_action( 'wp_abilities_api_init', array( 'CUA_Ability_Bridge', 'register_catalog_ability' ), 5 );
+add_action( 'wp_abilities_api_init', array( 'CUA_Bridge_Gateway', 'register_abilities' ), 6 );
 add_action( 'wp_abilities_api_init', array( 'CUA_Platform_Services', 'register_abilities' ), 10 );
 add_action( 'wp_abilities_api_init', array( 'CUA_Platform_Inventory', 'register_abilities' ), 11 );
 add_action( 'wp_abilities_api_init', array( 'CUA_Platform_Theme_Updater', 'register_ability' ), 12 );
