@@ -50,19 +50,32 @@ jobs:
           php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://cms-marketplace-check.test --title="Marketplace Plugin Check" --admin_user=admin --admin_password="$password" --admin_email=plugin-check@example.invalid --skip-email
           php /tmp/wp-cli.phar plugin install plugin-check --activate --path=/tmp/wordpress
 
-      - name: Install Marketplace package in disposable WordPress
+      - name: Install production Marketplace package in disposable WordPress
         shell: bash
         run: |
           set -euo pipefail
           rm -rf /tmp/cms-marketplace-build /tmp/chattanooga-music-marketplace.zip
           mkdir -p /tmp/cms-marketplace-build
           cp -R site-plugins/chattanooga-music-marketplace /tmp/cms-marketplace-build/chattanooga-music-marketplace
+          rm -rf /tmp/cms-marketplace-build/chattanooga-music-marketplace/tests
           (cd /tmp/cms-marketplace-build && zip -qr /tmp/chattanooga-music-marketplace.zip chattanooga-music-marketplace)
+
+          if unzip -l /tmp/chattanooga-music-marketplace.zip | grep -Fq 'chattanooga-music-marketplace/tests/'; then
+            echo 'Marketplace production package must not contain engineering tests.' >&2
+            exit 1
+          fi
+
           php /tmp/wp-cli.phar plugin install /tmp/chattanooga-music-marketplace.zip --activate --path=/tmp/wordpress
           test "$(php /tmp/wp-cli.phar plugin get chattanooga-music-marketplace --field=version --path=/tmp/wordpress)" = "0.1.1"
+          test ! -d /tmp/wordpress/wp-content/plugins/chattanooga-music-marketplace/tests
 
       - name: Run WordPress Plugin Check
         shell: bash
         run: |
           set -euo pipefail
-          php /tmp/wp-cli.phar plugin check chattanooga-music-marketplace --format=table --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin check chattanooga-music-marketplace --format=table --path=/tmp/wordpress 2>&1 | tee /tmp/chattanooga-music-marketplace-plugin-check.txt
+
+          if grep -Eq $'\t(ERROR|WARNING)\t' /tmp/chattanooga-music-marketplace-plugin-check.txt; then
+            echo 'WordPress Plugin Check reported Marketplace findings.' >&2
+            exit 1
+          fi
