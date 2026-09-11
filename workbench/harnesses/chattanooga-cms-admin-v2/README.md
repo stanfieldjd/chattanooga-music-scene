@@ -8,7 +8,7 @@ The replacement WordPress plugin source exists only at:
 
 `site-plugins/chattanooga-cms-admin/`
 
-Its production identity is `Chattanooga CMS Admin`, its entrypoint is `chattanooga-cms-admin.php`, and the accepted engineering version is `1.0.0`. The former `workbench/labs/chattanooga-universal-admin` tree has been deleted and must not be recreated.
+Its production identity is `Chattanooga CMS Admin`, its entrypoint is `chattanooga-cms-admin.php`, and the accepted engineering version is `1.0.1`. The former `workbench/labs/chattanooga-universal-admin` tree has been deleted and must not be recreated.
 
 ## Harness rules
 
