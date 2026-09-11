@@ -59,6 +59,7 @@ jobs:
             find "site-plugins/$plugin" -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
           done
           php -l workbench/harnesses/chattanooga-site-plugins/integration-cli.php >/dev/null
+          php -l workbench/harnesses/chattanooga-site-plugins/marketplace-price-pagination-cli.php >/dev/null
           grep -Fq 'Version: 1.0.0' site-plugins/chattanooga-cms-admin/chattanooga-cms-admin.php
           grep -Fq 'Version: 0.1.1' site-plugins/chattanooga-music-marketplace/chattanooga-music-marketplace.php
           grep -Fq 'Version: 0.2.1' site-plugins/chattanooga-music-scene-core/chattanooga-music-scene-core.php
@@ -152,6 +153,9 @@ jobs:
 
       - name: Verify three-plugin integration
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-site-plugins/integration-cli.php" --path=/tmp/wordpress
+
+      - name: Verify Marketplace price and pagination
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-site-plugins/marketplace-price-pagination-cli.php" --path=/tmp/wordpress
 
       - name: Upload installable Chattanooga CMS Admin package
         uses: actions/upload-artifact@v4
