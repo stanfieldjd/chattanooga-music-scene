@@ -120,7 +120,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          php /tmp/wp-cli.phar plugin install woocommerce --version=11.0.1 --activate --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin install woocommerce --version=11.1.0 --activate --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin install events-manager --version=7.4.3 --activate --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin install another-wordpress-classifieds-plugin --version=4.4.8 --activate --path=/tmp/wordpress
           php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/events-manager-bootstrap-cli.php" --path=/tmp/wordpress
