@@ -136,6 +136,15 @@ foreach ( $existing_listings as $listing_id ) {
 	wp_delete_post( $listing_id, true );
 }
 
+$product_category_result = wp_insert_term(
+	'Integration Test Instruments',
+	'product_cat',
+	array( 'slug' => 'integration-test-instruments' )
+);
+cms_site_plugins_assert( ! is_wp_error( $product_category_result ), 'Could not create the disposable WooCommerce product category.' );
+$product_category_id = absint( $product_category_result['term_id'] );
+cms_site_plugins_assert( $product_category_id > 0, 'Disposable WooCommerce product category has no valid term ID.' );
+
 $product = new WC_Product_Simple();
 $product->set_name( 'Integration Test Guitar Strings' );
 $product->set_status( 'publish' );
@@ -143,6 +152,7 @@ $product->set_catalog_visibility( 'visible' );
 $product->set_regular_price( '12.99' );
 $product->set_short_description( 'Fresh strings for the integration test and stage use with reliable tone, comfortable feel, balanced tension, durable winding, smooth playability, clear response, and dependable performance for rehearsals, recording sessions, and live shows.' );
 $product->set_stock_status( 'instock' );
+$product->set_category_ids( array( $product_category_id ) );
 $product_id = $product->save();
 cms_site_plugins_assert( $product_id > 0, 'Could not create the Marketplace WooCommerce product.' );
 
@@ -319,7 +329,7 @@ cms_site_plugins_assert( awpcp_listings_api()->enable_listing_without_triggering
 
 $enabled_listings = awpcp_listings_collection()->find_enabled_listings(
 	array(
-		'posts_per_page' => -1,
+		'posts_per_page'   => -1,
 		'classifieds_query' => array( 'context' => 'public-listings' ),
 	)
 );
@@ -358,9 +368,68 @@ $mixed_search_rendered = awpcp_search_listings_page()->dispatch();
 cms_site_plugins_assert( false !== strpos( $mixed_search_rendered, 'Integration Strings Community Listing' ), 'AWP Search route did not return the matching real community listing.' );
 cms_site_plugins_assert( false !== strpos( $mixed_search_rendered, 'Integration Test Guitar Strings' ), 'AWP Search route did not keep the matching store product in the mixed result.' );
 
+// Verify exact category mapping against real AWP and WooCommerce taxonomies.
+cms_site_plugins_set_request( array( 'awpcp_category_id' => $category_id ) );
+cms_site_plugins_set_page_query( $browse_page_id );
+$category_browse_rendered = awpcp_browse_listings_page()->dispatch();
+cms_site_plugins_assert( false !== strpos( $category_browse_rendered, 'Integration Strings Community Listing' ), 'AWP Browse category route lost the matching community listing.' );
+cms_site_plugins_assert( false !== strpos( $category_browse_rendered, 'Integration Test Guitar Strings' ), 'AWP Browse category route did not include the exactly mapped store product.' );
+
+cms_site_plugins_set_request(
+	array(
+		'awpcp-step'      => 'dosearch',
+		'keywordphrase'   => '',
+		'searchname'      => '',
+		'searchpricemin'  => '',
+		'searchpricemax'  => '',
+		'searchcategory'  => array( $category_id ),
+		'regions'         => array(),
+	)
+);
+cms_site_plugins_set_page_query( $search_page_id );
+$category_search_rendered = awpcp_search_listings_page()->dispatch();
+cms_site_plugins_assert( false !== strpos( $category_search_rendered, 'Integration Strings Community Listing' ), 'AWP Search category route lost the matching community listing.' );
+cms_site_plugins_assert( false !== strpos( $category_search_rendered, 'Integration Test Guitar Strings' ), 'AWP Search category route did not include the exactly mapped store product.' );
+
+$unmatched_category_result = wp_insert_term(
+	'Integration Test Amplifiers',
+	AWPCP_CATEGORY_TAXONOMY,
+	array( 'slug' => 'integration-test-amplifiers' )
+);
+cms_site_plugins_assert( ! is_wp_error( $unmatched_category_result ), 'Could not create the disposable unmatched AWP listing category.' );
+$unmatched_category_id = absint( $unmatched_category_result['term_id'] );
+cms_site_plugins_assert( $unmatched_category_id > 0, 'Disposable unmatched AWP listing category has no valid term ID.' );
+
+$reassigned_terms = wp_set_object_terms( $community_listing->ID, array( $unmatched_category_id ), AWPCP_CATEGORY_TAXONOMY, false );
+cms_site_plugins_assert( ! is_wp_error( $reassigned_terms ), 'Could not reassign the disposable community listing to the unmatched category.' );
+
+cms_site_plugins_set_request( array( 'awpcp_category_id' => $unmatched_category_id ) );
+cms_site_plugins_set_page_query( $browse_page_id );
+$unmatched_browse_rendered = awpcp_browse_listings_page()->dispatch();
+cms_site_plugins_assert( false !== strpos( $unmatched_browse_rendered, 'Integration Strings Community Listing' ), 'AWP Browse route did not return the community listing in the unmatched category.' );
+cms_site_plugins_assert( false === strpos( $unmatched_browse_rendered, 'Integration Test Guitar Strings' ), 'AWP Browse route inserted a store product into an unmapped category.' );
+
+cms_site_plugins_set_request(
+	array(
+		'awpcp-step'      => 'dosearch',
+		'keywordphrase'   => '',
+		'searchname'      => '',
+		'searchpricemin'  => '',
+		'searchpricemax'  => '',
+		'searchcategory'  => array( $unmatched_category_id ),
+		'regions'         => array(),
+	)
+);
+cms_site_plugins_set_page_query( $search_page_id );
+$unmatched_search_rendered = awpcp_search_listings_page()->dispatch();
+cms_site_plugins_assert( false !== strpos( $unmatched_search_rendered, 'Integration Strings Community Listing' ), 'AWP Search route did not return the community listing in the unmatched category.' );
+cms_site_plugins_assert( false === strpos( $unmatched_search_rendered, 'Integration Test Guitar Strings' ), 'AWP Search route inserted a store product into an unmapped category.' );
+
 wp_delete_post( $community_listing->ID, true );
+wp_delete_term( $unmatched_category_id, AWPCP_CATEGORY_TAXONOMY );
 wp_delete_term( $category_id, AWPCP_CATEGORY_TAXONOMY );
 wp_delete_post( $product_id, true );
+wp_delete_term( $product_category_id, 'product_cat' );
 wp_delete_post( CMS_Unified_Marketplace::MARKETPLACE_PAGE_ID, true );
 $_GET     = $prior_get;
 $_POST    = $prior_post;
@@ -376,5 +445,5 @@ wp_set_current_user( 0 );
 cms_site_plugins_assert( false === $health->check_permissions( array() ), 'Anonymous CMS Admin access was not denied.' );
 wp_set_current_user( 1 );
 
-echo "cms-site-plugins-integration: PASS cms_admin=1.0.0 marketplace=0.1.1 weekend_feature=0.2.1 wordpress_native_install=verified coexistence=verified marketplace_awp=verified marketplace_woocommerce=verified marketplace_product_only=verified marketplace_empty_state=absent marketplace_browse_route=verified marketplace_search_route=verified marketplace_route_ownership=preserved marketplace_mixed_stream=verified marketplace_mixed_browse=verified marketplace_mixed_search=verified awpcp_public_listing_api=verified marketplace_search=verified marketplace_truncation=verified woocommerce_label=absent supplier_label=absent location_filter=preserved weekend_events_manager=verified weekend_schedule=verified cms_admin_health=verified database=verified admin_boundary=verified\n";
+echo "cms-site-plugins-integration: PASS cms_admin=1.0.0 marketplace=0.1.1 weekend_feature=0.2.1 wordpress_native_install=verified coexistence=verified marketplace_awp=verified marketplace_woocommerce=verified marketplace_product_only=verified marketplace_empty_state=absent marketplace_browse_route=verified marketplace_search_route=verified marketplace_route_ownership=preserved marketplace_mixed_stream=verified marketplace_mixed_browse=verified marketplace_mixed_search=verified awpcp_public_listing_api=verified marketplace_category_browse=verified marketplace_category_search=verified marketplace_unmapped_category=excluded marketplace_search=verified marketplace_truncation=verified woocommerce_label=absent supplier_label=absent location_filter=preserved weekend_events_manager=verified weekend_schedule=verified cms_admin_health=verified database=verified admin_boundary=verified\n";
 exit( 0 );
