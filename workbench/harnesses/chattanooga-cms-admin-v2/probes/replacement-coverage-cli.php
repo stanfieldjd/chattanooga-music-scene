@@ -10,6 +10,85 @@ function cmsa_v2_coverage_fail( $message ) {
 	exit( 1 );
 }
 
+function cmsa_v2_coverage_ability_is_bridgeable( $ability ) {
+	if ( ! $ability instanceof WP_Ability ) {
+		return false;
+	}
+	$name = $ability->get_name();
+	if ( 0 === strpos( $name, 'chattanooga-cms-admin/' ) ) {
+		return false;
+	}
+	$meta = $ability->get_meta();
+	if ( isset( $meta['mcp'] ) && is_array( $meta['mcp'] ) && array_key_exists( 'public', $meta['mcp'] ) && null !== $meta['mcp']['public'] ) {
+		return true === $meta['mcp']['public'];
+	}
+	return true === ( $meta['public'] ?? false );
+}
+
+function cmsa_v2_coverage_rest_methods( $handler ) {
+	if ( ! is_array( $handler ) ) {
+		return array();
+	}
+	if ( isset( $handler['show_in_index'] ) && false === $handler['show_in_index'] ) {
+		return array();
+	}
+	if ( empty( $handler['methods'] ) || ! is_array( $handler['methods'] ) ) {
+		return array();
+	}
+	if ( empty( $handler['callback'] ) || ! is_callable( $handler['callback'] ) ) {
+		return array();
+	}
+	if ( empty( $handler['permission_callback'] ) || ! is_callable( $handler['permission_callback'] ) ) {
+		return array();
+	}
+	$methods = array();
+	foreach ( array( 'GET', 'POST', 'PUT', 'PATCH', 'DELETE' ) as $method ) {
+		if ( ! empty( $handler['methods'][ $method ] ) ) {
+			$methods[] = $method;
+		}
+	}
+	return $methods;
+}
+
+add_action(
+	'wp_abilities_api_init',
+	static function () {
+		wp_register_ability(
+			'cmsa-coverage-fixture/late-public-ability',
+			array(
+				'label'               => 'Late public coverage fixture',
+				'description'         => 'Synthetic public ability registered after the normal bridge-registration pass.',
+				'category'            => 'chattanooga-cms-admin',
+				'input_schema'        => array( 'type' => 'object', 'properties' => array(), 'additionalProperties' => false ),
+				'output_schema'       => array( 'type' => 'object' ),
+				'execute_callback'    => static function () { return array( 'fixture' => true ); },
+				'permission_callback' => static function () { return current_user_can( 'manage_options' ); },
+				'meta'                => array(
+					'public'      => true,
+					'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true ),
+				),
+			)
+		);
+	},
+	PHP_INT_MAX
+);
+
+add_action(
+	'rest_api_init',
+	static function () {
+		register_rest_route(
+			'cmsa-coverage-fixture/v1',
+			'/late/(?P<id>[\\d]+)',
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => static function ( WP_REST_Request $request ) { return array( 'id' => (int) $request['id'] ); },
+				'permission_callback' => static function () { return current_user_can( 'manage_options' ); },
+			)
+		);
+	},
+	PHP_INT_MAX
+);
+
 wp_set_current_user( 1 );
 
 $required_platform = array(
@@ -70,6 +149,62 @@ if ( ! $catalog_ability instanceof WP_Ability ) {
 $catalog = $catalog_ability->execute( array() );
 if ( is_wp_error( $catalog ) || empty( $catalog['items'] ) || ! is_array( $catalog['items'] ) ) {
 	cmsa_v2_coverage_fail( 'Universal capability catalog could not be read.' );
+}
+
+$catalog_by_bridge = array();
+foreach ( $catalog['items'] as $item ) {
+	if ( ! is_array( $item ) || empty( $item['bridge'] ) ) {
+		continue;
+	}
+	$catalog_by_bridge[ (string) $item['bridge'] ] = $item;
+}
+
+$expected_ability_bridges = array();
+foreach ( wp_get_abilities() as $ability ) {
+	if ( ! cmsa_v2_coverage_ability_is_bridgeable( $ability ) ) {
+		continue;
+	}
+	$target_name = $ability->get_name();
+	$bridge_name = 'chattanooga-cms-admin/bridge-' . substr( hash( 'sha256', $target_name ), 0, 24 );
+	$expected_ability_bridges[ $bridge_name ] = $target_name;
+}
+foreach ( $expected_ability_bridges as $bridge_name => $target_name ) {
+	$item = $catalog_by_bridge[ $bridge_name ] ?? null;
+	if ( ! is_array( $item ) || 'ability' !== ( $item['contract'] ?? '' ) || $target_name !== ( $item['target'] ?? '' ) ) {
+		cmsa_v2_coverage_fail( 'Universal catalog omitted a live public WordPress ability: ' . $target_name );
+	}
+}
+
+$server = rest_get_server();
+if ( ! $server instanceof WP_REST_Server ) {
+	cmsa_v2_coverage_fail( 'WordPress REST server is unavailable for universal contract coverage.' );
+}
+$expected_rest_bridges = array();
+foreach ( $server->get_routes() as $route_regex => $handlers ) {
+	if ( ! is_string( $route_regex ) || ! is_array( $handlers ) ) {
+		continue;
+	}
+	foreach ( $handlers as $handler ) {
+		foreach ( cmsa_v2_coverage_rest_methods( $handler ) as $method ) {
+			$bridge_name = 'chattanooga-cms-admin/rest-' . substr( hash( 'sha256', $method . '|' . $route_regex ), 0, 24 );
+			$expected_rest_bridges[ $bridge_name ] = $method . ' ' . $route_regex;
+		}
+	}
+}
+foreach ( $expected_rest_bridges as $bridge_name => $target ) {
+	$item = $catalog_by_bridge[ $bridge_name ] ?? null;
+	if ( ! is_array( $item ) || 'rest' !== ( $item['contract'] ?? '' ) || $target !== ( $item['target'] ?? '' ) ) {
+		cmsa_v2_coverage_fail( 'Universal catalog omitted a live bridgeable REST contract: ' . $target );
+	}
+}
+
+$late_ability_bridge = 'chattanooga-cms-admin/bridge-' . substr( hash( 'sha256', 'cmsa-coverage-fixture/late-public-ability' ), 0, 24 );
+if ( ! isset( $catalog_by_bridge[ $late_ability_bridge ] ) ) {
+	cmsa_v2_coverage_fail( 'Late public ability fixture was not discovered dynamically.' );
+}
+$late_rest_bridge = 'chattanooga-cms-admin/rest-' . substr( hash( 'sha256', 'GET|/cmsa-coverage-fixture/v1/late/(?P<id>[\\d]+)' ), 0, 24 );
+if ( ! isset( $catalog_by_bridge[ $late_rest_bridge ] ) ) {
+	cmsa_v2_coverage_fail( 'Late REST fixture was not discovered dynamically.' );
 }
 
 $required_rest = array(
@@ -135,5 +270,5 @@ foreach ( array( 'get-health', 'list-plugins', 'list-backups' ) as $short_name )
 }
 
 wp_set_current_user( 1 );
-echo "cmsa-v2-replacement-coverage: PASS system_parity=24 intrinsic=verified legacy_resource_adapters=absent core_rest_contracts=present settings_contract=present admin_boundary=verified\n";
+echo 'cmsa-v2-replacement-coverage: PASS system_parity=24 intrinsic=verified live_public_abilities=' . count( $expected_ability_bridges ) . ' live_rest_contracts=' . count( $expected_rest_bridges ) . " settings_contract=present admin_boundary=verified\n";
 exit( 0 );
