@@ -7,8 +7,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Native OAuth 2.1 authorization/resource-server support for Chattanooga CMS Admin MCP.
  *
- * This class deliberately keeps OAuth inside Chattanooga CMS Admin. It does not depend on
- * miniOrange, WordPress MCP Adapter, or another MCP transport/proxy.
+ * This class deliberately keeps OAuth inside Chattanooga CMS Admin and has no dependency
+ * on an external MCP transport, adapter, or proxy.
  */
 final class CUA_MCP_OAuth {
 	const SCOPE = 'mcp:admin';
