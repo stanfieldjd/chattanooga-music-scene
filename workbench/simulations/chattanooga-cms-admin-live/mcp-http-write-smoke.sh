@@ -66,6 +66,7 @@ JSON
 
 anonymous_code="$(curl -sS -o "$tmp_dir/anonymous.json" -w '%{http_code}' \
   -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
   -H 'MCP-Protocol-Version: 2026-07-28' \
   -H 'Mcp-Method: server/discover' \
   --data-binary @"$tmp_dir/discover.json" \
@@ -75,6 +76,7 @@ test "$anonymous_code" = '401'
 authenticated_code="$(curl -sS -o "$tmp_dir/discover-response.json" -w '%{http_code}' \
   --user "admin:${app_password}" \
   -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
   -H 'MCP-Protocol-Version: 2026-07-28' \
   -H 'Mcp-Method: server/discover' \
   --data-binary @"$tmp_dir/discover.json" \
@@ -89,6 +91,7 @@ JSON
 catalog_code="$(curl -sS -o "$tmp_dir/catalog-response.json" -w '%{http_code}' \
   --user "admin:${app_password}" \
   -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
   -H 'MCP-Protocol-Version: 2026-07-28' \
   -H 'Mcp-Method: tools/call' \
   -H 'Mcp-Name: cmsa.catalog' \
@@ -105,6 +108,7 @@ printf '%s' "$write_json" >"$tmp_dir/write.json"
 write_code="$(curl -sS -o "$tmp_dir/write-response.json" -w '%{http_code}' \
   --user "admin:${app_password}" \
   -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
   -H 'MCP-Protocol-Version: 2026-07-28' \
   -H 'Mcp-Method: tools/call' \
   -H 'Mcp-Name: cmsa.write-bridge' \
@@ -122,6 +126,7 @@ printf '%s' "$media_json" >"$tmp_dir/media.json"
 media_code="$(curl -sS -o "$tmp_dir/media-response.json" -w '%{http_code}' \
   --user "admin:${app_password}" \
   -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
   -H 'MCP-Protocol-Version: 2026-07-28' \
   -H 'Mcp-Method: tools/call' \
   -H 'Mcp-Name: cmsa.upload-media' \
@@ -147,6 +152,7 @@ printf '%s' "$user_create_json" >"$tmp_dir/user-create.json"
 user_create_code="$(curl -sS -o "$tmp_dir/user-create-response.json" -w '%{http_code}' \
   --user "admin:${app_password}" \
   -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
   -H 'MCP-Protocol-Version: 2026-07-28' \
   -H 'Mcp-Method: tools/call' \
   -H 'Mcp-Name: cmsa.write-bridge' \
@@ -170,6 +176,7 @@ printf '%s' "$user_update_json" >"$tmp_dir/user-update.json"
 user_update_code="$(curl -sS -o "$tmp_dir/user-update-response.json" -w '%{http_code}' \
   --user "admin:${app_password}" \
   -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
   -H 'MCP-Protocol-Version: 2026-07-28' \
   -H 'Mcp-Method: tools/call' \
   -H 'Mcp-Name: cmsa.write-bridge' \
@@ -188,6 +195,7 @@ printf '%s' "$user_delete_json" >"$tmp_dir/user-delete.json"
 user_delete_code="$(curl -sS -o "$tmp_dir/user-delete-response.json" -w '%{http_code}' \
   --user "admin:${app_password}" \
   -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
   -H 'MCP-Protocol-Version: 2026-07-28' \
   -H 'Mcp-Method: tools/call' \
   -H 'Mcp-Name: cmsa.write-bridge' \
@@ -207,4 +215,4 @@ test -n "$uuid"
 docker compose run --rm cli wp user application-password delete admin "$uuid" --quiet >/dev/null
 test -z "$(docker compose run --rm cli wp user application-password list admin --app_id="$APP_ID" --field=uuid --quiet 2>/dev/null || true)"
 
-echo "cmsa-live-simulation-http-write: PASS anonymous_boundary=verified admin_auth=verified catalog=verified post_write=verified media_upload=verified user_admin=crud_role_change persistence=verified cleanup=verified envelope=verified"
+echo "cmsa-live-simulation-http-write: PASS anonymous_boundary=verified admin_auth=verified catalog=verified post_write=verified media_upload=verified user_admin=crud_role_change persistence=verified cleanup=verified accept=dual envelope=verified"
