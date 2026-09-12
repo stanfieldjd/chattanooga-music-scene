@@ -22,9 +22,12 @@ $client_id = 'HTTPS://client.example/mcp-client.json';
 $root_client_id = 'https://client.example/';
 $fetches = 0;
 $root_fetches = 0;
-$filter = static function ( $preempt, $args, $url ) use ( $client_id, $root_client_id, &$fetches, &$root_fetches ) {
+$fetch_limits = array();
+$root_fetch_limits = array();
+$filter = static function ( $preempt, $args, $url ) use ( $client_id, $root_client_id, &$fetches, &$root_fetches, &$fetch_limits, &$root_fetch_limits ) {
 	if ( $url === $root_client_id ) {
 		$root_fetches++;
+		$root_fetch_limits[] = $args['limit_response_size'] ?? null;
 		return array(
 			'headers'  => array( 'content-type' => 'application/json' ),
 			'body'     => wp_json_encode(
@@ -47,6 +50,7 @@ $filter = static function ( $preempt, $args, $url ) use ( $client_id, $root_clie
 		return $preempt;
 	}
 	$fetches++;
+	$fetch_limits[] = $args['limit_response_size'] ?? null;
 	return array(
 		'headers'  => array( 'content-type' => 'application/json' ),
 		'body'     => wp_json_encode(
@@ -80,6 +84,7 @@ try {
 	cmsa_oauth_cimd_scheme_assert( ! is_wp_error( $result ), is_wp_error( $result ) ? $result->get_error_message() : 'CIMD resolution failed.' );
 	cmsa_oauth_cimd_scheme_assert( is_array( $result ), 'CIMD resolver did not return client metadata.' );
 	cmsa_oauth_cimd_scheme_assert( 1 === $fetches, 'Uppercase HTTPS client_id did not use CIMD metadata retrieval exactly once.' );
+	cmsa_oauth_cimd_scheme_assert( array( 5121 ) === $fetch_limits, 'CIMD metadata retrieval did not cap the HTTP response read at 5121 bytes.' );
 	cmsa_oauth_cimd_scheme_assert( $client_id === ( $result['client_id'] ?? '' ), 'CIMD client_id was normalized instead of preserved exactly.' );
 	cmsa_oauth_cimd_scheme_assert( 'CMSA CIMD Scheme Probe' === ( $result['client_name'] ?? '' ), 'CIMD client_name was not preserved.' );
 	cmsa_oauth_cimd_scheme_assert( array( 'https://client.example/callback' ) === ( $result['redirect_uris'] ?? null ), 'CIMD redirect_uris were not validated.' );
@@ -88,6 +93,7 @@ try {
 	cmsa_oauth_cimd_scheme_assert( ! is_wp_error( $root_result ), is_wp_error( $root_result ) ? $root_result->get_error_message() : 'Root-path CIMD resolution failed.' );
 	cmsa_oauth_cimd_scheme_assert( is_array( $root_result ), 'Root-path CIMD resolver did not return client metadata.' );
 	cmsa_oauth_cimd_scheme_assert( 1 === $root_fetches, 'Root-path CIMD client_id did not use metadata retrieval exactly once.' );
+	cmsa_oauth_cimd_scheme_assert( array( 5121 ) === $root_fetch_limits, 'Root-path CIMD retrieval did not cap the HTTP response read at 5121 bytes.' );
 	cmsa_oauth_cimd_scheme_assert( $root_client_id === ( $root_result['client_id'] ?? '' ), 'Root-path CIMD client_id was not preserved exactly.' );
 	cmsa_oauth_cimd_scheme_assert( 'CMSA CIMD Root Path Probe' === ( $root_result['client_name'] ?? '' ), 'Root-path CIMD client_name was not preserved.' );
 	cmsa_oauth_cimd_scheme_assert( array( 'https://client.example/callback-root' ) === ( $root_result['redirect_uris'] ?? null ), 'Root-path CIMD redirect_uris were not validated.' );
@@ -95,4 +101,4 @@ try {
 	remove_filter( 'pre_http_request', $filter, 10 );
 }
 
-echo "cmsa-oauth-cimd-scheme-policy: PASS https_scheme=case_insensitive client_id=exact path_component=required root_path=accepted metadata=validated fetch=mocked\n";
+echo "cmsa-oauth-cimd-scheme-policy: PASS https_scheme=case_insensitive client_id=exact path_component=required root_path=accepted response_read=bounded_5121 metadata=validated fetch=mocked\n";
