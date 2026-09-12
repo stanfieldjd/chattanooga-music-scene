@@ -64,10 +64,10 @@ final class CUA_Bridge_Gateway {
 			return CUA_REST_Bridge::check_bridge_permissions( $resolved['bridge'], $resolved['arguments'] );
 		}
 
-		$ability = $resolved['ability'];
-		return $resolved['has_arguments']
-			? $ability->check_permissions( $resolved['arguments'] )
-			: $ability->check_permissions();
+		return CUA_Ability_Bridge::target_permission(
+			$resolved['target'],
+			$resolved['has_arguments'] ? $resolved['arguments'] : null
+		);
 	}
 
 	public static function execute( $input, $readonly ) {
@@ -92,20 +92,10 @@ final class CUA_Bridge_Gateway {
 			);
 		}
 
-		$ability = $resolved['ability'];
-		$permission = $resolved['has_arguments']
-			? $ability->check_permissions( $resolved['arguments'] )
-			: $ability->check_permissions();
-		if ( is_wp_error( $permission ) ) {
-			return $permission;
-		}
-		if ( ! $permission ) {
-			return new WP_Error( 'cua_bridge_gateway_forbidden', 'The selected bridge denied the current request.' );
-		}
-
-		$result = $resolved['has_arguments']
-			? $ability->execute( $resolved['arguments'] )
-			: $ability->execute();
+		$result = CUA_Ability_Bridge::execute_target(
+			$resolved['target'],
+			$resolved['has_arguments'] ? $resolved['arguments'] : null
+		);
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}
@@ -163,15 +153,19 @@ final class CUA_Bridge_Gateway {
 			);
 		}
 
-		$ability = function_exists( 'wp_get_ability' ) ? wp_get_ability( $bridge ) : null;
-		if ( ! $ability instanceof WP_Ability ) {
-			return new WP_Error( 'cua_bridge_gateway_unavailable', 'The selected catalog bridge is no longer registered.' );
+		if ( 'ability' !== ( $item['contract'] ?? '' ) || ! class_exists( 'CUA_Ability_Bridge' ) ) {
+			return new WP_Error( 'cua_bridge_gateway_unavailable', 'The selected catalog bridge contract is unavailable.' );
+		}
+
+		$target = isset( $item['target'] ) ? trim( (string) $item['target'] ) : '';
+		if ( '' === $target ) {
+			return new WP_Error( 'cua_bridge_gateway_unavailable', 'The selected catalog ability target is unavailable.' );
 		}
 
 		return array(
 			'bridge'        => $bridge,
 			'contract'      => 'ability',
-			'ability'       => $ability,
+			'target'        => $target,
 			'has_arguments' => $has_arguments,
 			'arguments'     => $arguments,
 		);
