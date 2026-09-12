@@ -53,15 +53,18 @@ cmsa_native_direct_assert( class_exists( 'CUA_MCP_Server' ), 'Built-in MCP serve
 cmsa_native_direct_assert( ! class_exists( 'CUA_MCP_Adapter_Compat' ), 'Adapter compatibility transport is present in the native-only build.' );
 cmsa_native_direct_assert( ! class_exists( 'CUA_MCP_Adapter_Route_Policy' ), 'Adapter route policy is present in the native-only build.' );
 
-$active_plugins = array_map( 'strtolower', (array) get_option( 'active_plugins', array() ) );
-foreach ( $active_plugins as $plugin_basename ) {
+if ( ! function_exists( 'get_plugins' ) ) {
+	require_once ABSPATH . 'wp-admin/includes/plugin.php';
+}
+$installed_plugins = array_map( 'strtolower', array_keys( get_plugins() ) );
+foreach ( $installed_plugins as $plugin_basename ) {
 	cmsa_native_direct_assert(
 		false === strpos( $plugin_basename, 'miniorange-secure-mcp-server' ),
-		'Third-party miniOrange MCP plugin is active in the native-only environment: ' . $plugin_basename
+		'Third-party miniOrange MCP plugin is installed in the native-only environment: ' . $plugin_basename
 	);
 	cmsa_native_direct_assert(
 		false === strpos( $plugin_basename, 'mcp-adapter' ),
-		'Third-party WordPress MCP Adapter plugin is active in the native-only environment: ' . $plugin_basename
+		'Third-party WordPress MCP Adapter plugin is installed in the native-only environment: ' . $plugin_basename
 	);
 }
 if ( function_exists( 'wp_get_ability' ) ) {
@@ -135,5 +138,5 @@ cmsa_native_direct_assert(
 	'Direct get-health returned the wrong WordPress version.'
 );
 
-echo 'cmsa-native-mcp-direct-boundary: PASS route=native-only third_party_mcp=absent adapter_dependency=absent discover=verified tools=' . count( $names ) . " read_call=verified envelope=verified\n";
+echo 'cmsa-native-mcp-direct-boundary: PASS route=native-only third_party_mcp=not-installed adapter_dependency=absent discover=verified tools=' . count( $names ) . " read_call=verified envelope=verified\n";
 exit( 0 );
