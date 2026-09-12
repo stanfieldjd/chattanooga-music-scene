@@ -9,6 +9,7 @@ on:
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/oauth-cli.php"
       - ".github/workflows/chattanooga-cms-admin-native-mcp.yml"
   pull_request:
     paths:
@@ -16,6 +17,7 @@ on:
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/oauth-cli.php"
       - ".github/workflows/chattanooga-cms-admin-native-mcp.yml"
 
 permissions:
@@ -56,6 +58,7 @@ jobs:
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php >/dev/null
+          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/oauth-cli.php >/dev/null
           grep -q '^ \* Plugin Name: Chattanooga CMS Admin$' "$source/chattanooga-cms-admin.php"
           grep -q '^ \* Version: 1.2.0$' "$source/chattanooga-cms-admin.php"
           grep -Fq "add_action( 'rest_api_init', array( 'CUA_MCP_Server', 'register_route' ) );" "$source/chattanooga-cms-admin.php"
@@ -87,6 +90,9 @@ jobs:
 
       - name: Verify complete MCP administrator surface
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php" --path=/tmp/wordpress
+
+      - name: Red-team OAuth token boundary
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/oauth-cli.php" --path=/tmp/wordpress
 
       - name: Verify external administrator authentication and write authority
         shell: bash
