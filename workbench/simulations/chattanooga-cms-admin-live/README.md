@@ -61,7 +61,9 @@ Override the port or password for a local run with `SIM_PORT` or `SIM_ADMIN_PASS
 5. If a change affects activation/install state, rerun `bash bootstrap.sh`.
 6. Keep production and `main` unchanged until a separate promotion decision is made.
 
-The core smoke loop verifies native MCP discovery/authorization, the required administrator tool surface, posts/pages/taxonomies/menus, comments and comment moderation, media upload plus media metadata/delete paths, anonymous mutation boundaries, a real external native-MCP post write, a real external native-MCP media upload, persistence, and disposable cleanup.
+The core smoke loop verifies native MCP discovery/authorization, the required administrator tool surface, posts/pages/taxonomies/menus, comments and comment moderation, media upload plus media metadata/delete paths, admin-visible custom post types that are not exposed through REST, anonymous mutation boundaries, a real external native-MCP post write, a real external native-MCP media upload, persistence, and disposable cleanup.
+
+Private/non-REST content administration is supplied by Chattanooga CMS Admin itself through the native `cmsa.private-content-*` tool family. The disposable probe registers a synthetic `show_ui=true` / `show_in_rest=false` post type and verifies inventory, query, read, create, update, post-meta changes, trash, force-delete, permissions, and cleanup. This is a generic WordPress post/post-meta path; it does not claim support for provider-specific custom tables unless a provider's own runtime contract proves that path separately.
 
 ## Representative Chattanooga site stack
 
@@ -78,9 +80,11 @@ This optional mode keeps the Chattanooga-owned plugin source live-mounted and in
 - Rank Math SEO `1.0.278`
 - AWP Classifieds `4.4.8`
 
-It activates Chattanooga CMS Admin, Chattanooga Music Marketplace, and Chattanooga Music Scene Core/Weekend Feature, then runs the existing Events Manager, WooCommerce, Rank Math, and Chattanooga site-plugin integration probes before rerunning the native MCP smoke suite.
+It activates Chattanooga CMS Admin, Chattanooga Music Marketplace, and Chattanooga Music Scene Core/Weekend Feature, then runs the existing Events Manager, WooCommerce, Rank Math, Chattanooga site-plugin integration probes, and the native-only AWP content-path probe before rerunning the native MCP smoke suite.
 
-This mode intentionally does not install the old miniOrange MCP plugin or another MCP proxy. AWP Classifieds remains present as a site provider, but its prior miniOrange-derived private Ability compatibility probe is not used in this native-only simulation.
+The AWP probe does not depend on miniOrange. At runtime it inspects `awpcp_listing`: if AWP exposes that content through REST, the probe requires Chattanooga's universal REST catalog to expose the corresponding read/write path; if AWP keeps the post type out of REST but exposes it in wp-admin, the probe requires Chattanooga's native private-content tools and exercises disposable create/read/update/delete operations. If neither generic path exists, the probe fails instead of reporting AWP administration as covered.
+
+This mode intentionally does not install the old miniOrange MCP plugin or another MCP proxy. The historical miniOrange-dependent AWP probe remains separate from this native-only simulation and is not treated as evidence for the built-in MCP architecture.
 
 ## Reset
 
@@ -95,6 +99,6 @@ This reset affects only the disposable simulation volumes. It does not delete or
 
 ## Verification layers
 
-`smoke.sh` is the fast editable loop. `site-stack.sh` adds representative provider and Chattanooga-plugin integration. The GitHub workflow `.github/workflows/chattanooga-cms-admin-live-simulation.yml` provides a reproducible WordPress 7.1 native-MCP execution path for the simulation branch.
+`smoke.sh` is the fast editable loop. `site-stack.sh` adds representative provider and Chattanooga-plugin integration. The GitHub workflow `.github/workflows/chattanooga-cms-admin-live-simulation.yml` provides a reproducible WordPress 7.1 native-MCP execution path for the core simulation branch and statically validates the site-stack scripts/probes.
 
-The GitHub workflow is manual-only; creating or editing simulation source does not automatically trigger an external workflow run.
+The GitHub workflow is manual-only; creating or editing simulation source does not automatically trigger an external workflow run. Until that workflow or an equivalent disposable environment executes the current branch, the new simulation additions remain source-verified rather than execution-verified.
