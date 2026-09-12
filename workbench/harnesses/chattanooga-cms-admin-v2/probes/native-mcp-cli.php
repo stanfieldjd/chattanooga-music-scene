@@ -68,7 +68,7 @@ function cmsa_native_mcp_tool( array $tools, $name ) {
 }
 
 wp_set_current_user( 1 );
-cmsa_native_mcp_assert( defined( 'CUA_VERSION' ) && '1.2.0' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.0 did not load.' );
+cmsa_native_mcp_assert( defined( 'CUA_VERSION' ) && '1.2.1' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.1 did not load.' );
 cmsa_native_mcp_assert( class_exists( 'CUA_MCP_Server' ), 'Native MCP server class did not load.' );
 cmsa_native_mcp_assert( class_exists( 'CUA_OAuth_Server' ), 'OAuth authorization server class did not load.' );
 
@@ -245,5 +245,5 @@ cmsa_native_mcp_assert( ! empty( $anonymous_data['_meta']['mcp/www_authenticate'
 cmsa_native_mcp_assert( false !== strpos( (string) ( $anonymous->get_headers()['WWW-Authenticate'] ?? '' ), 'oauth-protected-resource' ), 'Anonymous MCP response omitted the protected-resource challenge.' );
 
 wp_set_current_user( 1 );
-echo "cmsa-native-mcp: PASS version=1.2.0 modern=2026-07-28 legacy=2025-11-25 route=verified oauth_challenge=verified admin_boundary=verified origin_guard=verified tools_list=deterministic read_call=verified private_bridges=hidden header_validation=verified\n";
+echo "cmsa-native-mcp: PASS version=1.2.1 modern=2026-07-28 legacy=2025-11-25 route=verified oauth_challenge=verified admin_boundary=verified origin_guard=verified tools_list=deterministic read_call=verified private_bridges=hidden header_validation=verified\n";
 exit( 0 );
