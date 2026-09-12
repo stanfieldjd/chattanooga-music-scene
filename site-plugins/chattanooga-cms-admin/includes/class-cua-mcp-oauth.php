@@ -254,6 +254,7 @@ final class CUA_MCP_OAuth {
 		echo '<main style="max-width:640px;margin:4rem auto;font:16px/1.5 system-ui,sans-serif;padding:0 1rem">';
 		echo '<h1>Authorize Chattanooga CMS Admin</h1>';
 		echo '<p><strong>' . esc_html( $client_name ) . '</strong> is requesting administrator access to Chattanooga CMS Admin through its built-in MCP.</p>';
+		echo '<p>Client identifier: <code>' . esc_html( $params['client_id'] ) . '</code></p>';
 		echo '<p>WordPress account: <strong>' . esc_html( $user->user_login ) . '</strong></p>';
 		echo '<p>Scope: <code>' . esc_html( $params['scope'] ) . '</code></p>';
 		echo '<p>Redirect hostname: <strong>' . esc_html( (string) wp_parse_url( $params['redirect_uri'], PHP_URL_HOST ) ) . '</strong></p>';
