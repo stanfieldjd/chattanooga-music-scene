@@ -87,10 +87,11 @@ final class CUA_MCP_OAuth {
 			return $response;
 		}
 
-		$response->header(
-			'WWW-Authenticate',
-			'Bearer resource_metadata="' . esc_url_raw( self::protected_resource_metadata_url() ) . '", scope="' . self::SCOPE . '"'
-		);
+		$challenge = 'Bearer resource_metadata="' . esc_url_raw( self::protected_resource_metadata_url() ) . '", scope="' . self::SCOPE . '"';
+		if ( '' !== self::bearer_token() ) {
+			$challenge .= ', error="invalid_token"';
+		}
+		$response->header( 'WWW-Authenticate', $challenge );
 		return $response;
 	}
 
