@@ -519,6 +519,7 @@ final class CUA_MCP_OAuth {
 			if ( ! is_string( $item ) ) {
 				return false;
 			}
+		}
 		return true;
 	}
 
