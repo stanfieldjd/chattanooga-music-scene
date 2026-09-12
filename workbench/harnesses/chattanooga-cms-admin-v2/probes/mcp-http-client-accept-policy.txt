@@ -1,0 +1,2 @@
+MCP 2026-07-28 Streamable HTTP client requests must advertise both response media types:
+Accept: application/json, text/event-stream
