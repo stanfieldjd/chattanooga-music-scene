@@ -255,6 +255,7 @@ final class CUA_MCP_OAuth {
 		echo '<p><strong>' . esc_html( $client_name ) . '</strong> is requesting administrator access to Chattanooga CMS Admin through its built-in MCP.</p>';
 		echo '<p>WordPress account: <strong>' . esc_html( $user->user_login ) . '</strong></p>';
 		echo '<p>Scope: <code>' . esc_html( $params['scope'] ) . '</code></p>';
+		echo '<p>Redirect hostname: <strong>' . esc_html( (string) wp_parse_url( $params['redirect_uri'], PHP_URL_HOST ) ) . '</strong></p>';
 		echo '<form method="post" action="' . $action . '">';
 		echo '<input type="hidden" name="action" value="cmsa_mcp_oauth_authorize">';
 		foreach ( array( 'client_id', 'redirect_uri', 'response_type', 'code_challenge', 'code_challenge_method', 'resource', 'scope', 'state' ) as $key ) {
@@ -518,7 +519,6 @@ final class CUA_MCP_OAuth {
 			if ( ! is_string( $item ) ) {
 				return false;
 			}
-		}
 		return true;
 	}
 
