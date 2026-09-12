@@ -103,7 +103,7 @@ test "${#verifier}" -ge 43
 test -n "$challenge"
 
 cat >"$tmp_dir/discover.json" <<'JSON'
-{"jsonrpc":"2.0","id":951,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"cmsa-native-oauth-host-smoke","version":"1.0.0"}}}}
+{"jsonrpc":"2.0","id":951,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{},"io.modelcontextprotocol/clientInfo":{"name":"cmsa-native-oauth-host-smoke","version":"1.0.0"}}}}
 JSON
 anonymous_code="$(curl -sS -D "$tmp_dir/anonymous-headers.txt" -o "$tmp_dir/anonymous.json" -w '%{http_code}' -H 'Content-Type: application/json' -H 'MCP-Protocol-Version: 2026-07-28' -H 'Mcp-Method: server/discover' --data-binary @"$tmp_dir/discover.json" "$MCP_ENDPOINT")"
 test "$anonymous_code" = '401'
@@ -143,7 +143,7 @@ test -n "$refresh_token"
 
 bearer_code="$(curl -sS -o "$tmp_dir/bearer-discover.json" -w '%{http_code}' -H "Authorization: Bearer ${access_token}" -H 'Content-Type: application/json' -H 'MCP-Protocol-Version: 2026-07-28' -H 'Mcp-Method: server/discover' --data-binary @"$tmp_dir/discover.json" "$MCP_ENDPOINT")"
 test "$bearer_code" = '200'
-"$PHP_BIN" -r '$d=json_decode(file_get_contents($argv[1]),true); if(($d["result"]["resultType"]??"")!=="complete"||!in_array("2026-07-28",$d["result"]["supportedVersions"]??[],true)) exit(1);' "$tmp_dir/bearer-discover.json"
+"$PHP_BIN" -r '$d=json_decode(file_get_contents($argv[1]),true); if(($d["result"]["resultType"]??"")!=="complete"||($d["result"]["supportedVersions"]??null)!==["2026-07-28"]) exit(1);' "$tmp_dir/bearer-discover.json"
 
 refresh_code="$(curl -sS -o "$tmp_dir/refresh-response.json" -w '%{http_code}' -H 'Content-Type: application/x-www-form-urlencoded' --data-urlencode 'grant_type=refresh_token' --data-urlencode "client_id=${client_id}" --data-urlencode "refresh_token=${refresh_token}" --data-urlencode "resource=${MCP_ENDPOINT}" "$TOKEN_ENDPOINT")"
 test "$refresh_code" = '200'
@@ -160,4 +160,4 @@ test "$replay_code" = '400'
 rotated_bearer_code="$(curl -sS -o "$tmp_dir/rotated-bearer.json" -w '%{http_code}' -H "Authorization: Bearer ${rotated_access_token}" -H 'Content-Type: application/json' -H 'MCP-Protocol-Version: 2026-07-28' -H 'Mcp-Method: server/discover' --data-binary @"$tmp_dir/discover.json" "$MCP_ENDPOINT")"
 test "$rotated_bearer_code" = '200'
 
-echo 'cmsa-native-mcp-oauth-host: PASS protected_resource=verified authorization_server=verified dcr=verified admin_consent=verified pkce=verified bearer_mcp=verified refresh_rotation=verified third_party_mcp=absent'
+echo 'cmsa-native-mcp-oauth-host: PASS protected_resource=verified authorization_server=verified dcr=verified admin_consent=verified pkce=verified bearer_mcp=verified refresh_rotation=verified envelope=verified third_party_mcp=absent'
