@@ -44,6 +44,7 @@ jobs:
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-direct-boundary-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/core-content-rest-parity-cli.php >/dev/null
+          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/core-admin-rest-parity-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/media-upload-cli.php >/dev/null
 
       - name: Install disposable WordPress 7.1
@@ -77,6 +78,9 @@ jobs:
       - name: Verify editable content write paths
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/core-content-rest-parity-cli.php" --path=/tmp/cmsa-simulation
 
+      - name: Verify comments and media REST administration
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/core-admin-rest-parity-cli.php" --path=/tmp/cmsa-simulation
+
       - name: Verify native media upload administration
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/media-upload-cli.php" --path=/tmp/cmsa-simulation
 
@@ -86,17 +90,22 @@ jobs:
           set -euo pipefail
           endpoint='http://127.0.0.1:8091/index.php?rest_route=%2Fchattanooga-cms-admin%2Fv1%2Fmcp'
           app_id='cmsa-live-simulation-http'
+          png_base64='iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nGOUT+xlYGBgYmBgYGBgAAAMWAERTB2ScQAAAABJRU5ErkJggg=='
           app_password="$(php /tmp/wp-cli.phar user application-password create admin cmsa-live-simulation --app-id="$app_id" --porcelain --path=/tmp/cmsa-simulation)"
           app_uuid="$(php /tmp/wp-cli.phar user application-password list admin --app_id="$app_id" --field=uuid --quiet --path=/tmp/cmsa-simulation | head -n 1)"
           test -n "$app_password"
           test -n "$app_uuid"
           post_id=''
+          media_id=''
 
           php -S 127.0.0.1:8091 -t /tmp/cmsa-simulation >/tmp/cmsa-live-simulation-http.log 2>&1 &
           server_pid=$!
           cleanup() {
             if [ -n "$post_id" ]; then
               php /tmp/wp-cli.phar post delete "$post_id" --force --path=/tmp/cmsa-simulation >/dev/null 2>&1 || true
+            fi
+            if [ -n "$media_id" ]; then
+              php /tmp/wp-cli.phar eval "wp_delete_attachment(${media_id}, true);" --path=/tmp/cmsa-simulation >/dev/null 2>&1 || true
             fi
             if [ -n "$app_uuid" ]; then
               php /tmp/wp-cli.phar user application-password delete admin "$app_uuid" --quiet --path=/tmp/cmsa-simulation >/dev/null 2>&1 || true
@@ -171,13 +180,32 @@ jobs:
           test -n "$post_id"
           test "$(php /tmp/wp-cli.phar post get "$post_id" --field=post_status --path=/tmp/cmsa-simulation)" = 'draft'
 
+          PNG_BASE64="$png_base64" php -r '$png=getenv("PNG_BASE64"); echo json_encode(["jsonrpc"=>"2.0","id"=>704,"method"=>"tools/call","params"=>["name"=>"cmsa.upload-media","arguments"=>["filename"=>"cmsa-http-media-probe.png","mime_type"=>"image/png","data_base64"=>$png,"title"=>"CMSA HTTP Media Probe","alt_text"=>"CMSA HTTP media probe"],"_meta"=>["io.modelcontextprotocol/protocolVersion"=>"2026-07-28","io.modelcontextprotocol/clientInfo"=>["name"=>"cmsa-live-simulation","version"=>"1.0.0"]]]]);' > /tmp/cmsa-live-media.json
+
+          media_code="$(curl -sS -o /tmp/cmsa-live-media-response.json -w '%{http_code}' \
+            --user "admin:${app_password}" \
+            -H 'Content-Type: application/json' \
+            -H 'MCP-Protocol-Version: 2026-07-28' \
+            -H 'Mcp-Method: tools/call' \
+            -H 'Mcp-Name: cmsa.upload-media' \
+            --data-binary @/tmp/cmsa-live-media.json \
+            "$endpoint")"
+          test "$media_code" = '200'
+
+          media_id="$(php -r '$d=json_decode(file_get_contents("/tmp/cmsa-live-media-response.json"),true); $result=$d["result"]??[]; $data=$result["structuredContent"]??[]; if (($result["isError"]??true)!==false || empty($data["created"]) || ($data["item"]["mime_type"]??"")!=="image/png" || empty($data["item"]["id"])) exit(1); echo (int)$data["item"]["id"];')"
+          test -n "$media_id"
+          test "$(php /tmp/wp-cli.phar post get "$media_id" --field=post_mime_type --path=/tmp/cmsa-simulation)" = 'image/png'
+          test "$(php /tmp/wp-cli.phar eval "echo is_file(get_attached_file(${media_id})) ? '1' : '0';" --path=/tmp/cmsa-simulation)" = '1'
+
           test "$(php /tmp/wp-cli.phar post list --path=/tmp/cmsa-simulation --post_type=page --name=simulation-control --field=post_name)" = 'simulation-control'
           test "$(php /tmp/wp-cli.phar post list --path=/tmp/cmsa-simulation --post_type=post --name=simulation-edit-target --field=post_name)" = 'simulation-edit-target'
 
           php /tmp/wp-cli.phar post delete "$post_id" --force --path=/tmp/cmsa-simulation >/dev/null
           post_id=''
+          php /tmp/wp-cli.phar eval "wp_delete_attachment(${media_id}, true);" --path=/tmp/cmsa-simulation >/dev/null
+          media_id=''
           php /tmp/wp-cli.phar user application-password delete admin "$app_uuid" --quiet --path=/tmp/cmsa-simulation >/dev/null
           app_uuid=''
           test -z "$(php /tmp/wp-cli.phar user application-password list admin --app_id="$app_id" --field=uuid --quiet --path=/tmp/cmsa-simulation)"
 
-          echo 'cmsa-live-simulation: PASS wordpress=7.1 plugin=active source=simulation-branch native_mcp=verified content_write=verified media_upload=verified http_auth=verified http_write=verified cleanup=verified'
+          echo 'cmsa-live-simulation: PASS wordpress=7.1 plugin=active source=simulation-branch native_mcp=verified content_write=verified comments_media_rest=verified media_upload=verified http_auth=verified http_post_write=verified http_media_upload=verified cleanup=verified'
