@@ -59,6 +59,11 @@ final class CUA_MCP_Server {
 	}
 
 	public static function handle_request( WP_REST_Request $request ) {
+		$content_type = $request->get_content_type();
+		if ( ! is_array( $content_type ) || 'application/json' !== ( $content_type['value'] ?? '' ) ) {
+			return self::protocol_error_response( null, -32600, 'MCP POST requests require Content-Type: application/json.', 415 );
+		}
+
 		$payload = self::decode_request( $request );
 		if ( is_wp_error( $payload ) ) {
 			return self::protocol_error_response( null, -32700, $payload->get_error_message(), 400 );
@@ -193,7 +198,6 @@ final class CUA_MCP_Server {
 					return true;
 				}
 			}
-		}
 
 		return false;
 	}
