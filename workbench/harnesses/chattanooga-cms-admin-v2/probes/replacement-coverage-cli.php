@@ -207,6 +207,36 @@ if ( ! isset( $catalog_by_bridge[ $late_rest_bridge ] ) ) {
 	cmsa_v2_coverage_fail( 'Late REST fixture was not discovered dynamically.' );
 }
 
+$read_gateway = wp_get_ability( 'chattanooga-cms-admin/read-bridge' );
+if ( ! $read_gateway instanceof WP_Ability ) {
+	cmsa_v2_coverage_fail( 'Universal read gateway is missing.' );
+}
+$late_ability_result = $read_gateway->execute(
+	array(
+		'bridge' => $late_ability_bridge,
+		'input'  => array(),
+	)
+);
+if ( is_wp_error( $late_ability_result ) || true !== ( $late_ability_result['result']['fixture'] ?? false ) ) {
+	cmsa_v2_coverage_fail( 'Late public ability could not execute through the universal gateway.' );
+}
+$late_rest_result = $read_gateway->execute(
+	array(
+		'bridge' => $late_rest_bridge,
+		'input'  => array(
+			'path'   => '/cmsa-coverage-fixture/v1/late/7',
+			'params' => array(),
+		),
+	)
+);
+if (
+	is_wp_error( $late_rest_result ) ||
+	200 !== ( $late_rest_result['result']['status'] ?? null ) ||
+	7 !== ( $late_rest_result['result']['data']['id'] ?? null )
+) {
+	cmsa_v2_coverage_fail( 'Late REST contract could not execute through the universal gateway.' );
+}
+
 $required_rest = array(
 	array( 'GET', '#^/wp/v2/posts(?:/|$)#' ),
 	array( 'POST', '#^/wp/v2/posts(?:/|$)#' ),
@@ -270,5 +300,5 @@ foreach ( array( 'get-health', 'list-plugins', 'list-backups' ) as $short_name )
 }
 
 wp_set_current_user( 1 );
-echo 'cmsa-v2-replacement-coverage: PASS system_parity=24 intrinsic=verified live_public_abilities=' . count( $expected_ability_bridges ) . ' live_rest_contracts=' . count( $expected_rest_bridges ) . " settings_contract=present admin_boundary=verified\n";
+echo 'cmsa-v2-replacement-coverage: PASS system_parity=24 intrinsic=verified live_public_abilities=' . count( $expected_ability_bridges ) . ' live_rest_contracts=' . count( $expected_rest_bridges ) . " dynamic_gateway_execution=verified settings_contract=present admin_boundary=verified\n";
 exit( 0 );
