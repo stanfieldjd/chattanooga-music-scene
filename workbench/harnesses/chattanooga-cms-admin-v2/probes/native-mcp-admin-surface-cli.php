@@ -87,6 +87,11 @@ $required = array(
 	'cmsa.get-registered-setting',
 	'cmsa.update-registered-setting',
 	'cmsa.upload-media',
+	'cmsa.private-content-types',
+	'cmsa.private-content-query',
+	'cmsa.private-content-get',
+	'cmsa.private-content-save',
+	'cmsa.private-content-delete',
 );
 
 $missing = array_values( array_diff( $required, $names ) );
