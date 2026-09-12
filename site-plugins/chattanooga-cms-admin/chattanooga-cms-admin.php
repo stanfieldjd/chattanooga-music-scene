@@ -35,8 +35,10 @@ require_once CUA_DIR . 'includes/class-cua-rest-bridge.php';
 require_once CUA_DIR . 'includes/class-cua-ability-bridge.php';
 require_once CUA_DIR . 'includes/class-cua-bridge-gateway.php';
 require_once CUA_DIR . 'includes/class-cua-mcp-server.php';
+require_once CUA_DIR . 'includes/class-cua-mcp-oauth.php';
 
 CUA_Audit::bootstrap();
+CUA_MCP_OAuth::bootstrap();
 
 add_action( 'wp_abilities_api_categories_init', array( 'CUA_Ability_Bridge', 'register_category' ) );
 add_action( 'wp_abilities_api_init', array( 'CUA_Ability_Bridge', 'register_catalog_ability' ), 5 );
@@ -56,4 +58,5 @@ add_action( 'wp_abilities_api_init', array( 'CUA_Platform_Media', 'register_abil
 add_action( 'wp_abilities_api_init', array( 'CUA_Platform_Private_Content', 'register_abilities' ), 22 );
 add_action( 'wp_abilities_api_init', array( 'CUA_REST_Bridge', 'register_external_bridges' ), 9998 );
 add_action( 'wp_abilities_api_init', array( 'CUA_Ability_Bridge', 'register_external_bridges' ), 9999 );
+add_action( 'rest_api_init', array( 'CUA_MCP_OAuth', 'register_routes' ) );
 add_action( 'rest_api_init', array( 'CUA_MCP_Server', 'register_route' ) );
