@@ -10,4 +10,6 @@ docker compose run --rm cli wp eval-file /workspace/workbench/harnesses/chattano
 docker compose run --rm cli wp eval-file /workspace/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php
 docker compose run --rm cli wp eval-file /workspace/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-direct-boundary-cli.php
 
-echo "cmsa-live-simulation: PASS wordpress=running plugin=active native_mcp=verified admin_surface=verified direct_boundary=verified"
+bash mcp-http-write-smoke.sh
+
+echo "cmsa-live-simulation: PASS wordpress=running plugin=active native_mcp=verified admin_surface=verified direct_boundary=verified http_write=verified"
