@@ -61,7 +61,7 @@ for attempt in $(seq 1 30); do
 done
 
 cat >"$tmp_dir/discover.json" <<'JSON'
-{"jsonrpc":"2.0","id":801,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"cmsa-live-simulation-smoke","version":"1.0.0"}}}}
+{"jsonrpc":"2.0","id":801,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{},"io.modelcontextprotocol/clientInfo":{"name":"cmsa-live-simulation-smoke","version":"1.0.0"}}}}
 JSON
 
 anonymous_code="$(curl -sS -o "$tmp_dir/anonymous.json" -w '%{http_code}' \
@@ -80,10 +80,10 @@ authenticated_code="$(curl -sS -o "$tmp_dir/discover-response.json" -w '%{http_c
   --data-binary @"$tmp_dir/discover.json" \
   "$ENDPOINT")"
 test "$authenticated_code" = '200'
-cat "$tmp_dir/discover-response.json" | docker compose run --rm -T cli php -r '$d=json_decode(stream_get_contents(STDIN),true); if (($d["result"]["resultType"]??"")!=="complete" || !in_array("2026-07-28",$d["result"]["supportedVersions"]??[],true)) exit(1);'
+cat "$tmp_dir/discover-response.json" | docker compose run --rm -T cli php -r '$d=json_decode(stream_get_contents(STDIN),true); if (($d["result"]["resultType"]??"")!=="complete" || ($d["result"]["supportedVersions"]??null)!==["2026-07-28"]) exit(1);'
 
 cat >"$tmp_dir/catalog.json" <<'JSON'
-{"jsonrpc":"2.0","id":802,"method":"tools/call","params":{"name":"cmsa.catalog","arguments":{},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"cmsa-live-simulation-smoke","version":"1.0.0"}}}}
+{"jsonrpc":"2.0","id":802,"method":"tools/call","params":{"name":"cmsa.catalog","arguments":{},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{},"io.modelcontextprotocol/clientInfo":{"name":"cmsa-live-simulation-smoke","version":"1.0.0"}}}}
 JSON
 
 catalog_code="$(curl -sS -o "$tmp_dir/catalog-response.json" -w '%{http_code}' \
@@ -99,7 +99,7 @@ test "$catalog_code" = '200'
 bridge="$(cat "$tmp_dir/catalog-response.json" | docker compose run --rm -T cli php -r '$d=json_decode(stream_get_contents(STDIN),true); foreach (($d["result"]["structuredContent"]["items"]??[]) as $item) { if (($item["contract"]??"")==="rest" && ($item["method"]??"")==="POST" && ($item["route"]??"")==="/wp/v2/posts") { echo $item["bridge"]; exit(0); } } exit(1);')"
 test -n "$bridge"
 
-write_json="$(docker compose run --rm -T -e BRIDGE="$bridge" cli php -r '$b=getenv("BRIDGE"); echo json_encode(["jsonrpc"=>"2.0","id"=>803,"method"=>"tools/call","params"=>["name"=>"cmsa.write-bridge","arguments"=>["bridge"=>$b,"input"=>["path"=>"/wp/v2/posts","params"=>["title"=>"CMSA Live Simulation HTTP Write","status"=>"draft","content"=>"Disposable native MCP simulation write-authority probe."]]],"_meta"=>["io.modelcontextprotocol/protocolVersion"=>"2026-07-28","io.modelcontextprotocol/clientInfo"=>["name"=>"cmsa-live-simulation-smoke","version"=>"1.0.0"]]]]);')"
+write_json="$(docker compose run --rm -T -e BRIDGE="$bridge" cli php -r '$b=getenv("BRIDGE"); echo json_encode(["jsonrpc"=>"2.0","id"=>803,"method"=>"tools/call","params"=>["name"=>"cmsa.write-bridge","arguments"=>["bridge"=>$b,"input"=>["path"=>"/wp/v2/posts","params"=>["title"=>"CMSA Live Simulation HTTP Write","status"=>"draft","content"=>"Disposable native MCP simulation write-authority probe."]]],"_meta"=>["io.modelcontextprotocol/protocolVersion"=>"2026-07-28","io.modelcontextprotocol/clientCapabilities"=>(object)[],"io.modelcontextprotocol/clientInfo"=>["name"=>"cmsa-live-simulation-smoke","version"=>"1.0.0"]]]]);')"
 printf '%s' "$write_json" >"$tmp_dir/write.json"
 
 write_code="$(curl -sS -o "$tmp_dir/write-response.json" -w '%{http_code}' \
@@ -116,7 +116,7 @@ post_id="$(cat "$tmp_dir/write-response.json" | docker compose run --rm -T cli p
 test -n "$post_id"
 test "$(docker compose run --rm cli wp post get "$post_id" --field=post_status --quiet)" = 'draft'
 
-media_json="$(docker compose run --rm -T -e PNG_BASE64="$PNG_BASE64" cli php -r '$png=getenv("PNG_BASE64"); echo json_encode(["jsonrpc"=>"2.0","id"=>804,"method"=>"tools/call","params"=>["name"=>"cmsa.upload-media","arguments"=>["filename"=>"cmsa-http-media-probe.png","mime_type"=>"image/png","data_base64"=>$png,"title"=>"CMSA HTTP Media Probe","alt_text"=>"CMSA HTTP media probe"],"_meta"=>["io.modelcontextprotocol/protocolVersion"=>"2026-07-28","io.modelcontextprotocol/clientInfo"=>["name"=>"cmsa-live-simulation-smoke","version"=>"1.0.0"]]]]);')"
+media_json="$(docker compose run --rm -T -e PNG_BASE64="$PNG_BASE64" cli php -r '$png=getenv("PNG_BASE64"); echo json_encode(["jsonrpc"=>"2.0","id"=>804,"method"=>"tools/call","params"=>["name"=>"cmsa.upload-media","arguments"=>["filename"=>"cmsa-http-media-probe.png","mime_type"=>"image/png","data_base64"=>$png,"title"=>"CMSA HTTP Media Probe","alt_text"=>"CMSA HTTP media probe"],"_meta"=>["io.modelcontextprotocol/protocolVersion"=>"2026-07-28","io.modelcontextprotocol/clientCapabilities"=>(object)[],"io.modelcontextprotocol/clientInfo"=>["name"=>"cmsa-live-simulation-smoke","version"=>"1.0.0"]]]]);')"
 printf '%s' "$media_json" >"$tmp_dir/media.json"
 
 media_code="$(curl -sS -o "$tmp_dir/media-response.json" -w '%{http_code}' \
@@ -141,7 +141,7 @@ user_password="$(docker compose run --rm cli wp eval 'echo wp_generate_password(
 user_create_bridge="$(cat "$tmp_dir/catalog-response.json" | docker compose run --rm -T cli php -r '$d=json_decode(stream_get_contents(STDIN),true); foreach (($d["result"]["structuredContent"]["items"]??[]) as $item) { if (($item["contract"]??"")==="rest" && ($item["method"]??"")==="POST" && ($item["route"]??"")==="/wp/v2/users") { echo $item["bridge"]; exit(0); } } exit(1);')"
 test -n "$user_create_bridge"
 
-user_create_json="$(docker compose run --rm -T -e BRIDGE="$user_create_bridge" -e USER_LOGIN="$user_login" -e USER_EMAIL="$user_email" -e USER_PASSWORD="$user_password" cli php -r '$b=getenv("BRIDGE"); echo json_encode(["jsonrpc"=>"2.0","id"=>805,"method"=>"tools/call","params"=>["name"=>"cmsa.write-bridge","arguments"=>["bridge"=>$b,"input"=>["path"=>"/wp/v2/users","params"=>["username"=>getenv("USER_LOGIN"),"email"=>getenv("USER_EMAIL"),"password"=>getenv("USER_PASSWORD"),"roles"=>["subscriber"]]]],"_meta"=>["io.modelcontextprotocol/protocolVersion"=>"2026-07-28","io.modelcontextprotocol/clientInfo"=>["name"=>"cmsa-live-simulation-smoke","version"=>"1.0.0"]]]]);')"
+user_create_json="$(docker compose run --rm -T -e BRIDGE="$user_create_bridge" -e USER_LOGIN="$user_login" -e USER_EMAIL="$user_email" -e USER_PASSWORD="$user_password" cli php -r '$b=getenv("BRIDGE"); echo json_encode(["jsonrpc"=>"2.0","id"=>805,"method"=>"tools/call","params"=>["name"=>"cmsa.write-bridge","arguments"=>["bridge"=>$b,"input"=>["path"=>"/wp/v2/users","params"=>["username"=>getenv("USER_LOGIN"),"email"=>getenv("USER_EMAIL"),"password"=>getenv("USER_PASSWORD"),"roles"=>["subscriber"]]]],"_meta"=>["io.modelcontextprotocol/protocolVersion"=>"2026-07-28","io.modelcontextprotocol/clientCapabilities"=>(object)[],"io.modelcontextprotocol/clientInfo"=>["name"=>"cmsa-live-simulation-smoke","version"=>"1.0.0"]]]]);')"
 printf '%s' "$user_create_json" >"$tmp_dir/user-create.json"
 
 user_create_code="$(curl -sS -o "$tmp_dir/user-create-response.json" -w '%{http_code}' \
@@ -164,7 +164,7 @@ user_path="/wp/v2/users/${user_id}"
 user_update_bridge="$(cat "$tmp_dir/catalog-response.json" | docker compose run --rm -T -e TARGET_PATH="$user_path" cli php -r '$target=getenv("TARGET_PATH"); $d=json_decode(stream_get_contents(STDIN),true); foreach (($d["result"]["structuredContent"]["items"]??[]) as $item) { $route=(string)($item["route"]??""); if (($item["contract"]??"")==="rest" && ($item["method"]??"")==="POST" && $route!=="" && @preg_match("@^".$route."$@i", $target)===1) { echo $item["bridge"]; exit(0); } } exit(1);')"
 test -n "$user_update_bridge"
 
-user_update_json="$(docker compose run --rm -T -e BRIDGE="$user_update_bridge" -e TARGET_PATH="$user_path" cli php -r '$b=getenv("BRIDGE"); echo json_encode(["jsonrpc"=>"2.0","id"=>806,"method"=>"tools/call","params"=>["name"=>"cmsa.write-bridge","arguments"=>["bridge"=>$b,"input"=>["path"=>getenv("TARGET_PATH"),"params"=>["roles"=>["author"]]]],"_meta"=>["io.modelcontextprotocol/protocolVersion"=>"2026-07-28","io.modelcontextprotocol/clientInfo"=>["name"=>"cmsa-live-simulation-smoke","version"=>"1.0.0"]]]]);')"
+user_update_json="$(docker compose run --rm -T -e BRIDGE="$user_update_bridge" -e TARGET_PATH="$user_path" cli php -r '$b=getenv("BRIDGE"); echo json_encode(["jsonrpc"=>"2.0","id"=>806,"method"=>"tools/call","params"=>["name"=>"cmsa.write-bridge","arguments"=>["bridge"=>$b,"input"=>["path"=>getenv("TARGET_PATH"),"params"=>["roles"=>["author"]]]],"_meta"=>["io.modelcontextprotocol/protocolVersion"=>"2026-07-28","io.modelcontextprotocol/clientCapabilities"=>(object)[],"io.modelcontextprotocol/clientInfo"=>["name"=>"cmsa-live-simulation-smoke","version"=>"1.0.0"]]]]);')"
 printf '%s' "$user_update_json" >"$tmp_dir/user-update.json"
 
 user_update_code="$(curl -sS -o "$tmp_dir/user-update-response.json" -w '%{http_code}' \
@@ -182,7 +182,7 @@ test "$(docker compose run --rm cli wp eval "\$u=get_user_by('id', ${user_id}); 
 user_delete_bridge="$(cat "$tmp_dir/catalog-response.json" | docker compose run --rm -T -e TARGET_PATH="$user_path" cli php -r '$target=getenv("TARGET_PATH"); $d=json_decode(stream_get_contents(STDIN),true); foreach (($d["result"]["structuredContent"]["items"]??[]) as $item) { $route=(string)($item["route"]??""); if (($item["contract"]??"")==="rest" && ($item["method"]??"")==="DELETE" && $route!=="" && @preg_match("@^".$route."$@i", $target)===1) { echo $item["bridge"]; exit(0); } } exit(1);')"
 test -n "$user_delete_bridge"
 
-user_delete_json="$(docker compose run --rm -T -e BRIDGE="$user_delete_bridge" -e TARGET_PATH="$user_path" cli php -r '$b=getenv("BRIDGE"); echo json_encode(["jsonrpc"=>"2.0","id"=>807,"method"=>"tools/call","params"=>["name"=>"cmsa.write-bridge","arguments"=>["bridge"=>$b,"input"=>["path"=>getenv("TARGET_PATH"),"params"=>["force"=>true,"reassign"=>1]]],"_meta"=>["io.modelcontextprotocol/protocolVersion"=>"2026-07-28","io.modelcontextprotocol/clientInfo"=>["name"=>"cmsa-live-simulation-smoke","version"=>"1.0.0"]]]]);')"
+user_delete_json="$(docker compose run --rm -T -e BRIDGE="$user_delete_bridge" -e TARGET_PATH="$user_path" cli php -r '$b=getenv("BRIDGE"); echo json_encode(["jsonrpc"=>"2.0","id"=>807,"method"=>"tools/call","params"=>["name"=>"cmsa.write-bridge","arguments"=>["bridge"=>$b,"input"=>["path"=>getenv("TARGET_PATH"),"params"=>["force"=>true,"reassign"=>1]]],"_meta"=>["io.modelcontextprotocol/protocolVersion"=>"2026-07-28","io.modelcontextprotocol/clientCapabilities"=>(object)[],"io.modelcontextprotocol/clientInfo"=>["name"=>"cmsa-live-simulation-smoke","version"=>"1.0.0"]]]]);')"
 printf '%s' "$user_delete_json" >"$tmp_dir/user-delete.json"
 
 user_delete_code="$(curl -sS -o "$tmp_dir/user-delete-response.json" -w '%{http_code}' \
@@ -207,4 +207,4 @@ test -n "$uuid"
 docker compose run --rm cli wp user application-password delete admin "$uuid" --quiet >/dev/null
 test -z "$(docker compose run --rm cli wp user application-password list admin --app_id="$APP_ID" --field=uuid --quiet 2>/dev/null || true)"
 
-echo "cmsa-live-simulation-http-write: PASS anonymous_boundary=verified admin_auth=verified catalog=verified post_write=verified media_upload=verified user_admin=crud_role_change persistence=verified cleanup=verified"
+echo "cmsa-live-simulation-http-write: PASS anonymous_boundary=verified admin_auth=verified catalog=verified post_write=verified media_upload=verified user_admin=crud_role_change persistence=verified cleanup=verified envelope=verified"
