@@ -31,6 +31,8 @@ services:
     volumes:
       - cmsa_sim_wp:/var/www/html
       - ../../../site-plugins/chattanooga-cms-admin:/var/www/html/wp-content/plugins/chattanooga-cms-admin
+      - ../../../site-plugins/chattanooga-music-marketplace:/var/www/html/wp-content/plugins/chattanooga-music-marketplace
+      - ../../../site-plugins/chattanooga-music-scene-core:/var/www/html/wp-content/plugins/chattanooga-music-scene-core
 
   cli:
     image: wordpress:cli
@@ -47,6 +49,8 @@ services:
     volumes:
       - cmsa_sim_wp:/var/www/html
       - ../../../site-plugins/chattanooga-cms-admin:/var/www/html/wp-content/plugins/chattanooga-cms-admin
+      - ../../../site-plugins/chattanooga-music-marketplace:/var/www/html/wp-content/plugins/chattanooga-music-marketplace
+      - ../../../site-plugins/chattanooga-music-scene-core:/var/www/html/wp-content/plugins/chattanooga-music-scene-core
       - ../../..:/workspace:ro
     working_dir: /var/www/html
 
