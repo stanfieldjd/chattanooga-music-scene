@@ -269,8 +269,19 @@ final class CUA_MCP_OAuth {
 	}
 
 	public static function token_endpoint( WP_REST_Request $request ) {
-		$params = $request->get_params();
+		$content_type = strtolower( trim( (string) $request->get_header( 'content-type' ) ) );
+		$content_type_parts = explode( ';', $content_type, 2 );
+		$content_type = trim( (string) $content_type_parts[0] );
+		if ( 'application/x-www-form-urlencoded' !== $content_type ) {
+			return self::oauth_error( 'invalid_request', 'OAuth token requests must use application/x-www-form-urlencoded.', 400 );
+		}
+
+		$params = $request->get_body_params();
+		$params = is_array( $params ) ? $params : array();
 		$grant_type = isset( $params['grant_type'] ) ? (string) $params['grant_type'] : '';
+		if ( '' === $grant_type ) {
+			return self::oauth_error( 'invalid_request', 'grant_type is required.', 400 );
+		}
 		if ( 'authorization_code' === $grant_type ) {
 			return self::exchange_authorization_code( $params );
 		}
@@ -635,6 +646,7 @@ final class CUA_MCP_OAuth {
 						$header = trim( (string) $value );
 						break;
 					}
+				}
 			}
 		}
 		return preg_match( '/^Bearer\s+([^\s]+)$/i', $header, $matches ) ? (string) $matches[1] : '';
