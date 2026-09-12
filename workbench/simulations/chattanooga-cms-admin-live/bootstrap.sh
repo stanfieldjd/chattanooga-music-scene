@@ -32,6 +32,7 @@ fi
 
 docker compose run --rm cli wp option update home "$SIM_URL" >/dev/null
 docker compose run --rm cli wp option update siteurl "$SIM_URL" >/dev/null
+docker compose run --rm cli wp rewrite structure '/%postname%/' --hard >/dev/null
 docker compose run --rm cli wp plugin activate chattanooga-cms-admin >/dev/null
 
 if ! docker compose run --rm cli wp post list --post_type=page --name=simulation-control --field=ID | grep -Eq '^[0-9]+$'; then
