@@ -425,7 +425,7 @@ final class CUA_MCP_OAuth {
 	}
 
 	private static function resolve_client( $client_id ) {
-		if ( 0 === strpos( $client_id, 'https://' ) ) {
+		if ( 0 === stripos( $client_id, 'https://' ) ) {
 			return self::resolve_client_metadata_document( $client_id );
 		}
 		$client = get_transient( self::TRANSIENT_CLIENT . hash( 'sha256', $client_id ) );
