@@ -265,6 +265,30 @@ wp_delete_post( $feature_id, true );
 cmsa_mcp_redteam_assert( false === get_post_status( $feature_id ), 'Disposable Weekend Feature was not removed.' );
 
 wp_set_current_user( 0 );
-$anonymous = cmsa_mcp_redteam_call( 'tools/list', array() );
-// If execution reaches this line, authorization failed open. The REST permission callback must reject before handle_request.
-cmsa_mcp_redteam_fail( 'Anonymous native MCP access was not blocked.' );
+$anonymous_request = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
+$anonymous_request->set_header( 'content-type', 'application/json' );
+$anonymous_request->set_header( 'MCP-Protocol-Version', '2026-07-28' );
+$anonymous_request->set_header( 'Mcp-Method', 'tools/list' );
+$anonymous_request->set_body(
+	wp_json_encode(
+		array(
+			'jsonrpc' => '2.0',
+			'id'      => 799,
+			'method'  => 'tools/list',
+			'params'  => array(
+				'_meta' => array(
+					'io.modelcontextprotocol/protocolVersion' => '2026-07-28',
+					'io.modelcontextprotocol/clientInfo'      => array(
+						'name'    => 'cmsa-functional-redteam-anonymous',
+						'version' => '1.0.0',
+					),
+				),
+			),
+		)
+	)
+);
+$anonymous_response = rest_do_request( $anonymous_request );
+cmsa_mcp_redteam_assert( $anonymous_response instanceof WP_REST_Response && 401 === $anonymous_response->get_status(), 'Anonymous native MCP access was not blocked.' );
+
+echo "cmsa-native-mcp-functional-redteam: PASS event_create=verified event_read=verified event_update=verified seo_read=verified seo_write=verified seo_rollback=verified weekend_generation=verified weekend_mcp_readback=verified content_cleanup=verified anonymous_block=verified\n";
+exit( 0 );
