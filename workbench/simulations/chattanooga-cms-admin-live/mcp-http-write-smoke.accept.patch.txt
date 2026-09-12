@@ -1,0 +1,4 @@
+Apply this exact header after every Content-Type: application/json line on an MCP POST in mcp-http-write-smoke.sh:
+-H 'Accept: application/json, text/event-stream' \
+
+Do not apply this header to non-MCP readiness probes.
