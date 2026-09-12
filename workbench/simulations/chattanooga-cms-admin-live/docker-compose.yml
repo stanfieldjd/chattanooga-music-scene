@@ -1,0 +1,55 @@
+services:
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: wordpress
+      MYSQL_ROOT_PASSWORD: root
+    command: --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    volumes:
+      - cmsa_sim_db:/var/lib/mysql
+
+  wordpress:
+    image: wordpress:php8.2-apache
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${SIM_PORT:-8091}:80"
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DEBUG: "1"
+    volumes:
+      - cmsa_sim_wp:/var/www/html
+      - ../../../site-plugins/chattanooga-cms-admin:/var/www/html/wp-content/plugins/chattanooga-cms-admin
+
+  cli:
+    image: wordpress:cli
+    depends_on:
+      db:
+        condition: service_healthy
+      wordpress:
+        condition: service_started
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+    volumes:
+      - cmsa_sim_wp:/var/www/html
+      - ../../../site-plugins/chattanooga-cms-admin:/var/www/html/wp-content/plugins/chattanooga-cms-admin
+      - ../../..:/workspace:ro
+    working_dir: /var/www/html
+
+volumes:
+  cmsa_sim_db:
+  cmsa_sim_wp:
