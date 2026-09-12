@@ -40,6 +40,7 @@ jobs:
           bash -n workbench/simulations/chattanooga-cms-admin-live/bootstrap.sh
           bash -n workbench/simulations/chattanooga-cms-admin-live/smoke.sh
           bash -n workbench/simulations/chattanooga-cms-admin-live/mcp-http-write-smoke.sh
+          bash -n workbench/simulations/chattanooga-cms-admin-live/site-stack.sh
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-direct-boundary-cli.php >/dev/null
