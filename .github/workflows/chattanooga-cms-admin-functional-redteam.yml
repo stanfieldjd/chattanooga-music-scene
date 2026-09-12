@@ -1,0 +1,77 @@
+name: Chattanooga CMS Admin Functional Red Team
+
+on:
+  push:
+    branches:
+      - work/cmsa-functional-redteam
+    paths:
+      - "site-plugins/chattanooga-cms-admin/**"
+      - "site-plugins/chattanooga-music-scene-core/**"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-functional-redteam-cli.php"
+      - ".github/workflows/chattanooga-cms-admin-functional-redteam.yml"
+  pull_request:
+    paths:
+      - "site-plugins/chattanooga-cms-admin/**"
+      - "site-plugins/chattanooga-music-scene-core/**"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-functional-redteam-cli.php"
+      - ".github/workflows/chattanooga-cms-admin-functional-redteam.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  functional-redteam:
+    name: MCP event, SEO, and Weekend Feature functionality
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mysqli, zip, gd, fileinfo
+
+      - name: Validate red-team probe syntax
+        run: php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-functional-redteam-cli.php
+
+      - name: Install disposable WordPress and functional providers
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+          php /tmp/wp-cli.phar core download --version=7.1 --path=/tmp/wordpress --force
+          php /tmp/wp-cli.phar config create --path=/tmp/wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
+          php /tmp/wp-cli.phar config set RANK_MATH_REGISTRATION_SKIP true --raw --path=/tmp/wordpress
+          password="$(php -r 'echo bin2hex(random_bytes(20));')"
+          php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://cmsa-redteam.test --title="CMSA Functional Red Team" --admin_user=admin --admin_password="$password" --admin_email=lab@example.invalid --skip-email
+
+          php /tmp/wp-cli.phar plugin install events-manager --version=7.4.3 --activate --path=/tmp/wordpress
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/events-manager-bootstrap-cli.php" --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin install seo-by-rank-math --version=1.0.278 --activate --path=/tmp/wordpress
+
+          cp -R site-plugins/chattanooga-music-scene-core /tmp/wordpress/wp-content/plugins/chattanooga-music-scene-core
+          cp -R site-plugins/chattanooga-cms-admin /tmp/wordpress/wp-content/plugins/chattanooga-cms-admin
+          php /tmp/wp-cli.phar plugin activate chattanooga-music-scene-core --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin --path=/tmp/wordpress
+
+          test "$(php /tmp/wp-cli.phar plugin get events-manager --field=version --path=/tmp/wordpress)" = "7.4.3"
+          test "$(php /tmp/wp-cli.phar plugin get seo-by-rank-math --field=version --path=/tmp/wordpress)" = "1.0.278"
+          test "$(php /tmp/wp-cli.phar plugin get chattanooga-music-scene-core --field=version --path=/tmp/wordpress)" = "0.2.1"
+          test "$(php /tmp/wp-cli.phar plugin get chattanooga-cms-admin --field=version --path=/tmp/wordpress)" = "1.1.0"
+
+      - name: Run native MCP functional red team
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-functional-redteam-cli.php" --path=/tmp/wordpress
