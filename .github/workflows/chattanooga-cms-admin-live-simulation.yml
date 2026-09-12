@@ -47,6 +47,7 @@ jobs:
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/core-content-rest-parity-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/core-admin-rest-parity-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/private-content-cli.php >/dev/null
+          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/awp-native-content-compatibility-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/media-upload-cli.php >/dev/null
 
       - name: Install disposable WordPress 7.1
