@@ -21,6 +21,11 @@ There is no copied simulation plugin. The WordPress container bind-mounts that d
 - A simulation result is not a production result.
 - Promotion from the simulation branch remains a separate source/deployment decision.
 
+## Requirements
+
+- Docker with `docker compose` support.
+- `curl` on the host for the external native-MCP HTTP write smoke test.
+
 ## Start the simulation
 
 From this directory:
@@ -49,6 +54,8 @@ Override the port or password for a local run with `SIM_PORT` or `SIM_ADMIN_PASS
 5. If a change affects activation/install state, rerun `bash bootstrap.sh`.
 6. Keep production and `main` unchanged until a separate promotion decision is made.
 
+`smoke.sh` now exercises both internal WordPress/MCP contracts and a real external HTTP administrator write through the native MCP endpoint. The HTTP write test creates one temporary application password and one draft post, verifies the persisted draft, and removes both through its exit cleanup path.
+
 ## Reset
 
 To destroy all simulated WordPress/database state and start clean:
@@ -62,6 +69,6 @@ This reset affects only the disposable simulation volumes. It does not delete or
 
 ## Verification layers
 
-`smoke.sh` checks plugin activation, WordPress health, native MCP route registration, native-only transport boundaries, the administrator MCP surface, and a real read call inside the simulation.
+`smoke.sh` checks plugin activation, WordPress health, native MCP route registration, native-only transport boundaries, the administrator MCP surface, external anonymous rejection, administrator application-password authentication, REST-bridge discovery, an actual native-MCP write, persistence, and disposable-state cleanup.
 
 The GitHub workflow `.github/workflows/chattanooga-cms-admin-live-simulation.yml` provides a reproducible WordPress 7.1 execution path for this simulation branch. It is manual-only; creating or editing simulation source does not automatically trigger an external workflow run.
