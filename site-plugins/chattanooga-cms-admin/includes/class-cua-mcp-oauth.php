@@ -80,7 +80,7 @@ final class CUA_MCP_OAuth {
 		if ( ! $response instanceof WP_REST_Response || ! $request instanceof WP_REST_Request ) {
 			return $response;
 		}
-		if ( '/'. CUA_MCP_Server::REST_NAMESPACE . CUA_MCP_Server::REST_ROUTE !== $request->get_route() ) {
+		if ( '/' . CUA_MCP_Server::REST_NAMESPACE . CUA_MCP_Server::REST_ROUTE !== $request->get_route() ) {
 			return $response;
 		}
 		if ( 401 !== (int) $response->get_status() ) {
@@ -148,10 +148,11 @@ final class CUA_MCP_OAuth {
 			return self::oauth_error( 'invalid_client_metadata', 'This public-client authorization server supports token_endpoint_auth_method=none only.', 400 );
 		}
 
-		$client_id = 'cmsa_' . self::random_token( 24 );
-		if ( is_wp_error( $client_id ) ) {
+		$client_token = self::random_token( 24 );
+		if ( is_wp_error( $client_token ) ) {
 			return self::oauth_error( 'server_error', 'A client identifier could not be generated.', 500 );
 		}
+		$client_id = 'cmsa_' . $client_token;
 
 		$record = array(
 			'client_id'                  => $client_id,
@@ -520,8 +521,8 @@ final class CUA_MCP_OAuth {
 				return null !== $value && '' !== $value;
 			}
 		);
-		$target = add_query_arg( array_map( 'rawurlencode', $params ), $redirect_uri );
-		wp_safe_redirect( $target );
+		$target = add_query_arg( $params, $redirect_uri );
+		wp_redirect( $target, 302, 'Chattanooga CMS Admin OAuth' ); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect
 		exit;
 	}
 
@@ -557,15 +558,19 @@ final class CUA_MCP_OAuth {
 						$header = trim( (string) $value );
 						break;
 					}
-				}
 			}
 		}
 		return preg_match( '/^Bearer\s+([^\s]+)$/i', $header, $matches ) ? (string) $matches[1] : '';
 	}
 
 	private static function request_targets_mcp() {
+		$expected = '/' . CUA_MCP_Server::REST_NAMESPACE . CUA_MCP_Server::REST_ROUTE;
 		$route = isset( $GLOBALS['wp']->query_vars['rest_route'] ) ? (string) $GLOBALS['wp']->query_vars['rest_route'] : '';
-		if ( '/' . CUA_MCP_Server::REST_NAMESPACE . CUA_MCP_Server::REST_ROUTE === $route ) {
+		if ( $expected === $route ) {
+			return true;
+		}
+		$query_route = isset( $_GET['rest_route'] ) ? wp_unslash( (string) $_GET['rest_route'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( $expected === $query_route ) {
 			return true;
 		}
 		$uri = (string) ( $_SERVER['REQUEST_URI'] ?? '' );
