@@ -16,7 +16,7 @@ function cmsa_native_direct_assert( $condition, $message ) {
 	}
 }
 
-function cmsa_native_direct_request( $method, array $params, $id ) {
+function cmsa_native_direct_request( $method, array $params, $id, $content_type = 'application/json' ) {
 	$params['_meta'] = isset( $params['_meta'] ) && is_array( $params['_meta'] ) ? $params['_meta'] : array();
 	$params['_meta']['io.modelcontextprotocol/protocolVersion'] = '2026-07-28';
 	$params['_meta']['io.modelcontextprotocol/clientCapabilities'] = (object) array();
@@ -26,7 +26,9 @@ function cmsa_native_direct_request( $method, array $params, $id ) {
 	);
 
 	$request = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
-	$request->set_header( 'content-type', 'application/json' );
+	if ( null !== $content_type ) {
+		$request->set_header( 'content-type', $content_type );
+	}
 	$request->set_header( 'MCP-Protocol-Version', '2026-07-28' );
 	$request->set_header( 'Mcp-Method', $method );
 	if ( 'tools/call' === $method && isset( $params['name'] ) ) {
@@ -77,6 +79,26 @@ if ( function_exists( 'wp_get_ability' ) ) {
 $routes = rest_get_server()->get_routes();
 cmsa_native_direct_assert( isset( $routes['/chattanooga-cms-admin/v1/mcp'] ), 'Built-in MCP route is not registered.' );
 cmsa_native_direct_assert( ! isset( $routes['/mcp/mcp-adapter-default-server'] ), 'Third-party adapter route is present in the disposable native-only environment.' );
+
+$invalid_content_types = array(
+	null,
+	'text/plain',
+	'text/plain; a=application/json',
+	'application/problem+json',
+);
+foreach ( $invalid_content_types as $index => $content_type ) {
+	$response = cmsa_native_direct_request( 'server/discover', array(), 510 + $index, $content_type );
+	cmsa_native_direct_assert( 415 === $response->get_status(), 'Invalid MCP Content-Type was not rejected with HTTP 415.' );
+	$data = $response->get_data();
+	cmsa_native_direct_assert( -32600 === ( $data['error']['code'] ?? null ), 'Invalid MCP Content-Type did not return the expected protocol error.' );
+}
+
+foreach ( array( 'application/json; charset=UTF-8', 'Application/JSON' ) as $index => $content_type ) {
+	$response = cmsa_native_direct_request( 'server/discover', array(), 520 + $index, $content_type );
+	cmsa_native_direct_assert( 200 === $response->get_status(), 'Valid MCP application/json media type was rejected.' );
+	$data = $response->get_data();
+	cmsa_native_direct_assert( 'complete' === ( $data['result']['resultType'] ?? '' ), 'Valid MCP application/json media type did not reach discovery.' );
+}
 
 // The plugin source itself must not acquire a WordPress MCP Adapter dependency.
 $root = realpath( CUA_DIR );
@@ -140,5 +162,5 @@ cmsa_native_direct_assert(
 
 require __DIR__ . '/oauth-registration-policy-cli.php';
 
-echo 'cmsa-native-mcp-direct-boundary: PASS route=native-only third_party_mcp=not-installed adapter_dependency=absent discover=verified tools=' . count( $names ) . " read_call=verified oauth_registration=policy envelope=verified\n";
+echo 'cmsa-native-mcp-direct-boundary: PASS route=native-only third_party_mcp=not-installed adapter_dependency=absent content_type=strict discover=verified tools=' . count( $names ) . " read_call=verified oauth_registration=policy envelope=verified\n";
 exit( 0 );
