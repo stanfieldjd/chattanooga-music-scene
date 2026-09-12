@@ -1,0 +1,117 @@
+name: Chattanooga CMS Admin Live Simulation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  simulation:
+    name: Editable WordPress simulation
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mysqli, zip, gd, fileinfo
+
+      - name: Validate simulation source
+        shell: bash
+        run: |
+          set -euo pipefail
+          find site-plugins/chattanooga-cms-admin -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
+          bash -n workbench/simulations/chattanooga-cms-admin-live/bootstrap.sh
+          bash -n workbench/simulations/chattanooga-cms-admin-live/smoke.sh
+          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php >/dev/null
+          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php >/dev/null
+          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-direct-boundary-cli.php >/dev/null
+          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/core-content-rest-parity-cli.php >/dev/null
+
+      - name: Install disposable WordPress 7.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+          php /tmp/wp-cli.phar core download --version=7.1 --path=/tmp/cmsa-simulation --force
+          php /tmp/wp-cli.phar config create --path=/tmp/cmsa-simulation --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
+          php /tmp/wp-cli.phar config set WP_ENVIRONMENT_TYPE local --type=constant --path=/tmp/cmsa-simulation
+          php /tmp/wp-cli.phar core install --path=/tmp/cmsa-simulation --url=http://127.0.0.1:8091 --title="Chattanooga CMS Admin Simulation" --admin_user=admin --admin_password=cmsa-simulation-only --admin_email=simulation@example.invalid --skip-email
+
+      - name: Mount simulation plugin state
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp -R site-plugins/chattanooga-cms-admin /tmp/cmsa-simulation/wp-content/plugins/chattanooga-cms-admin
+          php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin --path=/tmp/cmsa-simulation
+          php /tmp/wp-cli.phar plugin is-active chattanooga-cms-admin --path=/tmp/cmsa-simulation
+          php /tmp/wp-cli.phar post create --path=/tmp/cmsa-simulation --post_type=page --post_status=publish --post_title="Simulation Control" --post_name=simulation-control --post_content="Disposable Chattanooga CMS Admin simulation page." >/dev/null
+          php /tmp/wp-cli.phar post create --path=/tmp/cmsa-simulation --post_type=post --post_status=draft --post_title="Simulation Edit Target" --post_name=simulation-edit-target --post_content="Disposable content for Chattanooga CMS Admin write-path testing." >/dev/null
+
+      - name: Verify native MCP simulation surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php" --path=/tmp/cmsa-simulation
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php" --path=/tmp/cmsa-simulation
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-direct-boundary-cli.php" --path=/tmp/cmsa-simulation
+
+      - name: Verify editable content write paths
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/core-content-rest-parity-cli.php" --path=/tmp/cmsa-simulation
+
+      - name: Verify running HTTP simulation
+        shell: bash
+        run: |
+          set -euo pipefail
+          endpoint='http://127.0.0.1:8091/index.php?rest_route=%2Fchattanooga-cms-admin%2Fv1%2Fmcp'
+          app_password="$(php /tmp/wp-cli.phar user application-password create admin cmsa-live-simulation --porcelain --path=/tmp/cmsa-simulation)"
+
+          php -S 127.0.0.1:8091 -t /tmp/cmsa-simulation >/tmp/cmsa-live-simulation-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+
+          for attempt in $(seq 1 30); do
+            if curl -fsS 'http://127.0.0.1:8091/index.php?rest_route=%2F' >/dev/null 2>&1; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              cat /tmp/cmsa-live-simulation-http.log >&2
+              exit 1
+            fi
+            sleep 1
+          done
+
+          cat >/tmp/cmsa-live-discover.json <<'JSON'
+          {"jsonrpc":"2.0","id":701,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"cmsa-live-simulation","version":"1.0.0"}}}}
+          JSON
+
+          status="$(curl -sS -o /tmp/cmsa-live-discover-response.json -w '%{http_code}' \
+            --user "admin:${app_password}" \
+            -H 'Content-Type: application/json' \
+            -H 'MCP-Protocol-Version: 2026-07-28' \
+            -H 'Mcp-Method: server/discover' \
+            --data-binary @/tmp/cmsa-live-discover.json \
+            "$endpoint")"
+          test "$status" = '200'
+          php -r '$d=json_decode(file_get_contents("/tmp/cmsa-live-discover-response.json"),true); if (($d["result"]["resultType"]??"")!=="complete") exit(1);'
+
+          test "$(php /tmp/wp-cli.phar post list --path=/tmp/cmsa-simulation --post_type=page --name=simulation-control --field=post_name)" = 'simulation-control'
+          test "$(php /tmp/wp-cli.phar post list --path=/tmp/cmsa-simulation --post_type=post --name=simulation-edit-target --field=post_name)" = 'simulation-edit-target'
+
+          echo 'cmsa-live-simulation: PASS wordpress=7.1 plugin=active source=simulation-branch native_mcp=verified content_write=verified http=verified'
