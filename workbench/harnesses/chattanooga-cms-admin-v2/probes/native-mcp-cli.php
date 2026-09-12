@@ -38,6 +38,7 @@ function cmsa_native_mcp_post( $method, array $params = array(), array $headers 
 function cmsa_native_mcp_modern( $method, array $params = array(), $id = 1, array $extra_headers = array() ) {
 	$params['_meta'] = isset( $params['_meta'] ) && is_array( $params['_meta'] ) ? $params['_meta'] : array();
 	$params['_meta']['io.modelcontextprotocol/protocolVersion'] = '2026-07-28';
+	$params['_meta']['io.modelcontextprotocol/clientCapabilities'] = (object) array();
 	$params['_meta']['io.modelcontextprotocol/clientInfo'] = array(
 		'name'    => 'cmsa-native-mcp-probe',
 		'version' => '1.0.0',
@@ -83,8 +84,8 @@ cmsa_native_mcp_assert( '2.0' === ( $discover_data['jsonrpc'] ?? '' ), 'Modern d
 cmsa_native_mcp_assert( 101 === ( $discover_data['id'] ?? null ), 'Modern discovery returned the wrong request id.' );
 cmsa_native_mcp_assert( 'complete' === ( $discover_data['result']['resultType'] ?? '' ), 'Modern discovery omitted complete resultType.' );
 cmsa_native_mcp_assert(
-	in_array( '2026-07-28', $discover_data['result']['supportedVersions'] ?? array(), true ),
-	'Modern discovery did not advertise MCP 2026-07-28.'
+	array( '2026-07-28' ) === ( $discover_data['result']['supportedVersions'] ?? null ),
+	'Modern discovery did not advertise only MCP 2026-07-28.'
 );
 cmsa_native_mcp_assert(
 	false === ( $discover_data['result']['capabilities']['tools']['listChanged'] ?? null ),
@@ -168,6 +169,7 @@ $mismatch = cmsa_native_mcp_modern(
 cmsa_native_mcp_assert( 400 === $mismatch->get_status(), 'MCP header/body mismatch was not rejected with HTTP 400.' );
 $mismatch_data = $mismatch->get_data();
 cmsa_native_mcp_assert( -32020 === ( $mismatch_data['error']['code'] ?? null ), 'MCP header/body mismatch did not return -32020.' );
+cmsa_native_mcp_assert( ! isset( $mismatch_data['_meta'] ), 'MCP protocol error leaked non-schema top-level _meta.' );
 
 // Origin validation blocks browser-origin requests from unrelated sites.
 $origin_request = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
@@ -184,6 +186,7 @@ $origin_request->set_body(
 			'params'  => array(
 				'_meta' => array(
 					'io.modelcontextprotocol/protocolVersion' => '2026-07-28',
+					'io.modelcontextprotocol/clientCapabilities' => (object) array(),
 				),
 			),
 		)
@@ -221,5 +224,5 @@ $anonymous = cmsa_native_mcp_modern( 'server/discover', array(), 108 );
 cmsa_native_mcp_assert( 401 === $anonymous->get_status(), 'Anonymous MCP access was not rejected with HTTP 401.' );
 
 wp_set_current_user( 1 );
-echo "cmsa-native-mcp: PASS version=1.1.0 modern=2026-07-28 legacy=2025-11-25 route=verified admin_boundary=verified origin_guard=verified tools_list=deterministic read_call=verified private_bridges=hidden header_validation=verified\n";
+echo "cmsa-native-mcp: PASS version=1.1.0 modern=2026-07-28 legacy=2025-11-25 route=verified admin_boundary=verified origin_guard=verified tools_list=deterministic read_call=verified private_bridges=hidden header_validation=verified envelope=verified\n";
 exit( 0 );
