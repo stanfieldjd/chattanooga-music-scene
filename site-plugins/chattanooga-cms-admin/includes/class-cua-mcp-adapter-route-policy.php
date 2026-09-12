@@ -22,9 +22,20 @@ final class CUA_MCP_Adapter_Route_Policy {
 			return;
 		}
 
+		foreach ( $routes[ $route_path ] as $endpoint ) {
+			$callback = isset( $endpoint['callback'] ) ? $endpoint['callback'] : null;
+			if (
+				is_array( $callback )
+				&& 'CUA_MCP_Adapter_Compat' === ( $callback[0] ?? null )
+				&& 'handle_request' === ( $callback[1] ?? null )
+			) {
+				return;
+			}
+		}
+
 		// A different plugin already owns the adapter route. Replace only the route
 		// contract, not that plugin's source or settings, so compatible clients reach
-		// Chattanooga's verified ability surface instead of the incompatible handler.
+		// Chattanooga's ability surface instead of the incompatible handler.
 		register_rest_route(
 			CUA_MCP_Adapter_Compat::REST_NAMESPACE,
 			CUA_MCP_Adapter_Compat::REST_ROUTE,
