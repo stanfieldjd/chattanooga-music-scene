@@ -66,6 +66,7 @@ jobs:
           curl -fsSL -o /tmp/wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
           php /tmp/wp-cli.phar core download --version=7.1 --path=/tmp/wordpress --force
           php /tmp/wp-cli.phar config create --path=/tmp/wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
+          php /tmp/wp-cli.phar config set WP_ENVIRONMENT_TYPE local --type=constant --path=/tmp/wordpress
           php /tmp/wp-cli.phar config set RANK_MATH_REGISTRATION_SKIP true --raw --path=/tmp/wordpress
           password="$(php -r 'echo bin2hex(random_bytes(20));')"
           php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://cmsa-redteam.test --title="CMSA Functional Red Team" --admin_user=admin --admin_password="$password" --admin_email=lab@example.invalid --skip-email
