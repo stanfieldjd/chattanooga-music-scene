@@ -11,6 +11,7 @@ on:
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-weekend-ability-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-external-functional.sh"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-weekend-route-diagnostic-cli.php"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-external-catalog-diagnostic.sh"
       - ".github/workflows/chattanooga-cms-admin-functional-redteam.yml"
   pull_request:
     paths:
@@ -20,6 +21,7 @@ on:
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-weekend-ability-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-external-functional.sh"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-weekend-route-diagnostic-cli.php"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-external-catalog-diagnostic.sh"
       - ".github/workflows/chattanooga-cms-admin-functional-redteam.yml"
 
 permissions:
@@ -59,6 +61,7 @@ jobs:
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-weekend-ability-cli.php
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-weekend-route-diagnostic-cli.php
           bash -n workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-external-functional.sh
+          bash -n workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-external-catalog-diagnostic.sh
           php -l site-plugins/chattanooga-music-scene-core/includes/class-cms-weekend-abilities.php
           php -l site-plugins/chattanooga-music-scene-core/chattanooga-music-scene-core.php
 
@@ -96,6 +99,10 @@ jobs:
 
       - name: Diagnose Weekend Feature REST bridges
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-weekend-route-diagnostic-cli.php" --path=/tmp/wordpress
+
+      - name: Diagnose external Weekend Feature REST bridges
+        shell: bash
+        run: bash "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-external-catalog-diagnostic.sh"
 
       - name: Verify external Application Password provider functionality
         shell: bash
