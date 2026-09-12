@@ -255,13 +255,37 @@ final class CUA_MCP_Server {
 
 		if ( 'tools/call' === $method ) {
 			$name = isset( $params['name'] ) ? (string) $params['name'] : '';
-			$header_name = trim( (string) $request->get_header( 'mcp-name' ) );
-			if ( '' === $name || '' === $header_name || $name !== $header_name ) {
+			$raw_header_name = (string) $request->get_header( 'mcp-name' );
+			if ( '' === $name || '' === $raw_header_name ) {
 				return new WP_Error( 'cmsa_mcp_name_header_mismatch', 'Mcp-Name must be present and match params.name for tools/call.' );
+			}
+			$header_name = self::decode_mirrored_header_value( $raw_header_name, 'Mcp-Name' );
+			if ( is_wp_error( $header_name ) || $name !== $header_name ) {
+				return is_wp_error( $header_name )
+					? $header_name
+					: new WP_Error( 'cmsa_mcp_name_header_mismatch', 'Mcp-Name must be present and match params.name for tools/call.' );
 			}
 		}
 
 		return true;
+	}
+
+	private static function decode_mirrored_header_value( $value, $header_name ) {
+		$value = (string) $value;
+		if ( 0 !== strpos( $value, '=?base64?' ) || '?=' !== substr( $value, -2 ) ) {
+			return $value;
+		}
+
+		$encoded = substr( $value, 9, -2 );
+		if ( '' === $encoded ) {
+			return new WP_Error( 'cmsa_mcp_header_encoding_invalid', $header_name . ' contains an invalid Base64 sentinel value.' );
+		}
+
+		$decoded = base64_decode( $encoded, true );
+		if ( false === $decoded || 1 !== preg_match( '//u', $decoded ) ) {
+			return new WP_Error( 'cmsa_mcp_header_encoding_invalid', $header_name . ' contains an invalid Base64 sentinel value.' );
+		}
+		return $decoded;
 	}
 
 	private static function discover_result() {
