@@ -123,4 +123,3 @@ try {
 }
 
 echo "cmsa-oauth-registration-policy: PASS defaults=authorization_code explicit_refresh=verified native_client=verified malformed_metadata=rejected cleanup=verified\n";
-exit( 0 );
