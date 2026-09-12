@@ -7,10 +7,11 @@ WP_CLI="${WP_CLI:-/tmp/wp-cli.phar}"
 WP_PATH="${WP_PATH:-/tmp/cmsa-simulation}"
 PHP_BIN="${PHP_BIN:-php}"
 
-MCP_ENDPOINT="${SIM_URL}/wp-json/chattanooga-cms-admin/v1/mcp"
+MCP_PATH='/wp-json/chattanooga-cms-admin/v1/mcp'
+MCP_ENDPOINT="${SIM_URL}${MCP_PATH}"
 REGISTER_ENDPOINT="${SIM_URL}/wp-json/chattanooga-cms-admin/v1/oauth/register"
 TOKEN_ENDPOINT="${SIM_URL}/wp-json/chattanooga-cms-admin/v1/oauth/token"
-RESOURCE_METADATA="${SIM_URL}/.well-known/oauth-protected-resource"
+RESOURCE_METADATA="${SIM_URL}/.well-known/oauth-protected-resource${MCP_PATH}"
 SERVER_METADATA="${SIM_URL}/.well-known/oauth-authorization-server"
 CALLBACK_URI="${SIM_URL}/oauth-callback"
 SCOPE='mcp:admin'
@@ -160,4 +161,4 @@ test "$replay_code" = '400'
 rotated_bearer_code="$(curl -sS -o "$tmp_dir/rotated-bearer.json" -w '%{http_code}' -H "Authorization: Bearer ${rotated_access_token}" -H 'Content-Type: application/json' -H 'MCP-Protocol-Version: 2026-07-28' -H 'Mcp-Method: server/discover' --data-binary @"$tmp_dir/discover.json" "$MCP_ENDPOINT")"
 test "$rotated_bearer_code" = '200'
 
-echo 'cmsa-native-mcp-oauth-host: PASS protected_resource=verified authorization_server=verified dcr=verified admin_consent=verified pkce=verified bearer_mcp=verified refresh_rotation=verified envelope=verified third_party_mcp=absent'
+echo 'cmsa-native-mcp-oauth-host: PASS protected_resource=verified metadata_path=resource-derived authorization_server=verified dcr=verified admin_consent=verified pkce=verified bearer_mcp=verified refresh_rotation=verified envelope=verified third_party_mcp=absent'
