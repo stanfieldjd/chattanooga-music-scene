@@ -8,8 +8,6 @@ final class CUA_REST_Bridge {
 	const NAMESPACE_PREFIX = 'chattanooga-cms-admin/';
 	const CATEGORY = 'chattanooga-cms-admin';
 
-	private static $bridges = array();
-
 	public static function register_external_bridges() {
 		if ( ! function_exists( 'rest_get_server' ) || ! function_exists( 'wp_register_ability' ) || ! function_exists( 'wp_get_ability' ) ) {
 			return;
@@ -54,13 +52,6 @@ final class CUA_REST_Bridge {
 							'meta'                => self::bridge_meta( $method ),
 						)
 					);
-
-					if ( wp_get_ability( $bridge_name ) instanceof WP_Ability ) {
-						self::$bridges[ $bridge_name ] = array(
-							'method' => $method,
-							'route'  => $route_regex,
-						);
-					}
 				}
 			}
 		}
