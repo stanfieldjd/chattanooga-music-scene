@@ -30,8 +30,9 @@ $modern->set_body(
 			'method'  => 'ping',
 			'params'  => array(
 				'_meta' => array(
-					'io.modelcontextprotocol/protocolVersion' => '2026-07-28',
-					'io.modelcontextprotocol/clientInfo'      => array(
+					'io.modelcontextprotocol/protocolVersion'    => '2026-07-28',
+					'io.modelcontextprotocol/clientCapabilities' => (object) array(),
+					'io.modelcontextprotocol/clientInfo'         => array(
 						'name'    => 'cmsa-era-probe',
 						'version' => '1.0.0',
 					),
@@ -62,5 +63,5 @@ $legacy_data     = $legacy_response->get_data();
 cmsa_native_mcp_era_assert( 200 === $legacy_response->get_status(), 'Legacy ping did not remain available.' );
 cmsa_native_mcp_era_assert( array() === ( $legacy_data['result'] ?? null ), 'Legacy ping returned a non-empty result.' );
 
-echo "cmsa-native-mcp-era: PASS modern_ping=method_not_found legacy_ping=verified\n";
+echo "cmsa-native-mcp-era: PASS modern_ping=method_not_found legacy_ping=verified envelope=verified\n";
 exit( 0 );
