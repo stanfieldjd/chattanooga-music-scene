@@ -460,9 +460,10 @@ final class CUA_MCP_OAuth {
 		$response = wp_safe_remote_get(
 			$client_id,
 			array(
-				'timeout'     => 5,
-				'redirection' => 0,
-				'headers'     => array( 'Accept' => 'application/json' ),
+				'timeout'             => 5,
+				'redirection'         => 0,
+				'limit_response_size' => 5121,
+				'headers'             => array( 'Accept' => 'application/json' ),
 			)
 		);
 		if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
