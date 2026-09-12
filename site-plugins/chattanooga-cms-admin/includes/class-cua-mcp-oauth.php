@@ -133,20 +133,42 @@ final class CUA_MCP_OAuth {
 			return self::oauth_error( 'invalid_redirect_uri', $redirects->get_error_message(), 400 );
 		}
 
-		$grant_types = isset( $input['grant_types'] ) ? array_values( (array) $input['grant_types'] ) : array( 'authorization_code' );
+		if ( isset( $input['grant_types'] ) && ! self::is_string_list( $input['grant_types'] ) ) {
+			return self::oauth_error( 'invalid_client_metadata', 'grant_types must be an array of strings.', 400 );
+		}
+		$grant_types = isset( $input['grant_types'] ) ? array_values( $input['grant_types'] ) : array( 'authorization_code' );
 		if ( array_diff( $grant_types, array( 'authorization_code', 'refresh_token' ) ) || ! in_array( 'authorization_code', $grant_types, true ) ) {
 			return self::oauth_error( 'invalid_client_metadata', 'Only authorization_code and refresh_token grant types are supported.', 400 );
 		}
 
-		$response_types = isset( $input['response_types'] ) ? array_values( (array) $input['response_types'] ) : array( 'code' );
+		if ( isset( $input['response_types'] ) && ! self::is_string_list( $input['response_types'] ) ) {
+			return self::oauth_error( 'invalid_client_metadata', 'response_types must be an array of strings.', 400 );
+		}
+		$response_types = isset( $input['response_types'] ) ? array_values( $input['response_types'] ) : array( 'code' );
 		if ( array_diff( $response_types, array( 'code' ) ) || ! in_array( 'code', $response_types, true ) ) {
 			return self::oauth_error( 'invalid_client_metadata', 'Only the code response type is supported.', 400 );
 		}
 
-		$auth_method = isset( $input['token_endpoint_auth_method'] ) ? (string) $input['token_endpoint_auth_method'] : 'none';
+		if ( isset( $input['token_endpoint_auth_method'] ) && ! is_string( $input['token_endpoint_auth_method'] ) ) {
+			return self::oauth_error( 'invalid_client_metadata', 'token_endpoint_auth_method must be a string.', 400 );
+		}
+		$auth_method = isset( $input['token_endpoint_auth_method'] ) ? $input['token_endpoint_auth_method'] : 'none';
 		if ( 'none' !== $auth_method ) {
 			return self::oauth_error( 'invalid_client_metadata', 'This public-client authorization server supports token_endpoint_auth_method=none only.', 400 );
 		}
+
+		if ( isset( $input['application_type'] ) && ! is_string( $input['application_type'] ) ) {
+			return self::oauth_error( 'invalid_client_metadata', 'application_type must be web or native.', 400 );
+		}
+		$application_type = isset( $input['application_type'] ) ? $input['application_type'] : 'web';
+		if ( ! in_array( $application_type, array( 'web', 'native' ), true ) ) {
+			return self::oauth_error( 'invalid_client_metadata', 'application_type must be web or native.', 400 );
+		}
+
+		if ( isset( $input['client_name'] ) && ! is_string( $input['client_name'] ) ) {
+			return self::oauth_error( 'invalid_client_metadata', 'client_name must be a string.', 400 );
+		}
+		$client_name = sanitize_text_field( (string) ( $input['client_name'] ?? 'MCP client' ) );
 
 		$client_token = self::random_token( 24 );
 		if ( is_wp_error( $client_token ) ) {
@@ -156,12 +178,12 @@ final class CUA_MCP_OAuth {
 
 		$record = array(
 			'client_id'                  => $client_id,
-			'client_name'                => sanitize_text_field( (string) ( $input['client_name'] ?? 'MCP client' ) ),
+			'client_name'                => $client_name,
 			'redirect_uris'              => $redirects,
 			'grant_types'                => $grant_types,
 			'response_types'             => $response_types,
 			'token_endpoint_auth_method' => 'none',
-			'application_type'           => in_array( (string) ( $input['application_type'] ?? '' ), array( 'web', 'native' ), true ) ? (string) $input['application_type'] : 'web',
+			'application_type'           => $application_type,
 			'created_at'                 => time(),
 		);
 		set_transient( self::TRANSIENT_CLIENT . hash( 'sha256', $client_id ), $record, self::CLIENT_TTL );
@@ -209,14 +231,14 @@ final class CUA_MCP_OAuth {
 				wp_die( esc_html__( 'An authorization code could not be generated.', 'chattanooga-cms-admin' ), '', array( 'response' => 500 ) );
 			}
 			$record = array(
-				'user_id'       => get_current_user_id(),
-				'client_id'     => $params['client_id'],
-				'redirect_uri'  => $params['redirect_uri'],
-				'code_challenge'=> $params['code_challenge'],
-				'resource'      => $params['resource'],
-				'scope'         => $params['scope'],
-				'issue_refresh' => in_array( 'refresh_token', (array) $params['client']['grant_types'], true ),
-				'expires_at'    => time() + self::CODE_TTL,
+				'user_id'        => get_current_user_id(),
+				'client_id'      => $params['client_id'],
+				'redirect_uri'   => $params['redirect_uri'],
+				'code_challenge' => $params['code_challenge'],
+				'resource'       => $params['resource'],
+				'scope'          => $params['scope'],
+				'issue_refresh'  => in_array( 'refresh_token', (array) $params['client']['grant_types'], true ),
+				'expires_at'     => time() + self::CODE_TTL,
 			);
 			set_transient( self::TRANSIENT_CODE . hash( 'sha256', $code ), $record, self::CODE_TTL );
 			self::authorization_redirect( $params['redirect_uri'], array( 'code' => $code, 'state' => $params['state'], 'iss' => self::issuer() ) );
@@ -453,16 +475,29 @@ final class CUA_MCP_OAuth {
 			return $redirects;
 		}
 
-		$grant_types = isset( $document['grant_types'] ) ? array_values( (array) $document['grant_types'] ) : array( 'authorization_code' );
+		if ( isset( $document['grant_types'] ) && ! self::is_string_list( $document['grant_types'] ) ) {
+			return new WP_Error( 'cmsa_oauth_cimd_grants', 'grant_types must be an array of strings.' );
+		}
+		$grant_types = isset( $document['grant_types'] ) ? array_values( $document['grant_types'] ) : array( 'authorization_code' );
 		if ( array_diff( $grant_types, array( 'authorization_code', 'refresh_token' ) ) || ! in_array( 'authorization_code', $grant_types, true ) ) {
 			return new WP_Error( 'cmsa_oauth_cimd_grants', 'Only authorization_code and refresh_token grant types are supported for Client ID Metadata Documents.' );
 		}
-		$response_types = isset( $document['response_types'] ) ? array_values( (array) $document['response_types'] ) : array( 'code' );
+		if ( isset( $document['response_types'] ) && ! self::is_string_list( $document['response_types'] ) ) {
+			return new WP_Error( 'cmsa_oauth_cimd_responses', 'response_types must be an array of strings.' );
+		}
+		$response_types = isset( $document['response_types'] ) ? array_values( $document['response_types'] ) : array( 'code' );
 		if ( array_diff( $response_types, array( 'code' ) ) || ! in_array( 'code', $response_types, true ) ) {
 			return new WP_Error( 'cmsa_oauth_cimd_responses', 'Only the code response type is supported for Client ID Metadata Documents.' );
 		}
-		if ( isset( $document['token_endpoint_auth_method'] ) && 'none' !== (string) $document['token_endpoint_auth_method'] ) {
+		if ( isset( $document['token_endpoint_auth_method'] ) && ( ! is_string( $document['token_endpoint_auth_method'] ) || 'none' !== $document['token_endpoint_auth_method'] ) ) {
 			return new WP_Error( 'cmsa_oauth_cimd_auth', 'Only public OAuth clients using token_endpoint_auth_method=none are supported.' );
+		}
+		if ( isset( $document['application_type'] ) && ! is_string( $document['application_type'] ) ) {
+			return new WP_Error( 'cmsa_oauth_cimd_application', 'application_type must be web or native.' );
+		}
+		$application_type = isset( $document['application_type'] ) ? $document['application_type'] : 'web';
+		if ( ! in_array( $application_type, array( 'web', 'native' ), true ) ) {
+			return new WP_Error( 'cmsa_oauth_cimd_application', 'application_type must be web or native.' );
 		}
 		return array(
 			'client_id'                  => $client_id,
@@ -471,8 +506,20 @@ final class CUA_MCP_OAuth {
 			'grant_types'                => $grant_types,
 			'response_types'             => $response_types,
 			'token_endpoint_auth_method' => 'none',
-			'application_type'           => 'web',
+			'application_type'           => $application_type,
 		);
+	}
+
+	private static function is_string_list( $value ) {
+		if ( ! is_array( $value ) ) {
+			return false;
+		}
+		foreach ( $value as $item ) {
+			if ( ! is_string( $item ) ) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	private static function validate_redirect_uris( $value ) {
@@ -481,7 +528,10 @@ final class CUA_MCP_OAuth {
 		}
 		$result = array();
 		foreach ( $value as $uri ) {
-			$uri = trim( (string) $uri );
+			if ( ! is_string( $uri ) ) {
+				return new WP_Error( 'cmsa_oauth_redirect_uri', 'A redirect URI must be a string.' );
+			}
+			$uri = trim( $uri );
 			if ( '' === $uri || strlen( $uri ) > 2048 || false !== strpos( $uri, '#' ) ) {
 				return new WP_Error( 'cmsa_oauth_redirect_uri', 'A redirect URI is invalid.' );
 			}
