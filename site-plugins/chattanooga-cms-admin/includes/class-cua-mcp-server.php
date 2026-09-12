@@ -77,6 +77,18 @@ final class CUA_MCP_Server {
 		$params = isset( $payload['params'] ) && is_array( $payload['params'] ) ? $payload['params'] : array();
 		$modern = self::is_modern_request( $request, $params );
 
+		$declaration_error = self::validate_protocol_declarations( $request, $params );
+		if ( is_wp_error( $declaration_error ) ) {
+			return self::protocol_error_response(
+				$id,
+				-32022,
+				$declaration_error->get_error_message(),
+				400,
+				$modern,
+				array( 'supportedVersions' => array_merge( array( self::MODERN_VERSION ), self::$legacy_versions ) )
+			);
+		}
+
 		if ( $modern ) {
 			$header_error = self::validate_modern_headers( $request, $method, $params );
 			if ( is_wp_error( $header_error ) ) {
@@ -175,6 +187,32 @@ final class CUA_MCP_Server {
 				: '';
 		}
 		return self::MODERN_VERSION === $header_version || self::MODERN_VERSION === $body_version;
+	}
+
+	private static function validate_protocol_declarations( WP_REST_Request $request, array $params ) {
+		$versions = array();
+		$header_version = trim( (string) $request->get_header( 'mcp-protocol-version' ) );
+		if ( '' !== $header_version ) {
+			$versions[] = $header_version;
+		}
+
+		if ( isset( $params['_meta'] ) && is_array( $params['_meta'] ) ) {
+			$body_version = isset( $params['_meta']['io.modelcontextprotocol/protocolVersion'] )
+				? trim( (string) $params['_meta']['io.modelcontextprotocol/protocolVersion'] )
+				: '';
+			if ( '' !== $body_version ) {
+				$versions[] = $body_version;
+			}
+		}
+
+		foreach ( $versions as $version ) {
+			if ( self::MODERN_VERSION === $version || in_array( $version, self::$legacy_versions, true ) ) {
+				continue;
+			}
+			return new WP_Error( 'cmsa_mcp_unsupported_protocol_declaration', 'Unsupported MCP protocol version declaration.' );
+		}
+
+		return true;
 	}
 
 	private static function validate_modern_version( WP_REST_Request $request, array $params ) {
