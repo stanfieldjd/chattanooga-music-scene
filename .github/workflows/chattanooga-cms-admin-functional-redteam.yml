@@ -9,6 +9,7 @@ on:
       - "site-plugins/chattanooga-music-scene-core/**"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-functional-redteam-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-weekend-ability-cli.php"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-external-functional.sh"
       - ".github/workflows/chattanooga-cms-admin-functional-redteam.yml"
   pull_request:
     paths:
@@ -16,6 +17,7 @@ on:
       - "site-plugins/chattanooga-music-scene-core/**"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-functional-redteam-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-weekend-ability-cli.php"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-external-functional.sh"
       - ".github/workflows/chattanooga-cms-admin-functional-redteam.yml"
 
 permissions:
@@ -53,6 +55,7 @@ jobs:
           set -euo pipefail
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-functional-redteam-cli.php
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-weekend-ability-cli.php
+          bash -n workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-external-functional.sh
           php -l site-plugins/chattanooga-music-scene-core/includes/class-cms-weekend-abilities.php
           php -l site-plugins/chattanooga-music-scene-core/chattanooga-music-scene-core.php
 
@@ -86,3 +89,7 @@ jobs:
 
       - name: Verify Weekend Feature generator through native MCP
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-weekend-ability-cli.php" --path=/tmp/wordpress
+
+      - name: Verify external Application Password provider functionality
+        shell: bash
+        run: bash "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-external-functional.sh"
