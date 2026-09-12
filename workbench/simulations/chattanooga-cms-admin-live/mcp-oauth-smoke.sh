@@ -149,6 +149,7 @@ curl -sS -b "$cookie_jar" -c "$cookie_jar" -o "$tmp_dir/authorize.html" \
   --data-urlencode "state=${STATE}" \
   "$authorization_endpoint"
 grep -Fq 'Authorize Chattanooga CMS Admin' "$tmp_dir/authorize.html"
+grep -Fq 'Redirect hostname: <strong>127.0.0.1</strong>' "$tmp_dir/authorize.html"
 nonce="$(docker compose run --rm -T cli php -r '$h=stream_get_contents(STDIN); if (!preg_match("/name=\"_cmsa_oauth_nonce\" value=\"([^\"]+)\"/",$h,$m)) exit(1); echo html_entity_decode($m[1],ENT_QUOTES|ENT_HTML5,"UTF-8");' <"$tmp_dir/authorize.html")"
 test -n "$nonce"
 
@@ -242,4 +243,4 @@ rotated_bearer_code="$(curl -sS -o "$tmp_dir/rotated-bearer-discover.json" -w '%
   "$MCP_ENDPOINT")"
 test "$rotated_bearer_code" = '200'
 
-echo 'cmsa-native-mcp-oauth: PASS protected_resource=verified metadata_path=resource-derived authorization_server=verified dcr=native admin_consent=verified pkce=verified bearer_mcp=verified refresh_rotation=verified envelope=verified third_party_mcp=absent'
+echo 'cmsa-native-mcp-oauth: PASS protected_resource=verified metadata_path=resource-derived authorization_server=verified dcr=native admin_consent=verified redirect_hostname=visible pkce=verified bearer_mcp=verified refresh_rotation=verified envelope=verified third_party_mcp=absent'
