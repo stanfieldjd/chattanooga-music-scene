@@ -85,7 +85,11 @@ jobs:
         run: |
           set -euo pipefail
           endpoint='http://127.0.0.1:8091/index.php?rest_route=%2Fchattanooga-cms-admin%2Fv1%2Fmcp'
-          app_password="$(php /tmp/wp-cli.phar user application-password create admin cmsa-live-simulation --porcelain --path=/tmp/cmsa-simulation)"
+          app_id='cmsa-live-simulation-http'
+          app_password="$(php /tmp/wp-cli.phar user application-password create admin cmsa-live-simulation --app-id="$app_id" --porcelain --path=/tmp/cmsa-simulation)"
+          app_uuid="$(php /tmp/wp-cli.phar user application-password list admin --app_id="$app_id" --field=uuid --quiet --path=/tmp/cmsa-simulation | head -n 1)"
+          test -n "$app_password"
+          test -n "$app_uuid"
           post_id=''
 
           php -S 127.0.0.1:8091 -t /tmp/cmsa-simulation >/tmp/cmsa-live-simulation-http.log 2>&1 &
@@ -93,6 +97,9 @@ jobs:
           cleanup() {
             if [ -n "$post_id" ]; then
               php /tmp/wp-cli.phar post delete "$post_id" --force --path=/tmp/cmsa-simulation >/dev/null 2>&1 || true
+            fi
+            if [ -n "$app_uuid" ]; then
+              php /tmp/wp-cli.phar user application-password delete admin "$app_uuid" --quiet --path=/tmp/cmsa-simulation >/dev/null 2>&1 || true
             fi
             kill "$server_pid" 2>/dev/null || true
           }
@@ -169,5 +176,8 @@ jobs:
 
           php /tmp/wp-cli.phar post delete "$post_id" --force --path=/tmp/cmsa-simulation >/dev/null
           post_id=''
+          php /tmp/wp-cli.phar user application-password delete admin "$app_uuid" --quiet --path=/tmp/cmsa-simulation >/dev/null
+          app_uuid=''
+          test -z "$(php /tmp/wp-cli.phar user application-password list admin --app_id="$app_id" --field=uuid --quiet --path=/tmp/cmsa-simulation)"
 
           echo 'cmsa-live-simulation: PASS wordpress=7.1 plugin=active source=simulation-branch native_mcp=verified content_write=verified media_upload=verified http_auth=verified http_write=verified cleanup=verified'
