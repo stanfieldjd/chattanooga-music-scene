@@ -4,10 +4,11 @@ set -euo pipefail
 SIM_PORT="${SIM_PORT:-8091}"
 SIM_ADMIN_PASSWORD="${SIM_ADMIN_PASSWORD:-cmsa-simulation-only}"
 SIM_URL="${SIM_URL:-http://127.0.0.1:${SIM_PORT}}"
-MCP_ENDPOINT="${SIM_URL}/wp-json/chattanooga-cms-admin/v1/mcp"
+MCP_PATH='/wp-json/chattanooga-cms-admin/v1/mcp'
+MCP_ENDPOINT="${SIM_URL}${MCP_PATH}"
 REGISTER_ENDPOINT="${SIM_URL}/wp-json/chattanooga-cms-admin/v1/oauth/register"
 TOKEN_ENDPOINT="${SIM_URL}/wp-json/chattanooga-cms-admin/v1/oauth/token"
-RESOURCE_METADATA="${SIM_URL}/.well-known/oauth-protected-resource"
+RESOURCE_METADATA="${SIM_URL}/.well-known/oauth-protected-resource${MCP_PATH}"
 SERVER_METADATA="${SIM_URL}/.well-known/oauth-authorization-server"
 CALLBACK_URI="${SIM_URL}/oauth-callback"
 SCOPE='mcp:admin'
@@ -241,4 +242,4 @@ rotated_bearer_code="$(curl -sS -o "$tmp_dir/rotated-bearer-discover.json" -w '%
   "$MCP_ENDPOINT")"
 test "$rotated_bearer_code" = '200'
 
-echo 'cmsa-native-mcp-oauth: PASS protected_resource=verified authorization_server=verified dcr=verified admin_consent=verified pkce=verified bearer_mcp=verified refresh_rotation=verified envelope=verified third_party_mcp=absent'
+echo 'cmsa-native-mcp-oauth: PASS protected_resource=verified metadata_path=resource-derived authorization_server=verified dcr=verified admin_consent=verified pkce=verified bearer_mcp=verified refresh_rotation=verified envelope=verified third_party_mcp=absent'
