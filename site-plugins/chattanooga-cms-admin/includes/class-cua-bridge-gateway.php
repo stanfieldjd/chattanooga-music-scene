@@ -60,6 +60,10 @@ final class CUA_Bridge_Gateway {
 			return $resolved;
 		}
 
+		if ( 'rest' === $resolved['contract'] ) {
+			return CUA_REST_Bridge::check_bridge_permissions( $resolved['bridge'], $resolved['arguments'] );
+		}
+
 		$ability = $resolved['ability'];
 		return $resolved['has_arguments']
 			? $ability->check_permissions( $resolved['arguments'] )
@@ -74,6 +78,18 @@ final class CUA_Bridge_Gateway {
 		$resolved = self::resolve_bridge( $input, $readonly );
 		if ( is_wp_error( $resolved ) ) {
 			return $resolved;
+		}
+
+		if ( 'rest' === $resolved['contract'] ) {
+			$result = CUA_REST_Bridge::execute_bridge( $resolved['bridge'], $resolved['arguments'] );
+			if ( is_wp_error( $result ) ) {
+				return $result;
+			}
+
+			return array(
+				'bridge' => $resolved['bridge'],
+				'result' => $result,
+			);
 		}
 
 		$ability = $resolved['ability'];
@@ -125,19 +141,36 @@ final class CUA_Bridge_Gateway {
 			);
 		}
 
-		$ability = function_exists( 'wp_get_ability' ) ? wp_get_ability( $bridge ) : null;
-		if ( ! $ability instanceof WP_Ability ) {
-			return new WP_Error( 'cua_bridge_gateway_unavailable', 'The selected catalog bridge is no longer registered.' );
-		}
-
 		$has_arguments = array_key_exists( 'input', $input );
 		$arguments = $has_arguments ? $input['input'] : null;
 		if ( $has_arguments && ! is_array( $arguments ) ) {
 			return new WP_Error( 'cua_bridge_gateway_invalid_arguments', 'Bridge arguments must be an object.' );
 		}
 
+		if ( 'rest' === ( $item['contract'] ?? '' ) ) {
+			if ( ! class_exists( 'CUA_REST_Bridge' ) ) {
+				return new WP_Error( 'cua_bridge_gateway_unavailable', 'The REST bridge resolver is unavailable.' );
+			}
+			if ( ! $has_arguments ) {
+				return new WP_Error( 'cua_bridge_gateway_invalid_arguments', 'REST bridge execution requires a concrete path input.' );
+			}
+
+			return array(
+				'bridge'        => $bridge,
+				'contract'      => 'rest',
+				'has_arguments' => true,
+				'arguments'     => $arguments,
+			);
+		}
+
+		$ability = function_exists( 'wp_get_ability' ) ? wp_get_ability( $bridge ) : null;
+		if ( ! $ability instanceof WP_Ability ) {
+			return new WP_Error( 'cua_bridge_gateway_unavailable', 'The selected catalog bridge is no longer registered.' );
+		}
+
 		return array(
 			'bridge'        => $bridge,
+			'contract'      => 'ability',
 			'ability'       => $ability,
 			'has_arguments' => $has_arguments,
 			'arguments'     => $arguments,
