@@ -30,8 +30,9 @@ $request->set_body(
 			'method'  => 'tools/list',
 			'params'  => array(
 				'_meta' => array(
-					'io.modelcontextprotocol/protocolVersion' => '2026-07-28',
-					'io.modelcontextprotocol/clientInfo'      => array(
+					'io.modelcontextprotocol/protocolVersion'    => '2026-07-28',
+					'io.modelcontextprotocol/clientCapabilities' => (object) array(),
+					'io.modelcontextprotocol/clientInfo'         => array(
 						'name'    => 'cmsa-admin-surface-probe',
 						'version' => '1.0.0',
 					),
@@ -105,5 +106,5 @@ foreach ( $names as $name ) {
 	cmsa_native_mcp_surface_assert( 0 !== strpos( $name, 'cmsa.rest-' ), 'Private dynamic REST facade leaked into MCP: ' . $name );
 }
 
-echo 'cmsa-native-mcp-admin-surface: PASS required=' . count( $required ) . ' exposed=' . count( $names ) . " private_facades=hidden\n";
+echo 'cmsa-native-mcp-admin-surface: PASS required=' . count( $required ) . ' exposed=' . count( $names ) . " private_facades=hidden envelope=verified\n";
 exit( 0 );
