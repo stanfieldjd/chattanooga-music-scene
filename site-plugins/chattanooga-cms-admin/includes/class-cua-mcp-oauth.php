@@ -409,15 +409,20 @@ final class CUA_MCP_OAuth {
 
 	private static function resolve_client_metadata_document( $client_id ) {
 		$parts = wp_parse_url( $client_id );
-		if ( ! is_array( $parts ) || 'https' !== strtolower( (string) ( $parts['scheme'] ?? '' ) ) || empty( $parts['host'] ) || empty( $parts['path'] ) || '/' === $parts['path'] || isset( $parts['fragment'] ) || isset( $parts['user'] ) || isset( $parts['pass'] ) ) {
+		if ( ! is_array( $parts ) || 'https' !== strtolower( (string) ( $parts['scheme'] ?? '' ) ) || empty( $parts['host'] ) || ! isset( $parts['path'] ) || '' === (string) $parts['path'] || isset( $parts['fragment'] ) || isset( $parts['user'] ) || isset( $parts['pass'] ) ) {
 			return new WP_Error( 'cmsa_oauth_cimd_url', 'The Client ID Metadata Document URL is invalid.' );
+		}
+		foreach ( explode( '/', (string) $parts['path'] ) as $segment ) {
+			if ( '.' === $segment || '..' === $segment ) {
+				return new WP_Error( 'cmsa_oauth_cimd_url', 'The Client ID Metadata Document URL must not contain dot path segments.' );
+			}
 		}
 
 		$response = wp_safe_remote_get(
 			$client_id,
 			array(
 				'timeout'     => 5,
-				'redirection' => 2,
+				'redirection' => 0,
 				'headers'     => array( 'Accept' => 'application/json' ),
 			)
 		);
@@ -425,26 +430,42 @@ final class CUA_MCP_OAuth {
 			return new WP_Error( 'cmsa_oauth_cimd_fetch', 'The Client ID Metadata Document could not be fetched.' );
 		}
 		$body = (string) wp_remote_retrieve_body( $response );
-		if ( strlen( $body ) > 65536 ) {
+		if ( strlen( $body ) > 5120 ) {
 			return new WP_Error( 'cmsa_oauth_cimd_size', 'The Client ID Metadata Document is too large.' );
 		}
 		$document = json_decode( $body, true );
-		if ( ! is_array( $document ) || ! isset( $document['client_id'] ) || ! hash_equals( $client_id, (string) $document['client_id'] ) ) {
+		if ( ! is_array( $document ) || ! isset( $document['client_id'] ) || ! is_string( $document['client_id'] ) || ! hash_equals( $client_id, $document['client_id'] ) ) {
 			return new WP_Error( 'cmsa_oauth_cimd_document', 'The Client ID Metadata Document is invalid or its client_id does not match its URL.' );
+		}
+		$client_name = isset( $document['client_name'] ) && is_string( $document['client_name'] ) ? sanitize_text_field( trim( $document['client_name'] ) ) : '';
+		if ( '' === $client_name ) {
+			return new WP_Error( 'cmsa_oauth_cimd_document', 'The Client ID Metadata Document must include a non-empty client_name.' );
+		}
+		if ( array_key_exists( 'client_secret', $document ) || array_key_exists( 'client_secret_expires_at', $document ) ) {
+			return new WP_Error( 'cmsa_oauth_cimd_credentials', 'Client ID Metadata Documents must not contain shared client-secret material.' );
 		}
 		$redirects = self::validate_redirect_uris( $document['redirect_uris'] ?? null );
 		if ( is_wp_error( $redirects ) ) {
 			return $redirects;
+		}
+
+		$grant_types = isset( $document['grant_types'] ) ? array_values( (array) $document['grant_types'] ) : array( 'authorization_code' );
+		if ( array_diff( $grant_types, array( 'authorization_code', 'refresh_token' ) ) || ! in_array( 'authorization_code', $grant_types, true ) ) {
+			return new WP_Error( 'cmsa_oauth_cimd_grants', 'Only authorization_code and refresh_token grant types are supported for Client ID Metadata Documents.' );
+		}
+		$response_types = isset( $document['response_types'] ) ? array_values( (array) $document['response_types'] ) : array( 'code' );
+		if ( array_diff( $response_types, array( 'code' ) ) || ! in_array( 'code', $response_types, true ) ) {
+			return new WP_Error( 'cmsa_oauth_cimd_responses', 'Only the code response type is supported for Client ID Metadata Documents.' );
 		}
 		if ( isset( $document['token_endpoint_auth_method'] ) && 'none' !== (string) $document['token_endpoint_auth_method'] ) {
 			return new WP_Error( 'cmsa_oauth_cimd_auth', 'Only public OAuth clients using token_endpoint_auth_method=none are supported.' );
 		}
 		return array(
 			'client_id'                  => $client_id,
-			'client_name'                => sanitize_text_field( (string) ( $document['client_name'] ?? $client_id ) ),
+			'client_name'                => $client_name,
 			'redirect_uris'              => $redirects,
-			'grant_types'                => array( 'authorization_code', 'refresh_token' ),
-			'response_types'             => array( 'code' ),
+			'grant_types'                => $grant_types,
+			'response_types'             => $response_types,
 			'token_endpoint_auth_method' => 'none',
 			'application_type'           => 'web',
 		);
