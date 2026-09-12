@@ -1,1 +1,0 @@
-docker compose run --rm cli wp eval-file /workspace/workbench/harnesses/chattanooga-cms-admin-v2/probes/oauth-cimd-scheme-policy-cli.php
