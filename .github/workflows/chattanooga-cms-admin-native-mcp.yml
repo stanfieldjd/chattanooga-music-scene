@@ -57,7 +57,7 @@ jobs:
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php >/dev/null
           grep -q '^ \* Plugin Name: Chattanooga CMS Admin$' "$source/chattanooga-cms-admin.php"
-          grep -q '^ \* Version: 1.1.0$' "$source/chattanooga-cms-admin.php"
+          grep -q '^ \* Version: 1.2.0$' "$source/chattanooga-cms-admin.php"
           grep -Fq "add_action( 'rest_api_init', array( 'CUA_MCP_Server', 'register_route' ) );" "$source/chattanooga-cms-admin.php"
           test -f "$source/includes/class-cua-mcp-server.php"
           if grep -REiq 'WooCommerce|WC_Product|wc_get_product|Events_Manager|events-manager|EM_Event|EM_Location|BuddyBoss|Marketplace|Weekend_Feature|Rank_Math|rank-math|seo-by-rank-math|awpcp|another-wordpress-classifieds-plugin|miniOrange|miniorange' "$source"; then
