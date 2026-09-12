@@ -198,6 +198,7 @@ final class CUA_MCP_Server {
 					return true;
 				}
 			}
+		}
 
 		return false;
 	}
