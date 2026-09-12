@@ -1,0 +1,1 @@
+CUA_MCP_OAuth::resolve_client must treat the URI scheme in an HTTPS Client ID Metadata Document identifier case-insensitively while preserving the exact client_id string for metadata equality validation.
