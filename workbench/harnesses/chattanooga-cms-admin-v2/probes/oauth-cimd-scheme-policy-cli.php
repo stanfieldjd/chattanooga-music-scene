@@ -19,8 +19,14 @@ function cmsa_oauth_cimd_scheme_assert( $condition, $message ) {
 cmsa_oauth_cimd_scheme_assert( class_exists( 'CUA_MCP_OAuth' ), 'Native OAuth class did not load.' );
 
 $client_id = 'HTTPS://client.example/mcp-client.json';
+$root_client_id = 'https://client.example/';
 $fetches = 0;
-$filter = static function ( $preempt, $args, $url ) use ( $client_id, &$fetches ) {
+$root_fetches = 0;
+$filter = static function ( $preempt, $args, $url ) use ( $client_id, $root_client_id, &$fetches, &$root_fetches ) {
+	if ( $url === $root_client_id ) {
+		$root_fetches++;
+		return new WP_Error( 'cmsa_probe_unexpected_root_fetch', 'Root-path CIMD client IDs must be rejected before metadata retrieval.' );
+	}
 	if ( $url !== $client_id ) {
 		return $preempt;
 	}
@@ -61,8 +67,13 @@ try {
 	cmsa_oauth_cimd_scheme_assert( $client_id === ( $result['client_id'] ?? '' ), 'CIMD client_id was normalized instead of preserved exactly.' );
 	cmsa_oauth_cimd_scheme_assert( 'CMSA CIMD Scheme Probe' === ( $result['client_name'] ?? '' ), 'CIMD client_name was not preserved.' );
 	cmsa_oauth_cimd_scheme_assert( array( 'https://client.example/callback' ) === ( $result['redirect_uris'] ?? null ), 'CIMD redirect_uris were not validated.' );
+
+	$root_result = $resolver( $root_client_id );
+	cmsa_oauth_cimd_scheme_assert( is_wp_error( $root_result ), 'Root-path CIMD client_id was accepted.' );
+	cmsa_oauth_cimd_scheme_assert( 'cmsa_oauth_cimd_url' === $root_result->get_error_code(), 'Root-path CIMD client_id did not return the URL policy error.' );
+	cmsa_oauth_cimd_scheme_assert( 0 === $root_fetches, 'Root-path CIMD client_id reached metadata retrieval.' );
 } finally {
 	remove_filter( 'pre_http_request', $filter, 10 );
 }
 
-echo "cmsa-oauth-cimd-scheme-policy: PASS https_scheme=case_insensitive client_id=exact metadata=validated fetch=mocked\n";
+echo "cmsa-oauth-cimd-scheme-policy: PASS https_scheme=case_insensitive client_id=exact non_root_path=required root_fetch=blocked metadata=validated fetch=mocked\n";
