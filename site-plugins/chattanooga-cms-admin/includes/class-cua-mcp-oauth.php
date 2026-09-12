@@ -133,7 +133,7 @@ final class CUA_MCP_OAuth {
 			return self::oauth_error( 'invalid_redirect_uri', $redirects->get_error_message(), 400 );
 		}
 
-		$grant_types = isset( $input['grant_types'] ) ? array_values( (array) $input['grant_types'] ) : array( 'authorization_code', 'refresh_token' );
+		$grant_types = isset( $input['grant_types'] ) ? array_values( (array) $input['grant_types'] ) : array( 'authorization_code' );
 		if ( array_diff( $grant_types, array( 'authorization_code', 'refresh_token' ) ) || ! in_array( 'authorization_code', $grant_types, true ) ) {
 			return self::oauth_error( 'invalid_client_metadata', 'Only authorization_code and refresh_token grant types are supported.', 400 );
 		}
@@ -209,13 +209,14 @@ final class CUA_MCP_OAuth {
 				wp_die( esc_html__( 'An authorization code could not be generated.', 'chattanooga-cms-admin' ), '', array( 'response' => 500 ) );
 			}
 			$record = array(
-				'user_id'        => get_current_user_id(),
-				'client_id'      => $params['client_id'],
-				'redirect_uri'   => $params['redirect_uri'],
-				'code_challenge' => $params['code_challenge'],
-				'resource'       => $params['resource'],
-				'scope'          => $params['scope'],
-				'expires_at'     => time() + self::CODE_TTL,
+				'user_id'       => get_current_user_id(),
+				'client_id'     => $params['client_id'],
+				'redirect_uri'  => $params['redirect_uri'],
+				'code_challenge'=> $params['code_challenge'],
+				'resource'      => $params['resource'],
+				'scope'         => $params['scope'],
+				'issue_refresh' => in_array( 'refresh_token', (array) $params['client']['grant_types'], true ),
+				'expires_at'    => time() + self::CODE_TTL,
 			);
 			set_transient( self::TRANSIENT_CODE . hash( 'sha256', $code ), $record, self::CODE_TTL );
 			self::authorization_redirect( $params['redirect_uri'], array( 'code' => $code, 'state' => $params['state'], 'iss' => self::issuer() ) );
@@ -281,7 +282,7 @@ final class CUA_MCP_OAuth {
 			return self::oauth_error( 'invalid_grant', 'PKCE verification failed.', 400 );
 		}
 
-		return self::issue_tokens( (int) $record['user_id'], $client_id, $resource, (string) $record['scope'] );
+		return self::issue_tokens( (int) $record['user_id'], $client_id, $resource, (string) $record['scope'], ! empty( $record['issue_refresh'] ) );
 	}
 
 	private static function exchange_refresh_token( array $params ) {
@@ -303,10 +304,10 @@ final class CUA_MCP_OAuth {
 		}
 
 		delete_transient( $key );
-		return self::issue_tokens( (int) $record['user_id'], $client_id, $resource, (string) $record['scope'] );
+		return self::issue_tokens( (int) $record['user_id'], $client_id, $resource, (string) $record['scope'], true );
 	}
 
-	private static function issue_tokens( $user_id, $client_id, $resource, $scope ) {
+	private static function issue_tokens( $user_id, $client_id, $resource, $scope, $issue_refresh = false ) {
 		if ( ! hash_equals( self::mcp_resource(), (string) $resource ) || self::SCOPE !== (string) $scope ) {
 			return self::oauth_error( 'invalid_target', 'The requested resource or scope is not valid for Chattanooga CMS Admin MCP.', 400 );
 		}
@@ -320,7 +321,7 @@ final class CUA_MCP_OAuth {
 		}
 
 		$access = self::random_token( 32 );
-		$refresh = self::random_token( 48 );
+		$refresh = $issue_refresh ? self::random_token( 48 ) : '';
 		if ( is_wp_error( $access ) || is_wp_error( $refresh ) ) {
 			return self::oauth_error( 'server_error', 'OAuth tokens could not be generated.', 500 );
 		}
@@ -336,22 +337,25 @@ final class CUA_MCP_OAuth {
 			array_merge( $base, array( 'expires_at' => $now + self::ACCESS_TTL ) ),
 			self::ACCESS_TTL
 		);
-		set_transient(
-			self::TRANSIENT_REFRESH . hash( 'sha256', $refresh ),
-			array_merge( $base, array( 'expires_at' => $now + self::REFRESH_TTL ) ),
-			self::REFRESH_TTL
-		);
+		if ( $issue_refresh ) {
+			set_transient(
+				self::TRANSIENT_REFRESH . hash( 'sha256', $refresh ),
+				array_merge( $base, array( 'expires_at' => $now + self::REFRESH_TTL ) ),
+				self::REFRESH_TTL
+			);
+		}
 
-		$response = new WP_REST_Response(
-			array(
-				'access_token'  => $access,
-				'token_type'    => 'Bearer',
-				'expires_in'    => self::ACCESS_TTL,
-				'refresh_token' => $refresh,
-				'scope'         => self::SCOPE,
-			),
-			200
+		$body = array(
+			'access_token' => $access,
+			'token_type'   => 'Bearer',
+			'expires_in'   => self::ACCESS_TTL,
+			'scope'        => self::SCOPE,
 		);
+		if ( $issue_refresh ) {
+			$body['refresh_token'] = $refresh;
+		}
+
+		$response = new WP_REST_Response( $body, 200 );
 		$response->header( 'Cache-Control', 'no-store' );
 		$response->header( 'Pragma', 'no-cache' );
 		return $response;
