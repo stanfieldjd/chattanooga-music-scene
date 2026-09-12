@@ -138,5 +138,7 @@ cmsa_native_direct_assert(
 	'Direct get-health returned the wrong WordPress version.'
 );
 
-echo 'cmsa-native-mcp-direct-boundary: PASS route=native-only third_party_mcp=not-installed adapter_dependency=absent discover=verified tools=' . count( $names ) . " read_call=verified envelope=verified\n";
+require __DIR__ . '/oauth-registration-policy-cli.php';
+
+echo 'cmsa-native-mcp-direct-boundary: PASS route=native-only third_party_mcp=not-installed adapter_dependency=absent discover=verified tools=' . count( $names ) . " read_call=verified oauth_registration=policy envelope=verified\n";
 exit( 0 );
