@@ -10,7 +10,6 @@ docker compose run --rm cli wp eval-file /workspace/workbench/harnesses/chattano
 docker compose run --rm cli wp eval-file /workspace/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-version-boundary-cli.php
 docker compose run --rm cli wp eval-file /workspace/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php
 docker compose run --rm cli wp eval-file /workspace/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-direct-boundary-cli.php
-docker compose run --rm cli wp eval-file /workspace/workbench/harnesses/chattanooga-cms-admin-v2/probes/oauth-registration-policy-cli.php
 docker compose run --rm cli wp eval-file /workspace/workbench/harnesses/chattanooga-cms-admin-v2/probes/core-content-rest-parity-cli.php
 docker compose run --rm cli wp eval-file /workspace/workbench/harnesses/chattanooga-cms-admin-v2/probes/core-admin-rest-parity-cli.php
 docker compose run --rm cli wp eval-file /workspace/workbench/harnesses/chattanooga-cms-admin-v2/probes/core-users-rest-parity-cli.php
