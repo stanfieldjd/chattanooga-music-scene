@@ -40,6 +40,7 @@ jobs:
           bash -n workbench/simulations/chattanooga-cms-admin-live/bootstrap.sh
           bash -n workbench/simulations/chattanooga-cms-admin-live/smoke.sh
           bash -n workbench/simulations/chattanooga-cms-admin-live/mcp-http-write-smoke.sh
+          bash -n workbench/simulations/chattanooga-cms-admin-live/mcp-oauth-smoke.sh
           bash -n workbench/simulations/chattanooga-cms-admin-live/site-stack.sh
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-version-boundary-cli.php >/dev/null
@@ -142,7 +143,7 @@ jobs:
           done
 
           cat >/tmp/cmsa-live-discover.json <<'JSON'
-          {"jsonrpc":"2.0","id":701,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"cmsa-live-simulation","version":"1.0.0"}}}}
+          {"jsonrpc":"2.0","id":701,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{},"io.modelcontextprotocol/clientInfo":{"name":"cmsa-live-simulation","version":"1.0.0"}}}}
           JSON
 
           anonymous_code="$(curl -sS -o /tmp/cmsa-live-anonymous.json -w '%{http_code}' \
@@ -161,10 +162,10 @@ jobs:
             --data-binary @/tmp/cmsa-live-discover.json \
             "$endpoint")"
           test "$authenticated_code" = '200'
-          php -r '$d=json_decode(file_get_contents("/tmp/cmsa-live-discover-response.json"),true); if (($d["result"]["resultType"]??"")!=="complete" || !in_array("2026-07-28",$d["result"]["supportedVersions"]??[],true)) exit(1);'
+          php -r '$d=json_decode(file_get_contents("/tmp/cmsa-live-discover-response.json"),true); if (($d["result"]["resultType"]??"")!=="complete" || ($d["result"]["supportedVersions"]??null)!==["2026-07-28"]) exit(1);'
 
           cat >/tmp/cmsa-live-catalog.json <<'JSON'
-          {"jsonrpc":"2.0","id":702,"method":"tools/call","params":{"name":"cmsa.catalog","arguments":{},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"cmsa-live-simulation","version":"1.0.0"}}}}
+          {"jsonrpc":"2.0","id":702,"method":"tools/call","params":{"name":"cmsa.catalog","arguments":{},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{},"io.modelcontextprotocol/clientInfo":{"name":"cmsa-live-simulation","version":"1.0.0"}}}}
           JSON
 
           catalog_code="$(curl -sS -o /tmp/cmsa-live-catalog-response.json -w '%{http_code}' \
@@ -180,7 +181,7 @@ jobs:
           bridge="$(php -r '$d=json_decode(file_get_contents("/tmp/cmsa-live-catalog-response.json"),true); foreach (($d["result"]["structuredContent"]["items"]??[]) as $item) { if (($item["contract"]??"")==="rest" && ($item["method"]??"")==="POST" && ($item["route"]??"")==="/wp/v2/posts") { echo $item["bridge"]; exit(0); } } exit(1);')"
           test -n "$bridge"
 
-          BRIDGE="$bridge" php -r '$b=getenv("BRIDGE"); echo json_encode(["jsonrpc"=>"2.0","id"=>703,"method"=>"tools/call","params"=>["name"=>"cmsa.write-bridge","arguments"=>["bridge"=>$b,"input"=>["path"=>"/wp/v2/posts","params"=>["title"=>"CMSA Live Simulation HTTP Write","status"=>"draft","content"=>"Disposable native MCP simulation write-authority probe."]]],"_meta"=>["io.modelcontextprotocol/protocolVersion"=>"2026-07-28","io.modelcontextprotocol/clientInfo"=>["name"=>"cmsa-live-simulation","version"=>"1.0.0"]]]]);' > /tmp/cmsa-live-write.json
+          BRIDGE="$bridge" php -r '$b=getenv("BRIDGE"); echo json_encode(["jsonrpc"=>"2.0","id"=>703,"method"=>"tools/call","params"=>["name"=>"cmsa.write-bridge","arguments"=>["bridge"=>$b,"input"=>["path"=>"/wp/v2/posts","params"=>["title"=>"CMSA Live Simulation HTTP Write","status"=>"draft","content"=>"Disposable native MCP simulation write-authority probe."]]],"_meta"=>["io.modelcontextprotocol/protocolVersion"=>"2026-07-28","io.modelcontextprotocol/clientCapabilities"=>(object)[],"io.modelcontextprotocol/clientInfo"=>["name"=>"cmsa-live-simulation","version"=>"1.0.0"]]]]);' > /tmp/cmsa-live-write.json
 
           write_code="$(curl -sS -o /tmp/cmsa-live-write-response.json -w '%{http_code}' \
             --user "admin:${app_password}" \
@@ -196,7 +197,7 @@ jobs:
           test -n "$post_id"
           test "$(php /tmp/wp-cli.phar post get "$post_id" --field=post_status --path=/tmp/cmsa-simulation)" = 'draft'
 
-          PNG_BASE64="$png_base64" php -r '$png=getenv("PNG_BASE64"); echo json_encode(["jsonrpc"=>"2.0","id"=>704,"method"=>"tools/call","params"=>["name"=>"cmsa.upload-media","arguments"=>["filename"=>"cmsa-http-media-probe.png","mime_type"=>"image/png","data_base64"=>$png,"title"=>"CMSA HTTP Media Probe","alt_text"=>"CMSA HTTP media probe"],"_meta"=>["io.modelcontextprotocol/protocolVersion"=>"2026-07-28","io.modelcontextprotocol/clientInfo"=>["name"=>"cmsa-live-simulation","version"=>"1.0.0"]]]]);' > /tmp/cmsa-live-media.json
+          PNG_BASE64="$png_base64" php -r '$png=getenv("PNG_BASE64"); echo json_encode(["jsonrpc"=>"2.0","id"=>704,"method"=>"tools/call","params"=>["name"=>"cmsa.upload-media","arguments"=>["filename"=>"cmsa-http-media-probe.png","mime_type"=>"image/png","data_base64"=>$png,"title"=>"CMSA HTTP Media Probe","alt_text"=>"CMSA HTTP media probe"],"_meta"=>["io.modelcontextprotocol/protocolVersion"=>"2026-07-28","io.modelcontextprotocol/clientCapabilities"=>(object)[],"io.modelcontextprotocol/clientInfo"=>["name"=>"cmsa-live-simulation","version"=>"1.0.0"]]]]);' > /tmp/cmsa-live-media.json
 
           media_code="$(curl -sS -o /tmp/cmsa-live-media-response.json -w '%{http_code}' \
             --user "admin:${app_password}" \
@@ -220,7 +221,7 @@ jobs:
           user_create_bridge="$(php -r '$d=json_decode(file_get_contents("/tmp/cmsa-live-catalog-response.json"),true); foreach (($d["result"]["structuredContent"]["items"]??[]) as $item) { if (($item["contract"]??"")==="rest" && ($item["method"]??"")==="POST" && ($item["route"]??"")==="/wp/v2/users") { echo $item["bridge"]; exit(0); } } exit(1);')"
           test -n "$user_create_bridge"
 
-          BRIDGE="$user_create_bridge" USER_LOGIN="$user_login" USER_EMAIL="$user_email" USER_PASSWORD="$user_password" php -r '$b=getenv("BRIDGE"); echo json_encode(["jsonrpc"=>"2.0","id"=>705,"method"=>"tools/call","params"=>["name"=>"cmsa.write-bridge","arguments"=>["bridge"=>$b,"input"=>["path"=>"/wp/v2/users","params"=>["username"=>getenv("USER_LOGIN"),"email"=>getenv("USER_EMAIL"),"password"=>getenv("USER_PASSWORD"),"roles"=>["subscriber"]]]],"_meta"=>["io.modelcontextprotocol/protocolVersion"=>"2026-07-28","io.modelcontextprotocol/clientInfo"=>["name"=>"cmsa-live-simulation","version"=>"1.0.0"]]]]);' > /tmp/cmsa-live-user-create.json
+          BRIDGE="$user_create_bridge" USER_LOGIN="$user_login" USER_EMAIL="$user_email" USER_PASSWORD="$user_password" php -r '$b=getenv("BRIDGE"); echo json_encode(["jsonrpc"=>"2.0","id"=>705,"method"=>"tools/call","params"=>["name"=>"cmsa.write-bridge","arguments"=>["bridge"=>$b,"input"=>["path"=>"/wp/v2/users","params"=>["username"=>getenv("USER_LOGIN"),"email"=>getenv("USER_EMAIL"),"password"=>getenv("USER_PASSWORD"),"roles"=>["subscriber"]]]],"_meta"=>["io.modelcontextprotocol/protocolVersion"=>"2026-07-28","io.modelcontextprotocol/clientCapabilities"=>(object)[],"io.modelcontextprotocol/clientInfo"=>["name"=>"cmsa-live-simulation","version"=>"1.0.0"]]]]);' > /tmp/cmsa-live-user-create.json
 
           user_create_code="$(curl -sS -o /tmp/cmsa-live-user-create-response.json -w '%{http_code}' \
             --user "admin:${app_password}" \
@@ -242,7 +243,7 @@ jobs:
           user_update_bridge="$(TARGET_PATH="$user_path" php -r '$target=getenv("TARGET_PATH"); $d=json_decode(file_get_contents("/tmp/cmsa-live-catalog-response.json"),true); foreach (($d["result"]["structuredContent"]["items"]??[]) as $item) { $route=(string)($item["route"]??""); if (($item["contract"]??"")==="rest" && ($item["method"]??"")==="POST" && $route!=="" && @preg_match("@^".$route."$@i", $target)===1) { echo $item["bridge"]; exit(0); } } exit(1);')"
           test -n "$user_update_bridge"
 
-          BRIDGE="$user_update_bridge" TARGET_PATH="$user_path" php -r '$b=getenv("BRIDGE"); echo json_encode(["jsonrpc"=>"2.0","id"=>706,"method"=>"tools/call","params"=>["name"=>"cmsa.write-bridge","arguments"=>["bridge"=>$b,"input"=>["path"=>getenv("TARGET_PATH"),"params"=>["roles"=>["author"]]]],"_meta"=>["io.modelcontextprotocol/protocolVersion"=>"2026-07-28","io.modelcontextprotocol/clientInfo"=>["name"=>"cmsa-live-simulation","version"=>"1.0.0"]]]]);' > /tmp/cmsa-live-user-update.json
+          BRIDGE="$user_update_bridge" TARGET_PATH="$user_path" php -r '$b=getenv("BRIDGE"); echo json_encode(["jsonrpc"=>"2.0","id"=>706,"method"=>"tools/call","params"=>["name"=>"cmsa.write-bridge","arguments"=>["bridge"=>$b,"input"=>["path"=>getenv("TARGET_PATH"),"params"=>["roles"=>["author"]]]],"_meta"=>["io.modelcontextprotocol/protocolVersion"=>"2026-07-28","io.modelcontextprotocol/clientCapabilities"=>(object)[],"io.modelcontextprotocol/clientInfo"=>["name"=>"cmsa-live-simulation","version"=>"1.0.0"]]]]);' > /tmp/cmsa-live-user-update.json
 
           user_update_code="$(curl -sS -o /tmp/cmsa-live-user-update-response.json -w '%{http_code}' \
             --user "admin:${app_password}" \
@@ -259,7 +260,7 @@ jobs:
           user_delete_bridge="$(TARGET_PATH="$user_path" php -r '$target=getenv("TARGET_PATH"); $d=json_decode(file_get_contents("/tmp/cmsa-live-catalog-response.json"),true); foreach (($d["result"]["structuredContent"]["items"]??[]) as $item) { $route=(string)($item["route"]??""); if (($item["contract"]??"")==="rest" && ($item["method"]??"")==="DELETE" && $route!=="" && @preg_match("@^".$route."$@i", $target)===1) { echo $item["bridge"]; exit(0); } } exit(1);')"
           test -n "$user_delete_bridge"
 
-          BRIDGE="$user_delete_bridge" TARGET_PATH="$user_path" php -r '$b=getenv("BRIDGE"); echo json_encode(["jsonrpc"=>"2.0","id"=>707,"method"=>"tools/call","params"=>["name"=>"cmsa.write-bridge","arguments"=>["bridge"=>$b,"input"=>["path"=>getenv("TARGET_PATH"),"params"=>["force"=>true,"reassign"=>1]]],"_meta"=>["io.modelcontextprotocol/protocolVersion"=>"2026-07-28","io.modelcontextprotocol/clientInfo"=>["name"=>"cmsa-live-simulation","version"=>"1.0.0"]]]]);' > /tmp/cmsa-live-user-delete.json
+          BRIDGE="$user_delete_bridge" TARGET_PATH="$user_path" php -r '$b=getenv("BRIDGE"); echo json_encode(["jsonrpc"=>"2.0","id"=>707,"method"=>"tools/call","params"=>["name"=>"cmsa.write-bridge","arguments"=>["bridge"=>$b,"input"=>["path"=>getenv("TARGET_PATH"),"params"=>["force"=>true,"reassign"=>1]]],"_meta"=>["io.modelcontextprotocol/protocolVersion"=>"2026-07-28","io.modelcontextprotocol/clientCapabilities"=>(object)[],"io.modelcontextprotocol/clientInfo"=>["name"=>"cmsa-live-simulation","version"=>"1.0.0"]]]]);' > /tmp/cmsa-live-user-delete.json
 
           user_delete_code="$(curl -sS -o /tmp/cmsa-live-user-delete-response.json -w '%{http_code}' \
             --user "admin:${app_password}" \
@@ -285,4 +286,4 @@ jobs:
           app_uuid=''
           test -z "$(php /tmp/wp-cli.phar user application-password list admin --app_id="$app_id" --field=uuid --quiet --path=/tmp/cmsa-simulation)"
 
-          echo 'cmsa-live-simulation: PASS wordpress=7.1 plugin=active source=simulation-branch native_mcp=verified version_boundary=verified core_content=verified users=verified private_content=verified comments_media_rest=verified media_upload=verified http_auth=verified http_post_write=verified http_media_upload=verified http_user_admin=crud_role_change cleanup=verified'
+          echo 'cmsa-live-simulation: PASS wordpress=7.1 plugin=active source=simulation-branch native_mcp=verified version_boundary=verified core_content=verified users=verified private_content=verified comments_media_rest=verified media_upload=verified http_auth=verified http_post_write=verified http_media_upload=verified http_user_admin=crud_role_change cleanup=verified envelope=verified'
