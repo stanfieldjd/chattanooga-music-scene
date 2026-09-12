@@ -117,6 +117,7 @@ JSON
 
 anonymous_code="$(curl -sS -D "$tmp_dir/anonymous-headers.txt" -o "$tmp_dir/anonymous.json" -w '%{http_code}' \
   -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
   -H 'MCP-Protocol-Version: 2026-07-28' \
   -H 'Mcp-Method: server/discover' \
   --data-binary @"$tmp_dir/discover.json" \
@@ -203,6 +204,7 @@ test -n "$refresh_token"
 bearer_code="$(curl -sS -o "$tmp_dir/bearer-discover.json" -w '%{http_code}' \
   -H "Authorization: Bearer ${access_token}" \
   -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
   -H 'MCP-Protocol-Version: 2026-07-28' \
   -H 'Mcp-Method: server/discover' \
   --data-binary @"$tmp_dir/discover.json" \
@@ -237,10 +239,11 @@ docker compose run --rm -T cli php -r '$d=json_decode(stream_get_contents(STDIN)
 rotated_bearer_code="$(curl -sS -o "$tmp_dir/rotated-bearer-discover.json" -w '%{http_code}' \
   -H "Authorization: Bearer ${rotated_access_token}" \
   -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
   -H 'MCP-Protocol-Version: 2026-07-28' \
   -H 'Mcp-Method: server/discover' \
   --data-binary @"$tmp_dir/discover.json" \
   "$MCP_ENDPOINT")"
 test "$rotated_bearer_code" = '200'
 
-echo 'cmsa-native-mcp-oauth: PASS protected_resource=verified metadata_path=resource-derived authorization_server=verified dcr=native admin_consent=verified redirect_hostname=visible pkce=verified bearer_mcp=verified refresh_rotation=verified envelope=verified third_party_mcp=absent'
+echo 'cmsa-native-mcp-oauth: PASS protected_resource=verified metadata_path=resource-derived authorization_server=verified dcr=native admin_consent=verified redirect_hostname=visible pkce=verified bearer_mcp=verified refresh_rotation=verified accept=dual envelope=verified third_party_mcp=absent'
