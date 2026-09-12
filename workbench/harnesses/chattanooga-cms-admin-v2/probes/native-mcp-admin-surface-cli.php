@@ -86,6 +86,7 @@ $required = array(
 	'cmsa.list-registered-settings',
 	'cmsa.get-registered-setting',
 	'cmsa.update-registered-setting',
+	'cmsa.upload-media',
 );
 
 $missing = array_values( array_diff( $required, $names ) );
