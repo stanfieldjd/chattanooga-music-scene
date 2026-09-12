@@ -8,6 +8,7 @@ on:
     paths:
       - "site-plugins/chattanooga-cms-admin/**"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-version-boundary-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-direct-boundary-cli.php"
@@ -16,6 +17,7 @@ on:
     paths:
       - "site-plugins/chattanooga-cms-admin/**"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-version-boundary-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-direct-boundary-cli.php"
@@ -57,6 +59,7 @@ jobs:
           source="site-plugins/chattanooga-cms-admin"
           find "$source" -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php >/dev/null
+          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-version-boundary-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-direct-boundary-cli.php >/dev/null
@@ -89,6 +92,9 @@ jobs:
 
       - name: Verify native MCP transport
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php" --path=/tmp/wordpress
+
+      - name: Verify MCP protocol version declarations
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-version-boundary-cli.php" --path=/tmp/wordpress
 
       - name: Verify MCP protocol era boundaries
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php" --path=/tmp/wordpress
