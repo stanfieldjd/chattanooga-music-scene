@@ -448,7 +448,7 @@ final class CUA_MCP_OAuth {
 
 	private static function resolve_client_metadata_document( $client_id ) {
 		$parts = wp_parse_url( $client_id );
-		if ( ! is_array( $parts ) || 'https' !== strtolower( (string) ( $parts['scheme'] ?? '' ) ) || empty( $parts['host'] ) || ! isset( $parts['path'] ) || '' === (string) $parts['path'] || '/' === (string) $parts['path'] || isset( $parts['fragment'] ) || isset( $parts['user'] ) || isset( $parts['pass'] ) ) {
+		if ( ! is_array( $parts ) || 'https' !== strtolower( (string) ( $parts['scheme'] ?? '' ) ) || empty( $parts['host'] ) || ! isset( $parts['path'] ) || '' === (string) $parts['path'] || isset( $parts['fragment'] ) || isset( $parts['user'] ) || isset( $parts['pass'] ) ) {
 			return new WP_Error( 'cmsa_oauth_cimd_url', 'The Client ID Metadata Document URL is invalid.' );
 		}
 		foreach ( explode( '/', (string) $parts['path'] ) as $segment ) {
