@@ -52,6 +52,24 @@ cmsa_native_direct_assert( class_exists( 'CUA_MCP_Server' ), 'Built-in MCP serve
 cmsa_native_direct_assert( ! class_exists( 'CUA_MCP_Adapter_Compat' ), 'Adapter compatibility transport is present in the native-only build.' );
 cmsa_native_direct_assert( ! class_exists( 'CUA_MCP_Adapter_Route_Policy' ), 'Adapter route policy is present in the native-only build.' );
 
+$active_plugins = array_map( 'strtolower', (array) get_option( 'active_plugins', array() ) );
+foreach ( $active_plugins as $plugin_basename ) {
+	cmsa_native_direct_assert(
+		false === strpos( $plugin_basename, 'miniorange-secure-mcp-server' ),
+		'Third-party miniOrange MCP plugin is active in the native-only environment: ' . $plugin_basename
+	);
+	cmsa_native_direct_assert(
+		false === strpos( $plugin_basename, 'mcp-adapter' ),
+		'Third-party WordPress MCP Adapter plugin is active in the native-only environment: ' . $plugin_basename
+	);
+}
+if ( function_exists( 'wp_get_ability' ) ) {
+	cmsa_native_direct_assert(
+		! wp_get_ability( 'mosmcp/cpt-list-types' ) instanceof WP_Ability,
+		'miniOrange MCP Ability surface is registered in the native-only environment.'
+	);
+}
+
 $routes = rest_get_server()->get_routes();
 cmsa_native_direct_assert( isset( $routes['/chattanooga-cms-admin/v1/mcp'] ), 'Built-in MCP route is not registered.' );
 cmsa_native_direct_assert( ! isset( $routes['/mcp/mcp-adapter-default-server'] ), 'Third-party adapter route is present in the disposable native-only environment.' );
@@ -116,5 +134,5 @@ cmsa_native_direct_assert(
 	'Direct get-health returned the wrong WordPress version.'
 );
 
-echo 'cmsa-native-mcp-direct-boundary: PASS route=native-only adapter_dependency=absent discover=verified tools=' . count( $names ) . " read_call=verified\n";
+echo 'cmsa-native-mcp-direct-boundary: PASS route=native-only third_party_mcp=absent adapter_dependency=absent discover=verified tools=' . count( $names ) . " read_call=verified\n";
 exit( 0 );
