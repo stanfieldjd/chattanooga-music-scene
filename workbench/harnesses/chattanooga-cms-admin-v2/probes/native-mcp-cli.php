@@ -68,12 +68,31 @@ function cmsa_native_mcp_tool( array $tools, $name ) {
 }
 
 wp_set_current_user( 1 );
-cmsa_native_mcp_assert( defined( 'CUA_VERSION' ) && '1.1.0' === CUA_VERSION, 'Chattanooga CMS Admin 1.1.0 did not load.' );
+cmsa_native_mcp_assert( defined( 'CUA_VERSION' ) && '1.2.0' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.0 did not load.' );
 cmsa_native_mcp_assert( class_exists( 'CUA_MCP_Server' ), 'Native MCP server class did not load.' );
+cmsa_native_mcp_assert( class_exists( 'CUA_OAuth_Server' ), 'OAuth authorization server class did not load.' );
 
 $server = rest_get_server();
 $routes = $server->get_routes();
 cmsa_native_mcp_assert( isset( $routes['/chattanooga-cms-admin/v1/mcp'] ), 'Native MCP REST route is not registered.' );
+cmsa_native_mcp_assert( isset( $routes['/chattanooga-cms-admin/v1/oauth/register'] ), 'OAuth dynamic client registration route is not registered.' );
+cmsa_native_mcp_assert( isset( $routes['/chattanooga-cms-admin/v1/oauth/token'] ), 'OAuth token route is not registered.' );
+
+$resource_metadata = CUA_OAuth_Server::protected_resource_metadata();
+$server_metadata = CUA_OAuth_Server::authorization_server_metadata();
+cmsa_native_mcp_assert( in_array( 'mcp:admin', $resource_metadata['scopes_supported'] ?? array(), true ), 'Protected-resource metadata omitted the administrator scope.' );
+cmsa_native_mcp_assert( ! empty( $server_metadata['authorization_endpoint'] ), 'Authorization-server metadata omitted the authorization endpoint.' );
+cmsa_native_mcp_assert( ! empty( $server_metadata['token_endpoint'] ), 'Authorization-server metadata omitted the token endpoint.' );
+cmsa_native_mcp_assert( in_array( 'S256', $server_metadata['code_challenge_methods_supported'] ?? array(), true ), 'Authorization server does not require PKCE S256.' );
+
+$registration = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/oauth/register' );
+$registration->set_header( 'content-type', 'application/json' );
+$registration->set_body( wp_json_encode( array( 'client_name' => 'CMSA OAuth Probe', 'redirect_uris' => array( 'https://chatgpt.com/connector/oauth/callback' ), 'token_endpoint_auth_method' => 'none' ) ) );
+$registration_response = rest_do_request( $registration );
+$registration_data = $registration_response->get_data();
+cmsa_native_mcp_assert( 201 === $registration_response->get_status(), 'OAuth dynamic client registration failed.' );
+cmsa_native_mcp_assert( 0 === strpos( (string) ( $registration_data['client_id'] ?? '' ), 'cmsa_' ), 'OAuth registration did not issue a public client identifier.' );
+delete_option( CUA_OAuth_Server::CLIENT_OPTION );
 
 // Modern discovery: protocol version, capabilities, server identity, and private cache policy.
 $discover = cmsa_native_mcp_modern( 'server/discover', array(), 101 );
@@ -126,6 +145,8 @@ $write_tool  = cmsa_native_mcp_tool( $tools, 'cmsa.write-bridge' );
 cmsa_native_mcp_assert( true === ( $health_tool['annotations']['readOnlyHint'] ?? null ), 'get-health is not annotated read-only.' );
 cmsa_native_mcp_assert( false === ( $write_tool['annotations']['readOnlyHint'] ?? null ), 'write-bridge is incorrectly annotated read-only.' );
 cmsa_native_mcp_assert( true === ( $write_tool['annotations']['destructiveHint'] ?? null ), 'write-bridge is not annotated as mutating/destructive.' );
+cmsa_native_mcp_assert( 'oauth2' === ( $health_tool['securitySchemes'][0]['type'] ?? '' ), 'get-health does not advertise OAuth 2.1.' );
+cmsa_native_mcp_assert( in_array( 'mcp:admin', $health_tool['securitySchemes'][0]['scopes'] ?? array(), true ), 'get-health does not advertise the administrator OAuth scope.' );
 
 // Execute one real read-only administrator tool through MCP.
 $health = cmsa_native_mcp_modern(
@@ -219,7 +240,10 @@ cmsa_native_mcp_assert( ! isset( $legacy_data['result']['resultType'] ), 'Legacy
 wp_set_current_user( 0 );
 $anonymous = cmsa_native_mcp_modern( 'server/discover', array(), 108 );
 cmsa_native_mcp_assert( 401 === $anonymous->get_status(), 'Anonymous MCP access was not rejected with HTTP 401.' );
+$anonymous_data = $anonymous->get_data();
+cmsa_native_mcp_assert( ! empty( $anonymous_data['_meta']['mcp/www_authenticate'] ), 'Anonymous MCP response omitted OAuth challenge metadata.' );
+cmsa_native_mcp_assert( false !== strpos( (string) ( $anonymous->get_headers()['WWW-Authenticate'] ?? '' ), 'oauth-protected-resource' ), 'Anonymous MCP response omitted the protected-resource challenge.' );
 
 wp_set_current_user( 1 );
-echo "cmsa-native-mcp: PASS version=1.1.0 modern=2026-07-28 legacy=2025-11-25 route=verified admin_boundary=verified origin_guard=verified tools_list=deterministic read_call=verified private_bridges=hidden header_validation=verified\n";
+echo "cmsa-native-mcp: PASS version=1.2.0 modern=2026-07-28 legacy=2025-11-25 route=verified oauth_challenge=verified admin_boundary=verified origin_guard=verified tools_list=deterministic read_call=verified private_bridges=hidden header_validation=verified\n";
 exit( 0 );

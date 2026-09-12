@@ -59,7 +59,7 @@ jobs:
             find "site-plugins/$plugin" -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
           done
           php -l workbench/harnesses/chattanooga-site-plugins/integration-cli.php >/dev/null
-          grep -Fq 'Version: 1.1.0' site-plugins/chattanooga-cms-admin/chattanooga-cms-admin.php
+          grep -Fq 'Version: 1.2.0' site-plugins/chattanooga-cms-admin/chattanooga-cms-admin.php
           grep -Fq 'Version: 0.1.1' site-plugins/chattanooga-music-marketplace/chattanooga-music-marketplace.php
           grep -Fq 'Version: 0.2.1' site-plugins/chattanooga-music-scene-core/chattanooga-music-scene-core.php
 
@@ -76,7 +76,7 @@ jobs:
             cp -R "site-plugins/$plugin" "/tmp/cms-plugin-build/$plugin"
           done
           rm -rf /tmp/cms-plugin-build/chattanooga-music-marketplace/tests
-          (cd /tmp/cms-plugin-build && zip -qr /tmp/cms-plugin-packages/chattanooga-cms-admin-1.1.0.zip chattanooga-cms-admin)
+          (cd /tmp/cms-plugin-build && zip -qr /tmp/cms-plugin-packages/chattanooga-cms-admin-1.2.0.zip chattanooga-cms-admin)
           (cd /tmp/cms-plugin-build && zip -qr /tmp/cms-plugin-packages/chattanooga-music-marketplace-0.1.1.zip chattanooga-music-marketplace)
           (cd /tmp/cms-plugin-build && zip -qr /tmp/cms-plugin-packages/chattanooga-music-scene-core-0.2.1.zip chattanooga-music-scene-core)
 
@@ -97,7 +97,7 @@ jobs:
           (cd /tmp/cms-old-build && zip -qr /tmp/cms-plugin-packages/chattanooga-cms-admin-0.1.0-fixture.zip chattanooga-cms-admin)
           (cd /tmp/cms-old-build && zip -qr /tmp/cms-plugin-packages/chattanooga-music-scene-core-0.1.0-fixture.zip chattanooga-music-scene-core)
 
-          unzip -l /tmp/cms-plugin-packages/chattanooga-cms-admin-1.1.0.zip | grep -Fq 'chattanooga-cms-admin/chattanooga-cms-admin.php'
+          unzip -l /tmp/cms-plugin-packages/chattanooga-cms-admin-1.2.0.zip | grep -Fq 'chattanooga-cms-admin/chattanooga-cms-admin.php'
           unzip -l /tmp/cms-plugin-packages/chattanooga-music-marketplace-0.1.1.zip | grep -Fq 'chattanooga-music-marketplace/chattanooga-music-marketplace.php'
           unzip -l /tmp/cms-plugin-packages/chattanooga-music-scene-core-0.2.1.zip | grep -Fq 'chattanooga-music-scene-core/chattanooga-music-scene-core.php'
           if unzip -l /tmp/cms-plugin-packages/chattanooga-music-marketplace-0.1.1.zip | grep -Fq 'chattanooga-music-marketplace/tests/'; then
@@ -139,11 +139,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          php /tmp/wp-cli.phar plugin install /tmp/cms-plugin-packages/chattanooga-cms-admin-1.1.0.zip --force --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin install /tmp/cms-plugin-packages/chattanooga-cms-admin-1.2.0.zip --force --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin install /tmp/cms-plugin-packages/chattanooga-music-scene-core-0.2.1.zip --force --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin install /tmp/cms-plugin-packages/chattanooga-music-marketplace-0.1.1.zip --activate --path=/tmp/wordpress
 
-          test "$(php /tmp/wp-cli.phar plugin get chattanooga-cms-admin --field=version --path=/tmp/wordpress)" = "1.1.0"
+          test "$(php /tmp/wp-cli.phar plugin get chattanooga-cms-admin --field=version --path=/tmp/wordpress)" = "1.2.0"
           test "$(php /tmp/wp-cli.phar plugin get chattanooga-music-scene-core --field=version --path=/tmp/wordpress)" = "0.2.1"
           test "$(php /tmp/wp-cli.phar plugin get chattanooga-music-marketplace --field=version --path=/tmp/wordpress)" = "0.1.1"
           php /tmp/wp-cli.phar plugin is-active chattanooga-cms-admin --path=/tmp/wordpress
@@ -156,8 +156,8 @@ jobs:
       - name: Upload installable Chattanooga CMS Admin package
         uses: actions/upload-artifact@v4
         with:
-          name: chattanooga-cms-admin-1.1.0
-          path: /tmp/cms-plugin-packages/chattanooga-cms-admin-1.1.0.zip
+          name: chattanooga-cms-admin-1.2.0
+          path: /tmp/cms-plugin-packages/chattanooga-cms-admin-1.2.0.zip
           if-no-files-found: error
           retention-days: 30
 

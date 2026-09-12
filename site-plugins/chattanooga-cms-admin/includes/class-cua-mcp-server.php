@@ -24,20 +24,28 @@ final class CUA_MCP_Server {
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
 				'callback'            => array( __CLASS__, 'handle_request' ),
-				'permission_callback' => array( __CLASS__, 'authorize_request' ),
+				'permission_callback' => '__return_true',
 			)
 		);
 	}
 
 	public static function authorize_request( WP_REST_Request $request ) {
-		if ( ! is_user_logged_in() ) {
-			return new WP_Error(
-				'cmsa_mcp_authentication_required',
-				'Authenticated WordPress administrator access is required.',
-				array( 'status' => 401 )
-			);
+		if ( is_user_logged_in() && current_user_can( 'manage_options' ) ) {
+			$origin = trim( (string) $request->get_header( 'origin' ) );
+			if ( '' !== $origin && ! self::origin_is_allowed( $origin ) ) {
+				return new WP_Error(
+					'cmsa_mcp_origin_forbidden',
+					'The request Origin is not permitted for cookie-authenticated MCP access.',
+					array( 'status' => 403 )
+				);
+			}
+			return true;
 		}
 
+		$authorized = CUA_OAuth_Server::authenticate_bearer( $request );
+		if ( is_wp_error( $authorized ) ) {
+			return $authorized;
+		}
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return new WP_Error(
 				'cmsa_mcp_forbidden',
@@ -46,19 +54,15 @@ final class CUA_MCP_Server {
 			);
 		}
 
-		$origin = trim( (string) $request->get_header( 'origin' ) );
-		if ( '' !== $origin && ! self::origin_is_allowed( $origin ) ) {
-			return new WP_Error(
-				'cmsa_mcp_origin_forbidden',
-				'The request Origin is not permitted for this MCP endpoint.',
-				array( 'status' => 403 )
-			);
-		}
-
 		return true;
 	}
 
 	public static function handle_request( WP_REST_Request $request ) {
+		$authorization = self::authorize_request( $request );
+		if ( is_wp_error( $authorization ) ) {
+			return self::authentication_error_response( $authorization );
+		}
+
 		$payload = self::decode_request( $request );
 		if ( is_wp_error( $payload ) ) {
 			return self::protocol_error_response( null, -32700, $payload->get_error_message(), 400 );
@@ -278,6 +282,12 @@ final class CUA_MCP_Server {
 				'description' => $ability->get_description(),
 				'inputSchema' => $schema,
 				'annotations' => self::tool_annotations( $ability ),
+				'securitySchemes' => array(
+					array(
+						'type'   => 'oauth2',
+						'scopes' => array( CUA_OAuth_Server::SCOPE ),
+					),
+				),
 			);
 
 			$output_schema = $ability->get_output_schema();
@@ -458,6 +468,18 @@ final class CUA_MCP_Server {
 		if ( $modern ) {
 			$response->header( 'MCP-Protocol-Version', self::MODERN_VERSION );
 		}
+		return $response;
+	}
+
+	private static function authentication_error_response( WP_Error $error ) {
+		$data = $error->get_error_data();
+		$status = is_array( $data ) && isset( $data['status'] ) ? (int) $data['status'] : 401;
+		$challenge = CUA_OAuth_Server::resource_challenge();
+		$response = self::protocol_error_response( null, -32001, $error->get_error_message(), $status, false );
+		$body = $response->get_data();
+		$body['_meta'] = array( 'mcp/www_authenticate' => array( $challenge ) );
+		$response->set_data( $body );
+		$response->header( 'WWW-Authenticate', $challenge );
 		return $response;
 	}
 
