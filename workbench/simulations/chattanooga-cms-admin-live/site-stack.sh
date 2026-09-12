@@ -46,8 +46,9 @@ docker compose run --rm cli wp eval-file /workspace/workbench/harnesses/chattano
 docker compose run --rm cli wp eval-file /workspace/workbench/harnesses/chattanooga-cms-admin-v2/probes/events-manager-compatibility-cli.php
 docker compose run --rm cli wp eval-file /workspace/workbench/harnesses/chattanooga-cms-admin-v2/probes/woocommerce-compatibility-cli.php
 docker compose run --rm cli wp eval-file /workspace/workbench/harnesses/chattanooga-cms-admin-v2/probes/rank-math-compatibility-cli.php
+docker compose run --rm cli wp eval-file /workspace/workbench/harnesses/chattanooga-cms-admin-v2/probes/awp-native-content-compatibility-cli.php
 docker compose run --rm cli wp eval-file /workspace/workbench/harnesses/chattanooga-site-plugins/integration-cli.php
 
 bash smoke.sh
 
-echo "cmsa-live-simulation-site-stack: PASS custom_plugins=3 events_manager=7.4.3 woocommerce=11.0.1 rank_math=1.0.278 awp_classifieds=4.4.8 third_party_mcp=absent"
+echo "cmsa-live-simulation-site-stack: PASS custom_plugins=3 events_manager=7.4.3 woocommerce=11.0.1 rank_math=1.0.278 awp_classifieds=4.4.8 awp_native_path=verified third_party_mcp=absent"
