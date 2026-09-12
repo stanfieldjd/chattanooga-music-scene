@@ -6,6 +6,7 @@ SIM_URL="http://127.0.0.1:${SIM_PORT}"
 ENDPOINT="${SIM_URL}/index.php?rest_route=%2Fchattanooga-cms-admin%2Fv1%2Fmcp"
 APP_ID="cmsa-live-simulation-smoke"
 APP_NAME="CMSA Live Simulation Smoke"
+PNG_BASE64="iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFklEQVR4nGOUT+xlYGBgYmBgYGBgAAAMWAERTB2ScQAAAABJRU5ErkJggg=="
 
 cd "$(dirname "$0")"
 
@@ -15,11 +16,15 @@ command -v curl >/dev/null 2>&1 || {
 }
 
 post_id=""
+media_id=""
 tmp_dir="$(mktemp -d)"
 
 cleanup() {
   if [ -n "$post_id" ]; then
     docker compose run --rm cli wp post delete "$post_id" --force >/dev/null 2>&1 || true
+  fi
+  if [ -n "$media_id" ]; then
+    docker compose run --rm cli wp eval "wp_delete_attachment(${media_id}, true);" >/dev/null 2>&1 || true
   fi
 
   uuid="$(docker compose run --rm cli wp user application-password list admin --app_id="$APP_ID" --field=uuid --quiet 2>/dev/null | head -n 1 || true)"
@@ -106,4 +111,31 @@ post_id="$(cat "$tmp_dir/write-response.json" | docker compose run --rm -T cli p
 test -n "$post_id"
 test "$(docker compose run --rm cli wp post get "$post_id" --field=post_status --quiet)" = 'draft'
 
-echo "cmsa-live-simulation-http-write: PASS anonymous_boundary=verified admin_auth=verified catalog=verified write=verified persistence=verified cleanup=armed"
+media_json="$(docker compose run --rm -T -e PNG_BASE64="$PNG_BASE64" cli php -r '$png=getenv("PNG_BASE64"); echo json_encode(["jsonrpc"=>"2.0","id"=>804,"method"=>"tools/call","params"=>["name"=>"cmsa.upload-media","arguments"=>["filename"=>"cmsa-http-media-probe.png","mime_type"=>"image/png","data_base64"=>$png,"title"=>"CMSA HTTP Media Probe","alt_text"=>"CMSA HTTP media probe"],"_meta"=>["io.modelcontextprotocol/protocolVersion"=>"2026-07-28","io.modelcontextprotocol/clientInfo"=>["name"=>"cmsa-live-simulation-smoke","version"=>"1.0.0"]]]]);')"
+printf '%s' "$media_json" >"$tmp_dir/media.json"
+
+media_code="$(curl -sS -o "$tmp_dir/media-response.json" -w '%{http_code}' \
+  --user "admin:${app_password}" \
+  -H 'Content-Type: application/json' \
+  -H 'MCP-Protocol-Version: 2026-07-28' \
+  -H 'Mcp-Method: tools/call' \
+  -H 'Mcp-Name: cmsa.upload-media' \
+  --data-binary @"$tmp_dir/media.json" \
+  "$ENDPOINT")"
+test "$media_code" = '200'
+
+media_id="$(cat "$tmp_dir/media-response.json" | docker compose run --rm -T cli php -r '$d=json_decode(stream_get_contents(STDIN),true); $result=$d["result"]??[]; $data=$result["structuredContent"]??[]; if (($result["isError"]??true)!==false || empty($data["created"]) || ($data["item"]["mime_type"]??"")!=="image/png" || empty($data["item"]["id"])) exit(1); echo (int)$data["item"]["id"];')"
+test -n "$media_id"
+test "$(docker compose run --rm cli wp post get "$media_id" --field=post_mime_type --quiet)" = 'image/png'
+test "$(docker compose run --rm cli wp eval "echo is_file(get_attached_file(${media_id})) ? '1' : '0';" --quiet)" = '1'
+
+docker compose run --rm cli wp post delete "$post_id" --force >/dev/null
+post_id=""
+docker compose run --rm cli wp eval "wp_delete_attachment(${media_id}, true);" >/dev/null
+media_id=""
+uuid="$(docker compose run --rm cli wp user application-password list admin --app_id="$APP_ID" --field=uuid --quiet | head -n 1)"
+test -n "$uuid"
+docker compose run --rm cli wp user application-password delete admin "$uuid" --quiet >/dev/null
+test -z "$(docker compose run --rm cli wp user application-password list admin --app_id="$APP_ID" --field=uuid --quiet 2>/dev/null || true)"
+
+echo "cmsa-live-simulation-http-write: PASS anonymous_boundary=verified admin_auth=verified catalog=verified post_write=verified media_upload=verified persistence=verified cleanup=verified"
