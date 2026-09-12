@@ -39,6 +39,7 @@ jobs:
           find site-plugins/chattanooga-cms-admin -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
           bash -n workbench/simulations/chattanooga-cms-admin-live/bootstrap.sh
           bash -n workbench/simulations/chattanooga-cms-admin-live/smoke.sh
+          bash -n workbench/simulations/chattanooga-cms-admin-live/mcp-http-write-smoke.sh
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-direct-boundary-cli.php >/dev/null
@@ -75,16 +76,23 @@ jobs:
       - name: Verify editable content write paths
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/core-content-rest-parity-cli.php" --path=/tmp/cmsa-simulation
 
-      - name: Verify running HTTP simulation
+      - name: Verify running HTTP simulation and administrator write authority
         shell: bash
         run: |
           set -euo pipefail
           endpoint='http://127.0.0.1:8091/index.php?rest_route=%2Fchattanooga-cms-admin%2Fv1%2Fmcp'
           app_password="$(php /tmp/wp-cli.phar user application-password create admin cmsa-live-simulation --porcelain --path=/tmp/cmsa-simulation)"
+          post_id=''
 
           php -S 127.0.0.1:8091 -t /tmp/cmsa-simulation >/tmp/cmsa-live-simulation-http.log 2>&1 &
           server_pid=$!
-          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          cleanup() {
+            if [ -n "$post_id" ]; then
+              php /tmp/wp-cli.phar post delete "$post_id" --force --path=/tmp/cmsa-simulation >/dev/null 2>&1 || true
+            fi
+            kill "$server_pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
 
           for attempt in $(seq 1 30); do
             if curl -fsS 'http://127.0.0.1:8091/index.php?rest_route=%2F' >/dev/null 2>&1; then
@@ -101,17 +109,61 @@ jobs:
           {"jsonrpc":"2.0","id":701,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"cmsa-live-simulation","version":"1.0.0"}}}}
           JSON
 
-          status="$(curl -sS -o /tmp/cmsa-live-discover-response.json -w '%{http_code}' \
+          anonymous_code="$(curl -sS -o /tmp/cmsa-live-anonymous.json -w '%{http_code}' \
+            -H 'Content-Type: application/json' \
+            -H 'MCP-Protocol-Version: 2026-07-28' \
+            -H 'Mcp-Method: server/discover' \
+            --data-binary @/tmp/cmsa-live-discover.json \
+            "$endpoint")"
+          test "$anonymous_code" = '401'
+
+          authenticated_code="$(curl -sS -o /tmp/cmsa-live-discover-response.json -w '%{http_code}' \
             --user "admin:${app_password}" \
             -H 'Content-Type: application/json' \
             -H 'MCP-Protocol-Version: 2026-07-28' \
             -H 'Mcp-Method: server/discover' \
             --data-binary @/tmp/cmsa-live-discover.json \
             "$endpoint")"
-          test "$status" = '200'
-          php -r '$d=json_decode(file_get_contents("/tmp/cmsa-live-discover-response.json"),true); if (($d["result"]["resultType"]??"")!=="complete") exit(1);'
+          test "$authenticated_code" = '200'
+          php -r '$d=json_decode(file_get_contents("/tmp/cmsa-live-discover-response.json"),true); if (($d["result"]["resultType"]??"")!=="complete" || !in_array("2026-07-28",$d["result"]["supportedVersions"]??[],true)) exit(1);'
+
+          cat >/tmp/cmsa-live-catalog.json <<'JSON'
+          {"jsonrpc":"2.0","id":702,"method":"tools/call","params":{"name":"cmsa.catalog","arguments":{},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"cmsa-live-simulation","version":"1.0.0"}}}}
+          JSON
+
+          catalog_code="$(curl -sS -o /tmp/cmsa-live-catalog-response.json -w '%{http_code}' \
+            --user "admin:${app_password}" \
+            -H 'Content-Type: application/json' \
+            -H 'MCP-Protocol-Version: 2026-07-28' \
+            -H 'Mcp-Method: tools/call' \
+            -H 'Mcp-Name: cmsa.catalog' \
+            --data-binary @/tmp/cmsa-live-catalog.json \
+            "$endpoint")"
+          test "$catalog_code" = '200'
+
+          bridge="$(php -r '$d=json_decode(file_get_contents("/tmp/cmsa-live-catalog-response.json"),true); foreach (($d["result"]["structuredContent"]["items"]??[]) as $item) { if (($item["contract"]??"")==="rest" && ($item["method"]??"")==="POST" && ($item["route"]??"")==="/wp/v2/posts") { echo $item["bridge"]; exit(0); } } exit(1);')"
+          test -n "$bridge"
+
+          BRIDGE="$bridge" php -r '$b=getenv("BRIDGE"); echo json_encode(["jsonrpc"=>"2.0","id"=>703,"method"=>"tools/call","params"=>["name"=>"cmsa.write-bridge","arguments"=>["bridge"=>$b,"input"=>["path"=>"/wp/v2/posts","params"=>["title"=>"CMSA Live Simulation HTTP Write","status"=>"draft","content"=>"Disposable native MCP simulation write-authority probe."]]],"_meta"=>["io.modelcontextprotocol/protocolVersion"=>"2026-07-28","io.modelcontextprotocol/clientInfo"=>["name"=>"cmsa-live-simulation","version"=>"1.0.0"]]]]);' > /tmp/cmsa-live-write.json
+
+          write_code="$(curl -sS -o /tmp/cmsa-live-write-response.json -w '%{http_code}' \
+            --user "admin:${app_password}" \
+            -H 'Content-Type: application/json' \
+            -H 'MCP-Protocol-Version: 2026-07-28' \
+            -H 'Mcp-Method: tools/call' \
+            -H 'Mcp-Name: cmsa.write-bridge' \
+            --data-binary @/tmp/cmsa-live-write.json \
+            "$endpoint")"
+          test "$write_code" = '200'
+
+          post_id="$(php -r '$d=json_decode(file_get_contents("/tmp/cmsa-live-write-response.json"),true); $result=$d["result"]??[]; $rest=$result["structuredContent"]["result"]??[]; if (($result["isError"]??true)!==false || ($rest["status"]??0)!==201 || ($rest["data"]["status"]??"")!=="draft" || empty($rest["data"]["id"])) exit(1); echo (int)$rest["data"]["id"];')"
+          test -n "$post_id"
+          test "$(php /tmp/wp-cli.phar post get "$post_id" --field=post_status --path=/tmp/cmsa-simulation)" = 'draft'
 
           test "$(php /tmp/wp-cli.phar post list --path=/tmp/cmsa-simulation --post_type=page --name=simulation-control --field=post_name)" = 'simulation-control'
           test "$(php /tmp/wp-cli.phar post list --path=/tmp/cmsa-simulation --post_type=post --name=simulation-edit-target --field=post_name)" = 'simulation-edit-target'
 
-          echo 'cmsa-live-simulation: PASS wordpress=7.1 plugin=active source=simulation-branch native_mcp=verified content_write=verified http=verified'
+          php /tmp/wp-cli.phar post delete "$post_id" --force --path=/tmp/cmsa-simulation >/dev/null
+          post_id=''
+
+          echo 'cmsa-live-simulation: PASS wordpress=7.1 plugin=active source=simulation-branch native_mcp=verified content_write=verified http_auth=verified http_write=verified cleanup=verified'
