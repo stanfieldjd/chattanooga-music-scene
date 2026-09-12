@@ -52,7 +52,7 @@ jobs:
           test ! -e "$source/chattanooga-universal-admin.php"
           test "$(grep -RIl '^ \* Plugin Name:' "$source" --include='*.php' | wc -l)" -eq 1
           grep -q '^ \* Plugin Name: Chattanooga CMS Admin$' "$source/chattanooga-cms-admin.php"
-          grep -q '^ \* Version: 1.1.0$' "$source/chattanooga-cms-admin.php"
+          grep -q '^ \* Version: 1.2.0$' "$source/chattanooga-cms-admin.php"
           if grep -REiq 'WooCommerce|WC_Product|wc_get_product|Events_Manager|events-manager|EM_Event|EM_Location|BuddyBoss|Marketplace|Weekend_Feature|Rank_Math|rank-math|seo-by-rank-math|awpcp|another-wordpress-classifieds-plugin|miniOrange|miniorange' "$source"; then
             echo "Replacement contains provider-specific implementation logic." >&2
             exit 1
