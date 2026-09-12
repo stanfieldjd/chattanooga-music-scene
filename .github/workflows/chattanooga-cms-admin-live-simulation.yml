@@ -42,10 +42,12 @@ jobs:
           bash -n workbench/simulations/chattanooga-cms-admin-live/mcp-http-write-smoke.sh
           bash -n workbench/simulations/chattanooga-cms-admin-live/site-stack.sh
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php >/dev/null
+          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-version-boundary-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-direct-boundary-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/core-content-rest-parity-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/core-admin-rest-parity-cli.php >/dev/null
+          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/core-users-rest-parity-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/private-content-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/awp-native-content-compatibility-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/media-upload-cli.php >/dev/null
@@ -75,6 +77,7 @@ jobs:
         run: |
           set -euo pipefail
           php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php" --path=/tmp/cmsa-simulation
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-version-boundary-cli.php" --path=/tmp/cmsa-simulation
           php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php" --path=/tmp/cmsa-simulation
           php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-direct-boundary-cli.php" --path=/tmp/cmsa-simulation
 
@@ -83,6 +86,9 @@ jobs:
 
       - name: Verify comments and media REST administration
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/core-admin-rest-parity-cli.php" --path=/tmp/cmsa-simulation
+
+      - name: Verify user REST administration
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/core-users-rest-parity-cli.php" --path=/tmp/cmsa-simulation
 
       - name: Verify private custom post type administration
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/private-content-cli.php" --path=/tmp/cmsa-simulation
@@ -214,4 +220,4 @@ jobs:
           app_uuid=''
           test -z "$(php /tmp/wp-cli.phar user application-password list admin --app_id="$app_id" --field=uuid --quiet --path=/tmp/cmsa-simulation)"
 
-          echo 'cmsa-live-simulation: PASS wordpress=7.1 plugin=active source=simulation-branch native_mcp=verified core_content=verified private_content=verified comments_media_rest=verified media_upload=verified http_auth=verified http_post_write=verified http_media_upload=verified cleanup=verified'
+          echo 'cmsa-live-simulation: PASS wordpress=7.1 plugin=active source=simulation-branch native_mcp=verified version_boundary=verified core_content=verified users=verified private_content=verified comments_media_rest=verified media_upload=verified http_auth=verified http_post_write=verified http_media_upload=verified cleanup=verified'
