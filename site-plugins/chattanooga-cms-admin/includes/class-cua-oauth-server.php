@@ -60,8 +60,8 @@ final class CUA_OAuth_Server {
 
 	public static function protected_resource_metadata() {
 		return array(
-			'resource'              => rest_url( CUA_MCP_Server::REST_NAMESPACE . CUA_MCP_Server::REST_ROUTE ),
-			'authorization_servers' => array( home_url( '/' ) ),
+			'resource'              => self::canonical_resource(),
+			'authorization_servers' => array( self::canonical_issuer() ),
 			'scopes_supported'      => array( self::SCOPE ),
 			'bearer_methods_supported' => array( 'header' ),
 		);
@@ -69,7 +69,7 @@ final class CUA_OAuth_Server {
 
 	public static function authorization_server_metadata() {
 		return array(
-			'issuer'                                => home_url( '/' ),
+			'issuer'                                => self::canonical_issuer(),
 			'authorization_endpoint'                => admin_url( 'admin-post.php?action=cua_oauth_authorize' ),
 			'token_endpoint'                        => rest_url( self::REST_NAMESPACE . '/oauth/token' ),
 			'registration_endpoint'                 => rest_url( self::REST_NAMESPACE . '/oauth/register' ),
@@ -78,6 +78,7 @@ final class CUA_OAuth_Server {
 			'code_challenge_methods_supported'       => array( 'S256' ),
 			'token_endpoint_auth_methods_supported'  => array( 'none' ),
 			'scopes_supported'                      => array( self::SCOPE ),
+			'client_id_metadata_document_supported' => true,
 		);
 	}
 
@@ -144,6 +145,7 @@ final class CUA_OAuth_Server {
 		$state = isset( $params['state'] ) ? (string) $params['state'] : '';
 		$response_type = isset( $params['response_type'] ) ? (string) $params['response_type'] : '';
 		$scope = isset( $params['scope'] ) ? trim( (string) $params['scope'] ) : '';
+		$resource = isset( $params['resource'] ) ? esc_url_raw( (string) $params['resource'] ) : '';
 		$challenge = isset( $params['code_challenge'] ) ? (string) $params['code_challenge'] : '';
 		$challenge_method = isset( $params['code_challenge_method'] ) ? (string) $params['code_challenge_method'] : '';
 		if ( strlen( $state ) > 2048 || preg_match( '/[\r\n]/', $state ) ) {
@@ -159,6 +161,9 @@ final class CUA_OAuth_Server {
 		}
 		if ( ! self::scope_is_valid( $scope ) ) {
 			self::authorization_redirect_error( $redirect_uri, 'invalid_scope', 'The requested scope is not supported.', $state );
+		}
+		if ( ! hash_equals( self::canonical_resource(), $resource ) ) {
+			self::authorization_redirect_error( $redirect_uri, 'invalid_target', 'The requested resource is not supported.', $state );
 		}
 
 		if ( 'POST' !== strtoupper( isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : 'GET' ) ) {
@@ -178,11 +183,12 @@ final class CUA_OAuth_Server {
 				'redirect_uri'   => $redirect_uri,
 				'user_id'        => get_current_user_id(),
 				'scope'          => self::SCOPE,
+				'resource'       => $resource,
 				'code_challenge' => $challenge,
 			),
 			self::CODE_TTL
 		);
-		$url = add_query_arg( array_filter( array( 'code' => $code, 'state' => $state ), 'strlen' ), $redirect_uri );
+		$url = add_query_arg( array_filter( array( 'code' => $code, 'state' => $state, 'resource' => $resource ), 'strlen' ), $redirect_uri );
 		wp_redirect( $url );
 		exit;
 	}
@@ -204,7 +210,7 @@ final class CUA_OAuth_Server {
 			return new WP_Error( 'cmsa_oauth_token_missing', 'A Bearer access token is required.', array( 'status' => 401 ) );
 		}
 		$record = get_transient( self::transient_key( 'access', $matches[1] ) );
-		if ( ! is_array( $record ) || empty( $record['user_id'] ) || self::SCOPE !== ( $record['scope'] ?? '' ) ) {
+		if ( ! is_array( $record ) || empty( $record['user_id'] ) || self::SCOPE !== ( $record['scope'] ?? '' ) || self::canonical_resource() !== ( $record['resource'] ?? '' ) ) {
 			return new WP_Error( 'cmsa_oauth_token_invalid', 'The Bearer access token is invalid or expired.', array( 'status' => 401 ) );
 		}
 		$user = get_user_by( 'id', (int) $record['user_id'] );
@@ -230,11 +236,15 @@ final class CUA_OAuth_Server {
 		$client_id = trim( (string) $request->get_param( 'client_id' ) );
 		$redirect_uri = esc_url_raw( (string) $request->get_param( 'redirect_uri' ) );
 		$verifier = trim( (string) $request->get_param( 'code_verifier' ) );
+		$resource = esc_url_raw( (string) $request->get_param( 'resource' ) );
 		if ( ! hash_equals( (string) $record['client_id'], $client_id ) || ! hash_equals( (string) $record['redirect_uri'], $redirect_uri ) ) {
 			return self::oauth_error( 'invalid_grant', 'The authorization code does not belong to this client or redirect URI.', 400 );
 		}
 		if ( ! preg_match( '/^[A-Za-z0-9._~-]{43,128}$/', $verifier ) || ! hash_equals( (string) $record['code_challenge'], self::pkce_challenge( $verifier ) ) ) {
 			return self::oauth_error( 'invalid_grant', 'PKCE verification failed.', 400 );
+		}
+		if ( ! isset( $record['resource'] ) || ! hash_equals( (string) $record['resource'], $resource ) || ! hash_equals( self::canonical_resource(), $resource ) ) {
+			return self::oauth_error( 'invalid_target', 'The resource does not match the authorization request.', 400 );
 		}
 		return self::issue_tokens( $record );
 	}
@@ -248,8 +258,12 @@ final class CUA_OAuth_Server {
 			return self::oauth_error( 'invalid_grant', 'The refresh token is invalid, expired, or already used.', 400 );
 		}
 		$client_id = trim( (string) $request->get_param( 'client_id' ) );
+		$resource = esc_url_raw( (string) $request->get_param( 'resource' ) );
 		if ( ! hash_equals( (string) $record['client_id'], $client_id ) ) {
 			return self::oauth_error( 'invalid_grant', 'The refresh token does not belong to this client.', 400 );
+		}
+		if ( ! isset( $record['resource'] ) || ! hash_equals( (string) $record['resource'], $resource ) || ! hash_equals( self::canonical_resource(), $resource ) ) {
+			return self::oauth_error( 'invalid_target', 'The resource does not match the refresh token.', 400 );
 		}
 		return self::issue_tokens( $record );
 	}
@@ -261,6 +275,7 @@ final class CUA_OAuth_Server {
 			'client_id' => (string) $record['client_id'],
 			'user_id'   => (int) $record['user_id'],
 			'scope'     => self::SCOPE,
+			'resource'  => (string) $record['resource'],
 		);
 		set_transient( self::transient_key( 'access', $access ), $stored, self::ACCESS_TTL );
 		set_transient( self::transient_key( 'refresh', $refresh ), $stored, self::REFRESH_TTL );
@@ -271,6 +286,7 @@ final class CUA_OAuth_Server {
 				'expires_in'    => self::ACCESS_TTL,
 				'refresh_token' => $refresh,
 				'scope'         => self::SCOPE,
+				'resource'      => (string) $record['resource'],
 			)
 		);
 	}
@@ -319,7 +335,7 @@ final class CUA_OAuth_Server {
 
 	private static function render_consent( array $client, array $params ) {
 		$hidden = '';
-		foreach ( array( 'client_id', 'redirect_uri', 'response_type', 'scope', 'state', 'code_challenge', 'code_challenge_method' ) as $name ) {
+		foreach ( array( 'client_id', 'redirect_uri', 'response_type', 'scope', 'resource', 'state', 'code_challenge', 'code_challenge_method' ) as $name ) {
 			$hidden .= '<input type="hidden" name="' . esc_attr( $name ) . '" value="' . esc_attr( isset( $params[ $name ] ) ? (string) $params[ $name ] : '' ) . '">';
 		}
 		$client_name = isset( $client['client_name'] ) && '' !== $client['client_name'] ? $client['client_name'] : 'ChatGPT';
@@ -341,6 +357,14 @@ final class CUA_OAuth_Server {
 	private static function scope_is_valid( $scope ) {
 		$scopes = preg_split( '/\s+/', trim( (string) $scope ) );
 		return array( self::SCOPE ) === $scopes;
+	}
+
+	private static function canonical_issuer() {
+		return untrailingslashit( home_url( '/' ) );
+	}
+
+	private static function canonical_resource() {
+		return rest_url( CUA_MCP_Server::REST_NAMESPACE . CUA_MCP_Server::REST_ROUTE );
 	}
 
 	private static function pkce_challenge( $verifier ) {
