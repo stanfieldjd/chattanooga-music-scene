@@ -111,7 +111,7 @@ test "${#verifier}" -ge 43
 test -n "$challenge"
 
 cat >"$tmp_dir/discover.json" <<'JSON'
-{"jsonrpc":"2.0","id":901,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"cmsa-native-oauth-smoke","version":"1.0.0"}}}}
+{"jsonrpc":"2.0","id":901,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{},"io.modelcontextprotocol/clientInfo":{"name":"cmsa-native-oauth-smoke","version":"1.0.0"}}}}
 JSON
 
 anonymous_code="$(curl -sS -D "$tmp_dir/anonymous-headers.txt" -o "$tmp_dir/anonymous.json" -w '%{http_code}' \
@@ -206,7 +206,7 @@ bearer_code="$(curl -sS -o "$tmp_dir/bearer-discover.json" -w '%{http_code}' \
   --data-binary @"$tmp_dir/discover.json" \
   "$MCP_ENDPOINT")"
 test "$bearer_code" = '200'
-docker compose run --rm -T cli php -r '$d=json_decode(stream_get_contents(STDIN),true); if (($d["result"]["resultType"]??"")!=="complete" || !in_array("2026-07-28",$d["result"]["supportedVersions"]??[],true)) exit(1);' <"$tmp_dir/bearer-discover.json"
+docker compose run --rm -T cli php -r '$d=json_decode(stream_get_contents(STDIN),true); if (($d["result"]["resultType"]??"")!=="complete" || ($d["result"]["supportedVersions"]??null)!==["2026-07-28"]) exit(1);' <"$tmp_dir/bearer-discover.json"
 
 refresh_code="$(curl -sS -o "$tmp_dir/refresh-response.json" -w '%{http_code}' \
   -H 'Content-Type: application/x-www-form-urlencoded' \
@@ -241,4 +241,4 @@ rotated_bearer_code="$(curl -sS -o "$tmp_dir/rotated-bearer-discover.json" -w '%
   "$MCP_ENDPOINT")"
 test "$rotated_bearer_code" = '200'
 
-echo 'cmsa-native-mcp-oauth: PASS protected_resource=verified authorization_server=verified dcr=verified admin_consent=verified pkce=verified bearer_mcp=verified refresh_rotation=verified third_party_mcp=absent'
+echo 'cmsa-native-mcp-oauth: PASS protected_resource=verified authorization_server=verified dcr=verified admin_consent=verified pkce=verified bearer_mcp=verified refresh_rotation=verified envelope=verified third_party_mcp=absent'
