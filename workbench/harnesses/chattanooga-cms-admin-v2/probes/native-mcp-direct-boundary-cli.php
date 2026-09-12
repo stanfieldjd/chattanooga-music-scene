@@ -19,6 +19,7 @@ function cmsa_native_direct_assert( $condition, $message ) {
 function cmsa_native_direct_request( $method, array $params, $id ) {
 	$params['_meta'] = isset( $params['_meta'] ) && is_array( $params['_meta'] ) ? $params['_meta'] : array();
 	$params['_meta']['io.modelcontextprotocol/protocolVersion'] = '2026-07-28';
+	$params['_meta']['io.modelcontextprotocol/clientCapabilities'] = (object) array();
 	$params['_meta']['io.modelcontextprotocol/clientInfo'] = array(
 		'name'    => 'cmsa-native-direct-boundary',
 		'version' => '1.0.0',
@@ -134,5 +135,5 @@ cmsa_native_direct_assert(
 	'Direct get-health returned the wrong WordPress version.'
 );
 
-echo 'cmsa-native-mcp-direct-boundary: PASS route=native-only third_party_mcp=absent adapter_dependency=absent discover=verified tools=' . count( $names ) . " read_call=verified\n";
+echo 'cmsa-native-mcp-direct-boundary: PASS route=native-only third_party_mcp=absent adapter_dependency=absent discover=verified tools=' . count( $names ) . " read_call=verified envelope=verified\n";
 exit( 0 );
