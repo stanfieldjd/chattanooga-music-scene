@@ -91,11 +91,11 @@ test "$("$PHP_BIN" -r '$d=json_decode(file_get_contents($argv[1]),true); echo $d
 test "$("$PHP_BIN" -r '$d=json_decode(file_get_contents($argv[1]),true); echo $d["registration_endpoint"]??"";' "$tmp_dir/server.json")" = "$REGISTER_ENDPOINT"
 
 cat >"$tmp_dir/register.json" <<JSON
-{"client_name":"CMSA Native OAuth Host Smoke","redirect_uris":["${CALLBACK_URI}"],"grant_types":["authorization_code","refresh_token"],"response_types":["code"],"token_endpoint_auth_method":"none","application_type":"web"}
+{"client_name":"CMSA Native OAuth Host Smoke","redirect_uris":["${CALLBACK_URI}"],"grant_types":["authorization_code","refresh_token"],"response_types":["code"],"token_endpoint_auth_method":"none","application_type":"native"}
 JSON
 register_code="$(curl -sS -o "$tmp_dir/register-response.json" -w '%{http_code}' -H 'Content-Type: application/json' --data-binary @"$tmp_dir/register.json" "$REGISTER_ENDPOINT")"
 test "$register_code" = '201'
-client_id="$("$PHP_BIN" -r '$d=json_decode(file_get_contents($argv[1]),true); if(empty($d["client_id"])||($d["token_endpoint_auth_method"]??"")!=="none") exit(1); echo $d["client_id"];' "$tmp_dir/register-response.json")"
+client_id="$("$PHP_BIN" -r '$d=json_decode(file_get_contents($argv[1]),true); if(empty($d["client_id"])||($d["token_endpoint_auth_method"]??"")!=="none"||($d["application_type"]??"")!=="native") exit(1); echo $d["client_id"];' "$tmp_dir/register-response.json")"
 test -n "$client_id"
 
 verifier="$("$PHP_BIN" -r '$b=random_bytes(48); echo rtrim(strtr(base64_encode($b),"+/","-_"),"=");')"
@@ -161,4 +161,4 @@ test "$replay_code" = '400'
 rotated_bearer_code="$(curl -sS -o "$tmp_dir/rotated-bearer.json" -w '%{http_code}' -H "Authorization: Bearer ${rotated_access_token}" -H 'Content-Type: application/json' -H 'MCP-Protocol-Version: 2026-07-28' -H 'Mcp-Method: server/discover' --data-binary @"$tmp_dir/discover.json" "$MCP_ENDPOINT")"
 test "$rotated_bearer_code" = '200'
 
-echo 'cmsa-native-mcp-oauth-host: PASS protected_resource=verified metadata_path=resource-derived authorization_server=verified dcr=verified admin_consent=verified pkce=verified bearer_mcp=verified refresh_rotation=verified envelope=verified third_party_mcp=absent'
+echo 'cmsa-native-mcp-oauth-host: PASS protected_resource=verified metadata_path=resource-derived authorization_server=verified dcr=native admin_consent=verified pkce=verified bearer_mcp=verified refresh_rotation=verified envelope=verified third_party_mcp=absent'
