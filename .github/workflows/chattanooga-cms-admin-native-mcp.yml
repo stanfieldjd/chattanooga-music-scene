@@ -7,20 +7,14 @@ on:
       - work/chattanooga-native-mcp
     paths:
       - "site-plugins/chattanooga-cms-admin/**"
-      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php"
-      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-version-boundary-cli.php"
-      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php"
-      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php"
-      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-direct-boundary-cli.php"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/**"
+      - "workbench/simulations/chattanooga-cms-admin-live/**"
       - ".github/workflows/chattanooga-cms-admin-native-mcp.yml"
   pull_request:
     paths:
       - "site-plugins/chattanooga-cms-admin/**"
-      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php"
-      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-version-boundary-cli.php"
-      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php"
-      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php"
-      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-direct-boundary-cli.php"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/**"
+      - "workbench/simulations/chattanooga-cms-admin-live/**"
       - ".github/workflows/chattanooga-cms-admin-native-mcp.yml"
 
 permissions:
@@ -30,19 +24,6 @@ jobs:
   native-mcp:
     name: Native MCP protocol and admin boundary
     runs-on: ubuntu-latest
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: wordpress
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=10
 
     steps:
       - uses: actions/checkout@v4
@@ -50,7 +31,6 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.2"
-          extensions: mysqli, zip, gd, fileinfo
 
       - name: Validate native MCP source boundary
         shell: bash
@@ -58,11 +38,9 @@ jobs:
           set -euo pipefail
           source="site-plugins/chattanooga-cms-admin"
           find "$source" -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
-          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php >/dev/null
-          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-version-boundary-cli.php >/dev/null
-          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php >/dev/null
-          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php >/dev/null
-          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-direct-boundary-cli.php >/dev/null
+          find workbench/harnesses/chattanooga-cms-admin-v2/probes -maxdepth 1 -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
+          find workbench/simulations/chattanooga-cms-admin-live -maxdepth 1 -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
+          docker compose -f workbench/simulations/chattanooga-cms-admin-live/docker-compose.yml config >/dev/null
           grep -q '^ \* Plugin Name: Chattanooga CMS Admin$' "$source/chattanooga-cms-admin.php"
           grep -q '^ \* Version: 1.1.0$' "$source/chattanooga-cms-admin.php"
           grep -Fq "add_action( 'rest_api_init', array( 'CUA_MCP_Server', 'register_route' ) );" "$source/chattanooga-cms-admin.php"
@@ -76,112 +54,19 @@ jobs:
             exit 1
           fi
 
-      - name: Install disposable WordPress 7.1
+      - name: Run native MCP protocol simulation
         shell: bash
+        working-directory: workbench/simulations/chattanooga-cms-admin-live
         run: |
           set -euo pipefail
-          curl -fsSL -o /tmp/wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
-          php /tmp/wp-cli.phar core download --version=7.1 --path=/tmp/wordpress --force
-          php /tmp/wp-cli.phar config create --path=/tmp/wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
-          php /tmp/wp-cli.phar config set WP_ENVIRONMENT_TYPE local --type=constant --path=/tmp/wordpress
-          password="$(php -r 'echo bin2hex(random_bytes(20));')"
-          php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://127.0.0.1:8090 --title="CMS Admin Native MCP" --admin_user=admin --admin_password="$password" --admin_email=lab@example.invalid --skip-email
-          cp -R site-plugins/chattanooga-cms-admin /tmp/wordpress/wp-content/plugins/chattanooga-cms-admin
-          php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin --path=/tmp/wordpress
-          php /tmp/wp-cli.phar plugin is-active chattanooga-cms-admin --path=/tmp/wordpress
+          docker compose version
+          bash bootstrap.sh
+          docker compose run --rm cli wp core version --quiet | grep -Eq '^7\.1(\.|$)'
+          docker compose run --rm cli wp eval-file /workspace/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php
+          docker compose run --rm cli wp eval-file /workspace/workbench/harnesses/chattanooga-cms-admin-v2/probes/replacement-coverage-cli.php
 
-      - name: Verify native MCP transport
-        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php" --path=/tmp/wordpress
-
-      - name: Verify MCP protocol version declarations
-        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-version-boundary-cli.php" --path=/tmp/wordpress
-
-      - name: Verify MCP protocol era boundaries
-        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php" --path=/tmp/wordpress
-
-      - name: Verify complete MCP administrator surface
-        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php" --path=/tmp/wordpress
-
-      - name: Verify native-only direct MCP boundary
-        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-direct-boundary-cli.php" --path=/tmp/wordpress
-
-      - name: Verify external administrator authentication and write authority
+      - name: Remove disposable simulation state
+        if: always()
         shell: bash
-        run: |
-          set -euo pipefail
-          endpoint='http://127.0.0.1:8090/index.php?rest_route=%2Fchattanooga-cms-admin%2Fv1%2Fmcp'
-          app_password="$(php /tmp/wp-cli.phar user application-password create admin cmsa-native-mcp-ci --porcelain --path=/tmp/wordpress)"
-
-          php -S 127.0.0.1:8090 -t /tmp/wordpress >/tmp/cmsa-native-mcp-http.log 2>&1 &
-          server_pid=$!
-          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
-
-          for attempt in $(seq 1 30); do
-            if curl -fsS 'http://127.0.0.1:8090/index.php?rest_route=%2F' >/dev/null 2>&1; then
-              break
-            fi
-            if [ "$attempt" -eq 30 ]; then
-              cat /tmp/cmsa-native-mcp-http.log >&2
-              exit 1
-            fi
-            sleep 1
-          done
-
-          cat > /tmp/cmsa-discover.json <<'JSON'
-          {"jsonrpc":"2.0","id":401,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{},"io.modelcontextprotocol/clientInfo":{"name":"cmsa-http-ci","version":"1.0.0"}}}}
-          JSON
-
-          anonymous_code="$(curl -sS -o /tmp/cmsa-anonymous.json -w '%{http_code}' \
-            -H 'Content-Type: application/json' \
-            -H 'MCP-Protocol-Version: 2026-07-28' \
-            -H 'Mcp-Method: server/discover' \
-            --data-binary @/tmp/cmsa-discover.json \
-            "$endpoint")"
-          test "$anonymous_code" = '401'
-
-          authenticated_code="$(curl -sS -o /tmp/cmsa-discover-response.json -w '%{http_code}' \
-            --user "admin:${app_password}" \
-            -H 'Content-Type: application/json' \
-            -H 'MCP-Protocol-Version: 2026-07-28' \
-            -H 'Mcp-Method: server/discover' \
-            --data-binary @/tmp/cmsa-discover.json \
-            "$endpoint")"
-          test "$authenticated_code" = '200'
-          php -r '$d=json_decode(file_get_contents("/tmp/cmsa-discover-response.json"),true); if (($d["result"]["resultType"]??"")!=="complete" || ($d["result"]["supportedVersions"]??null)!==["2026-07-28"]) exit(1);'
-
-          cat > /tmp/cmsa-catalog.json <<'JSON'
-          {"jsonrpc":"2.0","id":402,"method":"tools/call","params":{"name":"cmsa.catalog","arguments":{},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{},"io.modelcontextprotocol/clientInfo":{"name":"cmsa-http-ci","version":"1.0.0"}}}}
-          JSON
-
-          catalog_code="$(curl -sS -o /tmp/cmsa-catalog-response.json -w '%{http_code}' \
-            --user "admin:${app_password}" \
-            -H 'Content-Type: application/json' \
-            -H 'MCP-Protocol-Version: 2026-07-28' \
-            -H 'Mcp-Method: tools/call' \
-            -H 'Mcp-Name: cmsa.catalog' \
-            --data-binary @/tmp/cmsa-catalog.json \
-            "$endpoint")"
-          test "$catalog_code" = '200'
-
-          bridge="$(php -r '$d=json_decode(file_get_contents("/tmp/cmsa-catalog-response.json"),true); foreach (($d["result"]["structuredContent"]["items"]??[]) as $item) { if (($item["contract"]??"")==="rest" && ($item["method"]??"")==="POST" && ($item["route"]??"")==="/wp/v2/posts") { echo $item["bridge"]; exit(0); } } exit(1);')"
-          test -n "$bridge"
-
-          BRIDGE="$bridge" php -r '$b=getenv("BRIDGE"); echo json_encode(["jsonrpc"=>"2.0","id"=>403,"method"=>"tools/call","params"=>["name"=>"cmsa.write-bridge","arguments"=>["bridge"=>$b,"input"=>["path"=>"/wp/v2/posts","params"=>["title"=>"CMSA MCP HTTP Write Probe","status"=>"draft","content"=>"Disposable native MCP CI write-authority probe."]]],"_meta"=>["io.modelcontextprotocol/protocolVersion"=>"2026-07-28","io.modelcontextprotocol/clientCapabilities"=>(object)[],"io.modelcontextprotocol/clientInfo"=>["name"=>"cmsa-http-ci","version"=>"1.0.0"]]]]);' > /tmp/cmsa-write.json
-
-          write_code="$(curl -sS -o /tmp/cmsa-write-response.json -w '%{http_code}' \
-            --user "admin:${app_password}" \
-            -H 'Content-Type: application/json' \
-            -H 'MCP-Protocol-Version: 2026-07-28' \
-            -H 'Mcp-Method: tools/call' \
-            -H 'Mcp-Name: cmsa.write-bridge' \
-            --data-binary @/tmp/cmsa-write.json \
-            "$endpoint")"
-          test "$write_code" = '200'
-
-          post_id="$(php -r '$d=json_decode(file_get_contents("/tmp/cmsa-write-response.json"),true); $result=$d["result"]??[]; $rest=$result["structuredContent"]["result"]??[]; if (($result["isError"]??true)!==false || ($rest["status"]??0)!==201 || ($rest["data"]["status"]??"")!=="draft" || empty($rest["data"]["id"])) exit(1); echo (int)$rest["data"]["id"];')"
-          test -n "$post_id"
-          test "$(php /tmp/wp-cli.phar post get "$post_id" --field=post_status --path=/tmp/wordpress)" = 'draft'
-          php /tmp/wp-cli.phar post delete "$post_id" --force --path=/tmp/wordpress >/dev/null
-
-      - name: Verify existing replacement coverage
-        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/replacement-coverage-cli.php" --path=/tmp/wordpress
+        working-directory: workbench/simulations/chattanooga-cms-admin-live
+        run: docker compose down -v --remove-orphans
