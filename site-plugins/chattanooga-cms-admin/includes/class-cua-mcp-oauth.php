@@ -100,8 +100,8 @@ final class CUA_MCP_OAuth {
 			return;
 		}
 
-		$resource_path = self::site_path( '/.well-known/oauth-protected-resource' );
-		$server_path = self::site_path( '/.well-known/oauth-authorization-server' );
+		$resource_path = self::metadata_url_path( self::protected_resource_metadata_url() );
+		$server_path = self::metadata_url_path( self::authorization_server_metadata_url() );
 		if ( $resource_path !== $path && $server_path !== $path ) {
 			return;
 		}
@@ -585,10 +585,9 @@ final class CUA_MCP_OAuth {
 		return is_string( $path ) ? untrailingslashit( $path ) : '';
 	}
 
-	private static function site_path( $suffix ) {
-		$base = wp_parse_url( home_url( '/' ), PHP_URL_PATH );
-		$base = is_string( $base ) ? untrailingslashit( $base ) : '';
-		return untrailingslashit( $base . '/' . ltrim( (string) $suffix, '/' ) );
+	private static function metadata_url_path( $url ) {
+		$path = wp_parse_url( (string) $url, PHP_URL_PATH );
+		return is_string( $path ) ? untrailingslashit( $path ) : '';
 	}
 
 	private static function current_request_url() {
@@ -603,7 +602,37 @@ final class CUA_MCP_OAuth {
 	}
 
 	private static function protected_resource_metadata_url() {
-		return home_url( '/.well-known/oauth-protected-resource' );
+		return self::well_known_url( self::mcp_resource(), 'oauth-protected-resource' );
+	}
+
+	private static function authorization_server_metadata_url() {
+		return self::well_known_url( self::issuer(), 'oauth-authorization-server' );
+	}
+
+	private static function well_known_url( $identifier, $suffix ) {
+		$parts = wp_parse_url( (string) $identifier );
+		if ( ! is_array( $parts ) || empty( $parts['scheme'] ) || empty( $parts['host'] ) || isset( $parts['fragment'] ) ) {
+			return '';
+		}
+
+		$scheme = strtolower( (string) $parts['scheme'] );
+		$host = (string) $parts['host'];
+		if ( false !== strpos( $host, ':' ) && '[' !== substr( $host, 0, 1 ) ) {
+			$host = '[' . $host . ']';
+		}
+
+		$url = $scheme . '://' . $host;
+		if ( isset( $parts['port'] ) ) {
+			$url .= ':' . (int) $parts['port'];
+		}
+		$url .= '/.well-known/' . trim( (string) $suffix, '/' );
+		if ( isset( $parts['path'] ) && '' !== (string) $parts['path'] && '/' !== (string) $parts['path'] ) {
+			$url .= '/' . ltrim( (string) $parts['path'], '/' );
+		}
+		if ( isset( $parts['query'] ) && '' !== (string) $parts['query'] ) {
+			$url .= '?' . (string) $parts['query'];
+		}
+		return $url;
 	}
 
 	private static function mcp_resource() {
