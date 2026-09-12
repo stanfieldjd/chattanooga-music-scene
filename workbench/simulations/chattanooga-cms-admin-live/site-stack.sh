@@ -25,10 +25,12 @@ ensure_plugin_version() {
 }
 
 # The built-in Chattanooga MCP must remain the only MCP transport in this simulation.
-if docker compose run --rm cli wp plugin is-installed miniorange-secure-mcp-server >/dev/null 2>&1; then
-  echo "Third-party MCP plugin detected in the native-MCP simulation." >&2
-  exit 1
-fi
+for third_party_mcp in miniorange-secure-mcp-server mcp-adapter; do
+  if docker compose run --rm cli wp plugin is-installed "$third_party_mcp" >/dev/null 2>&1; then
+    echo "Third-party MCP plugin detected in the native-MCP simulation: ${third_party_mcp}" >&2
+    exit 1
+  fi
+done
 
 # Keep Rank Math's registration UI out of this disposable environment.
 docker compose run --rm cli wp config set RANK_MATH_REGISTRATION_SKIP true --raw >/dev/null
