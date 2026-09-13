@@ -32,9 +32,14 @@ jobs:
           php -l workbench/harnesses/concentric-workspace/router-probe.php
           php -l workbench/harnesses/concentric-workspace/evidence-journal.php
           php -l workbench/harnesses/concentric-workspace/evidence-probe.php
+          php -l workbench/harnesses/concentric-workspace/capability-contracts.php
+          php -l workbench/harnesses/concentric-workspace/contract-probe.php
 
       - name: Red-team routing escalation policy
         run: php workbench/harnesses/concentric-workspace/router-probe.php
+
+      - name: Red-team capability contracts
+        run: php workbench/harnesses/concentric-workspace/contract-probe.php
 
       - name: Red-team evidence and rollback lifecycle
         run: php workbench/harnesses/concentric-workspace/evidence-probe.php
