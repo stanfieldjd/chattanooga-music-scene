@@ -60,6 +60,7 @@ $resource = $resource_metadata['resource'];
 cmsa_oauth_assert( untrailingslashit( $server_metadata['issuer'] ) === $server_metadata['issuer'], 'Issuer is not canonical.' );
 cmsa_oauth_assert( array( $server_metadata['issuer'] ) === $resource_metadata['authorization_servers'], 'Authorization server metadata does not match the issuer.' );
 cmsa_oauth_assert( true === ( $server_metadata['client_id_metadata_document_supported'] ?? false ), 'CIMD support is not advertised.' );
+cmsa_oauth_assert( false !== strpos( CUA_OAuth_Server::resource_challenge(), 'error="invalid_token"' ), 'OAuth challenge does not identify stale tokens.' );
 
 // Dynamic registration rejects unsafe redirects and confidential-client authentication.
 $unsafe = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/oauth/register' );
