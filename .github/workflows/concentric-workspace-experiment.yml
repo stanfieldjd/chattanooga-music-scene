@@ -16,8 +16,8 @@ permissions:
   contents: read
 
 jobs:
-  router-policy:
-    name: Least-authority routing policy
+  workspace-policy:
+    name: Concentric workspace policy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,6 +30,11 @@ jobs:
         run: |
           php -l workbench/harnesses/concentric-workspace/workspace-router.php
           php -l workbench/harnesses/concentric-workspace/router-probe.php
+          php -l workbench/harnesses/concentric-workspace/evidence-journal.php
+          php -l workbench/harnesses/concentric-workspace/evidence-probe.php
 
       - name: Red-team routing escalation policy
         run: php workbench/harnesses/concentric-workspace/router-probe.php
+
+      - name: Red-team evidence and rollback lifecycle
+        run: php workbench/harnesses/concentric-workspace/evidence-probe.php
