@@ -69,7 +69,18 @@ $record = get_option( CUA_Manual_Token::OPTION_NAME, array() );
 cmsa_manual_token_assert( is_array( $record ) && ! empty( $record['digest'] ) && 1 === (int) ( $record['user_id'] ?? 0 ), 'Manual token record was not stored correctly.' );
 cmsa_manual_token_assert( false === strpos( serialize( $record ), $token ), 'Clear-text manual token was stored persistently.' );
 $url = CUA_Manual_Token::manual_endpoint_url( $token );
-cmsa_manual_token_assert( false !== strpos( $url, '/wp-json/chattanooga-cms-admin/v1/mcp?token=' ), 'Manual MCP URL was not generated correctly.' );
+$base_url = rest_url( CUA_MCP_Server::REST_NAMESPACE . CUA_MCP_Server::REST_ROUTE );
+cmsa_manual_token_assert(
+	$base_url === remove_query_arg( CUA_Manual_Token::QUERY_ARG, $url ),
+	'Manual MCP URL does not target the canonical MCP endpoint.'
+);
+$query_string = wp_parse_url( $url, PHP_URL_QUERY );
+$parsed_query = array();
+wp_parse_str( (string) $query_string, $parsed_query );
+cmsa_manual_token_assert(
+	isset( $parsed_query[ CUA_Manual_Token::QUERY_ARG ] ) && hash_equals( $token, (string) $parsed_query[ CUA_Manual_Token::QUERY_ARG ] ),
+	'Manual MCP URL does not carry the generated token.'
+);
 
 $valid = cmsa_manual_token_mcp_request( $token, 'server/discover', 601 );
 cmsa_manual_token_assert( 200 === $valid->get_status(), 'Valid manual token did not authorize MCP discovery.' );
