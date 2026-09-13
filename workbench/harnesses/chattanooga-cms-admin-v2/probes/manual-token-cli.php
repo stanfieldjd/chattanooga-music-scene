@@ -70,17 +70,25 @@ cmsa_manual_token_assert( is_array( $record ) && ! empty( $record['digest'] ) &&
 cmsa_manual_token_assert( false === strpos( serialize( $record ), $token ), 'Clear-text manual token was stored persistently.' );
 $url = CUA_Manual_Token::manual_endpoint_url( $token );
 $base_url = rest_url( CUA_MCP_Server::REST_NAMESPACE . CUA_MCP_Server::REST_ROUTE );
+$url_parts = wp_parse_url( $url );
+$base_parts = wp_parse_url( $base_url );
+cmsa_manual_token_assert( is_array( $url_parts ) && is_array( $base_parts ), 'Manual MCP URL could not be parsed.' );
+foreach ( array( 'scheme', 'host', 'port', 'path' ) as $part ) {
+	cmsa_manual_token_assert(
+		( $base_parts[ $part ] ?? null ) === ( $url_parts[ $part ] ?? null ),
+		'Manual MCP URL does not target the canonical MCP endpoint.'
+	);
+}
+$base_query = array();
+$url_query  = array();
+wp_parse_str( (string) ( $base_parts['query'] ?? '' ), $base_query );
+wp_parse_str( (string) ( $url_parts['query'] ?? '' ), $url_query );
 cmsa_manual_token_assert(
-	$base_url === remove_query_arg( CUA_Manual_Token::QUERY_ARG, $url ),
-	'Manual MCP URL does not target the canonical MCP endpoint.'
-);
-$query_string = wp_parse_url( $url, PHP_URL_QUERY );
-$parsed_query = array();
-wp_parse_str( (string) $query_string, $parsed_query );
-cmsa_manual_token_assert(
-	isset( $parsed_query[ CUA_Manual_Token::QUERY_ARG ] ) && hash_equals( $token, (string) $parsed_query[ CUA_Manual_Token::QUERY_ARG ] ),
+	isset( $url_query[ CUA_Manual_Token::QUERY_ARG ] ) && hash_equals( $token, (string) $url_query[ CUA_Manual_Token::QUERY_ARG ] ),
 	'Manual MCP URL does not carry the generated token.'
 );
+unset( $url_query[ CUA_Manual_Token::QUERY_ARG ] );
+cmsa_manual_token_assert( $base_query === $url_query, 'Manual MCP URL changed the canonical endpoint query parameters.' );
 
 $valid = cmsa_manual_token_mcp_request( $token, 'server/discover', 601 );
 cmsa_manual_token_assert( 200 === $valid->get_status(), 'Valid manual token did not authorize MCP discovery.' );
