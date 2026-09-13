@@ -1,0 +1,35 @@
+name: Concentric Workspace Experiment
+
+on:
+  pull_request:
+    paths:
+      - "workbench/harnesses/concentric-workspace/**"
+      - ".github/workflows/concentric-workspace-experiment.yml"
+  push:
+    branches:
+      - work/cmsa-functional-redteam
+    paths:
+      - "workbench/harnesses/concentric-workspace/**"
+      - ".github/workflows/concentric-workspace-experiment.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  router-policy:
+    name: Least-authority routing policy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+
+      - name: Lint experiment source
+        run: |
+          php -l workbench/harnesses/concentric-workspace/workspace-router.php
+          php -l workbench/harnesses/concentric-workspace/router-probe.php
+
+      - name: Red-team routing escalation policy
+        run: php workbench/harnesses/concentric-workspace/router-probe.php
