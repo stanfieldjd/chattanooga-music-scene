@@ -30,6 +30,10 @@ final class CUA_MCP_Server {
 	}
 
 	public static function authorize_request( WP_REST_Request $request ) {
+		if ( class_exists( 'CUA_Manual_Token' ) && CUA_Manual_Token::has_token_parameter( $request ) ) {
+			return CUA_Manual_Token::authenticate_request( $request );
+		}
+
 		if ( is_user_logged_in() && current_user_can( 'manage_options' ) ) {
 			$origin = trim( (string) $request->get_header( 'origin' ) );
 			if ( '' !== $origin && ! self::origin_is_allowed( $origin ) ) {
@@ -474,8 +478,13 @@ final class CUA_MCP_Server {
 	private static function authentication_error_response( WP_Error $error ) {
 		$data = $error->get_error_data();
 		$status = is_array( $data ) && isset( $data['status'] ) ? (int) $data['status'] : 401;
-		$challenge = CUA_OAuth_Server::resource_challenge();
 		$response = self::protocol_error_response( null, -32001, $error->get_error_message(), $status, false );
+
+		if ( class_exists( 'CUA_Manual_Token' ) && CUA_Manual_Token::manual_request_active() ) {
+			return $response;
+		}
+
+		$challenge = CUA_OAuth_Server::resource_challenge();
 		$body = $response->get_data();
 		$body['_meta'] = array( 'mcp/www_authenticate' => array( $challenge ) );
 		$response->set_data( $body );
