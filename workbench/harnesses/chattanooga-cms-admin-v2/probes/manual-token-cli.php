@@ -43,7 +43,8 @@ function cmsa_manual_token_mcp_request( $token = null, $method = 'server/discove
 			)
 		)
 	);
-	return rest_do_request( $request );
+	$response = rest_do_request( $request );
+	return CUA_Manual_Token::finalize_tokenized_mcp_response( $response, rest_get_server(), $request );
 }
 
 function cmsa_manual_token_header( WP_HTTP_Response $response, $name ) {
