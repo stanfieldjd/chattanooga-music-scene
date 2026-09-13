@@ -4,11 +4,14 @@ on:
   push:
     branches:
       - work/chattanooga-native-mcp
+      - work/oauth-auth
     paths:
       - "site-plugins/chattanooga-cms-admin/**"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/oauth-cli.php"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/manual-token-cli.php"
       - ".github/workflows/chattanooga-cms-admin-native-mcp.yml"
   pull_request:
     paths:
@@ -16,6 +19,8 @@ on:
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/oauth-cli.php"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/manual-token-cli.php"
       - ".github/workflows/chattanooga-cms-admin-native-mcp.yml"
 
 permissions:
@@ -56,10 +61,13 @@ jobs:
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php >/dev/null
+          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/oauth-cli.php >/dev/null
+          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/manual-token-cli.php >/dev/null
           grep -q '^ \* Plugin Name: Chattanooga CMS Admin$' "$source/chattanooga-cms-admin.php"
-          grep -q '^ \* Version: 1.1.0$' "$source/chattanooga-cms-admin.php"
+          grep -q '^ \* Version: 1.2.3$' "$source/chattanooga-cms-admin.php"
           grep -Fq "add_action( 'rest_api_init', array( 'CUA_MCP_Server', 'register_route' ) );" "$source/chattanooga-cms-admin.php"
           test -f "$source/includes/class-cua-mcp-server.php"
+          test -f "$source/includes/class-cua-manual-token.php"
           if grep -REiq 'WooCommerce|WC_Product|wc_get_product|Events_Manager|events-manager|EM_Event|EM_Location|BuddyBoss|Marketplace|Weekend_Feature|Rank_Math|rank-math|seo-by-rank-math|awpcp|another-wordpress-classifieds-plugin|miniOrange|miniorange' "$source"; then
             echo "Native MCP source contains provider-specific implementation logic." >&2
             exit 1
@@ -87,6 +95,12 @@ jobs:
 
       - name: Verify complete MCP administrator surface
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php" --path=/tmp/wordpress
+
+      - name: Red-team OAuth token boundary
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/oauth-cli.php" --path=/tmp/wordpress
+
+      - name: Red-team manual MCP link token boundary
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/manual-token-cli.php" --path=/tmp/wordpress
 
       - name: Verify external administrator authentication and write authority
         shell: bash
