@@ -2,7 +2,7 @@
 
 Status: WORKBENCH-ONLY / NOT DEPLOYED / NOT A PRODUCTION EXECUTOR
 
-This experiment tests a transport-independent administrative workspace that routes each normalized task to the least-authoritative executor capable of completing it.
+This experiment tests a transport-independent administrative workspace that routes each normalized task to the least-authoritative executor capable of completing it, then requires evidence-backed verification before the task can settle as complete.
 
 The rings are deliberately ordered:
 
@@ -14,6 +14,8 @@ The rings are deliberately ordered:
 
 The router does not execute commands. It receives a normalized task plus a model of currently available executors and returns either the least-authoritative eligible ring or a fail-closed result.
 
+The evidence journal separately models task completion. It records an append-only hash chain for planning, before-state capture, routing, execution, verification, and rollback. It stores hashes of state/result payloads rather than treating raw state as the audit primitive.
+
 ## Current invariants
 
 - Authorization failure blocks the task; it never causes escalation.
@@ -24,10 +26,18 @@ The router does not execute commands. It receives a normalized task plus a model
 - Host access is recovery-only.
 - Direct database recovery must be explicit and requires a snapshot.
 - Browser automation is the final eligible ring, never the default.
-- Every routing decision produces an evidence journal showing why each lower ring was accepted or rejected.
+- Every routing decision records why each lower ring was accepted or rejected.
+- Mutating tasks cannot execute before before-state capture.
+- Execution cannot be recorded twice.
+- Completion requires explicit post-action verification.
+- Failed verification of a mutating task becomes `needs_rollback`, not success.
+- Successful rollback settles explicitly as `rolled_back`.
+- Evidence-chain tampering is detectable.
 
-## Red-team probe
+## Red-team probes
 
 `router-probe.php` exercises directed failure scenarios and then runs 10,000 deterministic randomized authority-order cases. The property under test is that the router cannot select a more-authoritative ring while a lower eligible ring exists.
 
-This workbench code intentionally has no network listener, credentials, shell dispatcher, SQL dispatcher, PHP `eval`, WordPress mutation, deployment path, or production hook. Its purpose is to falsify the routing model before any executor is built.
+`evidence-probe.php` exercises successful reads, blocked unsafe mutations, verified writes, failed verification with rollback, deliberate evidence tampering, and 5,000 randomized lifecycle sequences. The properties under test are that no mutating execution can occur without before-state capture, no task can settle as complete without verification, failed writes require rollback state, and the journal hash chain detects modification.
+
+This workbench code intentionally has no network listener, credentials, shell dispatcher, SQL dispatcher, PHP `eval`, WordPress mutation, deployment path, or production hook. Its purpose is to falsify the workspace model before any executor is built.
