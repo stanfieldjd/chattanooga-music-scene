@@ -7,7 +7,7 @@ on:
       - ".github/workflows/concentric-workspace-experiment.yml"
   push:
     branches:
-      - work/cmsa-functional-redteam
+      - work/concentric-workspace-experiments
     paths:
       - "workbench/harnesses/concentric-workspace/**"
       - ".github/workflows/concentric-workspace-experiment.yml"
