@@ -60,10 +60,14 @@ final class CUA_Bridge_Gateway {
 			return $resolved;
 		}
 
-		$ability = $resolved['ability'];
-		return $resolved['has_arguments']
-			? $ability->check_permissions( $resolved['arguments'] )
-			: $ability->check_permissions();
+		if ( 'rest' === $resolved['contract'] ) {
+			return CUA_REST_Bridge::check_bridge_permissions( $resolved['bridge'], $resolved['arguments'] );
+		}
+
+		return CUA_Ability_Bridge::target_permission(
+			$resolved['target'],
+			$resolved['has_arguments'] ? $resolved['arguments'] : null
+		);
 	}
 
 	public static function execute( $input, $readonly ) {
@@ -76,20 +80,22 @@ final class CUA_Bridge_Gateway {
 			return $resolved;
 		}
 
-		$ability = $resolved['ability'];
-		$permission = $resolved['has_arguments']
-			? $ability->check_permissions( $resolved['arguments'] )
-			: $ability->check_permissions();
-		if ( is_wp_error( $permission ) ) {
-			return $permission;
-		}
-		if ( ! $permission ) {
-			return new WP_Error( 'cua_bridge_gateway_forbidden', 'The selected bridge denied the current request.' );
+		if ( 'rest' === $resolved['contract'] ) {
+			$result = CUA_REST_Bridge::execute_bridge( $resolved['bridge'], $resolved['arguments'] );
+			if ( is_wp_error( $result ) ) {
+				return $result;
+			}
+
+			return array(
+				'bridge' => $resolved['bridge'],
+				'result' => $result,
+			);
 		}
 
-		$result = $resolved['has_arguments']
-			? $ability->execute( $resolved['arguments'] )
-			: $ability->execute();
+		$result = CUA_Ability_Bridge::execute_target(
+			$resolved['target'],
+			$resolved['has_arguments'] ? $resolved['arguments'] : null
+		);
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}
@@ -125,20 +131,41 @@ final class CUA_Bridge_Gateway {
 			);
 		}
 
-		$ability = function_exists( 'wp_get_ability' ) ? wp_get_ability( $bridge ) : null;
-		if ( ! $ability instanceof WP_Ability ) {
-			return new WP_Error( 'cua_bridge_gateway_unavailable', 'The selected catalog bridge is no longer registered.' );
-		}
-
 		$has_arguments = array_key_exists( 'input', $input );
 		$arguments = $has_arguments ? $input['input'] : null;
 		if ( $has_arguments && ! is_array( $arguments ) ) {
 			return new WP_Error( 'cua_bridge_gateway_invalid_arguments', 'Bridge arguments must be an object.' );
 		}
 
+		if ( 'rest' === ( $item['contract'] ?? '' ) ) {
+			if ( ! class_exists( 'CUA_REST_Bridge' ) ) {
+				return new WP_Error( 'cua_bridge_gateway_unavailable', 'The REST bridge resolver is unavailable.' );
+			}
+			if ( ! $has_arguments ) {
+				return new WP_Error( 'cua_bridge_gateway_invalid_arguments', 'REST bridge execution requires a concrete path input.' );
+			}
+
+			return array(
+				'bridge'        => $bridge,
+				'contract'      => 'rest',
+				'has_arguments' => true,
+				'arguments'     => $arguments,
+			);
+		}
+
+		if ( 'ability' !== ( $item['contract'] ?? '' ) || ! class_exists( 'CUA_Ability_Bridge' ) ) {
+			return new WP_Error( 'cua_bridge_gateway_unavailable', 'The selected catalog bridge contract is unavailable.' );
+		}
+
+		$target = isset( $item['target'] ) ? trim( (string) $item['target'] ) : '';
+		if ( '' === $target ) {
+			return new WP_Error( 'cua_bridge_gateway_unavailable', 'The selected catalog ability target is unavailable.' );
+		}
+
 		return array(
 			'bridge'        => $bridge,
-			'ability'       => $ability,
+			'contract'      => 'ability',
+			'target'        => $target,
 			'has_arguments' => $has_arguments,
 			'arguments'     => $arguments,
 		);
