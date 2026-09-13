@@ -35,6 +35,8 @@ jobs:
           php -l workbench/harnesses/concentric-workspace/capability-contracts.php
           php -l workbench/harnesses/concentric-workspace/contract-probe.php
           php -l workbench/harnesses/concentric-workspace/system-simulation.php
+          php -l workbench/harnesses/concentric-workspace/wp-cli-planner.php
+          php -l workbench/harnesses/concentric-workspace/wp-cli-planner-probe.php
 
       - name: Red-team routing escalation policy
         run: php workbench/harnesses/concentric-workspace/router-probe.php
@@ -44,6 +46,9 @@ jobs:
 
       - name: Red-team evidence and rollback lifecycle
         run: php workbench/harnesses/concentric-workspace/evidence-probe.php
+
+      - name: Red-team bounded WP-CLI planner
+        run: php workbench/harnesses/concentric-workspace/wp-cli-planner-probe.php
 
       - name: Run end-to-end workspace simulation
         run: php workbench/harnesses/concentric-workspace/system-simulation.php
