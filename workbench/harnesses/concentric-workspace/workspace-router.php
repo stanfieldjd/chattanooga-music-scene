@@ -84,6 +84,9 @@ final class CMSA_Concentric_Workspace_Router
     /** @return array{eligible:bool,reason:string} */
     private static function wordpress_eligibility(array $task, array $state, string $capability): array
     {
+        if (!self::ringAllowed($task, self::RING_WORDPRESS)) {
+            return self::no('ring_not_allowed_by_contract');
+        }
         if (($state['wordpress_boots'] ?? false) !== true) {
             return self::no('wordpress_unavailable');
         }
@@ -99,6 +102,9 @@ final class CMSA_Concentric_Workspace_Router
     /** @return array{eligible:bool,reason:string} */
     private static function wp_cli_eligibility(array $task, array $state, string $capability): array
     {
+        if (!self::ringAllowed($task, self::RING_WP_CLI)) {
+            return self::no('ring_not_allowed_by_contract');
+        }
         if (($state['wp_cli_available'] ?? false) !== true) {
             return self::no('wp_cli_unavailable');
         }
@@ -114,6 +120,9 @@ final class CMSA_Concentric_Workspace_Router
     /** @return array{eligible:bool,reason:string} */
     private static function host_eligibility(array $task, array $state, string $capability): array
     {
+        if (!self::ringAllowed($task, self::RING_HOST)) {
+            return self::no('ring_not_allowed_by_contract');
+        }
         if (($state['host_recovery_available'] ?? false) !== true) {
             return self::no('host_recovery_unavailable');
         }
@@ -129,6 +138,9 @@ final class CMSA_Concentric_Workspace_Router
     /** @return array{eligible:bool,reason:string} */
     private static function database_eligibility(array $task, array $state, string $capability): array
     {
+        if (!self::ringAllowed($task, self::RING_DATABASE)) {
+            return self::no('ring_not_allowed_by_contract');
+        }
         if (($state['database_recovery_available'] ?? false) !== true) {
             return self::no('database_recovery_unavailable');
         }
@@ -147,6 +159,9 @@ final class CMSA_Concentric_Workspace_Router
     /** @return array{eligible:bool,reason:string} */
     private static function browser_eligibility(array $task, array $state, string $capability): array
     {
+        if (!self::ringAllowed($task, self::RING_BROWSER)) {
+            return self::no('ring_not_allowed_by_contract');
+        }
         if (($state['browser_available'] ?? false) !== true) {
             return self::no('browser_unavailable');
         }
@@ -157,6 +172,15 @@ final class CMSA_Concentric_Workspace_Router
             return self::no('capability_not_supported');
         }
         return self::yes('last_resort_ui_adapter');
+    }
+
+    /** @param array<string,mixed> $task */
+    private static function ringAllowed(array $task, int $ring): bool
+    {
+        if (!array_key_exists('allowed_rings', $task)) {
+            return true;
+        }
+        return is_array($task['allowed_rings']) && in_array($ring, $task['allowed_rings'], true);
     }
 
     /** @param mixed $capabilities */
