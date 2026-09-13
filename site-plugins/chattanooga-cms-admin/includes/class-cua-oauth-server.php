@@ -222,7 +222,7 @@ final class CUA_OAuth_Server {
 	}
 
 	public static function resource_challenge() {
-		return 'Bearer resource_metadata="' . esc_url_raw( home_url( '/.well-known/oauth-protected-resource' ) ) . '", scope="' . self::SCOPE . '"';
+		return 'Bearer resource_metadata="' . esc_url_raw( home_url( '/.well-known/oauth-protected-resource' ) ) . '", error="invalid_token", error_description="The access token is missing, expired, revoked, or bound to an obsolete resource.", scope="' . self::SCOPE . '"';
 	}
 
 	private static function exchange_authorization_code( WP_REST_Request $request ) {
