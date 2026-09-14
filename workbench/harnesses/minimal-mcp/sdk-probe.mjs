@@ -31,7 +31,7 @@ try {
   }
 
   const server = client.getServerVersion();
-  if (!server || server.name !== 'minimal-mcp-tunnel' || server.version !== '0.0.3') {
+  if (!server || server.name !== 'minimal-mcp-tunnel' || server.version !== '0.0.4') {
     throw new Error(`Unexpected server identity: ${JSON.stringify(server)}`);
   }
 
@@ -39,6 +39,11 @@ try {
   const names = Array.isArray(listed.tools) ? listed.tools.map((tool) => tool.name).sort() : [];
   if (JSON.stringify(names) !== JSON.stringify(['fixture.echo', 'probe.site'])) {
     throw new Error(`Unexpected tool catalog: ${JSON.stringify(listed)}`);
+  }
+
+  const echoDefinition = listed.tools.find((tool) => tool.name === 'fixture.echo');
+  if (echoDefinition?.inputSchema?.properties?.text?.['x-mcp-header'] !== 'Text') {
+    throw new Error(`fixture.echo is missing x-mcp-header metadata: ${JSON.stringify(echoDefinition)}`);
   }
 
   const site = await client.callTool({ name: 'probe.site', arguments: {} });
@@ -49,6 +54,8 @@ try {
     throw new Error(`Unexpected WordPress title: ${JSON.stringify(site.structuredContent)}`);
   }
 
+  // The official 2026-07-28 client must derive Mcp-Param-Text from the
+  // cached tool definition. The server will reject this call if it does not.
   const echo = await client.callTool({ name: 'fixture.echo', arguments: { text: 'registry-works' } });
   if (echo.isError !== false || !echo.structuredContent) {
     throw new Error(`fixture.echo failed: ${JSON.stringify(echo)}`);
@@ -57,7 +64,12 @@ try {
     throw new Error(`Unexpected external fixture result: ${JSON.stringify(echo.structuredContent)}`);
   }
 
-  console.log('minimal-mcp-official-sdk: PASS protocol=2026-07-28 era=modern tools=2 external-registry=verified');
+  const unicode = await client.callTool({ name: 'fixture.echo', arguments: { text: ' Hello, 世界 ' } });
+  if (unicode.isError !== false || unicode.structuredContent?.echo !== ' Hello, 世界 ') {
+    throw new Error(`SDK Base64 mirrored-header path failed: ${JSON.stringify(unicode)}`);
+  }
+
+  console.log('minimal-mcp-official-sdk: PASS protocol=2026-07-28 era=modern tools=2 x-mcp-header=verified');
 } finally {
   await client.close().catch(() => {});
 }

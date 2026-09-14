@@ -7,6 +7,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class CMSA_Minimal_MCP_HTTP_Transport {
 	private const REST_NAMESPACE = 'minimal-mcp/v1';
 	private const REST_ROUTE     = '/mcp';
+	private const MAX_SAFE_INTEGER = 9007199254740991;
 
 	public static function bootstrap(): void {
 		add_action( 'rest_api_init', array( __CLASS__, 'register_route' ) );
@@ -116,9 +117,108 @@ final class CMSA_Minimal_MCP_HTTP_Transport {
 			if ( is_wp_error( $decoded ) || '' === $name || '' === $header_name || $name !== $decoded ) {
 				return self::error_routed( $id, -32020, 'Mcp-Name must be present, valid, and match params.name for tools/call.', 400 );
 			}
+
+			$arguments = isset( $params['arguments'] ) && is_array( $params['arguments'] ) ? $params['arguments'] : array();
+			$parameter_error = self::validate_tool_parameter_headers( $request, $name, $arguments );
+			if ( is_wp_error( $parameter_error ) ) {
+				return self::error_routed( $id, -32020, $parameter_error->get_error_message(), 400 );
+			}
 		}
 
 		return null;
+	}
+
+	/**
+	 * Validate all recognized Mcp-Param-* mirrors against the tools/call body.
+	 *
+	 * @param array<string,mixed> $arguments Tool call arguments.
+	 * @return true|WP_Error
+	 */
+	private static function validate_tool_parameter_headers( WP_REST_Request $request, string $tool_name, array $arguments ) {
+		foreach ( CMSA_Minimal_MCP_Tool_Registry::header_mirrors( $tool_name ) as $mirror ) {
+			$path   = isset( $mirror['path'] ) && is_array( $mirror['path'] ) ? $mirror['path'] : array();
+			$type   = isset( $mirror['type'] ) ? (string) $mirror['type'] : '';
+			$suffix = isset( $mirror['suffix'] ) ? (string) $mirror['suffix'] : '';
+			if ( empty( $path ) || '' === $suffix ) {
+				continue;
+			}
+
+			$found = false;
+			$value = self::argument_at_path( $arguments, $path, $found );
+			$header_name  = 'Mcp-Param-' . $suffix;
+			$header_value = $request->get_header( $header_name );
+			$has_header   = null !== $header_value;
+
+			if ( ! $found || null === $value ) {
+				if ( $has_header ) {
+					return new WP_Error( 'minimal_mcp_unexpected_parameter_header', $header_name . ' must be omitted when the corresponding argument is missing or null.' );
+				}
+				continue;
+			}
+
+			if ( ! $has_header ) {
+				return new WP_Error( 'minimal_mcp_missing_parameter_header', $header_name . ' is required because the corresponding tool argument is present.' );
+			}
+
+			$expected = self::parameter_string_value( $value, $type );
+			if ( is_wp_error( $expected ) ) {
+				return $expected;
+			}
+
+			$decoded = self::decode_header_value( (string) $header_value );
+			if ( is_wp_error( $decoded ) || $expected !== $decoded ) {
+				return new WP_Error( 'minimal_mcp_parameter_header_mismatch', $header_name . ' must exactly match the corresponding tool argument after MCP header decoding.' );
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * @param array<string,mixed> $arguments Tool arguments.
+	 * @param array<int,string>   $path Property path.
+	 * @param bool                $found Whether path exists.
+	 * @return mixed
+	 */
+	private static function argument_at_path( array $arguments, array $path, bool &$found ) {
+		$current = $arguments;
+		foreach ( $path as $segment ) {
+			if ( ! is_array( $current ) || ! array_key_exists( $segment, $current ) ) {
+				$found = false;
+				return null;
+			}
+			$current = $current[ $segment ];
+		}
+		$found = true;
+		return $current;
+	}
+
+	/**
+	 * Convert an annotated primitive into its MCP HTTP mirror string.
+	 *
+	 * @param mixed $value Body value.
+	 * @return string|WP_Error
+	 */
+	private static function parameter_string_value( $value, string $type ) {
+		switch ( $type ) {
+			case 'string':
+				return is_string( $value )
+					? $value
+					: new WP_Error( 'minimal_mcp_parameter_type_mismatch', 'Mirrored string argument has a non-string body value.' );
+
+			case 'boolean':
+				return is_bool( $value )
+					? ( $value ? 'true' : 'false' )
+					: new WP_Error( 'minimal_mcp_parameter_type_mismatch', 'Mirrored boolean argument has a non-boolean body value.' );
+
+			case 'integer':
+				if ( ! is_int( $value ) || $value < -self::MAX_SAFE_INTEGER || $value > self::MAX_SAFE_INTEGER ) {
+					return new WP_Error( 'minimal_mcp_parameter_type_mismatch', 'Mirrored integer argument must be an IEEE-754 safe integer.' );
+				}
+				return (string) $value;
+		}
+
+		return new WP_Error( 'minimal_mcp_parameter_type_mismatch', 'Unsupported mirrored parameter type.' );
 	}
 
 	/**
@@ -130,8 +230,8 @@ final class CMSA_Minimal_MCP_HTTP_Transport {
 				return new WP_Error( 'minimal_mcp_invalid_header_encoding', 'Invalid MCP Base64 header encoding.' );
 			}
 			$decoded = base64_decode( $matches[1], true );
-			if ( false === $decoded ) {
-				return new WP_Error( 'minimal_mcp_invalid_header_encoding', 'Invalid MCP Base64 header encoding.' );
+			if ( false === $decoded || 1 !== preg_match( '//u', $decoded ) ) {
+				return new WP_Error( 'minimal_mcp_invalid_header_encoding', 'MCP Base64 header payload must decode to valid UTF-8.' );
 			}
 			return $decoded;
 		}

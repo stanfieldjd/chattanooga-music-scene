@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Minimal MCP Dynamic Tool Fixture
  * Description: Disposable CI fixture proving external WordPress components can extend the minimal MCP registry.
- * Version: 0.0.1
+ * Version: 0.0.2
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -24,7 +24,10 @@ add_action(
 				'inputSchema' => array(
 					'type'                 => 'object',
 					'properties'           => array(
-						'text' => array( 'type' => 'string' ),
+						'text' => array(
+							'type'         => 'string',
+							'x-mcp-header' => 'Text',
+						),
 					),
 					'required'             => array( 'text' ),
 					'additionalProperties' => false,

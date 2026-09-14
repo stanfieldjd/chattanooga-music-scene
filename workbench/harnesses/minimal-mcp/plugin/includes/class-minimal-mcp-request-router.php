@@ -7,7 +7,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class CMSA_Minimal_MCP_Request_Router {
 	public const PROTOCOL_VERSION = '2026-07-28';
 	public const SERVER_NAME      = 'minimal-mcp-tunnel';
-	public const SERVER_VERSION   = '0.0.3';
+	public const SERVER_VERSION   = '0.0.4';
 
 	/**
 	 * Route one validated JSON-RPC request.
