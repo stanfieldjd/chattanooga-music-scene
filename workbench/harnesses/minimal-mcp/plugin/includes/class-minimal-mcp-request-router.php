@@ -7,7 +7,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class CMSA_Minimal_MCP_Request_Router {
 	public const PROTOCOL_VERSION = '2026-07-28';
 	public const SERVER_NAME      = 'minimal-mcp-tunnel';
-	public const SERVER_VERSION   = '0.0.2';
+	public const SERVER_VERSION   = '0.0.3';
 
 	/**
 	 * Route one validated JSON-RPC request.
@@ -37,7 +37,9 @@ final class CMSA_Minimal_MCP_Request_Router {
 						'capabilities'      => array(
 							'tools' => array( 'listChanged' => false ),
 						),
-						'instructions'      => 'Minimal MCP transport proof. The server exposes a compact read-only tool inventory.',
+						'instructions'      => 'Minimal MCP transport proof. Tools are supplied through a validated WordPress registry.',
+						'ttlMs'             => 30000,
+						'cacheScope'        => 'private',
 					)
 				);
 
@@ -52,7 +54,7 @@ final class CMSA_Minimal_MCP_Request_Router {
 				);
 
 			case 'tools/call':
-				$name = isset( $params['name'] ) ? trim( (string) $params['name'] ) : '';
+				$name      = isset( $params['name'] ) ? trim( (string) $params['name'] ) : '';
 				$arguments = isset( $params['arguments'] ) ? $params['arguments'] : array();
 				if ( ! is_array( $arguments ) || ( ! empty( $arguments ) && self::is_list_array( $arguments ) ) ) {
 					return self::success(

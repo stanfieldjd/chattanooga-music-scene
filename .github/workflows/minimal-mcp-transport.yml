@@ -52,7 +52,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          find workbench/harnesses/minimal-mcp/plugin -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+          find workbench/harnesses/minimal-mcp/plugin workbench/harnesses/minimal-mcp/fixtures -type f -name '*.php' -print0 | xargs -0 -n1 php -l
           bash -n workbench/harnesses/minimal-mcp/transport-probe.sh
           node --check workbench/harnesses/minimal-mcp/sdk-probe.mjs
 
@@ -66,9 +66,14 @@ jobs:
           php /tmp/wp-cli.phar config set WP_ENVIRONMENT_TYPE local --type=constant --path=/tmp/wordpress
           password="$(php -r 'echo bin2hex(random_bytes(20));')"
           php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://127.0.0.1:8091 --title="Minimal MCP Tunnel" --admin_user=admin --admin_password="$password" --admin_email=lab@example.invalid --skip-email
+
           cp -R workbench/harnesses/minimal-mcp/plugin /tmp/wordpress/wp-content/plugins/minimal-mcp-tunnel
-          php /tmp/wp-cli.phar plugin activate minimal-mcp-tunnel --path=/tmp/wordpress
+          mkdir -p /tmp/wordpress/wp-content/plugins/minimal-mcp-dynamic-fixture
+          cp workbench/harnesses/minimal-mcp/fixtures/dynamic-tool-fixture.php /tmp/wordpress/wp-content/plugins/minimal-mcp-dynamic-fixture/minimal-mcp-dynamic-fixture.php
+
+          php /tmp/wp-cli.phar plugin activate minimal-mcp-tunnel minimal-mcp-dynamic-fixture --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin is-active minimal-mcp-tunnel --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin is-active minimal-mcp-dynamic-fixture --path=/tmp/wordpress
 
       - name: Prove MCP over external HTTP and official SDK
         shell: bash

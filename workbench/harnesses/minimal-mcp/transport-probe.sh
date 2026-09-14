@@ -3,6 +3,10 @@ set -euo pipefail
 
 endpoint='http://127.0.0.1:8091/index.php?rest_route=%2Fminimal-mcp%2Fv1%2Fmcp'
 app_password="$(php /tmp/wp-cli.phar user application-password create admin minimal-mcp-ci --porcelain --path=/tmp/wordpress)"
+common_headers=(
+  -H 'Content-Type: application/json'
+  -H 'Accept: application/json, text/event-stream'
+)
 
 php -S 127.0.0.1:8091 -t /tmp/wordpress >/tmp/minimal-mcp-http.log 2>&1 &
 server_pid=$!
@@ -20,20 +24,30 @@ for attempt in $(seq 1 30); do
 done
 
 cat > /tmp/minimal-discover.json <<'JSON'
-{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/clientInfo":{"name":"minimal-mcp-ci","version":"1.0.0"}}}}
+{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"minimal-mcp-ci","version":"1.0.0"},"io.modelcontextprotocol/clientCapabilities":{}}}}
 JSON
 
 anonymous_code="$(curl -sS -o /tmp/minimal-anonymous.json -w '%{http_code}' \
-  -H 'Content-Type: application/json' \
+  "${common_headers[@]}" \
   -H 'MCP-Protocol-Version: 2026-07-28' \
   -H 'Mcp-Method: server/discover' \
   --data-binary @/tmp/minimal-discover.json \
   "$endpoint")"
 test "$anonymous_code" = '401'
 
+origin_code="$(curl -sS -o /tmp/minimal-origin.json -w '%{http_code}' \
+  --user "admin:${app_password}" \
+  "${common_headers[@]}" \
+  -H 'Origin: https://attacker.example' \
+  -H 'MCP-Protocol-Version: 2026-07-28' \
+  -H 'Mcp-Method: server/discover' \
+  --data-binary @/tmp/minimal-discover.json \
+  "$endpoint")"
+test "$origin_code" = '403'
+
 discover_code="$(curl -sS -D /tmp/minimal-discover-headers.txt -o /tmp/minimal-discover-response.json -w '%{http_code}' \
   --user "admin:${app_password}" \
-  -H 'Content-Type: application/json' \
+  "${common_headers[@]}" \
   -H 'MCP-Protocol-Version: 2026-07-28' \
   -H 'Mcp-Method: server/discover' \
   --data-binary @/tmp/minimal-discover.json \
@@ -46,15 +60,16 @@ $r=$d["result"]??[];
 if (($r["resultType"]??"")!=="complete") exit(1);
 if (($r["supportedVersions"]??[])!==["2026-07-28"]) exit(2);
 if (($r["_meta"]["io.modelcontextprotocol/serverInfo"]["name"]??"")!=="minimal-mcp-tunnel") exit(3);
+if (($r["_meta"]["io.modelcontextprotocol/serverInfo"]["version"]??"")!=="0.0.3") exit(4);
 '
 
 cat > /tmp/minimal-list.json <<'JSON'
-{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/clientInfo":{"name":"minimal-mcp-ci","version":"1.0.0"}}}}
+{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"minimal-mcp-ci","version":"1.0.0"},"io.modelcontextprotocol/clientCapabilities":{}}}}
 JSON
 
 list_code="$(curl -sS -o /tmp/minimal-list-response.json -w '%{http_code}' \
   --user "admin:${app_password}" \
-  -H 'Content-Type: application/json' \
+  "${common_headers[@]}" \
   -H 'MCP-Protocol-Version: 2026-07-28' \
   -H 'Mcp-Method: tools/list' \
   --data-binary @/tmp/minimal-list.json \
@@ -63,26 +78,29 @@ test "$list_code" = '200'
 php -r '
 $d=json_decode(file_get_contents("/tmp/minimal-list-response.json"),true);
 $tools=$d["result"]["tools"]??[];
-if (count($tools)!==1) exit(1);
-if (($tools[0]["name"]??"")!=="probe.site") exit(2);
-if (($tools[0]["annotations"]["readOnlyHint"]??false)!==true) exit(3);
+$names=array_map(static fn($tool)=>$tool["name"]??"",$tools);
+sort($names,SORT_STRING);
+if ($names!==["fixture.echo","probe.site"]) exit(1);
+foreach ($tools as $tool) {
+  if (($tool["annotations"]["readOnlyHint"]??false)!==true) exit(2);
+}
 '
 
-cat > /tmp/minimal-call.json <<'JSON'
-{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"probe.site","arguments":{},"_meta":{"io.modelcontextprotocol/clientInfo":{"name":"minimal-mcp-ci","version":"1.0.0"}}}}
+cat > /tmp/minimal-site-call.json <<'JSON'
+{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"probe.site","arguments":{},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"minimal-mcp-ci","version":"1.0.0"},"io.modelcontextprotocol/clientCapabilities":{}}}}
 JSON
 
-call_code="$(curl -sS -o /tmp/minimal-call-response.json -w '%{http_code}' \
+site_code="$(curl -sS -o /tmp/minimal-site-response.json -w '%{http_code}' \
   --user "admin:${app_password}" \
-  -H 'Content-Type: application/json' \
+  "${common_headers[@]}" \
   -H 'MCP-Protocol-Version: 2026-07-28' \
   -H 'Mcp-Method: tools/call' \
   -H 'Mcp-Name: probe.site' \
-  --data-binary @/tmp/minimal-call.json \
+  --data-binary @/tmp/minimal-site-call.json \
   "$endpoint")"
-test "$call_code" = '200'
+test "$site_code" = '200'
 php -r '
-$d=json_decode(file_get_contents("/tmp/minimal-call-response.json"),true);
+$d=json_decode(file_get_contents("/tmp/minimal-site-response.json"),true);
 $r=$d["result"]??[];
 $s=$r["structuredContent"]??[];
 if (($r["resultType"]??"")!=="complete") exit(1);
@@ -92,24 +110,76 @@ if (($s["siteTitle"]??"")!=="Minimal MCP Tunnel") exit(4);
 if (empty($s["wordpressVersion"])) exit(5);
 '
 
-bad_header_code="$(curl -sS -o /tmp/minimal-bad-header.json -w '%{http_code}' \
+cat > /tmp/minimal-echo-call.json <<'JSON'
+{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"fixture.echo","arguments":{"text":"registry-works"},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"minimal-mcp-ci","version":"1.0.0"},"io.modelcontextprotocol/clientCapabilities":{}}}}
+JSON
+
+echo_code="$(curl -sS -o /tmp/minimal-echo-response.json -w '%{http_code}' \
   --user "admin:${app_password}" \
-  -H 'Content-Type: application/json' \
+  "${common_headers[@]}" \
   -H 'MCP-Protocol-Version: 2026-07-28' \
-  -H 'Mcp-Method: tools/list' \
-  -H 'Mcp-Name: probe.site' \
-  --data-binary @/tmp/minimal-call.json \
+  -H 'Mcp-Method: tools/call' \
+  -H 'Mcp-Name: fixture.echo' \
+  --data-binary @/tmp/minimal-echo-call.json \
   "$endpoint")"
-test "$bad_header_code" = '400'
-php -r '$d=json_decode(file_get_contents("/tmp/minimal-bad-header.json"),true); if (($d["error"]["code"]??0)!==-32020) exit(1);'
+test "$echo_code" = '200'
+php -r '
+$d=json_decode(file_get_contents("/tmp/minimal-echo-response.json"),true);
+$r=$d["result"]??[];
+$s=$r["structuredContent"]??[];
+if (($r["isError"]??true)!==false) exit(1);
+if (($s["echo"]??"")!=="registry-works") exit(2);
+if (($s["source"]??"")!=="external-wordpress-plugin") exit(3);
+'
+
+encoded_name='=?base64?Zml4dHVyZS5lY2hv?='
+encoded_code="$(curl -sS -o /tmp/minimal-encoded-response.json -w '%{http_code}' \
+  --user "admin:${app_password}" \
+  "${common_headers[@]}" \
+  -H 'MCP-Protocol-Version: 2026-07-28' \
+  -H 'Mcp-Method: tools/call' \
+  -H "Mcp-Name: ${encoded_name}" \
+  --data-binary @/tmp/minimal-echo-call.json \
+  "$endpoint")"
+test "$encoded_code" = '200'
+
+mismatch_code="$(curl -sS -o /tmp/minimal-mismatch.json -w '%{http_code}' \
+  --user "admin:${app_password}" \
+  "${common_headers[@]}" \
+  -H 'MCP-Protocol-Version: 2026-07-27' \
+  -H 'Mcp-Method: server/discover' \
+  --data-binary @/tmp/minimal-discover.json \
+  "$endpoint")"
+test "$mismatch_code" = '400'
+php -r '$d=json_decode(file_get_contents("/tmp/minimal-mismatch.json"),true); if (($d["error"]["code"]??0)!==-32020) exit(1);'
+
+cat > /tmp/minimal-unsupported.json <<'JSON'
+{"jsonrpc":"2.0","id":5,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2099-01-01","io.modelcontextprotocol/clientInfo":{"name":"minimal-mcp-ci","version":"1.0.0"},"io.modelcontextprotocol/clientCapabilities":{}}}}
+JSON
+
+unsupported_code="$(curl -sS -o /tmp/minimal-unsupported-response.json -w '%{http_code}' \
+  --user "admin:${app_password}" \
+  "${common_headers[@]}" \
+  -H 'MCP-Protocol-Version: 2099-01-01' \
+  -H 'Mcp-Method: server/discover' \
+  --data-binary @/tmp/minimal-unsupported.json \
+  "$endpoint")"
+test "$unsupported_code" = '400'
+php -r '
+$d=json_decode(file_get_contents("/tmp/minimal-unsupported-response.json"),true);
+$e=$d["error"]??[];
+if (($e["code"]??0)!==-32022) exit(1);
+if (($e["data"]["supported"]??[])!==["2026-07-28"]) exit(2);
+if (($e["data"]["requested"]??"")!=="2099-01-01") exit(3);
+'
 
 cat > /tmp/minimal-initialize.json <<'JSON'
-{"jsonrpc":"2.0","id":4,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"legacy-client","version":"1.0.0"}}}
+{"jsonrpc":"2.0","id":6,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"legacy-client","version":"1.0.0"}}}
 JSON
 
 legacy_code="$(curl -sS -o /tmp/minimal-legacy.json -w '%{http_code}' \
   --user "admin:${app_password}" \
-  -H 'Content-Type: application/json' \
+  "${common_headers[@]}" \
   -H 'MCP-Protocol-Version: 2025-11-25' \
   -H 'Mcp-Method: initialize' \
   --data-binary @/tmp/minimal-initialize.json \
@@ -119,4 +189,4 @@ test "$legacy_code" = '400'
 MCP_ENDPOINT="$endpoint" MCP_USER='admin' MCP_PASSWORD="$app_password" \
   node workbench/harnesses/minimal-mcp/sdk-probe.mjs
 
-printf '%s\n' 'minimal-mcp-transport: PASS curl+official-sdk discover tools/list tools/call auth header-validation modern-only'
+printf '%s\n' 'minimal-mcp-transport: PASS curl+official-sdk dynamic-registry metadata-validation origin-validation base64-name modern-only'

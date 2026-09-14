@@ -31,27 +31,33 @@ try {
   }
 
   const server = client.getServerVersion();
-  if (!server || server.name !== 'minimal-mcp-tunnel' || server.version !== '0.0.2') {
+  if (!server || server.name !== 'minimal-mcp-tunnel' || server.version !== '0.0.3') {
     throw new Error(`Unexpected server identity: ${JSON.stringify(server)}`);
   }
 
   const listed = await client.listTools();
-  if (!Array.isArray(listed.tools) || listed.tools.length !== 1 || listed.tools[0].name !== 'probe.site') {
+  const names = Array.isArray(listed.tools) ? listed.tools.map((tool) => tool.name).sort() : [];
+  if (JSON.stringify(names) !== JSON.stringify(['fixture.echo', 'probe.site'])) {
     throw new Error(`Unexpected tool catalog: ${JSON.stringify(listed)}`);
   }
 
-  const called = await client.callTool({ name: 'probe.site', arguments: {} });
-  if (called.isError !== false) {
-    throw new Error(`probe.site returned an MCP tool error: ${JSON.stringify(called)}`);
+  const site = await client.callTool({ name: 'probe.site', arguments: {} });
+  if (site.isError !== false || !site.structuredContent || site.structuredContent.ok !== true) {
+    throw new Error(`probe.site failed: ${JSON.stringify(site)}`);
   }
-  if (!called.structuredContent || called.structuredContent.ok !== true) {
-    throw new Error(`probe.site did not return structured site proof: ${JSON.stringify(called)}`);
-  }
-  if (called.structuredContent.siteTitle !== 'Minimal MCP Tunnel') {
-    throw new Error(`Unexpected WordPress title: ${JSON.stringify(called.structuredContent)}`);
+  if (site.structuredContent.siteTitle !== 'Minimal MCP Tunnel') {
+    throw new Error(`Unexpected WordPress title: ${JSON.stringify(site.structuredContent)}`);
   }
 
-  console.log('minimal-mcp-official-sdk: PASS protocol=2026-07-28 era=modern tool=probe.site');
+  const echo = await client.callTool({ name: 'fixture.echo', arguments: { text: 'registry-works' } });
+  if (echo.isError !== false || !echo.structuredContent) {
+    throw new Error(`fixture.echo failed: ${JSON.stringify(echo)}`);
+  }
+  if (echo.structuredContent.echo !== 'registry-works' || echo.structuredContent.source !== 'external-wordpress-plugin') {
+    throw new Error(`Unexpected external fixture result: ${JSON.stringify(echo.structuredContent)}`);
+  }
+
+  console.log('minimal-mcp-official-sdk: PASS protocol=2026-07-28 era=modern tools=2 external-registry=verified');
 } finally {
   await client.close().catch(() => {});
 }
