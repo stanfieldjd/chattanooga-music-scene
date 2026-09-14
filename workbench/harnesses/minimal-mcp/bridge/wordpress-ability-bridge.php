@@ -102,8 +102,8 @@ final class CMSA_Minimal_MCP_WordPress_Ability_Bridge {
 					'required' => array( 'ability_name', 'result' ),
 				),
 				'annotations' => array(
-					'readOnlyHint'   => false,
-					'openWorldHint'  => false,
+					'readOnlyHint'  => false,
+					'openWorldHint' => false,
 				),
 			),
 			array( __CLASS__, 'execute' )
@@ -151,7 +151,7 @@ final class CMSA_Minimal_MCP_WordPress_Ability_Bridge {
 	public static function get_info( array $arguments ): array {
 		$ability = self::ability_from_arguments( $arguments );
 		if ( is_wp_error( $ability ) ) {
-			return self::tool_error( $ability->get_error_message(), $ability->get_error_code() );
+			return self::tool_error( $ability->get_error_message(), (string) $ability->get_error_code() );
 		}
 
 		return self::tool_success(
@@ -164,7 +164,8 @@ final class CMSA_Minimal_MCP_WordPress_Ability_Bridge {
 					'input_schema'  => $ability->get_input_schema(),
 					'output_schema' => $ability->get_output_schema(),
 					'meta'          => $ability->get_meta(),
-				)
+				),
+			)
 		);
 	}
 
@@ -172,7 +173,7 @@ final class CMSA_Minimal_MCP_WordPress_Ability_Bridge {
 	public static function execute( array $arguments ): array {
 		$ability = self::ability_from_arguments( $arguments );
 		if ( is_wp_error( $ability ) ) {
-			return self::tool_error( $ability->get_error_message(), $ability->get_error_code() );
+			return self::tool_error( $ability->get_error_message(), (string) $ability->get_error_code() );
 		}
 
 		try {
@@ -184,7 +185,7 @@ final class CMSA_Minimal_MCP_WordPress_Ability_Bridge {
 		}
 
 		if ( is_wp_error( $result ) ) {
-			return self::tool_error( $result->get_error_message(), $result->get_error_code() );
+			return self::tool_error( $result->get_error_message(), (string) $result->get_error_code() );
 		}
 
 		return self::tool_success(
@@ -212,7 +213,7 @@ final class CMSA_Minimal_MCP_WordPress_Ability_Bridge {
 	}
 
 	private static function is_public( WP_Ability $ability ): bool {
-		$meta = $ability->get_meta();
+		$meta   = $ability->get_meta();
 		$public = false;
 		if ( isset( $meta['mcp'] ) && is_array( $meta['mcp'] ) && array_key_exists( 'public', $meta['mcp'] ) ) {
 			$public = true === $meta['mcp']['public'];
@@ -246,7 +247,7 @@ final class CMSA_Minimal_MCP_WordPress_Ability_Bridge {
 				array( 'type' => 'text', 'text' => wp_json_encode( $data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) ),
 			),
 			'structuredContent' => $data,
-			'isError' => false,
+			'isError'           => false,
 		);
 	}
 
@@ -257,7 +258,7 @@ final class CMSA_Minimal_MCP_WordPress_Ability_Bridge {
 				array( 'type' => 'text', 'text' => $message ),
 			),
 			'isError' => true,
-			'_meta' => array( 'wordpress/errorCode' => $code ),
+			'_meta'   => array( 'wordpress/errorCode' => $code ),
 		);
 	}
 }
