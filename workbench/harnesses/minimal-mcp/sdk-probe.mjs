@@ -31,7 +31,7 @@ try {
   }
 
   const server = client.getServerVersion();
-  if (!server || server.name !== 'minimal-mcp-tunnel' || server.version !== '0.0.1') {
+  if (!server || server.name !== 'minimal-mcp-tunnel' || server.version !== '0.0.2') {
     throw new Error(`Unexpected server identity: ${JSON.stringify(server)}`);
   }
 
