@@ -116,4 +116,7 @@ legacy_code="$(curl -sS -o /tmp/minimal-legacy.json -w '%{http_code}' \
   "$endpoint")"
 test "$legacy_code" = '400'
 
-printf '%s\n' 'minimal-mcp-transport: PASS discover tools/list tools/call auth header-validation modern-only'
+MCP_ENDPOINT="$endpoint" MCP_USER='admin' MCP_PASSWORD="$app_password" \
+  node workbench/harnesses/minimal-mcp/sdk-probe.mjs
+
+printf '%s\n' 'minimal-mcp-transport: PASS curl+official-sdk discover tools/list tools/call auth header-validation modern-only'
