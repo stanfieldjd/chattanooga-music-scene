@@ -189,4 +189,33 @@ test "$legacy_code" = '400'
 MCP_ENDPOINT="$endpoint" MCP_USER='admin' MCP_PASSWORD="$app_password" \
   node workbench/harnesses/minimal-mcp/sdk-probe.mjs
 
-printf '%s\n' 'minimal-mcp-transport: PASS curl+official-sdk dynamic-registry metadata-validation origin-validation base64-name modern-only'
+authorization="Basic $(printf 'admin:%s' "$app_password" | base64 -w0)"
+MCP_ENDPOINT="$endpoint" MCP_AUTHORIZATION="$authorization" php -r '
+$endpoint=getenv("MCP_ENDPOINT");
+$authorization=getenv("MCP_AUTHORIZATION");
+file_put_contents("/tmp/minimal-inspector.json", json_encode([
+  "mcpServers" => [
+    "minimal" => [
+      "type" => "http",
+      "url" => $endpoint,
+      "headers" => ["Authorization" => $authorization],
+      "protocolEra" => "modern"
+    ]
+  ]
+], JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES));
+'
+
+npx --no-install mcp-inspector --cli \
+  --config /tmp/minimal-inspector.json --server minimal \
+  --method tools/list --format json > /tmp/minimal-inspector-list.json
+grep -Fq 'fixture.echo' /tmp/minimal-inspector-list.json
+grep -Fq 'probe.site' /tmp/minimal-inspector-list.json
+
+npx --no-install mcp-inspector --cli \
+  --config /tmp/minimal-inspector.json --server minimal \
+  --method tools/call --tool-name fixture.echo --tool-arg text=inspector-works --format json \
+  > /tmp/minimal-inspector-call.json
+grep -Fq 'inspector-works' /tmp/minimal-inspector-call.json
+grep -Fq 'external-wordpress-plugin' /tmp/minimal-inspector-call.json
+
+printf '%s\n' 'minimal-mcp-transport: PASS curl+official-sdk+inspector dynamic-registry metadata-validation origin-validation base64-name modern-only'

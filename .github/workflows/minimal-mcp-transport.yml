@@ -45,8 +45,8 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Install official MCP client SDK
-        run: npm install --no-save @modelcontextprotocol/client@latest
+      - name: Install MCP reference clients
+        run: npm install --no-save @modelcontextprotocol/client@latest @modelcontextprotocol/inspector@latest
 
       - name: Lint minimal MCP proof
         shell: bash
@@ -75,6 +75,6 @@ jobs:
           php /tmp/wp-cli.phar plugin is-active minimal-mcp-tunnel --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin is-active minimal-mcp-dynamic-fixture --path=/tmp/wordpress
 
-      - name: Prove MCP over external HTTP and official SDK
+      - name: Prove MCP over external HTTP, official SDK, and Inspector
         shell: bash
         run: bash workbench/harnesses/minimal-mcp/transport-probe.sh

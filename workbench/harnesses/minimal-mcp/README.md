@@ -39,6 +39,14 @@ CI also installs a separate disposable WordPress plugin from `fixtures/dynamic-t
 
 The fixture is not part of the MCP plugin and is never intended for production deployment.
 
+## Independent clients
+
+The endpoint is tested through three independent paths:
+
+1. raw HTTP requests that verify exact status codes, headers, and JSON-RPC error contracts;
+2. the official MCP TypeScript v2 client pinned to protocol `2026-07-28`; and
+3. the official MCP Inspector CLI configured with `protocolEra: "modern"`.
+
 ## CI proof
 
 The workflow verifies all PHP and probe syntax, installs disposable WordPress, activates the MCP plugin and the independent fixture plugin, then verifies:
@@ -53,8 +61,9 @@ The workflow verifies all PHP and probe syntax, installs disposable WordPress, a
 8. Base64-sentinel `Mcp-Name` decoding works;
 9. header/body protocol mismatch returns MCP `HeaderMismatch` (`-32020`);
 10. a mutually matched but unsupported protocol returns `UnsupportedProtocolVersion` (`-32022`) with supported/requested data;
-11. legacy initialization is rejected; and
-12. the official MCP TypeScript v2 client, pinned to `2026-07-28`, discovers and calls both tools.
+11. legacy initialization is rejected;
+12. the official MCP TypeScript v2 client discovers and calls both tools; and
+13. the official MCP Inspector CLI discovers the dynamic registry and calls the external fixture over the same HTTP endpoint.
 
 ## Deliberate omissions
 
