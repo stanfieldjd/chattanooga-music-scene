@@ -1,0 +1,92 @@
+name: MCP WordPress Ability Bridge
+
+on:
+  push:
+    branches:
+      - work/mcp-wordpress-capability-bridge
+    paths:
+      - "workbench/harnesses/minimal-mcp/plugin/**"
+      - "workbench/harnesses/minimal-mcp/bridge/**"
+      - "workbench/harnesses/minimal-mcp/fixtures/ability-fixture.php"
+      - ".github/workflows/mcp-wordpress-ability-bridge.yml"
+  pull_request:
+    paths:
+      - "workbench/harnesses/minimal-mcp/plugin/**"
+      - "workbench/harnesses/minimal-mcp/bridge/**"
+      - "workbench/harnesses/minimal-mcp/fixtures/ability-fixture.php"
+      - ".github/workflows/mcp-wordpress-ability-bridge.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  ability-bridge:
+    name: Layered WordPress ability bridge
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mysqli, zip, gd, fileinfo
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install official MCP client
+        run: npm install --no-save @modelcontextprotocol/client@latest
+
+      - name: Validate generic bridge source
+        shell: bash
+        run: |
+          set -euo pipefail
+          find workbench/harnesses/minimal-mcp/plugin workbench/harnesses/minimal-mcp/bridge -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+          php -l workbench/harnesses/minimal-mcp/fixtures/ability-fixture.php
+          bash -n workbench/harnesses/minimal-mcp/bridge/ability-bridge-probe.sh
+          node --check workbench/harnesses/minimal-mcp/bridge/ability-bridge-sdk-probe.mjs
+          if grep -REiq 'WooCommerce|WC_Product|wc_get_product|Events_Manager|events-manager|EM_Event|EM_Location|BuddyBoss|Rank_Math|rank-math|AWPCP|Weekend_Feature' workbench/harnesses/minimal-mcp/bridge/wordpress-ability-bridge.php; then
+            echo 'Ability bridge contains provider-specific implementation logic.' >&2
+            exit 1
+          fi
+
+      - name: Install disposable WordPress 7.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+          php /tmp/wp-cli.phar core download --version=7.1 --path=/tmp/wordpress --force
+          php /tmp/wp-cli.phar config create --path=/tmp/wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
+          php /tmp/wp-cli.phar config set WP_ENVIRONMENT_TYPE local --type=constant --path=/tmp/wordpress
+          password="$(php -r 'echo bin2hex(random_bytes(20));')"
+          php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://127.0.0.1:8092 --title="MCP Ability Bridge" --admin_user=admin --admin_password="$password" --admin_email=lab@example.invalid --skip-email
+
+          cp -R workbench/harnesses/minimal-mcp/plugin /tmp/wordpress/wp-content/plugins/minimal-mcp-tunnel
+          mkdir -p /tmp/wordpress/wp-content/plugins/minimal-mcp-wordpress-ability-bridge
+          cp workbench/harnesses/minimal-mcp/bridge/wordpress-ability-bridge.php /tmp/wordpress/wp-content/plugins/minimal-mcp-wordpress-ability-bridge/minimal-mcp-wordpress-ability-bridge.php
+          mkdir -p /tmp/wordpress/wp-content/plugins/minimal-mcp-ability-fixture
+          cp workbench/harnesses/minimal-mcp/fixtures/ability-fixture.php /tmp/wordpress/wp-content/plugins/minimal-mcp-ability-fixture/minimal-mcp-ability-fixture.php
+
+          php /tmp/wp-cli.phar plugin activate minimal-mcp-tunnel minimal-mcp-wordpress-ability-bridge minimal-mcp-ability-fixture --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin is-active minimal-mcp-tunnel --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin is-active minimal-mcp-wordpress-ability-bridge --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin is-active minimal-mcp-ability-fixture --path=/tmp/wordpress
+
+      - name: Prove layered ability discovery and execution
+        shell: bash
+        run: bash workbench/harnesses/minimal-mcp/bridge/ability-bridge-probe.sh
