@@ -9,6 +9,9 @@ common_headers=(
   -H 'Accept: application/json, text/event-stream'
 )
 
+test "${#token}" -eq 64
+printf '%s' "$token" | grep -Eq '^[a-f0-9]{64}$'
+
 php -S 127.0.0.1:8093 -t /tmp/wordpress >/tmp/minimal-mcp-bearer-http.log 2>&1 &
 server_pid=$!
 trap 'kill "$server_pid" 2>/dev/null || true' EXIT
@@ -34,8 +37,17 @@ missing_code="$(curl -sS -o /tmp/minimal-bearer-missing.json -w '%{http_code}' \
 test "$missing_code" = '401'
 grep -Fq 'minimal_mcp_bearer_required' /tmp/minimal-bearer-missing.json
 
+# A readable/human-style secret is not even accepted as a bearer-token shape.
+weak_code="$(curl -sS -o /tmp/minimal-bearer-weak.json -w '%{http_code}' \
+  "${common_headers[@]}" -H 'Authorization: Bearer correct-horse-battery-staple-this-is-not-a-machine-secret' \
+  -H 'MCP-Protocol-Version: 2026-07-28' -H 'Mcp-Method: server/discover' \
+  --data-binary @/tmp/minimal-bearer-discover.json "$endpoint")"
+test "$weak_code" = '401'
+grep -Fq 'minimal_mcp_bearer_required' /tmp/minimal-bearer-weak.json
+
+wrong_token='0000000000000000000000000000000000000000000000000000000000000000'
 wrong_code="$(curl -sS -o /tmp/minimal-bearer-wrong.json -w '%{http_code}' \
-  "${common_headers[@]}" -H 'Authorization: Bearer definitely-wrong-token-value-000000000000' \
+  "${common_headers[@]}" -H "Authorization: Bearer ${wrong_token}" \
   -H 'MCP-Protocol-Version: 2026-07-28' -H 'Mcp-Method: server/discover' \
   --data-binary @/tmp/minimal-bearer-discover.json "$endpoint")"
 test "$wrong_code" = '401'
@@ -61,12 +73,23 @@ if (($r["supportedVersions"]??[])!==["2026-07-28"]) exit(1);
 if (($r["_meta"]["io.modelcontextprotocol/serverInfo"]["name"]??"")!=="minimal-mcp-tunnel") exit(2);
 '
 
-# Scheme matching is case-insensitive.
+# Authentication scheme matching is case-insensitive.
 lowercase_code="$(curl -sS -o /tmp/minimal-bearer-lowercase.json -w '%{http_code}' \
   "${common_headers[@]}" -H "Authorization: bearer ${token}" \
   -H 'MCP-Protocol-Version: 2026-07-28' -H 'Mcp-Method: server/discover' \
   --data-binary @/tmp/minimal-bearer-discover.json "$endpoint")"
 test "$lowercase_code" = '200'
+
+# The bearer token itself is case-sensitive. Uppercasing its hex letters cannot authenticate.
+uppercase_token="$(printf '%s' "$token" | tr '[:lower:]' '[:upper:]')"
+if [ "$uppercase_token" != "$token" ]; then
+  uppercase_code="$(curl -sS -o /tmp/minimal-bearer-uppercase.json -w '%{http_code}' \
+    "${common_headers[@]}" -H "Authorization: Bearer ${uppercase_token}" \
+    -H 'MCP-Protocol-Version: 2026-07-28' -H 'Mcp-Method: server/discover' \
+    --data-binary @/tmp/minimal-bearer-discover.json "$endpoint")"
+  test "$uppercase_code" = '401'
+  grep -Fq 'minimal_mcp_bearer_required' /tmp/minimal-bearer-uppercase.json
+fi
 
 # The pre-parse JSON-RPC path must still enforce the bearer before returning -32700.
 printf '{' > /tmp/minimal-bearer-invalid-json.txt
@@ -95,4 +118,4 @@ npx --no-install mcp-inspector --cli --config /tmp/minimal-bearer-inspector.json
   --method tools/call --tool-name probe.site --format json > /tmp/minimal-bearer-inspector-call.json
 grep -Fq 'Minimal MCP Tunnel' /tmp/minimal-bearer-inspector-call.json
 
-printf '%s\n' 'minimal-mcp-manual-bearer: PASS exclusive-bearer curl+official-sdk+inspector malformed-json-authenticated'
+printf '%s\n' 'minimal-mcp-manual-bearer: PASS 256-bit-random digest-at-rest exclusive-bearer case-sensitive-token curl+official-sdk+inspector malformed-json-authenticated'
