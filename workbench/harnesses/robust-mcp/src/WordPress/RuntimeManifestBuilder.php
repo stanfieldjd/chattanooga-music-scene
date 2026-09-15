@@ -9,10 +9,14 @@ final class RuntimeManifestBuilder
     public const MANIFEST_VERSION = 1;
 
     /** @var list<string> */
-    private const REQUIRED_SECTIONS = [
+    private const CONTEXT_SECTIONS = [
         'runtime',
-        'site',
         'principal',
+    ];
+
+    /** @var list<string> */
+    private const INVENTORY_SECTIONS = [
+        'site',
         'plugins',
         'themes',
         'post_types',
@@ -25,9 +29,10 @@ final class RuntimeManifestBuilder
     ];
 
     /**
-     * Build a deterministic inventory manifest. The residence is deliberately
-     * excluded from the fingerprint: inside-WordPress and externally booted
-     * executions over the same runtime must fingerprint identically.
+     * Build a deterministic site manifest. Residence and execution context are
+     * deliberately excluded from the fingerprint: an inside process and an
+     * external wp-load.php process over the same site must fingerprint the same
+     * structural WordPress inventory.
      *
      * @return array<string,mixed>
      */
@@ -37,13 +42,24 @@ final class RuntimeManifestBuilder
             throw new \InvalidArgumentException('Unknown WordPress workspace residence.');
         }
 
-        $inventory = $source->collect();
-        foreach (self::REQUIRED_SECTIONS as $section) {
-            if (!array_key_exists($section, $inventory) || !is_array($inventory[$section])) {
+        $collected = $source->collect();
+        foreach ([...self::CONTEXT_SECTIONS, ...self::INVENTORY_SECTIONS] as $section) {
+            if (!array_key_exists($section, $collected) || !is_array($collected[$section])) {
                 throw new \UnexpectedValueException(sprintf('WordPress runtime inventory is missing array section "%s".', $section));
             }
         }
 
+        $context = [];
+        foreach (self::CONTEXT_SECTIONS as $section) {
+            $context[$section] = $collected[$section];
+        }
+
+        $inventory = [];
+        foreach (self::INVENTORY_SECTIONS as $section) {
+            $inventory[$section] = $collected[$section];
+        }
+
+        $context = $this->canonicalize($context);
         $inventory = $this->canonicalize($inventory);
         $json = json_encode(
             $inventory,
@@ -54,6 +70,7 @@ final class RuntimeManifestBuilder
             'manifest_version' => self::MANIFEST_VERSION,
             'residence' => $residence,
             'fingerprint' => hash('sha256', $json),
+            'context' => $context,
             'inventory' => $inventory,
         ];
     }
