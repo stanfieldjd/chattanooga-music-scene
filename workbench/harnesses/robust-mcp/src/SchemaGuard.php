@@ -14,6 +14,7 @@ final class SchemaGuard
     public const MAX_SCHEMA_BYTES = 131072;
     public const MAX_SCHEMA_DEPTH = 32;
     public const MAX_SCHEMA_NODES = 4096;
+    public const MAX_COMPOSITION_SCORE = 4096;
     public const MAX_DATA_DEPTH = 64;
     public const MAX_DATA_NODES = 20000;
     public const MAX_VALIDATION_ERRORS = 8;
@@ -47,21 +48,22 @@ final class SchemaGuard
      */
     public function assertSafeSchema(array|object $schema, string $label): void
     {
+        $schema = $this->normalizeRootSchema($schema);
         $encoded = json_encode($schema, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         if (strlen($encoded) > self::MAX_SCHEMA_BYTES) {
             throw new SchemaGuardException(sprintf('%s exceeds the %d-byte schema limit.', $label, self::MAX_SCHEMA_BYTES));
         }
 
-        $state = ['nodes' => 0, 'composition' => 1];
-        $this->scanSchema($schema, 0, '$', $state, $label);
+        $nodes = 0;
+        $this->scanSchema($schema, 0, '$', $nodes, 1, $label);
 
         $schemaObject = json_decode($encoded, false, 512, JSON_THROW_ON_ERROR);
         if ($schemaObject instanceof \stdClass && !property_exists($schemaObject, '$schema')) {
             $schemaObject->{'$schema'} = self::DRAFT_2020_12;
         }
 
-        // Force Opis to parse and resolve the entire reachable schema. Whether the
-        // sentinel itself validates is irrelevant; parsing failures are not.
+        // Force Opis to parse and resolve the reachable schema. Whether this
+        // sentinel validates is irrelevant; parser/resolver failures are not.
         try {
             $this->validator->validate(new \stdClass(), $schemaObject);
         } catch (SchemaException $error) {
@@ -76,8 +78,10 @@ final class SchemaGuard
      */
     public function assertValidData(mixed $data, array|object $schema, string $label, bool $rootObject = false): void
     {
-        $this->assertDataBounds($data, 0, $label, ['nodes' => 0]);
+        $nodes = 0;
+        $this->assertDataBounds($data, 0, $label, $nodes);
 
+        $schema = $this->normalizeRootSchema($schema);
         $encodedSchema = json_encode($schema, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         $schemaObject = json_decode($encodedSchema, false, 512, JSON_THROW_ON_ERROR);
         if ($schemaObject instanceof \stdClass && !property_exists($schemaObject, '$schema')) {
@@ -105,7 +109,11 @@ final class SchemaGuard
             if (count($messages) >= self::MAX_VALIDATION_ERRORS) {
                 break;
             }
-            $messages[] = sprintf('%s: %s', (string) $pointer, is_array($message) ? implode('; ', array_map('strval', $message)) : (string) $message);
+            $messages[] = sprintf(
+                '%s: %s',
+                (string) $pointer,
+                is_array($message) ? implode('; ', array_map('strval', $message)) : (string) $message,
+            );
         }
 
         $summary = [] === $messages ? 'schema constraint failed' : implode(' | ', $messages);
@@ -114,16 +122,21 @@ final class SchemaGuard
 
     /**
      * @param array<string,mixed>|object $node
-     * @param array{nodes:int,composition:int} $state
      */
-    private function scanSchema(array|object $node, int $depth, string $path, array &$state, string $label): void
-    {
+    private function scanSchema(
+        array|object $node,
+        int $depth,
+        string $path,
+        int &$nodes,
+        int $compositionScore,
+        string $label,
+    ): void {
         if ($depth > self::MAX_SCHEMA_DEPTH) {
             throw new SchemaGuardException(sprintf('%s exceeds the maximum schema depth of %d at %s.', $label, self::MAX_SCHEMA_DEPTH, $path));
         }
 
-        ++$state['nodes'];
-        if ($state['nodes'] > self::MAX_SCHEMA_NODES) {
+        ++$nodes;
+        if ($nodes > self::MAX_SCHEMA_NODES) {
             throw new SchemaGuardException(sprintf('%s exceeds the maximum schema node count of %d.', $label, self::MAX_SCHEMA_NODES));
         }
 
@@ -148,44 +161,42 @@ final class SchemaGuard
                 throw new SchemaGuardException(sprintf('%s uses non-standard Opis keyword %s at %s.', $label, $key, $childPath));
             }
 
+            $childCompositionScore = $compositionScore;
             if (in_array($key, ['allOf', 'anyOf', 'oneOf'], true) && is_array($value)) {
                 $branches = max(1, count($value));
-                if ($state['composition'] > intdiv(self::MAX_SCHEMA_NODES, $branches)) {
+                if ($compositionScore > intdiv(self::MAX_COMPOSITION_SCORE, $branches)) {
                     throw new SchemaGuardException(sprintf('%s has excessive schema composition complexity at %s.', $label, $childPath));
                 }
-                $state['composition'] *= $branches;
+                $childCompositionScore *= $branches;
             }
 
             if (is_array($value) || $value instanceof \stdClass) {
-                $this->scanSchema($value, $depth + 1, $childPath, $state, $label);
+                $this->scanSchema($value, $depth + 1, $childPath, $nodes, $childCompositionScore, $label);
             }
         }
     }
 
-    /**
-     * @param array{nodes:int} $state
-     */
-    private function assertDataBounds(mixed $value, int $depth, string $label, array $state): void
+    private function assertDataBounds(mixed $value, int $depth, string $label, int &$nodes): void
     {
         if ($depth > self::MAX_DATA_DEPTH) {
             throw new SchemaViolationException(sprintf('%s exceeds the maximum JSON depth of %d.', $label, self::MAX_DATA_DEPTH));
         }
 
-        ++$state['nodes'];
-        if ($state['nodes'] > self::MAX_DATA_NODES) {
+        ++$nodes;
+        if ($nodes > self::MAX_DATA_NODES) {
             throw new SchemaViolationException(sprintf('%s exceeds the maximum JSON node count of %d.', $label, self::MAX_DATA_NODES));
         }
 
         if (is_array($value)) {
             foreach ($value as $child) {
-                $this->assertDataBounds($child, $depth + 1, $label, $state);
+                $this->assertDataBounds($child, $depth + 1, $label, $nodes);
             }
             return;
         }
 
         if ($value instanceof \stdClass) {
             foreach (get_object_vars($value) as $child) {
-                $this->assertDataBounds($child, $depth + 1, $label, $state);
+                $this->assertDataBounds($child, $depth + 1, $label, $nodes);
             }
             return;
         }
@@ -197,8 +208,14 @@ final class SchemaGuard
             } catch (\Throwable $error) {
                 throw new SchemaViolationException(sprintf('%s contains a non-JSON-serializable value.', $label), 0, $error);
             }
-            $this->assertDataBounds($decoded, $depth + 1, $label, $state);
+            $this->assertDataBounds($decoded, $depth + 1, $label, $nodes);
         }
+    }
+
+    /** @param array<string,mixed>|object $schema */
+    private function normalizeRootSchema(array|object $schema): array|object
+    {
+        return is_array($schema) && [] === $schema ? new \stdClass() : $schema;
     }
 
     private function toJsonValue(mixed $data, bool $rootObject): mixed
