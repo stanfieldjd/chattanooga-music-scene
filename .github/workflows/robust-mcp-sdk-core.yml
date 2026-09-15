@@ -66,6 +66,9 @@ jobs:
           find workbench/harnesses/robust-mcp/src -type f -name '*.php' -print0 | xargs -0 -n1 php -l
           php -l workbench/harnesses/robust-mcp/server.php
           php -l workbench/harnesses/robust-mcp/schema-probe.php
+          php -l workbench/harnesses/robust-mcp/wordpress-runtime-probe.php
+          php -l workbench/harnesses/robust-mcp/wordpress-runtime-live-probe.php
+          php -l workbench/harnesses/robust-mcp/fixtures/blanket-runtime-fixture.php
           bash -n workbench/harnesses/robust-mcp/transport-probe.sh
           bash -n workbench/harnesses/robust-mcp/transport-probe-ci.sh
           bash -n workbench/harnesses/robust-mcp/bearer-auth-probe.sh
@@ -85,3 +88,113 @@ jobs:
         working-directory: workbench/harnesses/robust-mcp
         shell: bash
         run: bash bearer-auth-probe.sh
+
+  wordpress-runtime:
+    name: Blanket WordPress runtime parity
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mysqli, zip, fileinfo
+          tools: composer:v2
+
+      - name: Install locked runtime dependencies
+        working-directory: workbench/harnesses/robust-mcp
+        run: |
+          set -euo pipefail
+          composer validate --strict
+          composer install --no-interaction --prefer-dist --no-progress
+          composer audit --locked
+          git diff --exit-code -- composer.lock
+
+      - name: Prove runtime contract without WordPress
+        working-directory: workbench/harnesses/robust-mcp
+        run: |
+          set -euo pipefail
+          php -l src/WordPress/RuntimeInventorySourceInterface.php
+          php -l src/WordPress/RuntimeManifestBuilder.php
+          php -l src/WordPress/NativeWordPressRuntimeSource.php
+          php -l src/WordPress/ExternalWordPressBootstrap.php
+          php -l wordpress-runtime-probe.php
+          php -l wordpress-runtime-live-probe.php
+          php -l fixtures/blanket-runtime-fixture.php
+          php wordpress-runtime-probe.php
+
+      - name: Install verified WP-CLI 2.12.0
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/wp-cli.phar https://github.com/wp-cli/wp-cli/releases/download/v2.12.0/wp-cli-2.12.0.phar
+          echo "ce34ddd838f7351d6759068d09793f26755463b4a4610a5a5c0a97b68220d85c  /tmp/wp-cli.phar" | sha256sum -c -
+          php /tmp/wp-cli.phar --version
+
+      - name: Install disposable WordPress 7.1
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/wordpress
+          php /tmp/wp-cli.phar core download --version=7.1 --path=/tmp/wordpress --force
+          php /tmp/wp-cli.phar config create --path=/tmp/wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
+          password="$(php -r 'echo bin2hex(random_bytes(20));')"
+          php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://robust-runtime.test --title="Robust Runtime" --admin_user=admin --admin_password="$password" --admin_email=runtime@example.invalid --skip-email
+          test "$(php /tmp/wp-cli.phar core version --path=/tmp/wordpress)" = "7.1"
+
+      - name: Install generic blanket runtime fixture
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/wordpress/wp-content/plugins/robust-mcp-blanket-runtime
+          cp workbench/harnesses/robust-mcp/fixtures/blanket-runtime-fixture.php /tmp/wordpress/wp-content/plugins/robust-mcp-blanket-runtime/robust-mcp-blanket-runtime.php
+          php /tmp/wp-cli.phar plugin activate robust-mcp-blanket-runtime --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin is-active robust-mcp-blanket-runtime --path=/tmp/wordpress
+
+      - name: Compare inside and outside runtime manifests
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/robust-mcp/wordpress-runtime-live-probe.php" inside --use-include --path=/tmp/wordpress > /tmp/inside-manifest.json
+          php "$GITHUB_WORKSPACE/workbench/harnesses/robust-mcp/wordpress-runtime-live-probe.php" outside /tmp/wordpress > /tmp/outside-manifest.json
+          php -r '
+          $inside=json_decode(file_get_contents("/tmp/inside-manifest.json"),true,512,JSON_THROW_ON_ERROR);
+          $outside=json_decode(file_get_contents("/tmp/outside-manifest.json"),true,512,JSON_THROW_ON_ERROR);
+          $fail=static function(string $m): never {fwrite(STDERR,$m.PHP_EOL);exit(1);};
+          if (($inside["manifest_version"]??null)!==1 || ($outside["manifest_version"]??null)!==1) $fail("manifest version mismatch");
+          if (($inside["residence"]??null)!=="inside-wordpress") $fail("inside residence mismatch");
+          if (($outside["residence"]??null)!=="outside-wordpress") $fail("outside residence mismatch");
+          if (($inside["fingerprint"]??null)!==($outside["fingerprint"]??null)) $fail("inside/outside structural fingerprints differ");
+          foreach (["inside"=>$inside,"outside"=>$outside] as $label=>$manifest) {
+            $i=$manifest["inventory"]??[];
+            if (!isset($i["post_types"]["blanket_record"])) $fail("$label missing generic CPT");
+            if (!isset($i["taxonomies"]["blanket_genre"])) $fail("$label missing generic taxonomy");
+            if (!isset($i["settings"]["blanket_runtime_option"])) $fail("$label missing registered setting metadata");
+            $setting=$i["settings"]["blanket_runtime_option"];
+            if (($setting["has_default"]??false)!==true || array_key_exists("default",$setting) || array_key_exists("value",$setting)) $fail("$label setting inventory leaked a value or lost default-presence metadata");
+            if (!isset($i["abilities"]["blanket-fixture/read-runtime"])) $fail("$label missing generic Ability");
+            $routes=$i["rest_routes"]??[];
+            $routeFound=false;
+            foreach ($routes as $route=>$meta) {
+              if (str_contains((string)$route,"/blanket-fixture/v1/ping")) {
+                $routeFound=true;
+                if (isset($meta["callback"]) || isset($meta["permission_callback"])) $fail("$label REST inventory leaked callbacks");
+              }
+            }
+            if (!$routeFound) $fail("$label missing generic REST route");
+            $plugin=$i["plugins"]["robust-mcp-blanket-runtime/robust-mcp-blanket-runtime.php"]??null;
+            if (!is_array($plugin) || ($plugin["active"]??false)!==true) $fail("$label missing active fixture plugin");
+            if (($manifest["context"]["runtime"]["wordpress_version"]??null)!=="7.1") $fail("$label WordPress version mismatch");
+          }
+          echo "robust-wordpress-runtime-live: PASS wordpress=7.1 parity=inside/outside cpt=generic taxonomy=generic setting=metadata-only rest=discovered ability=discovered\n";
+          '
