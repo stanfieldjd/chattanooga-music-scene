@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use Chattanooga\RobustMcp\ManualBearerAuthMiddleware;
 use Chattanooga\RobustMcp\McpHttpSemanticsMiddleware;
+use Chattanooga\RobustMcp\OAuthRuntimeFactory;
+use Chattanooga\RobustMcp\PreflightBypassMiddleware;
 use Chattanooga\RobustMcp\RequestTelemetryMiddleware;
 use Chattanooga\RobustMcp\RobustToolRegistrar;
 use Chattanooga\RobustMcp\SchemaGuard;
@@ -14,6 +16,8 @@ use Mcp\Schema\ToolAnnotations;
 use Mcp\Server;
 use Mcp\Server\ClientGateway;
 use Mcp\Server\Session\FileSessionStore;
+use Mcp\Server\Transport\Http\Middleware\AuthorizationMiddleware;
+use Mcp\Server\Transport\Http\Middleware\ProtectedResourceMetadataMiddleware;
 use Mcp\Server\Transport\StreamableHttpTransport;
 use Mcp\Server\Wire\CachePolicy;
 use Nyholm\Psr7\Factory\Psr17Factory;
@@ -78,7 +82,8 @@ if ('/readyz' === $path) {
     ]);
 }
 
-if ('/mcp' !== $path) {
+$isPotentialOAuthMetadata = str_starts_with($path, '/.well-known/oauth-protected-resource');
+if ('/mcp' !== $path && !$isPotentialOAuthMetadata) {
     $jsonResponse(404, ['error' => 'not_found']);
 }
 
@@ -92,8 +97,17 @@ $configurationFailure = static function () use ($jsonResponse): never {
 try {
     $configuration = ServerConfiguration::fromEnvironment();
     $configuration->prepareForServing();
+    $oauthRuntime = 'oauth-jwt' === $configuration->authMode
+        ? (new OAuthRuntimeFactory())->create($configuration->oauth ?? throw new \LogicException('OAuth configuration missing.'))
+        : null;
 } catch (\Throwable) {
     $configurationFailure();
+}
+
+if ($isPotentialOAuthMetadata) {
+    if (null === $oauthRuntime || !in_array($path, $oauthRuntime->metadata->getMetadataPaths(), true)) {
+        $jsonResponse(404, ['error' => 'not_found']);
+    }
 }
 
 $builder = Server::builder()
@@ -249,7 +263,20 @@ try {
     $configurationFailure();
 }
 
-if ('manual-bearer' === $configuration->authMode) {
+if (null !== $oauthRuntime) {
+    $middleware[] = new ProtectedResourceMetadataMiddleware(
+        metadata: $oauthRuntime->metadata,
+        responseFactory: $factory,
+        streamFactory: $factory,
+    );
+    $middleware[] = new PreflightBypassMiddleware(
+        new AuthorizationMiddleware(
+            validator: $oauthRuntime->validator,
+            resourceMetadata: $oauthRuntime->metadata,
+            responseFactory: $factory,
+        ),
+    );
+} elseif ('manual-bearer' === $configuration->authMode) {
     try {
         $middleware[] = new ManualBearerAuthMiddleware(
             expectedSha256: (string) $configuration->bearerSha256,
