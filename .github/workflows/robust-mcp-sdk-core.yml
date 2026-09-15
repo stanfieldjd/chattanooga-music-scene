@@ -61,6 +61,7 @@ jobs:
           php -l workbench/harnesses/robust-mcp/server.php
           php -l workbench/harnesses/robust-mcp/schema-probe.php
           bash -n workbench/harnesses/robust-mcp/transport-probe.sh
+          bash -n workbench/harnesses/robust-mcp/transport-probe-ci.sh
           node --check workbench/harnesses/robust-mcp/sdk-probe.mjs
 
       - name: Red-team JSON Schema registration and validation
@@ -69,4 +70,4 @@ jobs:
 
       - name: Prove robust MCP over curl, official SDK, and Inspector
         shell: bash
-        run: bash workbench/harnesses/robust-mcp/transport-probe.sh
+        run: bash workbench/harnesses/robust-mcp/transport-probe-ci.sh
