@@ -78,4 +78,20 @@ jobs:
 
       - name: Prove MCP HTTP/JSON-RPC conformance with curl, official SDK, and Inspector
         shell: bash
-        run: bash workbench/harnesses/minimal-mcp/transport-probe.sh
+        run: |
+          set +e
+          bash workbench/harnesses/minimal-mcp/transport-probe.sh
+          rc=$?
+          if [ "$rc" -ne 0 ]; then
+            echo '--- MCP probe diagnostic files ---'
+            for file in /tmp/minimal-*.json /tmp/minimal-*-headers.txt /tmp/minimal-notification-response; do
+              if [ -f "$file" ]; then
+                echo "### $file"
+                cat "$file" || true
+                echo
+              fi
+            done
+            echo '--- MCP HTTP server log ---'
+            cat /tmp/minimal-mcp-http.log || true
+          fi
+          exit "$rc"
