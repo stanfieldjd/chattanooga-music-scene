@@ -85,18 +85,31 @@ jobs:
           bash workbench/harnesses/minimal-mcp/transport-probe.sh
           bash workbench/harnesses/minimal-mcp/auth-preparse-probe.sh
 
-      - name: Enable manually configured bearer mode
+      - name: Enable robust manually configured bearer mode
         shell: bash
         run: |
           set -euo pipefail
           token="$(php -r 'echo bin2hex(random_bytes(32));')"
+          digest="$(printf '%s' "$token" | sha256sum | awk '{print $1}')"
           user_id="$(php /tmp/wp-cli.phar user get admin --field=ID --path=/tmp/wordpress)"
-          php /tmp/wp-cli.phar config set CMSA_MINIMAL_MCP_BEARER_TOKEN "$token" --type=constant --path=/tmp/wordpress
-          php /tmp/wp-cli.phar config set CMSA_MINIMAL_MCP_BEARER_USER_ID "$user_id" --type=constant --raw --path=/tmp/wordpress
-          printf '%s' "$token" > /tmp/minimal-mcp-bearer-token
-          chmod 600 /tmp/minimal-mcp-bearer-token
 
-      - name: Prove exclusive manual bearer authentication
+          test "${#token}" -eq 64
+          printf '%s' "$token" | grep -Eq '^[a-f0-9]{64}$'
+          printf '%s' "$digest" | grep -Eq '^[a-f0-9]{64}$'
+
+          php /tmp/wp-cli.phar config set CMSA_MINIMAL_MCP_BEARER_SHA256 "$digest" --type=constant --path=/tmp/wordpress
+          php /tmp/wp-cli.phar config set CMSA_MINIMAL_MCP_BEARER_USER_ID "$user_id" --type=constant --raw --path=/tmp/wordpress
+
+          # The plaintext bearer secret is client-side only. WordPress keeps only its digest.
+          ! grep -Fq "$token" /tmp/wordpress/wp-config.php
+          ! grep -Fq 'CMSA_MINIMAL_MCP_BEARER_TOKEN' /tmp/wordpress/wp-config.php
+          grep -Fq 'CMSA_MINIMAL_MCP_BEARER_SHA256' /tmp/wordpress/wp-config.php
+
+          umask 077
+          printf '%s' "$token" > /tmp/minimal-mcp-bearer-token
+          test "$(wc -c < /tmp/minimal-mcp-bearer-token)" -eq 64
+
+      - name: Prove exclusive robust manual bearer authentication
         shell: bash
         run: |
           set -euo pipefail
