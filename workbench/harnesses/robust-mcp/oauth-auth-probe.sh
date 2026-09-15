@@ -121,7 +121,9 @@ grep -Eiq 'scope="mcp:connect"' /tmp/robust-oauth-missing.headers
 malformed_code="$(curl -sS -D /tmp/robust-oauth-malformed.headers -o /tmp/robust-oauth-malformed.json -w '%{http_code}' \
   "${common_headers[@]}" -H 'Authorization: Basic not-oauth' \
   --data-binary @/tmp/robust-oauth-discover.json "$endpoint")"
-test "$malformed_code" = '400'
+# The SDK follows the Bearer challenge model for malformed credentials: HTTP
+# 401 carries error="invalid_request" rather than using a separate 400 status.
+test "$malformed_code" = '401'
 grep -Eiq 'error="invalid_request"' /tmp/robust-oauth-malformed.headers
 
 # CORS preflight must never require a bearer token.
