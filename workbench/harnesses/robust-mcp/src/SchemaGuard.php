@@ -240,11 +240,3 @@ final class SchemaGuard
         }
     }
 }
-
-class SchemaGuardException extends \RuntimeException
-{
-}
-
-final class SchemaViolationException extends SchemaGuardException
-{
-}
