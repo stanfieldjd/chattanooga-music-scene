@@ -26,7 +26,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.2"
-          extensions: fileinfo
+          extensions: fileinfo, openssl
           tools: composer:v2
 
       - uses: actions/setup-node@v4
@@ -54,6 +54,15 @@ jobs:
           composer install --no-interaction --prefer-dist --no-progress
           composer audit --locked
           composer check-platform-reqs --no-dev
+          php -r '
+          $lock=json_decode(file_get_contents("composer.lock"),true,512,JSON_THROW_ON_ERROR);
+          $jwt=null;
+          foreach ($lock["packages"] as $package) {
+            if (($package["name"]??"")==="firebase/php-jwt") {$jwt=ltrim((string)$package["version"],"v"); break;}
+          }
+          if (null===$jwt || version_compare($jwt,"7.1.1","<")) {fwrite(STDERR,"Patched firebase/php-jwt 7.1.1+ is required.\n"); exit(1);}
+          echo "firebase/php-jwt locked at $jwt\n";
+          '
           git diff --exit-code -- composer.lock
 
       - name: Install locked MCP reference clients
@@ -81,9 +90,13 @@ jobs:
           php -l server.php
           php -l schema-probe.php
           php -l wordpress-runtime-probe.php
+          php -l oauth-fixture-router.php
+          php -l oauth-fixture-keygen.php
+          php -l oauth-fixture-token.php
           bash -n transport-probe.sh
           bash -n transport-probe-ci.sh
           bash -n bearer-dual-era-probe.sh
+          bash -n oauth-auth-probe.sh
           bash -n readiness-probe.sh
           bash -n multiworker-session-probe.sh
           bash -n tool-contract-probe.sh
@@ -94,6 +107,7 @@ jobs:
           node --check tool-contract-probe.mjs
           node --check bearer-sdk-probe.mjs
           node --check bearer-legacy-sdk-probe.mjs
+          node --check oauth-sdk-probe.mjs
           node -e 'JSON.parse(require("fs").readFileSync("tool-contract-baseline.json","utf8"));'
 
       - name: Red-team strict JSON Schema boundary
@@ -114,10 +128,15 @@ jobs:
         shell: bash
         run: bash tool-contract-probe.sh
 
-      - name: Red-team dual-era bearer authentication
+      - name: Red-team dual-era manual bearer authentication
         working-directory: workbench/harnesses/robust-mcp
         shell: bash
         run: bash bearer-dual-era-probe.sh
+
+      - name: Red-team OAuth ChatGPT authentication
+        working-directory: workbench/harnesses/robust-mcp
+        shell: bash
+        run: bash oauth-auth-probe.sh
 
       - name: Prove liveness and readiness fail independently
         working-directory: workbench/harnesses/robust-mcp
