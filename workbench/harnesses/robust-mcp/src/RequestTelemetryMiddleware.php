@@ -44,6 +44,7 @@ final class RequestTelemetryMiddleware implements MiddlewareInterface
             $this->write([
                 'ts' => gmdate('c'),
                 'request_id' => $requestId,
+                'worker_pid' => getmypid(),
                 'http_method' => strtoupper($request->getMethod()),
                 'path' => $request->getUri()->getPath(),
                 'mcp_protocol_version' => $this->boundedToken($request->getHeaderLine('MCP-Protocol-Version')),
