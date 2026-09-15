@@ -4,13 +4,6 @@ declare(strict_types=1);
 
 namespace Chattanooga\RobustMcp;
 
-/**
- * Validated, immutable runtime configuration for the MCP HTTP process.
- *
- * Configuration errors are intentionally represented as exceptions here so the
- * entrypoint can map them to a generic 503 readiness result or a generic 500
- * serving error without disclosing filesystem paths or credential details.
- */
 final class ServerConfiguration
 {
     private const AUTH_MODES = ['none', 'manual-bearer', 'oauth-jwt'];
@@ -27,16 +20,14 @@ final class ServerConfiguration
         'ROBUST_MCP_OAUTH_CACHE_TTL',
     ];
 
-    /**
-     * @param non-empty-list<string> $allowedHosts
-     * @param list<string> $allowedOrigins
-     */
+    /** @param non-empty-list<string> $allowedHosts @param list<string> $allowedOrigins */
     private function __construct(
         public readonly string $authMode,
         public readonly ?string $bearerSha256,
         public readonly ?OAuthConfiguration $oauth,
         public readonly string $sessionDirectory,
         public readonly int $sessionTtl,
+        public readonly int $sessionLockTimeoutMs,
         public readonly ?string $telemetryLog,
         public readonly array $allowedHosts,
         public readonly array $allowedOrigins,
@@ -52,10 +43,7 @@ final class ServerConfiguration
         }
 
         $modeRaw = getenv('ROBUST_MCP_AUTH_MODE');
-        $mode = false === $modeRaw || '' === trim($modeRaw)
-            ? (null !== $digest ? 'manual-bearer' : 'none')
-            : trim($modeRaw);
-
+        $mode = false === $modeRaw || '' === trim($modeRaw) ? (null !== $digest ? 'manual-bearer' : 'none') : trim($modeRaw);
         if (!in_array($mode, self::AUTH_MODES, true)) {
             throw new \InvalidArgumentException('Unknown MCP authentication mode.');
         }
@@ -72,16 +60,8 @@ final class ServerConfiguration
             : trim($sessionDirRaw);
         self::assertPath($sessionDirectory, 'session directory');
 
-        $ttlRaw = getenv('ROBUST_MCP_SESSION_TTL');
-        if (false === $ttlRaw || '' === trim($ttlRaw)) {
-            $sessionTtl = 3600;
-        } else {
-            $parsed = filter_var($ttlRaw, FILTER_VALIDATE_INT);
-            if (false === $parsed || $parsed < 60 || $parsed > 86400) {
-                throw new \InvalidArgumentException('Session TTL must be between 60 and 86400 seconds.');
-            }
-            $sessionTtl = (int) $parsed;
-        }
+        $sessionTtl = self::boundedInteger('ROBUST_MCP_SESSION_TTL', 3600, 60, 86400, 'Session TTL');
+        $sessionLockTimeoutMs = self::boundedInteger('ROBUST_MCP_SESSION_LOCK_TIMEOUT_MS', 5000, 100, 30000, 'Session lock timeout');
 
         $telemetryRaw = getenv('ROBUST_MCP_LOG_FILE');
         $telemetryLog = false === $telemetryRaw || '' === trim($telemetryRaw) ? null : trim($telemetryRaw);
@@ -93,13 +73,7 @@ final class ServerConfiguration
         if ('oauth-jwt' !== $mode && $oauthEnvironmentConfigured) {
             throw new \InvalidArgumentException('OAuth configuration must not be present outside oauth-jwt mode.');
         }
-
-        $oauth = 'oauth-jwt' === $mode
-            ? OAuthConfiguration::fromEnvironment($sessionDirectory)
-            : null;
-
-        $allowedHosts = self::allowedHosts($oauth);
-        $allowedOrigins = self::allowedOrigins();
+        $oauth = 'oauth-jwt' === $mode ? OAuthConfiguration::fromEnvironment($sessionDirectory) : null;
 
         return new self(
             $mode,
@@ -107,13 +81,13 @@ final class ServerConfiguration
             $oauth,
             $sessionDirectory,
             $sessionTtl,
+            $sessionLockTimeoutMs,
             $telemetryLog,
-            $allowedHosts,
-            $allowedOrigins,
+            self::allowedHosts($oauth),
+            self::allowedOrigins(),
         );
     }
 
-    /** Validate paths needed by ordinary requests without a sentinel write. */
     public function prepareForServing(): void
     {
         $this->ensureSessionDirectory();
@@ -121,20 +95,12 @@ final class ServerConfiguration
         $this->oauth?->prepareForServing();
     }
 
-    /**
-     * Prove that the process can actually use its configured persistence paths.
-     * This is intentionally stronger than checking is_writable(): it creates,
-     * locks, atomically renames, reads, and removes a sentinel in the session
-     * directory, matching the operations used by FileSessionStore.
-     */
     public function assertReady(): void
     {
         $this->prepareForServing();
-
         $sentinel = $this->sessionDirectory . DIRECTORY_SEPARATOR . '.ready-' . bin2hex(random_bytes(12));
         $renamed = $sentinel . '.ok';
         $payload = bin2hex(random_bytes(16));
-
         try {
             if (strlen($this->sessionDirectory) > 4096) {
                 throw new \RuntimeException('Session directory path is unreasonably long.');
@@ -146,24 +112,21 @@ final class ServerConfiguration
             if (!@rename($sentinel, $renamed)) {
                 throw new \RuntimeException('Session directory cannot perform an atomic rename.');
             }
-            $read = @file_get_contents($renamed);
-            if ($payload !== $read) {
+            if ($payload !== @file_get_contents($renamed)) {
                 throw new \RuntimeException('Session directory cannot round-trip data.');
             }
+            new SessionLockCoordinator($this->sessionDirectory);
         } finally {
             @unlink($sentinel);
             @unlink($renamed);
         }
-
         $this->oauth?->assertReady();
     }
 
     public function ensureSessionDirectory(): void
     {
-        if (!is_dir($this->sessionDirectory)) {
-            if (!@mkdir($this->sessionDirectory, 0700, true) && !is_dir($this->sessionDirectory)) {
-                throw new \RuntimeException('Session directory could not be created.');
-            }
+        if (!is_dir($this->sessionDirectory) && !@mkdir($this->sessionDirectory, 0700, true) && !is_dir($this->sessionDirectory)) {
+            throw new \RuntimeException('Session directory could not be created.');
         }
         @chmod($this->sessionDirectory, 0700);
         if (!is_dir($this->sessionDirectory) || !is_writable($this->sessionDirectory)) {
@@ -189,7 +152,6 @@ final class ServerConfiguration
         foreach (self::DEFAULT_ALLOWED_HOSTS as $host) {
             $hosts[self::normalizeHost($host)] = true;
         }
-
         if (null !== $oauth) {
             $resourceHost = parse_url($oauth->resource, PHP_URL_HOST);
             if (is_string($resourceHost) && '' !== $resourceHost) {
@@ -199,17 +161,14 @@ final class ServerConfiguration
                 $hosts[self::normalizeHost($resourceHost)] = true;
             }
         }
-
         $raw = getenv('ROBUST_MCP_ALLOWED_HOSTS');
         if (false !== $raw && '' !== trim($raw)) {
             foreach (explode(',', $raw) as $host) {
-                $host = trim($host);
-                if ('' !== $host) {
-                    $hosts[self::normalizeHost($host)] = true;
+                if ('' !== trim($host)) {
+                    $hosts[self::normalizeHost(trim($host))] = true;
                 }
             }
         }
-
         /** @var non-empty-list<string> $result */
         $result = array_keys($hosts);
         sort($result, SORT_STRING);
@@ -220,19 +179,13 @@ final class ServerConfiguration
     private static function allowedOrigins(): array
     {
         $raw = getenv('ROBUST_MCP_ALLOWED_ORIGINS');
-        $origins = false === $raw || '' === trim($raw)
-            ? self::DEFAULT_CHATGPT_ORIGINS
-            : explode(',', $raw);
-
+        $origins = false === $raw || '' === trim($raw) ? self::DEFAULT_CHATGPT_ORIGINS : explode(',', $raw);
         $normalized = [];
         foreach ($origins as $origin) {
-            $origin = trim($origin);
-            if ('' === $origin) {
-                continue;
+            if ('' !== trim($origin)) {
+                $normalized[self::normalizeOrigin(trim($origin))] = true;
             }
-            $normalized[self::normalizeOrigin($origin)] = true;
         }
-
         $result = array_keys($normalized);
         sort($result, SORT_STRING);
         return $result;
@@ -269,14 +222,12 @@ final class ServerConfiguration
         if ('' !== $path && '/' !== $path) {
             throw new \InvalidArgumentException('Allowed MCP Origin must not contain a path.');
         }
-
         $scheme = strtolower((string) $parts['scheme']);
         $host = strtolower((string) $parts['host']);
         $loopback = in_array($host, ['127.0.0.1', 'localhost', '::1'], true);
         if ('https' !== $scheme && !('http' === $scheme && $loopback)) {
             throw new \InvalidArgumentException('Allowed MCP Origins must use HTTPS except for loopback testing.');
         }
-
         $portNumber = isset($parts['port']) ? (int) $parts['port'] : null;
         $defaultPort = ('https' === $scheme && 443 === $portNumber) || ('http' === $scheme && 80 === $portNumber);
         $port = null !== $portNumber && !$defaultPort ? ':' . $portNumber : '';
@@ -291,8 +242,20 @@ final class ServerConfiguration
                 return true;
             }
         }
-
         return false;
+    }
+
+    private static function boundedInteger(string $environmentName, int $default, int $min, int $max, string $label): int
+    {
+        $raw = getenv($environmentName);
+        if (false === $raw || '' === trim($raw)) {
+            return $default;
+        }
+        $value = filter_var($raw, FILTER_VALIDATE_INT);
+        if (false === $value || $value < $min || $value > $max) {
+            throw new \InvalidArgumentException(sprintf('%s must be between %d and %d.', $label, $min, $max));
+        }
+        return (int) $value;
     }
 
     private static function assertPath(string $path, string $label): void
