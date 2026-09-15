@@ -1,0 +1,47 @@
+name: Bootstrap Robust MCP Lock
+
+on:
+  push:
+    branches:
+      - work/robust-mcp-sdk-core
+    paths:
+      - ".github/workflows/robust-mcp-lock-bootstrap.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  lock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/robust-mcp-sdk-core
+          fetch-depth: 0
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: fileinfo
+          tools: composer:v2
+
+      - name: Reproduce and verify exact green lock
+        working-directory: workbench/harnesses/robust-mcp
+        run: |
+          set -euo pipefail
+          composer validate --strict --no-check-lock
+          composer update --no-interaction --prefer-dist --no-progress
+          composer validate --strict
+          composer audit --locked
+          actual="$(sha256sum composer.lock | awk '{print $1}')"
+          test "$actual" = "b4682d0b622fcfdc8565343847bcf329ea079cd3ad148c7cb769e652e12e80e3"
+
+      - name: Commit verified lock only
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- workbench/harnesses/robust-mcp/composer.lock
+          git diff --cached --quiet && exit 0
+          git commit -m "Lock robust MCP dependencies"
+          git push origin HEAD:work/robust-mcp-sdk-core
