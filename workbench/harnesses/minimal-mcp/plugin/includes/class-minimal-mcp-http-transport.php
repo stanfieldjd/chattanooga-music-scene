@@ -5,9 +5,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class CMSA_Minimal_MCP_HTTP_Transport {
-	private const REST_NAMESPACE   = 'minimal-mcp/v1';
-	private const REST_ROUTE       = '/mcp';
-	private const MAX_SAFE_INTEGER = 9007199254740991;
+	private const REST_NAMESPACE    = 'minimal-mcp/v1';
+	private const REST_ROUTE        = '/mcp';
+	private const MAX_SAFE_INTEGER  = 9007199254740991;
+	private const MAX_REQUEST_BYTES = 1048576;
 
 	public static function bootstrap(): void {
 		add_action( 'rest_api_init', array( __CLASS__, 'register_route' ) );
@@ -77,10 +78,20 @@ final class CMSA_Minimal_MCP_HTTP_Transport {
 			return self::response( self::error_routed( null, -32000, 'Not Acceptable: Accept must include application/json and text/event-stream.', 406 ) );
 		}
 
-		$payload = json_decode( (string) $request->get_body(), true );
+		$body = (string) $request->get_body();
+		if ( strlen( $body ) > self::MAX_REQUEST_BYTES ) {
+			return self::response( self::error_routed( null, -32000, 'Request body exceeds the MCP server size limit.', 413 ) );
+		}
+
+		$payload = json_decode( $body, true );
 		if ( JSON_ERROR_NONE !== json_last_error() ) {
 			return self::response( self::error_routed( null, -32700, 'Parse error: invalid JSON.', 400 ) );
 		}
+		$native_payload = json_decode( $body );
+		if ( JSON_ERROR_NONE !== json_last_error() ) {
+			return self::response( self::error_routed( null, -32700, 'Parse error: invalid JSON.', 400 ) );
+		}
+
 		if ( ! is_array( $payload ) ) {
 			return self::response( self::error_routed( null, -32600, 'Invalid JSON-RPC request.', 400 ) );
 		}
@@ -119,7 +130,7 @@ final class CMSA_Minimal_MCP_HTTP_Transport {
 			return self::response( $validation_error );
 		}
 
-		return self::response( CMSA_Minimal_MCP_Request_Router::route( $payload ) );
+		return self::response( CMSA_Minimal_MCP_Request_Router::route( $payload, $native_payload ) );
 	}
 
 	/**
