@@ -27,17 +27,17 @@ final class RobustToolRegistrar
     /**
      * Register a tool only after its model-facing contract is complete and its
      * schemas pass the robust guard. This server deliberately requires an
-     * output schema and all four MCP safety hints so ChatGPT never scans an
-     * ambiguous tool contract.
+     * object-root output schema and all four MCP safety hints so ChatGPT never
+     * scans an ambiguous tool contract.
      *
      * @param array<string,mixed> $inputSchema
-     * @param array<string,mixed>|bool $outputSchema
+     * @param array<string,mixed> $outputSchema
      */
     public function addTool(
         string $name,
         string $description,
         array $inputSchema,
-        array|bool $outputSchema,
+        array $outputSchema,
         callable $callback,
         string $title,
         ToolAnnotations $annotations,
@@ -74,12 +74,9 @@ final class RobustToolRegistrar
         if (($inputSchema['type'] ?? null) !== 'object') {
             throw new SchemaGuardException(sprintf('Input schema for tool "%s" must have a JSON Schema root type of object.', $name));
         }
-
-        $normalizedOutput = match ($outputSchema) {
-            true => [],
-            false => ['not' => []],
-            default => $outputSchema,
-        };
+        if (($outputSchema['type'] ?? null) !== 'object') {
+            throw new SchemaGuardException(sprintf('Output schema for tool "%s" must have a JSON Schema root type of object.', $name));
+        }
 
         $tool = new Tool(
             name: $name,
@@ -87,15 +84,12 @@ final class RobustToolRegistrar
             inputSchema: $inputSchema,
             description: $description,
             annotations: $annotations,
-            outputSchema: $normalizedOutput,
+            outputSchema: $outputSchema,
         );
 
         $this->guard->assertSafeSchema($tool->inputSchema, sprintf('inputSchema for tool "%s"', $name));
-        if (null === $tool->outputSchema) {
-            throw new SchemaGuardException(sprintf('Tool "%s" must declare an outputSchema.', $name));
-        }
-        if (($tool->outputSchema['type'] ?? null) !== 'object') {
-            throw new SchemaGuardException(sprintf('Output schema for tool "%s" must have a JSON Schema root type of object.', $name));
+        if (null === $tool->outputSchema || ($tool->outputSchema['type'] ?? null) !== 'object') {
+            throw new SchemaGuardException(sprintf('Tool "%s" must retain an object-root outputSchema after SDK normalization.', $name));
         }
         $this->guard->assertSafeSchema($tool->outputSchema, sprintf('outputSchema for tool "%s"', $name));
 
