@@ -15,6 +15,18 @@ idp_counter='/tmp/robust-oauth-idp-counter.log'
 telemetry='/tmp/robust-oauth-telemetry.log'
 sessions='/tmp/robust-oauth-sessions'
 cache='/tmp/robust-oauth-cache'
+idp_pid=''
+mcp_pid=''
+
+cleanup() {
+  if [[ "${mcp_pid:-}" =~ ^[1-9][0-9]*$ ]]; then
+    kill "$mcp_pid" 2>/dev/null || true
+  fi
+  if [[ "${idp_pid:-}" =~ ^[1-9][0-9]*$ ]]; then
+    kill "$idp_pid" 2>/dev/null || true
+  fi
+}
+trap cleanup EXIT
 
 rm -rf "$sessions" "$cache"
 rm -f "$private_key" "$bad_private_key" "$jwks" "$bad_jwks" "$idp_counter" "$telemetry" \
@@ -59,7 +71,6 @@ ROBUST_MCP_SESSION_DIR="$sessions" \
 ROBUST_MCP_LOG_FILE="$telemetry" \
 php -S 127.0.0.1:8100 "$base_dir/server.php" >/tmp/robust-oauth-mcp.log 2>&1 &
 mcp_pid=$!
-trap 'kill "$mcp_pid" "$idp_pid" 2>/dev/null || true' EXIT
 
 for attempt in $(seq 1 30); do
   idp_code="$(curl -sS -o /tmp/robust-oauth-idp-ready.json -w '%{http_code}' "$idp/.well-known/oauth-authorization-server" || true)"
@@ -132,7 +143,7 @@ grep -Fq '/jwks' "$idp_counter"
 # identity-provider round trip after warm-up.
 kill "$idp_pid" 2>/dev/null || true
 wait "$idp_pid" 2>/dev/null || true
-idp_pid=0
+idp_pid=''
 
 assert_status() {
   local expected="$1" token="$2" label="$3"
@@ -177,8 +188,8 @@ done
 
 # The identity provider stayed offline during all client calls above. If cache
 # use failed, those calls would have failed instead of silently reaching it.
-if kill -0 "$idp_pid" 2>/dev/null; then
-  echo 'OAuth fixture identity provider unexpectedly remained alive' >&2
+if curl -fsS --max-time 1 "$idp/.well-known/oauth-authorization-server" >/dev/null 2>&1; then
+  echo 'OAuth fixture identity provider unexpectedly remained reachable' >&2
   exit 1
 fi
 
