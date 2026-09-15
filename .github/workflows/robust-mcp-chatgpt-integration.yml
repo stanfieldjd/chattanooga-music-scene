@@ -86,12 +86,15 @@ jobs:
           bash -n bearer-dual-era-probe.sh
           bash -n readiness-probe.sh
           bash -n multiworker-session-probe.sh
+          bash -n tool-contract-probe.sh
           node --check sdk-probe.mjs
           node --check legacy-sdk-probe.mjs
           node --check auto-sdk-probe.mjs
           node --check chatgpt-scan-probe.mjs
+          node --check tool-contract-probe.mjs
           node --check bearer-sdk-probe.mjs
           node --check bearer-legacy-sdk-probe.mjs
+          node -e 'JSON.parse(require("fs").readFileSync("tool-contract-baseline.json","utf8"));'
 
       - name: Red-team strict JSON Schema boundary
         working-directory: workbench/harnesses/robust-mcp
@@ -105,6 +108,11 @@ jobs:
         working-directory: workbench/harnesses/robust-mcp
         shell: bash
         run: bash transport-probe-ci.sh
+
+      - name: Freeze ChatGPT-visible tool contract
+        working-directory: workbench/harnesses/robust-mcp
+        shell: bash
+        run: bash tool-contract-probe.sh
 
       - name: Red-team dual-era bearer authentication
         working-directory: workbench/harnesses/robust-mcp
