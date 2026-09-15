@@ -57,6 +57,7 @@ jobs:
           set -euo pipefail
           find workbench/harnesses/minimal-mcp/plugin -path '*/vendor' -prune -o -type f -name '*.php' -print0 | xargs -0 -n1 php -l
           find workbench/harnesses/minimal-mcp/fixtures -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+          php -l workbench/harnesses/minimal-mcp/registry-health-probe.php
           php -l workbench/harnesses/minimal-mcp/schema-registry-probe.php
           bash -n workbench/harnesses/minimal-mcp/transport-probe.sh
           bash -n workbench/harnesses/minimal-mcp/auth-preparse-probe.sh
@@ -85,6 +86,10 @@ jobs:
           php /tmp/wp-cli.phar plugin activate robust-mcp-server robust-mcp-dynamic-fixture --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin is-active robust-mcp-server --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin is-active robust-mcp-dynamic-fixture --path=/tmp/wordpress
+
+      - name: Prove built-in MCP registry health
+        shell: bash
+        run: php /tmp/wp-cli.phar eval-file workbench/harnesses/minimal-mcp/registry-health-probe.php --path=/tmp/wordpress
 
       - name: Re-prove modern MCP transport conformance
         shell: bash
