@@ -5,10 +5,14 @@
   "license": "proprietary",
   "require": {
     "php": "^8.2",
+    "ext-openssl": "*",
+    "firebase/php-jwt": "^6.10",
     "mcp/sdk": "~0.8.1",
     "nyholm/psr7": "^1.8",
     "nyholm/psr7-server": "^1.1",
-    "opis/json-schema": "^2.6"
+    "opis/json-schema": "^2.6",
+    "symfony/cache": "^7.3",
+    "symfony/http-client": "^7.3"
   },
   "autoload": {
     "psr-4": {
