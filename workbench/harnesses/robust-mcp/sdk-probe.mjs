@@ -19,7 +19,7 @@ try {
   }
 
   const server = client.getServerVersion();
-  if (!server || server.name !== 'chattanooga-robust-mcp' || server.version !== '0.1.0') {
+  if (!server || server.name !== 'chattanooga-robust-mcp' || server.version !== '0.2.0') {
     throw new Error(`Unexpected server identity: ${JSON.stringify(server)}`);
   }
 
@@ -35,6 +35,12 @@ try {
   }
   if (echoDefinition?.inputSchema?.properties?.text?.['x-mcp-header'] !== 'Text') {
     throw new Error(`x-mcp-header metadata missing: ${JSON.stringify(echoDefinition)}`);
+  }
+  for (const tool of listed.tools) {
+    const a = tool.annotations;
+    if (!a || a.readOnlyHint !== true || a.destructiveHint !== false || a.idempotentHint !== true || a.openWorldHint !== false) {
+      throw new Error(`Explicit tool annotations missing for ${tool.name}: ${JSON.stringify(a)}`);
+    }
   }
 
   const counted = await client.callTool({
@@ -98,7 +104,7 @@ try {
     throw new Error('Unknown tool was not rejected as -32602 Invalid Params.');
   }
 
-  console.log('robust-mcp-official-sdk: PASS protocol=2026-07-28 era=modern schemas=2020-12 input=guarded output=guarded tools=2');
+  console.log('robust-mcp-official-sdk: PASS protocol=2026-07-28 era=modern schemas=2020-12 input=guarded output=guarded annotations=explicit tools=2');
 } finally {
   await client.close().catch(() => {});
 }
