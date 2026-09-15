@@ -6,11 +6,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 final class CMSA_Minimal_MCP_Request_Router {
 	public const PROTOCOL_VERSION = '2026-07-28';
-	public const SERVER_NAME      = 'minimal-mcp-tunnel';
-	public const SERVER_VERSION   = '0.0.5';
+	public const SERVER_NAME      = 'robust-mcp-server';
+	public const SERVER_VERSION   = '0.1.0';
 
-	/** @param array<string,mixed> $payload @return array<string,mixed> */
-	public static function route( array $payload ): array {
+	/**
+	 * @param array<string,mixed> $payload Associative payload used by the PHP router.
+	 * @param mixed               $native_payload Native json_decode() payload preserving object/list distinctions.
+	 * @return array<string,mixed>
+	 */
+	public static function route( array $payload, $native_payload = null ): array {
 		$id = array_key_exists( 'id', $payload ) ? $payload['id'] : null;
 		if ( '2.0' !== ( $payload['jsonrpc'] ?? null ) || ! isset( $payload['method'] ) || ! is_string( $payload['method'] ) || '' === $payload['method'] ) {
 			return self::protocol_error( $id, -32600, 'Invalid JSON-RPC request.', 400 );
@@ -22,6 +26,11 @@ final class CMSA_Minimal_MCP_Request_Router {
 		$method = $payload['method'];
 		$params = isset( $payload['params'] ) && is_array( $payload['params'] ) ? $payload['params'] : array();
 
+		$registry_health = CMSA_Minimal_MCP_Tool_Registry::health();
+		if ( is_wp_error( $registry_health ) ) {
+			return self::protocol_error( $id, -32603, 'MCP tool registry is unavailable.', 500 );
+		}
+
 		switch ( $method ) {
 			case 'server/discover':
 				return self::success(
@@ -29,7 +38,7 @@ final class CMSA_Minimal_MCP_Request_Router {
 					array(
 						'supportedVersions' => array( self::PROTOCOL_VERSION ),
 						'capabilities'      => array( 'tools' => array( 'listChanged' => false ) ),
-						'instructions'      => 'Minimal MCP transport proof. Tools are supplied through a validated WordPress registry.',
+						'instructions'      => 'Robust WordPress-hosted MCP server. Tool contracts are centrally validated against JSON Schema 2020-12.',
 						'ttlMs'             => 30000,
 						'cacheScope'        => 'private',
 					)
@@ -61,7 +70,23 @@ final class CMSA_Minimal_MCP_Request_Router {
 					}
 					$arguments = $params['arguments'];
 				}
-				return self::success( $id, CMSA_Minimal_MCP_Tool_Registry::call( $name, $arguments ) );
+
+				$native_arguments = new stdClass();
+				if (
+					is_object( $native_payload )
+					&& isset( $native_payload->params )
+					&& is_object( $native_payload->params )
+					&& property_exists( $native_payload->params, 'arguments' )
+				) {
+					$native_arguments = $native_payload->params->arguments;
+				}
+
+				$input_error = CMSA_Minimal_MCP_Tool_Registry::validate_input( $name, $native_arguments );
+				if ( is_wp_error( $input_error ) ) {
+					return self::protocol_error( $id, -32602, 'Invalid params: tool arguments do not match inputSchema.', 200 );
+				}
+
+				return self::success( $id, CMSA_Minimal_MCP_Tool_Registry::call( $name, $arguments, $native_arguments ) );
 
 			default:
 				return self::protocol_error( $id, -32601, 'Method not found.', 404 );
