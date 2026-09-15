@@ -5,9 +5,9 @@ base_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 endpoint='http://127.0.0.1:8101/mcp'
 session_dir='/tmp/robust-mcp-multiworker-sessions'
 telemetry='/tmp/robust-mcp-multiworker-telemetry.jsonl'
-rm -rf "$session_dir" /tmp/robust-mw-codes
+rm -rf "$session_dir" /tmp/robust-mw-codes /tmp/robust-mw-modern-codes
 rm -f "$telemetry"
-mkdir -p /tmp/robust-mw-codes
+mkdir -p /tmp/robust-mw-codes /tmp/robust-mw-modern-codes
 
 PHP_CLI_SERVER_WORKERS=4 \
 ROBUST_MCP_SESSION_DIR="$session_dir" \
@@ -46,48 +46,83 @@ initialized_code="$(curl -sS -o /tmp/robust-mw-initialized-response -w '%{http_c
 test "$initialized_code" = '202'
 
 printf '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' > /tmp/robust-mw-list.json
-export endpoint session_id
 
-# Concurrent connections force the kernel to distribute work across the PHP
-# workers. Every request addresses the same persisted MCP session.
-seq 1 64 | xargs -P 16 -I{} bash -c '
-  code="$(curl -sS -o "/tmp/robust-mw-response-{}.json" -w "%{http_code}" \
-    -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
-    -H "Mcp-Session-Id: ${session_id}" -H "MCP-Protocol-Version: 2025-11-25" -H "X-Request-Id: mw-{}" \
-    --data-binary @/tmp/robust-mw-list.json "${endpoint}")"
-  printf "%s\n" "$code" > "/tmp/robust-mw-codes/{}.txt"
-'
-
-if grep -L '^200$' /tmp/robust-mw-codes/*.txt | grep -q .; then
-  echo 'one or more multi-worker session requests failed' >&2
-  grep -L '^200$' /tmp/robust-mw-codes/*.txt >&2 || true
-  exit 1
-fi
-for response in /tmp/robust-mw-response-*.json; do
-  grep -Fq 'robust.echo' "$response"
+# Cross-worker persistence: use fresh TCP connections but serialize requests to
+# one stateful legacy session. This tests shared persistence without conflating
+# it with the SDK's separate same-session concurrency semantics.
+for n in $(seq 1 64); do
+  code="$(curl -sS -o "/tmp/robust-mw-response-${n}.json" -w '%{http_code}' \
+    -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' \
+    -H "Mcp-Session-Id: ${session_id}" -H 'MCP-Protocol-Version: 2025-11-25' -H "X-Request-Id: mw-legacy-${n}" \
+    --data-binary @/tmp/robust-mw-list.json "$endpoint")"
+  printf '%s\n' "$code" > "/tmp/robust-mw-codes/${n}.txt"
+  if [ "$code" != '200' ]; then
+    echo "legacy cross-worker request ${n} failed with HTTP ${code}" >&2
+    cat "/tmp/robust-mw-response-${n}.json" >&2 || true
+    exit 1
+  fi
+  grep -Fq 'robust.echo' "/tmp/robust-mw-response-${n}.json"
 done
 
-# Prove the same session was consumed by at least two distinct workers rather
-# than merely starting multiple workers that never handled session traffic.
-worker_count="$(php -r '
+legacy_worker_count="$(php -r '
 $seen=[];
 foreach(file($argv[1], FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES) ?: [] as $line){
   $e=json_decode($line,true,512,JSON_THROW_ON_ERROR);
-  if (str_starts_with((string)($e["request_id"]??""),"mw-") && isset($e["worker_pid"])) $seen[(string)$e["worker_pid"]]=true;
+  if (str_starts_with((string)($e["request_id"]??""),"mw-legacy-") && isset($e["worker_pid"])) $seen[(string)$e["worker_pid"]]=true;
 }
 echo count($seen);
 ' "$telemetry")"
-if [ "$worker_count" -lt 2 ]; then
-  echo "multi-worker proof did not reach at least two workers (saw ${worker_count})" >&2
+if [ "$legacy_worker_count" -lt 2 ]; then
+  echo "legacy persistence proof reached only ${legacy_worker_count} worker(s)" >&2
   cat "$telemetry" >&2
   exit 1
 fi
 
-# The persisted session remains valid after cross-worker traffic and can be
-# explicitly terminated from whichever worker handles the DELETE.
+# Stateless modern traffic should tolerate real concurrency across the same
+# worker pool. This is the appropriate concurrency stress target because modern
+# MCP has no mutable server session to race.
+meta='"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"multiworker-modern","version":"1.0.0"},"io.modelcontextprotocol/clientCapabilities":{}}'
+cat > /tmp/robust-mw-modern.json <<JSON
+{"jsonrpc":"2.0","id":3,"method":"tools/list","params":{${meta}}}
+JSON
+export endpoint
+seq 1 64 | xargs -P 16 -I{} bash -c '
+  code="$(curl -sS -o "/tmp/robust-mw-modern-response-{}.json" -w "%{http_code}" \
+    -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
+    -H "MCP-Protocol-Version: 2026-07-28" -H "Mcp-Method: tools/list" -H "X-Request-Id: mw-modern-{}" \
+    --data-binary @/tmp/robust-mw-modern.json "${endpoint}")"
+  printf "%s\n" "$code" > "/tmp/robust-mw-modern-codes/{}.txt"
+'
+
+if grep -L '^200$' /tmp/robust-mw-modern-codes/*.txt | grep -q .; then
+  echo 'one or more concurrent modern requests failed' >&2
+  for file in /tmp/robust-mw-modern-codes/*.txt; do
+    if ! grep -q '^200$' "$file"; then
+      n="$(basename "$file" .txt)"
+      printf 'request %s status %s\n' "$n" "$(cat "$file")" >&2
+      cat "/tmp/robust-mw-modern-response-${n}.json" >&2 || true
+    fi
+  done
+  exit 1
+fi
+
+modern_worker_count="$(php -r '
+$seen=[];
+foreach(file($argv[1], FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES) ?: [] as $line){
+  $e=json_decode($line,true,512,JSON_THROW_ON_ERROR);
+  if (str_starts_with((string)($e["request_id"]??""),"mw-modern-") && isset($e["worker_pid"])) $seen[(string)$e["worker_pid"]]=true;
+}
+echo count($seen);
+' "$telemetry")"
+if [ "$modern_worker_count" -lt 2 ]; then
+  echo "modern concurrency proof reached only ${modern_worker_count} worker(s)" >&2
+  cat "$telemetry" >&2
+  exit 1
+fi
+
 delete_code="$(curl -sS -o /tmp/robust-mw-delete.json -w '%{http_code}' -X DELETE \
   -H "Mcp-Session-Id: ${session_id}" -H 'MCP-Protocol-Version: 2025-11-25' -H 'X-Request-Id: mw-delete' "$endpoint")"
 test "$delete_code" = '200'
 test ! -e "$session_dir/$session_id"
 
-printf '%s\n' "robust-mcp-multiworker: PASS workers=${worker_count} shared-session=legacy concurrent-requests=64 persistent-store=file"
+printf '%s\n' "robust-mcp-multiworker: PASS legacy-workers=${legacy_worker_count} modern-workers=${modern_worker_count} shared-session=persistent modern-concurrency=64"
