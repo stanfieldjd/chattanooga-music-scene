@@ -89,14 +89,31 @@ jobs:
       - name: Re-prove modern MCP transport conformance
         shell: bash
         run: |
-          set -euo pipefail
+          set +e
           sed \
             -e 's/minimal-mcp-tunnel/robust-mcp-server/g' \
             -e 's/0\.0\.5/0.1.0/g' \
             -e 's/Minimal MCP Tunnel/Robust MCP Server/g' \
             workbench/harnesses/minimal-mcp/transport-probe.sh > /tmp/robust-transport-probe.sh
           bash /tmp/robust-transport-probe.sh
-          bash workbench/harnesses/minimal-mcp/auth-preparse-probe.sh
+          rc=$?
+          if [ "$rc" -eq 0 ]; then
+            bash workbench/harnesses/minimal-mcp/auth-preparse-probe.sh
+            rc=$?
+          fi
+          if [ "$rc" -ne 0 ]; then
+            echo '--- robust MCP transport diagnostic files ---'
+            for file in /tmp/minimal-*.json /tmp/minimal-*-headers.txt /tmp/minimal-notification-response; do
+              if [ -f "$file" ]; then
+                echo "### $file"
+                cat "$file" || true
+                echo
+              fi
+            done
+            echo '--- robust MCP HTTP server log ---'
+            cat /tmp/minimal-mcp-http.log 2>/dev/null || true
+          fi
+          exit "$rc"
 
       - name: Prove robust manual bearer authentication
         shell: bash
