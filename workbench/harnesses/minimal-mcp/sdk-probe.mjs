@@ -11,7 +11,7 @@ if (!endpoint || !user || !password) {
 const authorization = `Basic ${Buffer.from(`${user}:${password}`, 'utf8').toString('base64')}`;
 
 const client = new Client(
-  { name: 'minimal-mcp-official-sdk-probe', version: '1.0.0' },
+  { name: 'robust-mcp-official-sdk-probe', version: '1.0.0' },
   { versionNegotiation: { mode: { pin: '2026-07-28' } } }
 );
 
@@ -31,7 +31,7 @@ try {
   }
 
   const server = client.getServerVersion();
-  if (!server || server.name !== 'minimal-mcp-tunnel' || server.version !== '0.0.5') {
+  if (!server || server.name !== 'robust-mcp-server' || server.version !== '0.1.0') {
     throw new Error(`Unexpected server identity: ${JSON.stringify(server)}`);
   }
 
@@ -50,7 +50,7 @@ try {
   if (site.isError !== false || !site.structuredContent || site.structuredContent.ok !== true) {
     throw new Error(`probe.site failed: ${JSON.stringify(site)}`);
   }
-  if (site.structuredContent.siteTitle !== 'Minimal MCP Tunnel') {
+  if (site.structuredContent.siteTitle !== 'Robust MCP Server') {
     throw new Error(`Unexpected WordPress title: ${JSON.stringify(site.structuredContent)}`);
   }
 
@@ -81,7 +81,7 @@ try {
     throw new Error('Unknown tool was not rejected as JSON-RPC -32602 Invalid Params.');
   }
 
-  console.log('minimal-mcp-official-sdk: PASS protocol=2026-07-28 era=modern tools=2 x-mcp-header=verified unknown-tool=-32602');
+  console.log('robust-mcp-official-sdk: PASS protocol=2026-07-28 era=modern tools=2 x-mcp-header=verified unknown-tool=-32602');
 } finally {
   await client.close().catch(() => {});
 }
