@@ -15,6 +15,75 @@ require_once __DIR__ . '/includes/class-minimal-mcp-http-transport.php';
 
 CMSA_Minimal_MCP_HTTP_Transport::bootstrap();
 
+// Optional manual bearer mode. There is deliberately no endpoint that mints
+// or rotates this credential. When both constants are configured, bearer auth
+// becomes the sole credential accepted for MCP POSTs; WordPress Application
+// Password / Basic auth is not a fallback in this mode.
+add_filter(
+	'rest_pre_dispatch',
+	static function ( $result, $server, $request ) {
+		unset( $server );
+		if (
+			null !== $result
+			|| ! $request instanceof WP_REST_Request
+			|| '/minimal-mcp/v1/mcp' !== $request->get_route()
+			|| 'POST' !== $request->get_method()
+		) {
+			return $result;
+		}
+
+		$token_defined = defined( 'CMSA_MINIMAL_MCP_BEARER_TOKEN' );
+		$user_defined  = defined( 'CMSA_MINIMAL_MCP_BEARER_USER_ID' );
+		if ( ! $token_defined && ! $user_defined ) {
+			return $result;
+		}
+
+		if ( ! $token_defined || ! $user_defined ) {
+			return new WP_Error(
+				'minimal_mcp_bearer_misconfigured',
+				'MCP bearer authentication is incompletely configured.',
+				array( 'status' => 500 )
+			);
+		}
+
+		$token   = constant( 'CMSA_MINIMAL_MCP_BEARER_TOKEN' );
+		$user_id = constant( 'CMSA_MINIMAL_MCP_BEARER_USER_ID' );
+		if ( ! is_string( $token ) || strlen( $token ) < 32 || ! is_int( $user_id ) || $user_id <= 0 ) {
+			return new WP_Error(
+				'minimal_mcp_bearer_misconfigured',
+				'MCP bearer authentication configuration is invalid.',
+				array( 'status' => 500 )
+			);
+		}
+
+		$user = get_userdata( $user_id );
+		if ( ! $user instanceof WP_User || ! user_can( $user, 'manage_options' ) ) {
+			return new WP_Error(
+				'minimal_mcp_bearer_misconfigured',
+				'MCP bearer authentication identity is not an administrator.',
+				array( 'status' => 500 )
+			);
+		}
+
+		$authorization = (string) $request->get_header( 'authorization' );
+		$matches       = array();
+		$valid_header  = 1 === preg_match( '/^Bearer[ \t]+([^\s]+)$/i', $authorization, $matches );
+		$provided      = $valid_header ? $matches[1] : '';
+		if ( '' === $provided || ! hash_equals( $token, $provided ) ) {
+			return new WP_Error(
+				'minimal_mcp_bearer_required',
+				'A valid manually configured MCP bearer token is required.',
+				array( 'status' => 401 )
+			);
+		}
+
+		wp_set_current_user( $user_id );
+		return $result;
+	},
+	1,
+	3
+);
+
 // WP_REST_Server::dispatch() calls rest_pre_dispatch before
 // WP_REST_Request::has_valid_params() parses JSON. Intercept malformed JSON
 // for this MCP route at that boundary so the wire response remains JSON-RPC
