@@ -39,10 +39,11 @@ final class ManualBearerAuthMiddleware implements MiddlewareInterface
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
-        // Match the previously proven WordPress behavior: the MCP POST is the
-        // protected operation. OPTIONS and method-not-allowed responses remain
-        // transport behavior rather than authentication oracles.
-        if ('POST' !== strtoupper($request->getMethod())) {
+        // CORS/preflight never carries an MCP operation. Every other request on
+        // the MCP endpoint is protected, including handshake-session teardown.
+        // This prevents a legacy DELETE (or any future non-POST MCP method) from
+        // becoming an authentication bypass simply because modern MCP is POST-only.
+        if ('OPTIONS' === strtoupper($request->getMethod())) {
             return $handler->handle($request);
         }
 
