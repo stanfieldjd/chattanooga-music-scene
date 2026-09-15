@@ -1,0 +1,14 @@
+{
+  "name": "chattanooga-music-scene/robust-mcp-server",
+  "description": "Robust WordPress-hosted MCP 2026-07-28 server transport and tool registry.",
+  "type": "wordpress-plugin",
+  "license": "proprietary",
+  "require": {
+    "php": ">=8.2",
+    "opis/json-schema": "^2.6"
+  },
+  "config": {
+    "allow-plugins": false,
+    "sort-packages": true
+  }
+}
