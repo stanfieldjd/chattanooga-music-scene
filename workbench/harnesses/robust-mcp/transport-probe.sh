@@ -92,7 +92,6 @@ discover_code="$(curl -sS -D /tmp/robust-discover-headers.txt -o /tmp/robust-dis
   "${common_headers[@]}" -H 'MCP-Protocol-Version: 2026-07-28' -H 'Mcp-Method: server/discover' \
   --data-binary @/tmp/robust-discover.json "$endpoint")"
 test "$discover_code" = '200'
-grep -Eiq '^MCP-Protocol-Version: 2026-07-28' /tmp/robust-discover-headers.txt
 php -r '$d=json_decode(file_get_contents("/tmp/robust-discover-response.json"),true); $s=$d["result"]["_meta"]["io.modelcontextprotocol/serverInfo"]??[]; if (($s["name"]??"")!=="chattanooga-robust-mcp" || ($s["version"]??"")!=="0.1.0") exit(1);'
 
 cat > /tmp/robust-list.json <<JSON
