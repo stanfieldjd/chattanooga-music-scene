@@ -74,6 +74,13 @@ final class ServerConfiguration
         return new self($mode, $digest, $sessionDirectory, $sessionTtl, $telemetryLog);
     }
 
+    /** Validate paths needed by ordinary requests without a sentinel write. */
+    public function prepareForServing(): void
+    {
+        $this->ensureSessionDirectory();
+        $this->assertTelemetryParentWritable();
+    }
+
     /**
      * Prove that the process can actually use its configured persistence paths.
      * This is intentionally stronger than checking is_writable(): it creates,
@@ -82,7 +89,7 @@ final class ServerConfiguration
      */
     public function assertReady(): void
     {
-        $this->ensureSessionDirectory();
+        $this->prepareForServing();
 
         $sentinel = $this->sessionDirectory . DIRECTORY_SEPARATOR . '.ready-' . bin2hex(random_bytes(12));
         $renamed = $sentinel . '.ok';
@@ -107,13 +114,6 @@ final class ServerConfiguration
             @unlink($sentinel);
             @unlink($renamed);
         }
-
-        if (null !== $this->telemetryLog) {
-            $parent = dirname($this->telemetryLog);
-            if (!is_dir($parent) || !is_writable($parent)) {
-                throw new \RuntimeException('Telemetry log parent directory is not writable.');
-            }
-        }
     }
 
     public function ensureSessionDirectory(): void
@@ -126,6 +126,17 @@ final class ServerConfiguration
         @chmod($this->sessionDirectory, 0700);
         if (!is_dir($this->sessionDirectory) || !is_writable($this->sessionDirectory)) {
             throw new \RuntimeException('Session directory is not writable.');
+        }
+    }
+
+    private function assertTelemetryParentWritable(): void
+    {
+        if (null === $this->telemetryLog) {
+            return;
+        }
+        $parent = dirname($this->telemetryLog);
+        if (!is_dir($parent) || !is_writable($parent)) {
+            throw new \RuntimeException('Telemetry log parent directory is not writable.');
         }
     }
 
