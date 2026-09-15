@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Chattanooga\RobustMcp\McpHttpSemanticsMiddleware;
 use Chattanooga\RobustMcp\RobustToolRegistrar;
 use Chattanooga\RobustMcp\SchemaGuard;
 use Mcp\Schema\Enum\ProtocolVersion;
@@ -149,11 +150,16 @@ $tools->addTool(
 );
 
 $protocol = $builder->buildStateless([ProtocolVersion::V2026_07_28]);
+$middleware = array_merge(
+    StatelessHttpTransport::defaultMiddleware(),
+    [new McpHttpSemanticsMiddleware($factory, $factory)],
+);
 $transport = new StatelessHttpTransport(
     protocol: $protocol,
     responseFactory: $factory,
     streamFactory: $factory,
     maxBodyBytes: 1024 * 1024,
+    middleware: $middleware,
 );
 $response = $transport->handle($request);
 
