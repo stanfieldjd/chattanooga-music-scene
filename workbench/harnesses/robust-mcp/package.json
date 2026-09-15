@@ -1,0 +1,13 @@
+{
+  "name": "chattanooga-robust-mcp-workbench",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Deterministic MCP reference-client dependencies for the Chattanooga robust MCP workbench.",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "2.0.0",
+    "@modelcontextprotocol/inspector": "2.6.0"
+  }
+}
