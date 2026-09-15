@@ -91,6 +91,7 @@ jobs:
           php -l schema-probe.php
           php -l wordpress-runtime-probe.php
           php -l oauth-fixture-router.php
+          php -l oauth-refresh-fixture-router.php
           php -l oauth-fixture-keygen.php
           php -l oauth-fixture-token.php
           bash -n transport-probe.sh
@@ -98,6 +99,7 @@ jobs:
           bash -n bearer-dual-era-probe.sh
           bash -n oauth-auth-probe.sh
           bash -n oauth-auth-probe-ci.sh
+          bash -n oauth-refresh-flow-probe.sh
           bash -n readiness-probe.sh
           bash -n multiworker-session-probe.sh
           bash -n tool-contract-probe.sh
@@ -138,6 +140,11 @@ jobs:
         working-directory: workbench/harnesses/robust-mcp
         shell: bash
         run: bash oauth-auth-probe-ci.sh
+
+      - name: Prove ChatGPT OAuth PKCE and refresh lifecycle
+        working-directory: workbench/harnesses/robust-mcp
+        shell: bash
+        run: bash oauth-refresh-flow-probe.sh
 
       - name: Prove liveness and readiness fail independently
         working-directory: workbench/harnesses/robust-mcp
