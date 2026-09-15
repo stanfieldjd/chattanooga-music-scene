@@ -13,12 +13,22 @@ namespace Chattanooga\RobustMcp;
  */
 final class ServerConfiguration
 {
-    private const AUTH_MODES = ['none', 'manual-bearer'];
+    private const AUTH_MODES = ['none', 'manual-bearer', 'oauth-jwt'];
     private const DIGEST_PATTERN = '/^[a-f0-9]{64}$/D';
+    private const OAUTH_ENVIRONMENT = [
+        'ROBUST_MCP_OAUTH_ISSUER',
+        'ROBUST_MCP_OAUTH_AUDIENCE',
+        'ROBUST_MCP_OAUTH_SCOPES',
+        'ROBUST_MCP_OAUTH_RESOURCE',
+        'ROBUST_MCP_OAUTH_JWKS_URI',
+        'ROBUST_MCP_OAUTH_CACHE_DIR',
+        'ROBUST_MCP_OAUTH_CACHE_TTL',
+    ];
 
     private function __construct(
         public readonly string $authMode,
         public readonly ?string $bearerSha256,
+        public readonly ?OAuthConfiguration $oauth,
         public readonly string $sessionDirectory,
         public readonly int $sessionTtl,
         public readonly ?string $telemetryLog,
@@ -44,8 +54,8 @@ final class ServerConfiguration
         if ('manual-bearer' === $mode && null === $digest) {
             throw new \InvalidArgumentException('Manual bearer mode requires a digest.');
         }
-        if ('none' === $mode && null !== $digest) {
-            throw new \InvalidArgumentException('A bearer digest must not be configured while authentication is disabled.');
+        if ('manual-bearer' !== $mode && null !== $digest) {
+            throw new \InvalidArgumentException('A manual bearer digest must not be configured outside manual bearer mode.');
         }
 
         $sessionDirRaw = getenv('ROBUST_MCP_SESSION_DIR');
@@ -71,7 +81,16 @@ final class ServerConfiguration
             self::assertPath($telemetryLog, 'telemetry log');
         }
 
-        return new self($mode, $digest, $sessionDirectory, $sessionTtl, $telemetryLog);
+        $oauthEnvironmentConfigured = self::oauthEnvironmentConfigured();
+        if ('oauth-jwt' !== $mode && $oauthEnvironmentConfigured) {
+            throw new \InvalidArgumentException('OAuth configuration must not be present outside oauth-jwt mode.');
+        }
+
+        $oauth = 'oauth-jwt' === $mode
+            ? OAuthConfiguration::fromEnvironment($sessionDirectory)
+            : null;
+
+        return new self($mode, $digest, $oauth, $sessionDirectory, $sessionTtl, $telemetryLog);
     }
 
     /** Validate paths needed by ordinary requests without a sentinel write. */
@@ -79,6 +98,7 @@ final class ServerConfiguration
     {
         $this->ensureSessionDirectory();
         $this->assertTelemetryParentWritable();
+        $this->oauth?->prepareForServing();
     }
 
     /**
@@ -114,6 +134,8 @@ final class ServerConfiguration
             @unlink($sentinel);
             @unlink($renamed);
         }
+
+        $this->oauth?->assertReady();
     }
 
     public function ensureSessionDirectory(): void
@@ -138,6 +160,18 @@ final class ServerConfiguration
         if (!is_dir($parent) || !is_writable($parent)) {
             throw new \RuntimeException('Telemetry log parent directory is not writable.');
         }
+    }
+
+    private static function oauthEnvironmentConfigured(): bool
+    {
+        foreach (self::OAUTH_ENVIRONMENT as $name) {
+            $value = getenv($name);
+            if (false !== $value && '' !== trim($value)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static function assertPath(string $path, string $label): void
