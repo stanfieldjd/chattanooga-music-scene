@@ -91,7 +91,7 @@ if (array_key_exists("structuredContent",$r)) exit(2);
 $text=$r["content"][0]["text"]??""; if (strpos($text,"output failed schema validation")===false) exit(3);
 '
 
-# Request size is bounded at the transport before JSON processing.
+# Request size is bounded by the transport.
 python3 - <<'PY'
 import json
 meta={
@@ -101,8 +101,19 @@ meta={
 }
 body={"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"fixture.schema","arguments":{"payload":{"mode":"text","value":"x"*(1024*1024)}},"_meta":meta}}
 with open('/tmp/robust-schema-oversize.json','w') as f: json.dump(body,f,separators=(',',':'))
+with open('/tmp/robust-schema-oversize-malformed.json','wb') as f: f.write(b'{' + (b'x' * (1024*1024 + 128)))
 PY
 oversize_code="$(curl -sS -o /tmp/robust-schema-oversize-response.json -w '%{http_code}' "${headers[@]}" -H 'Mcp-Method: tools/call' -H 'Mcp-Name: fixture.schema' --data-binary @/tmp/robust-schema-oversize.json "$endpoint")"
 test "$oversize_code" = '413'
 
-printf '%s\n' 'robust-mcp-schema-http: PASS local-ref oneOf conditional exact-json-shape output-containment request-limit'
+# A malformed body above the limit must also be 413. If WordPress parses JSON
+# before the MCP size gate, this would instead become rest_invalid_json / 400.
+malformed_oversize_code="$(curl -sS -o /tmp/robust-schema-oversize-malformed-response.json -w '%{http_code}' "${headers[@]}" --data-binary @/tmp/robust-schema-oversize-malformed.json "$endpoint")"
+test "$malformed_oversize_code" = '413'
+assert_error /tmp/robust-schema-oversize-malformed-response.json -32000
+
+# Authentication still precedes the early size response.
+anonymous_oversize_code="$(curl -sS -o /tmp/robust-schema-oversize-anonymous-response.json -w '%{http_code}' -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' --data-binary @/tmp/robust-schema-oversize-malformed.json "$endpoint")"
+test "$anonymous_oversize_code" = '401'
+
+printf '%s\n' 'robust-mcp-schema-http: PASS local-ref oneOf conditional exact-json-shape output-containment preparse-request-limit'
