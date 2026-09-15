@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Chattanooga\RobustMcp\ManualBearerAuthMiddleware;
 use Chattanooga\RobustMcp\McpHttpSemanticsMiddleware;
 use Chattanooga\RobustMcp\OAuthRuntimeFactory;
-use Chattanooga\RobustMcp\PreflightBypassMiddleware;
+use Chattanooga\RobustMcp\RemoteHttpSecurityMiddleware;
 use Chattanooga\RobustMcp\RequestTelemetryMiddleware;
 use Chattanooga\RobustMcp\RobustToolRegistrar;
 use Chattanooga\RobustMcp\SchemaGuard;
@@ -256,9 +256,15 @@ $tools->addTool(
 );
 
 $server = $builder->build();
-$middleware = StreamableHttpTransport::defaultMiddleware();
+$middleware = [];
 try {
     $middleware[] = new RequestTelemetryMiddleware($configuration->telemetryLog);
+    $middleware[] = new RemoteHttpSecurityMiddleware(
+        allowedHosts: $configuration->allowedHosts,
+        allowedOrigins: $configuration->allowedOrigins,
+        responseFactory: $factory,
+        streamFactory: $factory,
+    );
 } catch (\InvalidArgumentException) {
     $configurationFailure();
 }
@@ -269,12 +275,10 @@ if (null !== $oauthRuntime) {
         responseFactory: $factory,
         streamFactory: $factory,
     );
-    $middleware[] = new PreflightBypassMiddleware(
-        new AuthorizationMiddleware(
-            validator: $oauthRuntime->validator,
-            resourceMetadata: $oauthRuntime->metadata,
-            responseFactory: $factory,
-        ),
+    $middleware[] = new AuthorizationMiddleware(
+        validator: $oauthRuntime->validator,
+        resourceMetadata: $oauthRuntime->metadata,
+        responseFactory: $factory,
     );
 } elseif ('manual-bearer' === $configuration->authMode) {
     try {
