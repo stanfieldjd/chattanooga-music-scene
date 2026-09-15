@@ -41,8 +41,25 @@ $configurationFailure = static function (): never {
 };
 
 $authModeValue = getenv('ROBUST_MCP_AUTH_MODE');
-$authMode = false === $authModeValue || '' === trim($authModeValue) ? 'none' : trim($authModeValue);
+$digestValue = getenv('ROBUST_MCP_BEARER_SHA256');
+$digestConfigured = false !== $digestValue && '' !== trim($digestValue);
+
+if (false === $authModeValue || '' === trim($authModeValue)) {
+    // Match the earlier WordPress proof: configuring the credential turns the
+    // manual-bearer boundary on automatically. A digest is never silently
+    // present while authentication remains disabled.
+    $authMode = $digestConfigured ? 'manual-bearer' : 'none';
+} else {
+    $authMode = trim($authModeValue);
+}
+
 if (!in_array($authMode, ['none', 'manual-bearer'], true)) {
+    $configurationFailure();
+}
+if ('none' === $authMode && $digestConfigured) {
+    $configurationFailure();
+}
+if ('manual-bearer' === $authMode && !$digestConfigured) {
     $configurationFailure();
 }
 
@@ -174,14 +191,9 @@ $protocol = $builder->buildStateless([ProtocolVersion::V2026_07_28]);
 $middleware = StatelessHttpTransport::defaultMiddleware();
 
 if ('manual-bearer' === $authMode) {
-    $digest = getenv('ROBUST_MCP_BEARER_SHA256');
-    if (false === $digest) {
-        $configurationFailure();
-    }
-
     try {
         $middleware[] = new ManualBearerAuthMiddleware(
-            expectedSha256: $digest,
+            expectedSha256: (string) $digestValue,
             responseFactory: $factory,
             streamFactory: $factory,
         );
