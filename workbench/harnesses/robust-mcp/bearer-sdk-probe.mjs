@@ -28,7 +28,7 @@ try {
   }
 
   const server = client.getServerVersion();
-  if (!server || server.name !== 'chattanooga-robust-mcp' || server.version !== '0.1.0') {
+  if (!server || server.name !== 'chattanooga-robust-mcp' || server.version !== '0.2.0') {
     throw new Error(`Unexpected server identity: ${JSON.stringify(server)}`);
   }
 
