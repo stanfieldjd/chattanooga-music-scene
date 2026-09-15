@@ -15,10 +15,13 @@ require_once __DIR__ . '/includes/class-minimal-mcp-http-transport.php';
 
 CMSA_Minimal_MCP_HTTP_Transport::bootstrap();
 
-// Optional manual bearer mode. There is deliberately no endpoint that mints
-// or rotates this credential. When both constants are configured, bearer auth
-// becomes the sole credential accepted for MCP POSTs; WordPress Application
-// Password / Basic auth is not a fallback in this mode.
+// Optional manual bearer mode. The client token is a machine-generated
+// 256-bit value encoded as exactly 64 lowercase hexadecimal characters.
+// WordPress stores only SHA-256(token), never the bearer token itself. There
+// is deliberately no endpoint that mints, reveals, or rotates the credential.
+// When both constants are configured, bearer auth becomes the sole credential
+// accepted for MCP POSTs; WordPress Application Password / Basic auth is not a
+// fallback in this mode.
 add_filter(
 	'rest_pre_dispatch',
 	static function ( $result, $server, $request ) {
@@ -32,13 +35,13 @@ add_filter(
 			return $result;
 		}
 
-		$token_defined = defined( 'CMSA_MINIMAL_MCP_BEARER_TOKEN' );
-		$user_defined  = defined( 'CMSA_MINIMAL_MCP_BEARER_USER_ID' );
-		if ( ! $token_defined && ! $user_defined ) {
+		$digest_defined = defined( 'CMSA_MINIMAL_MCP_BEARER_SHA256' );
+		$user_defined   = defined( 'CMSA_MINIMAL_MCP_BEARER_USER_ID' );
+		if ( ! $digest_defined && ! $user_defined ) {
 			return $result;
 		}
 
-		if ( ! $token_defined || ! $user_defined ) {
+		if ( ! $digest_defined || ! $user_defined ) {
 			return new WP_Error(
 				'minimal_mcp_bearer_misconfigured',
 				'MCP bearer authentication is incompletely configured.',
@@ -46,9 +49,14 @@ add_filter(
 			);
 		}
 
-		$token   = constant( 'CMSA_MINIMAL_MCP_BEARER_TOKEN' );
+		$digest  = constant( 'CMSA_MINIMAL_MCP_BEARER_SHA256' );
 		$user_id = constant( 'CMSA_MINIMAL_MCP_BEARER_USER_ID' );
-		if ( ! is_string( $token ) || strlen( $token ) < 32 || ! is_int( $user_id ) || $user_id <= 0 ) {
+		if (
+			! is_string( $digest )
+			|| 1 !== preg_match( '/^[a-f0-9]{64}$/D', $digest )
+			|| ! is_int( $user_id )
+			|| $user_id <= 0
+		) {
 			return new WP_Error(
 				'minimal_mcp_bearer_misconfigured',
 				'MCP bearer authentication configuration is invalid.',
@@ -67,9 +75,10 @@ add_filter(
 
 		$authorization = (string) $request->get_header( 'authorization' );
 		$matches       = array();
-		$valid_header  = 1 === preg_match( '/^Bearer[ \t]+([^\s]+)$/i', $authorization, $matches );
-		$provided      = $valid_header ? $matches[1] : '';
-		if ( '' === $provided || ! hash_equals( $token, $provided ) ) {
+		$valid_header  = 1 === preg_match( '/^Bearer[ \t]+([a-f0-9]{64})$/iD', $authorization, $matches );
+		$provided      = $valid_header ? strtolower( $matches[1] ) : '';
+		$provided_hash = '' !== $provided ? hash( 'sha256', $provided ) : str_repeat( '0', 64 );
+		if ( '' === $provided || ! hash_equals( $digest, $provided_hash ) ) {
 			return new WP_Error(
 				'minimal_mcp_bearer_required',
 				'A valid manually configured MCP bearer token is required.',
