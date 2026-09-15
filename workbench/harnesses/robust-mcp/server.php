@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Chattanooga\RobustMcp\ManualBearerAuthMiddleware;
 use Chattanooga\RobustMcp\McpHttpSemanticsMiddleware;
 use Chattanooga\RobustMcp\RobustToolRegistrar;
 use Chattanooga\RobustMcp\SchemaGuard;
@@ -23,6 +24,26 @@ if ('/mcp' !== $request->getUri()->getPath()) {
     header('Content-Type: application/json');
     echo json_encode(['error' => 'not_found'], JSON_THROW_ON_ERROR);
     exit;
+}
+
+$configurationFailure = static function (): never {
+    http_response_code(500);
+    header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store');
+    echo json_encode(
+        [
+            'error' => 'server_configuration_error',
+            'error_description' => 'The MCP authentication configuration is invalid.',
+        ],
+        JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
+    );
+    exit;
+};
+
+$authModeValue = getenv('ROBUST_MCP_AUTH_MODE');
+$authMode = false === $authModeValue || '' === trim($authModeValue) ? 'none' : trim($authModeValue);
+if (!in_array($authMode, ['none', 'manual-bearer'], true)) {
+    $configurationFailure();
 }
 
 $builder = Server::builder()
@@ -150,10 +171,27 @@ $tools->addTool(
 );
 
 $protocol = $builder->buildStateless([ProtocolVersion::V2026_07_28]);
-$middleware = array_merge(
-    StatelessHttpTransport::defaultMiddleware(),
-    [new McpHttpSemanticsMiddleware($factory, $factory)],
-);
+$middleware = StatelessHttpTransport::defaultMiddleware();
+
+if ('manual-bearer' === $authMode) {
+    $digest = getenv('ROBUST_MCP_BEARER_SHA256');
+    if (false === $digest) {
+        $configurationFailure();
+    }
+
+    try {
+        $middleware[] = new ManualBearerAuthMiddleware(
+            expectedSha256: $digest,
+            responseFactory: $factory,
+            streamFactory: $factory,
+        );
+    } catch (\InvalidArgumentException) {
+        $configurationFailure();
+    }
+}
+
+$middleware[] = new McpHttpSemanticsMiddleware($factory, $factory);
+
 $transport = new StatelessHttpTransport(
     protocol: $protocol,
     responseFactory: $factory,
