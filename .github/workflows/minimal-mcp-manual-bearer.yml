@@ -1,0 +1,104 @@
+name: Minimal MCP Manual Bearer
+
+on:
+  push:
+    branches:
+      - work/minimal-mcp-manual-bearer-auth
+    paths:
+      - "workbench/harnesses/minimal-mcp/**"
+      - ".github/workflows/minimal-mcp-manual-bearer.yml"
+  pull_request:
+    paths:
+      - "workbench/harnesses/minimal-mcp/**"
+      - ".github/workflows/minimal-mcp-manual-bearer.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  bearer:
+    name: MCP manual bearer proof
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mysqli, zip, gd, fileinfo
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install MCP reference clients
+        run: npm install --no-save @modelcontextprotocol/client@latest @modelcontextprotocol/inspector@latest
+
+      - name: Lint MCP bearer proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          find workbench/harnesses/minimal-mcp/plugin workbench/harnesses/minimal-mcp/fixtures -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+          bash -n workbench/harnesses/minimal-mcp/transport-probe.sh
+          bash -n workbench/harnesses/minimal-mcp/auth-preparse-probe.sh
+          bash -n workbench/harnesses/minimal-mcp/bearer-auth-probe.sh
+          node --check workbench/harnesses/minimal-mcp/sdk-probe.mjs
+          node --check workbench/harnesses/minimal-mcp/bearer-sdk-probe.mjs
+
+      - name: Install disposable WordPress
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+          php /tmp/wp-cli.phar core download --version=7.1 --path=/tmp/wordpress --force
+          php /tmp/wp-cli.phar config create --path=/tmp/wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
+          php /tmp/wp-cli.phar config set WP_ENVIRONMENT_TYPE local --type=constant --path=/tmp/wordpress
+          password="$(php -r 'echo bin2hex(random_bytes(20));')"
+          php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://127.0.0.1:8091 --title="Minimal MCP Tunnel" --admin_user=admin --admin_password="$password" --admin_email=lab@example.invalid --skip-email
+
+          cp -R workbench/harnesses/minimal-mcp/plugin /tmp/wordpress/wp-content/plugins/minimal-mcp-tunnel
+          mkdir -p /tmp/wordpress/wp-content/plugins/minimal-mcp-dynamic-fixture
+          cp workbench/harnesses/minimal-mcp/fixtures/dynamic-tool-fixture.php /tmp/wordpress/wp-content/plugins/minimal-mcp-dynamic-fixture/minimal-mcp-dynamic-fixture.php
+
+          php /tmp/wp-cli.phar plugin activate minimal-mcp-tunnel minimal-mcp-dynamic-fixture --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin is-active minimal-mcp-tunnel --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin is-active minimal-mcp-dynamic-fixture --path=/tmp/wordpress
+
+      - name: Re-prove default MCP authentication without bearer configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash workbench/harnesses/minimal-mcp/transport-probe.sh
+          bash workbench/harnesses/minimal-mcp/auth-preparse-probe.sh
+
+      - name: Enable manually configured bearer mode
+        shell: bash
+        run: |
+          set -euo pipefail
+          token="$(php -r 'echo bin2hex(random_bytes(32));')"
+          user_id="$(php /tmp/wp-cli.phar user get admin --field=ID --path=/tmp/wordpress)"
+          php /tmp/wp-cli.phar config set CMSA_MINIMAL_MCP_BEARER_TOKEN "$token" --type=constant --path=/tmp/wordpress
+          php /tmp/wp-cli.phar config set CMSA_MINIMAL_MCP_BEARER_USER_ID "$user_id" --type=constant --raw --path=/tmp/wordpress
+          printf '%s' "$token" > /tmp/minimal-mcp-bearer-token
+          chmod 600 /tmp/minimal-mcp-bearer-token
+
+      - name: Prove exclusive manual bearer authentication
+        shell: bash
+        run: |
+          set -euo pipefail
+          token="$(cat /tmp/minimal-mcp-bearer-token)"
+          MCP_BEARER_TOKEN="$token" bash workbench/harnesses/minimal-mcp/bearer-auth-probe.sh
