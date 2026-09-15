@@ -1,0 +1,72 @@
+name: Robust MCP SDK Core
+
+on:
+  push:
+    branches:
+      - work/robust-mcp-sdk-core
+    paths:
+      - "workbench/harnesses/robust-mcp/**"
+      - ".github/workflows/robust-mcp-sdk-core.yml"
+  pull_request:
+    paths:
+      - "workbench/harnesses/robust-mcp/**"
+      - ".github/workflows/robust-mcp-sdk-core.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  robust-mcp:
+    name: Robust MCP core proof
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: fileinfo
+          tools: composer:v2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Resolve pinned PHP MCP dependencies
+        working-directory: workbench/harnesses/robust-mcp
+        run: |
+          set -euo pipefail
+          composer validate --strict --no-check-lock
+          composer update --no-interaction --prefer-dist --no-progress
+          composer validate --strict
+          composer audit --locked
+
+      - name: Preserve generated Composer lock
+        uses: actions/upload-artifact@v4
+        with:
+          name: robust-mcp-composer-lock
+          path: workbench/harnesses/robust-mcp/composer.lock
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Install MCP reference clients
+        run: npm install --no-save @modelcontextprotocol/client@latest @modelcontextprotocol/inspector@latest
+
+      - name: Lint robust MCP core
+        shell: bash
+        run: |
+          set -euo pipefail
+          find workbench/harnesses/robust-mcp/src -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+          php -l workbench/harnesses/robust-mcp/server.php
+          php -l workbench/harnesses/robust-mcp/schema-probe.php
+          bash -n workbench/harnesses/robust-mcp/transport-probe.sh
+          node --check workbench/harnesses/robust-mcp/sdk-probe.mjs
+
+      - name: Red-team JSON Schema registration and validation
+        working-directory: workbench/harnesses/robust-mcp
+        run: php schema-probe.php
+
+      - name: Prove robust MCP over curl, official SDK, and Inspector
+        shell: bash
+        run: bash workbench/harnesses/robust-mcp/transport-probe.sh
