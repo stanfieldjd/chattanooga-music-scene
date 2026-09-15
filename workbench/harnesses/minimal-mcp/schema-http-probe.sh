@@ -40,7 +40,7 @@ $d=json_decode(file_get_contents("/tmp/robust-schema-list-response.json"),true);
 $names=array_map(static fn($tool)=>$tool["name"]??"",$tools); sort($names,SORT_STRING);
 if ($names!==["fixture.bad-output","fixture.echo","fixture.schema","probe.site"]) {fwrite(STDERR,json_encode($names)); exit(1);}
 $schema=null; foreach($tools as $tool){if(($tool["name"]??"")==="fixture.schema"){$schema=$tool;break;}}
-if (($schema["inputSchema"]["$defs"]["payload"]["allOf"][0]["if"]["properties"]["mode"]["const"]??"")!=="text") exit(2);
+if (($schema["inputSchema"]["\$defs"]["payload"]["allOf"][0]["if"]["properties"]["mode"]["const"]??"")!=="text") exit(2);
 '
 
 cat > /tmp/robust-schema-valid-text.json <<JSON
