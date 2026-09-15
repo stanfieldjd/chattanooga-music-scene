@@ -15,6 +15,8 @@ final class ServerConfiguration
 {
     private const AUTH_MODES = ['none', 'manual-bearer', 'oauth-jwt'];
     private const DIGEST_PATTERN = '/^[a-f0-9]{64}$/D';
+    private const DEFAULT_ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]'];
+    private const DEFAULT_CHATGPT_ORIGINS = ['https://chatgpt.com', 'https://chat.openai.com'];
     private const OAUTH_ENVIRONMENT = [
         'ROBUST_MCP_OAUTH_ISSUER',
         'ROBUST_MCP_OAUTH_AUDIENCE',
@@ -25,6 +27,10 @@ final class ServerConfiguration
         'ROBUST_MCP_OAUTH_CACHE_TTL',
     ];
 
+    /**
+     * @param non-empty-list<string> $allowedHosts
+     * @param list<string> $allowedOrigins
+     */
     private function __construct(
         public readonly string $authMode,
         public readonly ?string $bearerSha256,
@@ -32,6 +38,8 @@ final class ServerConfiguration
         public readonly string $sessionDirectory,
         public readonly int $sessionTtl,
         public readonly ?string $telemetryLog,
+        public readonly array $allowedHosts,
+        public readonly array $allowedOrigins,
     ) {
     }
 
@@ -90,7 +98,19 @@ final class ServerConfiguration
             ? OAuthConfiguration::fromEnvironment($sessionDirectory)
             : null;
 
-        return new self($mode, $digest, $oauth, $sessionDirectory, $sessionTtl, $telemetryLog);
+        $allowedHosts = self::allowedHosts($oauth);
+        $allowedOrigins = self::allowedOrigins();
+
+        return new self(
+            $mode,
+            $digest,
+            $oauth,
+            $sessionDirectory,
+            $sessionTtl,
+            $telemetryLog,
+            $allowedHosts,
+            $allowedOrigins,
+        );
     }
 
     /** Validate paths needed by ordinary requests without a sentinel write. */
@@ -160,6 +180,107 @@ final class ServerConfiguration
         if (!is_dir($parent) || !is_writable($parent)) {
             throw new \RuntimeException('Telemetry log parent directory is not writable.');
         }
+    }
+
+    /** @return non-empty-list<string> */
+    private static function allowedHosts(?OAuthConfiguration $oauth): array
+    {
+        $hosts = [];
+        foreach (self::DEFAULT_ALLOWED_HOSTS as $host) {
+            $hosts[self::normalizeHost($host)] = true;
+        }
+
+        if (null !== $oauth) {
+            $resourceHost = parse_url($oauth->resource, PHP_URL_HOST);
+            if (is_string($resourceHost) && '' !== $resourceHost) {
+                if (str_contains($resourceHost, ':') && !str_starts_with($resourceHost, '[')) {
+                    $resourceHost = '[' . $resourceHost . ']';
+                }
+                $hosts[self::normalizeHost($resourceHost)] = true;
+            }
+        }
+
+        $raw = getenv('ROBUST_MCP_ALLOWED_HOSTS');
+        if (false !== $raw && '' !== trim($raw)) {
+            foreach (explode(',', $raw) as $host) {
+                $host = trim($host);
+                if ('' !== $host) {
+                    $hosts[self::normalizeHost($host)] = true;
+                }
+            }
+        }
+
+        /** @var non-empty-list<string> $result */
+        $result = array_keys($hosts);
+        sort($result, SORT_STRING);
+        return $result;
+    }
+
+    /** @return list<string> */
+    private static function allowedOrigins(): array
+    {
+        $raw = getenv('ROBUST_MCP_ALLOWED_ORIGINS');
+        $origins = false === $raw || '' === trim($raw)
+            ? self::DEFAULT_CHATGPT_ORIGINS
+            : explode(',', $raw);
+
+        $normalized = [];
+        foreach ($origins as $origin) {
+            $origin = trim($origin);
+            if ('' === $origin) {
+                continue;
+            }
+            $normalized[self::normalizeOrigin($origin)] = true;
+        }
+
+        $result = array_keys($normalized);
+        sort($result, SORT_STRING);
+        return $result;
+    }
+
+    private static function normalizeHost(string $host): string
+    {
+        $host = strtolower(trim($host));
+        if ('' === $host || '*' === $host || preg_match('/[\x00-\x20\x7f\/]/', $host)) {
+            throw new \InvalidArgumentException('Invalid allowed MCP Host.');
+        }
+        if (str_starts_with($host, '[')) {
+            if (!str_ends_with($host, ']')) {
+                throw new \InvalidArgumentException('Invalid bracketed IPv6 MCP Host.');
+            }
+            return $host;
+        }
+        if (str_contains($host, ':')) {
+            throw new \InvalidArgumentException('Allowed MCP Hosts must not include ports.');
+        }
+        return $host;
+    }
+
+    private static function normalizeOrigin(string $origin): string
+    {
+        $parts = parse_url($origin);
+        if (!is_array($parts) || !isset($parts['scheme'], $parts['host'])) {
+            throw new \InvalidArgumentException('Allowed MCP Origin must be absolute.');
+        }
+        if (isset($parts['user']) || isset($parts['pass']) || isset($parts['query']) || isset($parts['fragment'])) {
+            throw new \InvalidArgumentException('Allowed MCP Origin contains forbidden URL components.');
+        }
+        $path = (string) ($parts['path'] ?? '');
+        if ('' !== $path && '/' !== $path) {
+            throw new \InvalidArgumentException('Allowed MCP Origin must not contain a path.');
+        }
+
+        $scheme = strtolower((string) $parts['scheme']);
+        $host = strtolower((string) $parts['host']);
+        $loopback = in_array($host, ['127.0.0.1', 'localhost', '::1'], true);
+        if ('https' !== $scheme && !('http' === $scheme && $loopback)) {
+            throw new \InvalidArgumentException('Allowed MCP Origins must use HTTPS except for loopback testing.');
+        }
+
+        $portNumber = isset($parts['port']) ? (int) $parts['port'] : null;
+        $defaultPort = ('https' === $scheme && 443 === $portNumber) || ('http' === $scheme && 80 === $portNumber);
+        $port = null !== $portNumber && !$defaultPort ? ':' . $portNumber : '';
+        return $scheme . '://' . $host . $port;
     }
 
     private static function oauthEnvironmentConfigured(): bool
