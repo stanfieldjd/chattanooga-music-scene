@@ -38,7 +38,6 @@ assert_error() {
   php -r '$d=json_decode(file_get_contents($argv[1]),true); if (($d["error"]["code"]??null)!==(int)$argv[2]) {fwrite(STDERR,file_get_contents($argv[1])); exit(1);}' "$file" "$expected"
 }
 
-# Health/readiness reveal only operational identity, never auth or WordPress data.
 health_code="$(curl -sS -o /tmp/robust-health.json -w '%{http_code}' 'http://127.0.0.1:8093/healthz')"
 ready_code="$(curl -sS -o /tmp/robust-ready.json -w '%{http_code}' 'http://127.0.0.1:8093/readyz')"
 test "$health_code" = '200'
@@ -49,7 +48,6 @@ cat > /tmp/robust-discover.json <<JSON
 {"jsonrpc":"2.0","id":1,"method":"server/discover","params":{${meta}}}
 JSON
 
-# HTTP edge semantics shared by both protocol eras.
 get_code="$(curl -sS -D /tmp/robust-get-headers.txt -o /tmp/robust-get.json -w '%{http_code}' "$endpoint")"
 test "$get_code" = '405'
 grep -Eiq '^Allow: POST, DELETE, OPTIONS' /tmp/robust-get-headers.txt
@@ -71,7 +69,6 @@ accept_q0_code="$(curl -sS -o /tmp/robust-accept-q0.json -w '%{http_code}' \
   --data-binary @/tmp/robust-discover.json "$endpoint")"
 test "$accept_q0_code" = '406'
 
-# Parser/framing behavior remains JSON-RPC, not framework-specific errors.
 printf '{' > /tmp/robust-invalid-json.txt
 invalid_json_code="$(curl -sS -o /tmp/robust-invalid-json-response.json -w '%{http_code}' \
   "${common_headers[@]}" -H 'MCP-Protocol-Version: 2026-07-28' -H 'Mcp-Method: server/discover' \
@@ -79,21 +76,21 @@ invalid_json_code="$(curl -sS -o /tmp/robust-invalid-json-response.json -w '%{ht
 test "$invalid_json_code" = '400'
 assert_error /tmp/robust-invalid-json-response.json -32700
 
-printf '[{"jsonrpc":"2.0","id":2,"method":"server/discover"}]' > /tmp/robust-batch.json
+cat > /tmp/robust-batch.json <<JSON
+[{"jsonrpc":"2.0","id":2,"method":"server/discover","params":{${meta}}}]
+JSON
 batch_code="$(curl -sS -o /tmp/robust-batch-response.json -w '%{http_code}' \
   "${common_headers[@]}" -H 'MCP-Protocol-Version: 2026-07-28' -H 'Mcp-Method: server/discover' \
   --data-binary @/tmp/robust-batch.json "$endpoint")"
 test "$batch_code" = '400'
 assert_error /tmp/robust-batch-response.json -32600
 
-# Transport body limit is deliberately lower than the SDK default.
 php -r 'file_put_contents("/tmp/robust-oversize.txt", str_repeat("x", 1048577));'
 oversize_code="$(curl -sS -o /tmp/robust-oversize-response.json -w '%{http_code}' \
   "${common_headers[@]}" -H 'MCP-Protocol-Version: 2026-07-28' -H 'Mcp-Method: server/discover' \
   --data-binary @/tmp/robust-oversize.txt "$endpoint")"
 test "$oversize_code" = '413'
 
-# Correlation IDs are safe, bounded, returned to callers, and logged without bodies.
 correlation='ci.request-123'
 correlated_code="$(curl -sS -D /tmp/robust-correlation-headers.txt -o /tmp/robust-correlation.json -w '%{http_code}' \
   "${common_headers[@]}" -H "X-Request-Id: ${correlation}" \
@@ -107,7 +104,6 @@ if grep -Fq 'io.modelcontextprotocol/clientCapabilities' "$telemetry"; then
   exit 1
 fi
 
-# Modern notifications are acknowledged without a JSON-RPC response body.
 cat > /tmp/robust-notification.json <<JSON
 {"jsonrpc":"2.0","method":"notifications/progress","params":{"progressToken":"ci","progress":1,"total":1,${meta}}}
 JSON
@@ -117,7 +113,6 @@ notification_code="$(curl -sS -o /tmp/robust-notification-response -w '%{http_co
 test "$notification_code" = '202'
 test ! -s /tmp/robust-notification-response
 
-# Modern discovery and advertised schema/catalog fidelity.
 discover_code="$(curl -sS -D /tmp/robust-discover-headers.txt -o /tmp/robust-discover-response.json -w '%{http_code}' \
   "${common_headers[@]}" -H 'MCP-Protocol-Version: 2026-07-28' -H 'Mcp-Method: server/discover' \
   --data-binary @/tmp/robust-discover.json "$endpoint")"
@@ -147,7 +142,6 @@ if (!isset($echo["inputSchema"]["\$defs"],$echo["inputSchema"]["allOf"])) exit(7
 if (($echo["inputSchema"]["properties"]["text"]["x-mcp-header"]??"")!=="Text") exit(8);
 '
 
-# Invalid conditional input must be rejected before the business callback executes.
 cat > /tmp/robust-invalid-call.json <<JSON
 {"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"robust.echo","arguments":{"text":"missing-count","mode":"counted"},${meta}}}
 JSON
@@ -170,7 +164,6 @@ test "$valid_call_code" = '200'
 php -r '$d=json_decode(file_get_contents("/tmp/robust-valid-call-response.json"),true); $r=$d["result"]??[]; if (($r["isError"]??true)!==false || ($r["structuredContent"]["echo"]??"")!=="curl-works" || ($r["structuredContent"]["count"]??null)!==3) exit(1);'
 test "$(wc -l < "$counter")" = '1'
 
-# A callback that violates outputSchema must become a tool error with no invalid structuredContent.
 cat > /tmp/robust-bad-output-call.json <<JSON
 {"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"robust.bad-output","arguments":{},${meta}}}
 JSON
@@ -180,7 +173,6 @@ bad_output_code="$(curl -sS -o /tmp/robust-bad-output-response.json -w '%{http_c
 test "$bad_output_code" = '200'
 php -r '$d=json_decode(file_get_contents("/tmp/robust-bad-output-response.json"),true); $r=$d["result"]??[]; if (($r["isError"]??false)!==true || array_key_exists("structuredContent",$r)) exit(1);'
 
-# Unknown tool remains Invalid Params; unknown method remains Method Not Found.
 cat > /tmp/robust-unknown-tool.json <<JSON
 {"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"missing.tool","arguments":{},${meta}}}
 JSON
@@ -199,7 +191,6 @@ unknown_method_code="$(curl -sS -o /tmp/robust-unknown-method-response.json -w '
 test "$unknown_method_code" = '404'
 assert_error /tmp/robust-unknown-method-response.json -32601
 
-# Header disagreement and unsupported version remain distinct failure classes.
 mismatch_code="$(curl -sS -o /tmp/robust-mismatch.json -w '%{http_code}' \
   "${common_headers[@]}" -H 'MCP-Protocol-Version: 2026-07-27' -H 'Mcp-Method: server/discover' \
   --data-binary @/tmp/robust-discover.json "$endpoint")"
@@ -215,7 +206,6 @@ unsupported_code="$(curl -sS -o /tmp/robust-unsupported-response.json -w '%{http
 test "$unsupported_code" = '400'
 assert_error /tmp/robust-unsupported-response.json -32022
 
-# Raw legacy session lifecycle proves persistence across HTTP requests.
 cat > /tmp/robust-initialize.json <<'JSON'
 {"jsonrpc":"2.0","id":100,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"robust-curl-legacy","version":"1.0.0"}}}
 JSON
@@ -245,13 +235,11 @@ delete_code="$(curl -sS -o /tmp/robust-delete-response -w '%{http_code}' -X DELE
 test "$delete_code" = '200'
 test ! -e "$session_dir/$session_id"
 
-# Independent official TypeScript clients across every negotiation mode.
 MCP_ENDPOINT="$endpoint" node "$base_dir/sdk-probe.mjs"
 MCP_ENDPOINT="$endpoint" node "$base_dir/legacy-sdk-probe.mjs"
 MCP_ENDPOINT="$endpoint" node "$base_dir/auto-sdk-probe.mjs"
 MCP_ENDPOINT="$endpoint" node "$base_dir/chatgpt-scan-probe.mjs"
 
-# Independent MCP Inspector in both modern and legacy eras.
 MCP_ENDPOINT="$endpoint" php -r '
 file_put_contents("/tmp/robust-inspector-modern.json", json_encode(["mcpServers"=>["robust"=>["type"=>"http","url"=>getenv("MCP_ENDPOINT"),"protocolEra"=>"modern"]]], JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES));
 file_put_contents("/tmp/robust-inspector-legacy.json", json_encode(["mcpServers"=>["robust"=>["type"=>"http","url"=>getenv("MCP_ENDPOINT"),"protocolEra"=>"legacy"]]], JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES));
@@ -268,7 +256,6 @@ grep -Fq 'inspector-modern-works' /tmp/robust-inspector-modern-call.json
 npx --no-install mcp-inspector --cli --config /tmp/robust-inspector-legacy.json --server robust --method tools/list --format json > /tmp/robust-inspector-legacy-list.json
 grep -Fq 'robust.echo' /tmp/robust-inspector-legacy-list.json
 
-# Telemetry is structured and contains no credential/header/body material.
 php -r '
 $lines=file($argv[1], FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES); if (!$lines) exit(1);
 foreach($lines as $line){$e=json_decode($line,true,512,JSON_THROW_ON_ERROR); foreach(["ts","request_id","http_method","path","status","duration_ms"] as $k){if(!array_key_exists($k,$e)) exit(2);} }
