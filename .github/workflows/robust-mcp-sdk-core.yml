@@ -77,9 +77,11 @@ jobs:
         run: php schema-probe.php
 
       - name: Prove robust MCP over curl, official SDK, and Inspector
+        working-directory: workbench/harnesses/robust-mcp
         shell: bash
-        run: bash workbench/harnesses/robust-mcp/transport-probe-ci.sh
+        run: bash transport-probe-ci.sh
 
       - name: Red-team exclusive manual bearer authentication
+        working-directory: workbench/harnesses/robust-mcp
         shell: bash
-        run: bash workbench/harnesses/robust-mcp/bearer-auth-probe.sh
+        run: bash bearer-auth-probe.sh
