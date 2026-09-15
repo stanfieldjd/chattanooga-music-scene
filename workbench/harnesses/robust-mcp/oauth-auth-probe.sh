@@ -86,8 +86,6 @@ for attempt in $(seq 1 30); do
   sleep 1
 done
 
-# RFC 9728 metadata is public in OAuth mode and is available at both the root
-# well-known path and the resource-specific path used for /mcp resources.
 for metadata_path in '/.well-known/oauth-protected-resource' '/.well-known/oauth-protected-resource/mcp'; do
   code="$(curl -sS -o /tmp/robust-oauth-metadata.json -w '%{http_code}' "http://127.0.0.1:8100${metadata_path}")"
   test "$code" = '200'
@@ -110,23 +108,20 @@ cat > /tmp/robust-oauth-discover.json <<'JSON'
 {"jsonrpc":"2.0","id":1,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"oauth-redteam","version":"1.0.0"},"io.modelcontextprotocol/clientCapabilities":{}}}}
 JSON
 
-# OAuth challenges must point ChatGPT/clients at the protected-resource metadata
-# and advertise the required scope.
 missing_code="$(curl -sS -D /tmp/robust-oauth-missing.headers -o /tmp/robust-oauth-missing.json -w '%{http_code}' \
   "${common_headers[@]}" --data-binary @/tmp/robust-oauth-discover.json "$endpoint")"
 test "$missing_code" = '401'
 grep -Eiq '^WWW-Authenticate: Bearer .*resource_metadata="http://127\.0\.0\.1:8100/\.well-known/oauth-protected-resource"' /tmp/robust-oauth-missing.headers
 grep -Eiq 'scope="mcp:connect"' /tmp/robust-oauth-missing.headers
 
+# Malformed credentials are a malformed request (400), distinct from a validly
+# formed but invalid/expired bearer token (401) and insufficient scope (403).
 malformed_code="$(curl -sS -D /tmp/robust-oauth-malformed.headers -o /tmp/robust-oauth-malformed.json -w '%{http_code}' \
   "${common_headers[@]}" -H 'Authorization: Basic not-oauth' \
   --data-binary @/tmp/robust-oauth-discover.json "$endpoint")"
-test "$malformed_code" = '401'
+test "$malformed_code" = '400'
 grep -Eiq 'error="invalid_request"' /tmp/robust-oauth-malformed.headers
 
-# ChatGPT browser preflight is handled before authentication. Host and Origin are
-# separate security boundaries: ChatGPT's Origin is allowed but never substitutes
-# for validation of the MCP server Host.
 preflight_code="$(curl -sS -D /tmp/robust-oauth-preflight.headers -o /tmp/robust-oauth-preflight.txt -w '%{http_code}' \
   -X OPTIONS \
   -H 'Origin: https://chatgpt.com' \
@@ -151,8 +146,6 @@ evil_host_code="$(curl -sS -o /tmp/robust-oauth-evil-host.txt -w '%{http_code}' 
   -H 'Host: attacker.invalid' "${common_headers[@]}" --data-binary @/tmp/robust-oauth-discover.json "$endpoint")"
 test "$evil_host_code" = '403'
 
-# A valid token fills both OIDC-discovery and JWKS caches and a browser-origin
-# request receives the exact CORS origin, never a wildcard.
 valid_code="$(curl -sS -D /tmp/robust-oauth-valid.headers -o /tmp/robust-oauth-valid.json -w '%{http_code}' \
   "${common_headers[@]}" -H 'Origin: https://chatgpt.com' -H "Authorization: Bearer ${valid_token}" \
   --data-binary @/tmp/robust-oauth-discover.json "$endpoint")"
@@ -163,9 +156,6 @@ php -r '$d=json_decode(file_get_contents("/tmp/robust-oauth-valid.json"),true,51
 grep -Fq '/.well-known/oauth-authorization-server' "$idp_counter"
 grep -Fq '/jwks' "$idp_counter"
 
-# Stop the identity provider. Every remaining validation must use the persistent
-# verified metadata/JWKS cache, proving request workers do not depend on a live
-# identity-provider round trip after warm-up.
 kill "$idp_pid" 2>/dev/null || true
 wait "$idp_pid" 2>/dev/null || true
 idp_pid=''
@@ -188,14 +178,10 @@ grep -Eiq 'error="insufficient_scope"' /tmp/robust-oauth-missing-scope.headers
 grep -Eiq 'scope="mcp:connect"' /tmp/robust-oauth-missing-scope.headers
 assert_status 200 "$valid_token_2" 'cached-valid'
 
-# The same OAuth resource must work over modern, legacy, and automatic protocol
-# negotiation after the IdP has gone offline.
 MCP_ENDPOINT="$endpoint" MCP_OAUTH_TOKEN="$valid_token_2" MCP_EXPECTED_ERA=modern node "$base_dir/oauth-sdk-probe.mjs"
 MCP_ENDPOINT="$endpoint" MCP_OAUTH_TOKEN="$valid_token_2" MCP_EXPECTED_ERA=legacy node "$base_dir/oauth-sdk-probe.mjs"
 MCP_ENDPOINT="$endpoint" MCP_OAUTH_TOKEN="$valid_token_2" MCP_EXPECTED_ERA=auto node "$base_dir/oauth-sdk-probe.mjs"
 
-# All MCP endpoint methods remain protected in OAuth mode. Valid credentials
-# reach transport semantics; missing credentials do not.
 get_missing="$(curl -sS -o /tmp/robust-oauth-get-missing.json -w '%{http_code}' "$endpoint")"
 test "$get_missing" = '401'
 get_valid="$(curl -sS -D /tmp/robust-oauth-get-valid.headers -o /tmp/robust-oauth-get-valid.json -w '%{http_code}' \
@@ -203,7 +189,6 @@ get_valid="$(curl -sS -D /tmp/robust-oauth-get-valid.headers -o /tmp/robust-oaut
 test "$get_valid" = '405'
 grep -Eiq '^Allow: POST, DELETE, OPTIONS' /tmp/robust-oauth-get-valid.headers
 
-# Credentials and JWTs must never appear in server or structured telemetry logs.
 for token in "$valid_token" "$valid_token_2" "$wrong_signature" "$wrong_issuer" "$wrong_audience" "$missing_scope" "$expired_token"; do
   if grep -Fq "$token" /tmp/robust-oauth-mcp.log "$telemetry" 2>/dev/null; then
     echo 'OAuth access token leaked to logs' >&2
@@ -211,11 +196,9 @@ for token in "$valid_token" "$valid_token_2" "$wrong_signature" "$wrong_issuer" 
   fi
 done
 
-# The identity provider stayed offline during all client calls above. If cache
-# use failed, those calls would have failed instead of silently reaching it.
 if curl -fsS --max-time 1 "$idp/.well-known/oauth-authorization-server" >/dev/null 2>&1; then
   echo 'OAuth fixture identity provider unexpectedly remained reachable' >&2
   exit 1
 fi
 
-printf '%s\n' 'robust-mcp-oauth: PASS rfc9728 jwt-signature issuer audience expiration scopes strict-host strict-chatgpt-origin dynamic-mcp-cors cache-offline modern+legacy+auto no-token-logs'
+printf '%s\n' 'robust-mcp-oauth: PASS rfc9728 status=400/401/403 jwt-signature issuer audience expiration scopes strict-host strict-chatgpt-origin dynamic-mcp-cors cache-offline modern+legacy+auto no-token-logs'
