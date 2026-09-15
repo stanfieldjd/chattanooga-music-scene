@@ -7,6 +7,7 @@ use Chattanooga\RobustMcp\McpHttpSemanticsMiddleware;
 use Chattanooga\RobustMcp\RequestTelemetryMiddleware;
 use Chattanooga\RobustMcp\RobustToolRegistrar;
 use Chattanooga\RobustMcp\SchemaGuard;
+use Chattanooga\RobustMcp\ServerConfiguration;
 use Mcp\Schema\Enum\CacheScope;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\ToolAnnotations;
@@ -40,7 +41,7 @@ $jsonResponse = static function (int $status, array $payload, array $headers = [
     exit;
 };
 
-if ('/healthz' === $path || '/readyz' === $path) {
+if ('/healthz' === $path) {
     if ('GET' !== strtoupper($request->getMethod())) {
         $jsonResponse(405, ['status' => 'error', 'reason' => 'method_not_allowed'], ['Allow' => 'GET']);
     }
@@ -48,7 +49,32 @@ if ('/healthz' === $path || '/readyz' === $path) {
         'status' => 'ok',
         'server' => ROBUST_MCP_NAME,
         'version' => ROBUST_MCP_VERSION,
-        'check' => '/readyz' === $path ? 'ready' : 'health',
+        'check' => 'health',
+    ]);
+}
+
+if ('/readyz' === $path) {
+    if ('GET' !== strtoupper($request->getMethod())) {
+        $jsonResponse(405, ['status' => 'error', 'reason' => 'method_not_allowed'], ['Allow' => 'GET']);
+    }
+
+    try {
+        $readiness = ServerConfiguration::fromEnvironment();
+        $readiness->assertReady();
+    } catch (\Throwable) {
+        $jsonResponse(503, [
+            'status' => 'not_ready',
+            'server' => ROBUST_MCP_NAME,
+            'version' => ROBUST_MCP_VERSION,
+            'check' => 'ready',
+        ]);
+    }
+
+    $jsonResponse(200, [
+        'status' => 'ok',
+        'server' => ROBUST_MCP_NAME,
+        'version' => ROBUST_MCP_VERSION,
+        'check' => 'ready',
     ]);
 }
 
@@ -63,50 +89,10 @@ $configurationFailure = static function () use ($jsonResponse): never {
     ]);
 };
 
-$authModeValue = getenv('ROBUST_MCP_AUTH_MODE');
-$digestValue = getenv('ROBUST_MCP_BEARER_SHA256');
-$digestConfigured = false !== $digestValue && '' !== trim($digestValue);
-
-if (false === $authModeValue || '' === trim($authModeValue)) {
-    $authMode = $digestConfigured ? 'manual-bearer' : 'none';
-} else {
-    $authMode = trim($authModeValue);
-}
-
-if (!in_array($authMode, ['none', 'manual-bearer'], true)) {
-    $configurationFailure();
-}
-if ('none' === $authMode && $digestConfigured) {
-    $configurationFailure();
-}
-if ('manual-bearer' === $authMode && !$digestConfigured) {
-    $configurationFailure();
-}
-
-$sessionDirValue = getenv('ROBUST_MCP_SESSION_DIR');
-$sessionDir = false === $sessionDirValue || '' === trim($sessionDirValue)
-    ? sys_get_temp_dir() . '/chattanooga-robust-mcp-sessions'
-    : trim($sessionDirValue);
-if (str_contains($sessionDir, "\0")) {
-    $configurationFailure();
-}
-if (!is_dir($sessionDir) && !@mkdir($sessionDir, 0700, true) && !is_dir($sessionDir)) {
-    $configurationFailure();
-}
-@chmod($sessionDir, 0700);
-if (!is_dir($sessionDir) || !is_writable($sessionDir)) {
-    $configurationFailure();
-}
-
-$sessionTtlValue = getenv('ROBUST_MCP_SESSION_TTL');
-$sessionTtl = false === $sessionTtlValue || '' === trim($sessionTtlValue) ? 3600 : filter_var($sessionTtlValue, FILTER_VALIDATE_INT);
-if (false === $sessionTtl || $sessionTtl < 60 || $sessionTtl > 86400) {
-    $configurationFailure();
-}
-
-$telemetryLogValue = getenv('ROBUST_MCP_LOG_FILE');
-$telemetryLog = false === $telemetryLogValue || '' === trim($telemetryLogValue) ? null : trim($telemetryLogValue);
-if (null !== $telemetryLog && str_contains($telemetryLog, "\0")) {
+try {
+    $configuration = ServerConfiguration::fromEnvironment();
+    $configuration->prepareForServing();
+} catch (\Throwable) {
     $configurationFailure();
 }
 
@@ -123,7 +109,7 @@ $builder = Server::builder()
         . 'A tool result marked as an error is not a successful action and must not be represented as one. '
         . 'This endpoint currently exposes MCP/runtime proof capabilities and discovery metadata; it does not expose WordPress administration or mutation tools.'
     )
-    ->setSession(new FileSessionStore($sessionDir, (int) $sessionTtl))
+    ->setSession(new FileSessionStore($configuration->sessionDirectory, $configuration->sessionTtl))
     ->setCachePolicy(
         CachePolicy::default(0, CacheScope::Private)
             ->withMethod('tools/list', 300_000, CacheScope::Private)
@@ -258,15 +244,15 @@ $tools->addTool(
 $server = $builder->build();
 $middleware = StreamableHttpTransport::defaultMiddleware();
 try {
-    $middleware[] = new RequestTelemetryMiddleware($telemetryLog);
+    $middleware[] = new RequestTelemetryMiddleware($configuration->telemetryLog);
 } catch (\InvalidArgumentException) {
     $configurationFailure();
 }
 
-if ('manual-bearer' === $authMode) {
+if ('manual-bearer' === $configuration->authMode) {
     try {
         $middleware[] = new ManualBearerAuthMiddleware(
-            expectedSha256: (string) $digestValue,
+            expectedSha256: (string) $configuration->bearerSha256,
             responseFactory: $factory,
             streamFactory: $factory,
         );
@@ -275,7 +261,7 @@ if ('manual-bearer' === $authMode) {
     }
 }
 
-$middleware[] = new McpHttpSemanticsMiddleware($factory, $factory);
+$middleware[] = new McpHttpSemanticsMiddleware($factory, $factory, 1024 * 1024);
 
 $transport = new StreamableHttpTransport(
     request: $request,
