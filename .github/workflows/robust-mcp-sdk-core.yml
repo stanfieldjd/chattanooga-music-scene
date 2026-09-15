@@ -33,22 +33,15 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Resolve pinned PHP MCP dependencies
+      - name: Install locked PHP MCP dependencies
         working-directory: workbench/harnesses/robust-mcp
         run: |
           set -euo pipefail
-          composer validate --strict --no-check-lock
-          composer update --no-interaction --prefer-dist --no-progress
           composer validate --strict
+          composer install --no-interaction --prefer-dist --no-progress
           composer audit --locked
-
-      - name: Preserve generated Composer lock
-        uses: actions/upload-artifact@v4
-        with:
-          name: robust-mcp-composer-lock
-          path: workbench/harnesses/robust-mcp/composer.lock
-          if-no-files-found: error
-          retention-days: 1
+          composer check-platform-reqs --no-dev
+          git diff --exit-code -- composer.lock
 
       - name: Install MCP reference clients
         run: npm install --no-save @modelcontextprotocol/client@latest @modelcontextprotocol/inspector@latest
