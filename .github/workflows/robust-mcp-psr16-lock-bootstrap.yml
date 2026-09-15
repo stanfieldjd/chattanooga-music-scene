@@ -1,0 +1,56 @@
+name: Bootstrap Robust MCP PSR16 Lock
+
+on:
+  push:
+    branches:
+      - work/robust-mcp-chatgpt-integration
+    paths:
+      - ".github/workflows/robust-mcp-psr16-lock-bootstrap.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  lock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/robust-mcp-chatgpt-integration
+          fetch-depth: 0
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: fileinfo, openssl
+          tools: composer:v2
+
+      - name: Resolve and audit PSR-16 runtime dependency
+        working-directory: workbench/harnesses/robust-mcp
+        run: |
+          set -euo pipefail
+          composer validate --strict --no-check-lock
+          composer update psr/simple-cache --with-all-dependencies --no-interaction --prefer-dist --no-progress
+          composer validate --strict
+          composer audit --locked
+          composer check-platform-reqs --no-dev
+          php -r '
+          $lock=json_decode(file_get_contents("composer.lock"),true,512,JSON_THROW_ON_ERROR);
+          $versions=[];
+          foreach ($lock["packages"] as $package) {$versions[$package["name"]]=$package["version"];}
+          foreach (["firebase/php-jwt","psr/simple-cache"] as $required) {
+            if (!isset($versions[$required])) {fwrite(STDERR,"Missing locked package: $required\n"); exit(1);}
+          }
+          if (version_compare(ltrim($versions["firebase/php-jwt"],"v"),"7.1.1","<")) exit(2);
+          echo "OAuth runtime lock: ".json_encode(array_intersect_key($versions,array_flip(["firebase/php-jwt","psr/simple-cache"])))."\n";
+          '
+
+      - name: Commit generated composer lock only
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- workbench/harnesses/robust-mcp/composer.lock
+          git diff --cached --quiet && exit 0
+          git commit -m "Lock robust MCP PSR-16 dependency"
+          git push origin HEAD:work/robust-mcp-chatgpt-integration
