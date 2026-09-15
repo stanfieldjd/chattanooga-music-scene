@@ -303,10 +303,13 @@ $transport = new StreamableHttpTransport(
 );
 $response = $server->run($transport);
 
-http_response_code($response->getStatusCode());
+// PHP's SAPI forces the response status to 401 when a WWW-Authenticate header
+// is emitted. Emit all PSR-7 headers first, then restore the response object's
+// authoritative status so OAuth can distinguish 400, 401, and 403 correctly.
 foreach ($response->getHeaders() as $name => $values) {
     foreach ($values as $value) {
         header($name . ': ' . $value, false);
     }
 }
+http_response_code($response->getStatusCode());
 echo (string) $response->getBody();
