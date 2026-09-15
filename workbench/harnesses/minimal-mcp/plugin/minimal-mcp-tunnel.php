@@ -75,8 +75,8 @@ add_filter(
 
 		$authorization = (string) $request->get_header( 'authorization' );
 		$matches       = array();
-		$valid_header  = 1 === preg_match( '/^Bearer[ \t]+([a-f0-9]{64})$/iD', $authorization, $matches );
-		$provided      = $valid_header ? strtolower( $matches[1] ) : '';
+		$valid_header  = 1 === preg_match( '/^(?i:Bearer)[ \t]+([a-f0-9]{64})$/D', $authorization, $matches );
+		$provided      = $valid_header ? $matches[1] : '';
 		$provided_hash = '' !== $provided ? hash( 'sha256', $provided ) : str_repeat( '0', 64 );
 		if ( '' === $provided || ! hash_equals( $digest, $provided_hash ) ) {
 			return new WP_Error(
