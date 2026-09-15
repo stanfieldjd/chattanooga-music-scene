@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Chattanooga\RobustMcp\ManualBearerAuthMiddleware;
 use Chattanooga\RobustMcp\McpHttpSemanticsMiddleware;
+use Chattanooga\RobustMcp\RequestTelemetryMiddleware;
 use Chattanooga\RobustMcp\RobustToolRegistrar;
 use Chattanooga\RobustMcp\SchemaGuard;
 use Mcp\Schema\Enum\CacheScope;
@@ -100,6 +101,12 @@ if (!is_dir($sessionDir) || !is_writable($sessionDir)) {
 $sessionTtlValue = getenv('ROBUST_MCP_SESSION_TTL');
 $sessionTtl = false === $sessionTtlValue || '' === trim($sessionTtlValue) ? 3600 : filter_var($sessionTtlValue, FILTER_VALIDATE_INT);
 if (false === $sessionTtl || $sessionTtl < 60 || $sessionTtl > 86400) {
+    $configurationFailure();
+}
+
+$telemetryLogValue = getenv('ROBUST_MCP_LOG_FILE');
+$telemetryLog = false === $telemetryLogValue || '' === trim($telemetryLogValue) ? null : trim($telemetryLogValue);
+if (null !== $telemetryLog && str_contains($telemetryLog, "\0")) {
     $configurationFailure();
 }
 
@@ -250,6 +257,11 @@ $tools->addTool(
 
 $server = $builder->build();
 $middleware = StreamableHttpTransport::defaultMiddleware();
+try {
+    $middleware[] = new RequestTelemetryMiddleware($telemetryLog);
+} catch (\InvalidArgumentException) {
+    $configurationFailure();
+}
 
 if ('manual-bearer' === $authMode) {
     try {
