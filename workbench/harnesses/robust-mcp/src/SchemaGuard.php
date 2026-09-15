@@ -20,6 +20,14 @@ final class SchemaGuard
     public const MAX_VALIDATION_ERRORS = 8;
 
     /** @var list<string> */
+    public const SUPPORTED_DIALECTS = [
+        'https://json-schema.org/draft/2020-12/schema',
+        'https://json-schema.org/draft/2019-09/schema',
+        'http://json-schema.org/draft-07/schema',
+        'http://json-schema.org/draft-06/schema',
+    ];
+
+    /** @var list<string> */
     private const OPIS_EXTENSION_KEYWORDS = [
         '$data',
         '$error',
@@ -62,12 +70,12 @@ final class SchemaGuard
             $schemaObject->{'$schema'} = self::DRAFT_2020_12;
         }
 
-        // Force Opis to parse and resolve the reachable schema. Whether this
+        // Force Opis to parse and resolve the reachable schema. Whether the
         // sentinel validates is irrelevant; parser/resolver failures are not.
         try {
             $this->validator->validate(new \stdClass(), $schemaObject);
         } catch (SchemaException $error) {
-            throw new SchemaGuardException(sprintf('%s is not a valid JSON Schema 2020-12 document: %s', $label, $error->getMessage()), 0, $error);
+            throw new SchemaGuardException(sprintf('%s is not a valid supported JSON Schema document: %s', $label, $error->getMessage()), 0, $error);
         } catch (\Throwable $error) {
             throw new SchemaGuardException(sprintf('%s could not be safely compiled.', $label), 0, $error);
         }
@@ -146,8 +154,8 @@ final class SchemaGuard
             $childPath = $path . '/' . str_replace(['~', '/'], ['~0', '~1'], $key);
 
             if ('$schema' === $key) {
-                if (!is_string($value) || self::DRAFT_2020_12 !== rtrim($value, '#')) {
-                    throw new SchemaGuardException(sprintf('%s must use JSON Schema draft 2020-12 at %s.', $label, $childPath));
+                if (!is_string($value) || !in_array(rtrim($value, '#'), self::SUPPORTED_DIALECTS, true)) {
+                    throw new SchemaGuardException(sprintf('%s declares an unsupported JSON Schema dialect at %s.', $label, $childPath));
                 }
             }
 
