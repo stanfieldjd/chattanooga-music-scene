@@ -4,14 +4,20 @@ set -euo pipefail
 base_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 endpoint='http://127.0.0.1:8093/mcp'
 counter='/tmp/robust-mcp-handler-count'
-rm -f "$counter"
+telemetry='/tmp/robust-mcp-telemetry.jsonl'
+session_dir='/tmp/robust-mcp-sessions-ci'
+rm -f "$counter" "$telemetry"
+rm -rf "$session_dir"
 
-ROBUST_MCP_COUNTER_FILE="$counter" php -S 127.0.0.1:8093 "$base_dir/server.php" >/tmp/robust-mcp-http.log 2>&1 &
+ROBUST_MCP_COUNTER_FILE="$counter" \
+ROBUST_MCP_LOG_FILE="$telemetry" \
+ROBUST_MCP_SESSION_DIR="$session_dir" \
+php -S 127.0.0.1:8093 "$base_dir/server.php" >/tmp/robust-mcp-http.log 2>&1 &
 server_pid=$!
 trap 'kill "$server_pid" 2>/dev/null || true' EXIT
 
 for attempt in $(seq 1 30); do
-  if curl -sS -o /dev/null -w '%{http_code}' 'http://127.0.0.1:8093/not-mcp' | grep -q '^404$'; then
+  if curl -sS -o /dev/null -w '%{http_code}' 'http://127.0.0.1:8093/healthz' | grep -q '^200$'; then
     break
   fi
   if [ "$attempt" -eq 30 ]; then
@@ -32,14 +38,21 @@ assert_error() {
   php -r '$d=json_decode(file_get_contents($argv[1]),true); if (($d["error"]["code"]??null)!==(int)$argv[2]) {fwrite(STDERR,file_get_contents($argv[1])); exit(1);}' "$file" "$expected"
 }
 
+# Health/readiness reveal only operational identity, never auth or WordPress data.
+health_code="$(curl -sS -o /tmp/robust-health.json -w '%{http_code}' 'http://127.0.0.1:8093/healthz')"
+ready_code="$(curl -sS -o /tmp/robust-ready.json -w '%{http_code}' 'http://127.0.0.1:8093/readyz')"
+test "$health_code" = '200'
+test "$ready_code" = '200'
+php -r '$d=json_decode(file_get_contents("/tmp/robust-health.json"),true); if (($d["status"]??"")!=="ok" || ($d["server"]??"")!=="chattanooga-robust-mcp" || ($d["version"]??"")!=="0.2.0") exit(1); if (isset($d["wordpress"],$d["auth"],$d["token"])) exit(2);'
+
 cat > /tmp/robust-discover.json <<JSON
 {"jsonrpc":"2.0","id":1,"method":"server/discover","params":{${meta}}}
 JSON
 
-# HTTP edge semantics are explicit and independent of the SDK dispatcher.
+# HTTP edge semantics shared by both protocol eras.
 get_code="$(curl -sS -D /tmp/robust-get-headers.txt -o /tmp/robust-get.json -w '%{http_code}' "$endpoint")"
 test "$get_code" = '405'
-grep -Eiq '^Allow: POST' /tmp/robust-get-headers.txt
+grep -Eiq '^Allow: POST, DELETE, OPTIONS' /tmp/robust-get-headers.txt
 
 content_type_code="$(curl -sS -o /tmp/robust-content-type.json -w '%{http_code}' \
   -H 'Content-Type: text/plain' -H 'Accept: application/json, text/event-stream' \
@@ -80,19 +93,36 @@ oversize_code="$(curl -sS -o /tmp/robust-oversize-response.json -w '%{http_code}
   --data-binary @/tmp/robust-oversize.txt "$endpoint")"
 test "$oversize_code" = '413'
 
-# Notifications are acknowledged and never receive a JSON-RPC response body.
-printf '{"jsonrpc":"2.0","method":"notifications/progress","params":{"progressToken":"ci"}}' > /tmp/robust-notification.json
+# Correlation IDs are safe, bounded, returned to callers, and logged without bodies.
+correlation='ci.request-123'
+correlated_code="$(curl -sS -D /tmp/robust-correlation-headers.txt -o /tmp/robust-correlation.json -w '%{http_code}' \
+  "${common_headers[@]}" -H "X-Request-Id: ${correlation}" \
+  -H 'MCP-Protocol-Version: 2026-07-28' -H 'Mcp-Method: server/discover' \
+  --data-binary @/tmp/robust-discover.json "$endpoint")"
+test "$correlated_code" = '200'
+grep -Eiq "^X-Request-Id: ${correlation}" /tmp/robust-correlation-headers.txt
+grep -Fq '"request_id":"ci.request-123"' "$telemetry"
+if grep -Fq 'io.modelcontextprotocol/clientCapabilities' "$telemetry"; then
+  echo 'request body leaked into telemetry' >&2
+  exit 1
+fi
+
+# Modern notifications are acknowledged without a JSON-RPC response body.
+cat > /tmp/robust-notification.json <<JSON
+{"jsonrpc":"2.0","method":"notifications/progress","params":{"progressToken":"ci","progress":1,"total":1,${meta}}}
+JSON
 notification_code="$(curl -sS -o /tmp/robust-notification-response -w '%{http_code}' \
-  "${common_headers[@]}" --data-binary @/tmp/robust-notification.json "$endpoint")"
+  "${common_headers[@]}" -H 'MCP-Protocol-Version: 2026-07-28' -H 'Mcp-Method: notifications/progress' \
+  --data-binary @/tmp/robust-notification.json "$endpoint")"
 test "$notification_code" = '202'
 test ! -s /tmp/robust-notification-response
 
-# Discovery and advertised schema fidelity.
+# Modern discovery and advertised schema/catalog fidelity.
 discover_code="$(curl -sS -D /tmp/robust-discover-headers.txt -o /tmp/robust-discover-response.json -w '%{http_code}' \
   "${common_headers[@]}" -H 'MCP-Protocol-Version: 2026-07-28' -H 'Mcp-Method: server/discover' \
   --data-binary @/tmp/robust-discover.json "$endpoint")"
 test "$discover_code" = '200'
-php -r '$d=json_decode(file_get_contents("/tmp/robust-discover-response.json"),true); $s=$d["result"]["_meta"]["io.modelcontextprotocol/serverInfo"]??[]; if (($s["name"]??"")!=="chattanooga-robust-mcp" || ($s["version"]??"")!=="0.1.0") exit(1);'
+php -r '$d=json_decode(file_get_contents("/tmp/robust-discover-response.json"),true); $s=$d["result"]["_meta"]["io.modelcontextprotocol/serverInfo"]??[]; if (($s["name"]??"")!=="chattanooga-robust-mcp" || ($s["version"]??"")!=="0.2.0") exit(1);'
 
 cat > /tmp/robust-list.json <<JSON
 {"jsonrpc":"2.0","id":3,"method":"tools/list","params":{${meta}}}
@@ -102,12 +132,19 @@ list_code="$(curl -sS -o /tmp/robust-list-response.json -w '%{http_code}' \
   --data-binary @/tmp/robust-list.json "$endpoint")"
 test "$list_code" = '200'
 php -r '
-$d=json_decode(file_get_contents("/tmp/robust-list-response.json"),true); $tools=$d["result"]["tools"]??[];
+$d=json_decode(file_get_contents("/tmp/robust-list-response.json"),true); $result=$d["result"]??[]; $tools=$result["tools"]??[];
 $names=array_map(static fn($t)=>$t["name"]??"",$tools); sort($names,SORT_STRING);
 if ($names!==["robust.bad-output","robust.echo"]) exit(1);
+if (($result["ttlMs"]??null)!==300000 || ($result["cacheScope"]??"")!=="private") exit(2);
+foreach($tools as $tool){
+  if (($tool["annotations"]["readOnlyHint"]??null)!==true) exit(3);
+  if (($tool["annotations"]["destructiveHint"]??null)!==false) exit(4);
+  if (($tool["annotations"]["idempotentHint"]??null)!==true) exit(5);
+  if (($tool["annotations"]["openWorldHint"]??null)!==false) exit(6);
+}
 $echo=null; foreach($tools as $tool){if(($tool["name"]??"")==="robust.echo"){$echo=$tool;break;}}
-if (!isset($echo["inputSchema"]["\$defs"],$echo["inputSchema"]["allOf"])) exit(2);
-if (($echo["inputSchema"]["properties"]["text"]["x-mcp-header"]??"")!=="Text") exit(3);
+if (!isset($echo["inputSchema"]["\$defs"],$echo["inputSchema"]["allOf"])) exit(7);
+if (($echo["inputSchema"]["properties"]["text"]["x-mcp-header"]??"")!=="Text") exit(8);
 '
 
 # Invalid conditional input must be rejected before the business callback executes.
@@ -178,21 +215,67 @@ unsupported_code="$(curl -sS -o /tmp/robust-unsupported-response.json -w '%{http
 test "$unsupported_code" = '400'
 assert_error /tmp/robust-unsupported-response.json -32022
 
-# Independent official TypeScript client.
-MCP_ENDPOINT="$endpoint" node "$base_dir/sdk-probe.mjs"
+# Raw legacy session lifecycle proves persistence across HTTP requests.
+cat > /tmp/robust-initialize.json <<'JSON'
+{"jsonrpc":"2.0","id":100,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"robust-curl-legacy","version":"1.0.0"}}}
+JSON
+initialize_code="$(curl -sS -D /tmp/robust-initialize-headers.txt -o /tmp/robust-initialize-response.json -w '%{http_code}' \
+  "${common_headers[@]}" --data-binary @/tmp/robust-initialize.json "$endpoint")"
+test "$initialize_code" = '200'
+session_id="$(awk 'BEGIN{IGNORECASE=1} /^Mcp-Session-Id:/ {gsub(/\r/,"",$2); print $2}' /tmp/robust-initialize-headers.txt | tail -1)"
+test -n "$session_id"
+test -f "$session_dir/$session_id"
+php -r '$d=json_decode(file_get_contents("/tmp/robust-initialize-response.json"),true); if (($d["result"]["protocolVersion"]??"")!=="2025-11-25" || ($d["result"]["serverInfo"]["version"]??"")!=="0.2.0") exit(1);'
 
-# Independent MCP Inspector CLI.
+printf '{"jsonrpc":"2.0","method":"notifications/initialized"}' > /tmp/robust-initialized.json
+initialized_code="$(curl -sS -o /tmp/robust-initialized-response -w '%{http_code}' \
+  "${common_headers[@]}" -H "Mcp-Session-Id: ${session_id}" -H 'MCP-Protocol-Version: 2025-11-25' \
+  --data-binary @/tmp/robust-initialized.json "$endpoint")"
+test "$initialized_code" = '202'
+
+printf '{"jsonrpc":"2.0","id":101,"method":"tools/list","params":{}}' > /tmp/robust-legacy-list.json
+legacy_list_code="$(curl -sS -o /tmp/robust-legacy-list-response.json -w '%{http_code}' \
+  "${common_headers[@]}" -H "Mcp-Session-Id: ${session_id}" -H 'MCP-Protocol-Version: 2025-11-25' \
+  --data-binary @/tmp/robust-legacy-list.json "$endpoint")"
+test "$legacy_list_code" = '200'
+grep -Fq 'robust.echo' /tmp/robust-legacy-list-response.json
+
+delete_code="$(curl -sS -o /tmp/robust-delete-response -w '%{http_code}' -X DELETE \
+  -H "Mcp-Session-Id: ${session_id}" -H 'MCP-Protocol-Version: 2025-11-25' "$endpoint")"
+test "$delete_code" = '200'
+test ! -e "$session_dir/$session_id"
+
+# Independent official TypeScript clients across every negotiation mode.
+MCP_ENDPOINT="$endpoint" node "$base_dir/sdk-probe.mjs"
+MCP_ENDPOINT="$endpoint" node "$base_dir/legacy-sdk-probe.mjs"
+MCP_ENDPOINT="$endpoint" node "$base_dir/auto-sdk-probe.mjs"
+MCP_ENDPOINT="$endpoint" node "$base_dir/chatgpt-scan-probe.mjs"
+
+# Independent MCP Inspector in both modern and legacy eras.
 MCP_ENDPOINT="$endpoint" php -r '
-file_put_contents("/tmp/robust-inspector.json", json_encode(["mcpServers"=>["robust"=>["type"=>"http","url"=>getenv("MCP_ENDPOINT"),"protocolEra"=>"modern"]]], JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES));
+file_put_contents("/tmp/robust-inspector-modern.json", json_encode(["mcpServers"=>["robust"=>["type"=>"http","url"=>getenv("MCP_ENDPOINT"),"protocolEra"=>"modern"]]], JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES));
+file_put_contents("/tmp/robust-inspector-legacy.json", json_encode(["mcpServers"=>["robust"=>["type"=>"http","url"=>getenv("MCP_ENDPOINT"),"protocolEra"=>"legacy"]]], JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES));
 '
 
-npx --no-install mcp-inspector --cli --config /tmp/robust-inspector.json --server robust --method tools/list --format json > /tmp/robust-inspector-list.json
-grep -Fq 'robust.echo' /tmp/robust-inspector-list.json
-grep -Fq '"x-mcp-header":"Text"' <(tr -d '[:space:]' < /tmp/robust-inspector-list.json)
+npx --no-install mcp-inspector --cli --config /tmp/robust-inspector-modern.json --server robust --method tools/list --format json > /tmp/robust-inspector-modern-list.json
+grep -Fq 'robust.echo' /tmp/robust-inspector-modern-list.json
+grep -Fq '"x-mcp-header":"Text"' <(tr -d '[:space:]' < /tmp/robust-inspector-modern-list.json)
 
-npx --no-install mcp-inspector --cli --config /tmp/robust-inspector.json --server robust \
-  --method tools/call --tool-name robust.echo --tool-arg text=inspector-works --tool-arg mode=plain --format json > /tmp/robust-inspector-call.json
-grep -Fq 'inspector-works' /tmp/robust-inspector-call.json
-grep -Fq 'robust-mcp' /tmp/robust-inspector-call.json
+npx --no-install mcp-inspector --cli --config /tmp/robust-inspector-modern.json --server robust \
+  --method tools/call --tool-name robust.echo --tool-arg text=inspector-modern-works --tool-arg mode=plain --format json > /tmp/robust-inspector-modern-call.json
+grep -Fq 'inspector-modern-works' /tmp/robust-inspector-modern-call.json
 
-printf '%s\n' 'robust-mcp-transport: PASS official-php-sdk strict-schema-guard output-enforcement body-limit http-semantics curl+official-ts-sdk+inspector modern-only'
+npx --no-install mcp-inspector --cli --config /tmp/robust-inspector-legacy.json --server robust --method tools/list --format json > /tmp/robust-inspector-legacy-list.json
+grep -Fq 'robust.echo' /tmp/robust-inspector-legacy-list.json
+
+# Telemetry is structured and contains no credential/header/body material.
+php -r '
+$lines=file($argv[1], FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES); if (!$lines) exit(1);
+foreach($lines as $line){$e=json_decode($line,true,512,JSON_THROW_ON_ERROR); foreach(["ts","request_id","http_method","path","status","duration_ms"] as $k){if(!array_key_exists($k,$e)) exit(2);} }
+' "$telemetry"
+if grep -Eiq 'authorization|bearer|clientCapabilities|"arguments"' "$telemetry"; then
+  echo 'sensitive request material leaked into telemetry' >&2
+  exit 1
+fi
+
+printf '%s\n' 'robust-mcp-transport: PASS dual-era persistent-sessions modern+legacy+auto chatgpt-scan strict-schema output-guard body-limit telemetry curl+official-ts-sdk+inspector'
