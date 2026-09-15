@@ -8,7 +8,7 @@ if (!endpoint || !token) {
 }
 
 const client = new Client(
-  { name: 'minimal-mcp-bearer-sdk-probe', version: '1.0.0' },
+  { name: 'robust-mcp-bearer-sdk-probe', version: '1.0.0' },
   { versionNegotiation: { mode: { pin: '2026-07-28' } } }
 );
 
@@ -28,7 +28,7 @@ try {
   }
 
   const server = client.getServerVersion();
-  if (!server || server.name !== 'minimal-mcp-tunnel' || server.version !== '0.0.5') {
+  if (!server || server.name !== 'robust-mcp-server' || server.version !== '0.1.0') {
     throw new Error(`Unexpected server identity: ${JSON.stringify(server)}`);
   }
 
@@ -43,7 +43,7 @@ try {
     throw new Error(`Bearer-authenticated probe.site failed: ${JSON.stringify(called)}`);
   }
 
-  console.log('minimal-mcp-bearer-sdk: PASS protocol=2026-07-28 bearer=manual');
+  console.log('robust-mcp-bearer-sdk: PASS protocol=2026-07-28 bearer=manual');
 } finally {
   await client.close().catch(() => {});
 }
