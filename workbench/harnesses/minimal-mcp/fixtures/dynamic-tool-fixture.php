@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Minimal MCP Dynamic Tool Fixture
  * Description: Disposable CI fixture proving external WordPress components can extend the minimal MCP registry.
- * Version: 0.0.2
+ * Version: 0.0.3
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -28,6 +28,10 @@ add_action(
 							'type'         => 'string',
 							'x-mcp-header' => 'Text',
 						),
+						'count' => array(
+							'type'         => 'integer',
+							'x-mcp-header' => 'Count',
+						),
 					),
 					'required'             => array( 'text' ),
 					'additionalProperties' => false,
@@ -37,8 +41,9 @@ add_action(
 					'properties' => array(
 						'echo'   => array( 'type' => 'string' ),
 						'source' => array( 'type' => 'string' ),
+						'count'  => array( 'type' => 'integer' ),
 					),
-					'required'   => array( 'echo', 'source' ),
+					'required' => array( 'echo', 'source' ),
 				),
 				'annotations' => array(
 					'readOnlyHint'    => true,
@@ -50,9 +55,13 @@ add_action(
 			static function ( array $arguments ): array {
 				if ( ! isset( $arguments['text'] ) || ! is_string( $arguments['text'] ) ) {
 					return array(
-						'content' => array(
-							array( 'type' => 'text', 'text' => 'fixture.echo requires a string text argument.' ),
-						),
+						'content' => array( array( 'type' => 'text', 'text' => 'fixture.echo requires a string text argument.' ) ),
+						'isError' => true,
+					);
+				}
+				if ( isset( $arguments['count'] ) && ! is_int( $arguments['count'] ) ) {
+					return array(
+						'content' => array( array( 'type' => 'text', 'text' => 'fixture.echo count must be an integer.' ) ),
 						'isError' => true,
 					);
 				}
@@ -61,6 +70,9 @@ add_action(
 					'echo'   => $arguments['text'],
 					'source' => 'external-wordpress-plugin',
 				);
+				if ( isset( $arguments['count'] ) ) {
+					$result['count'] = $arguments['count'];
+				}
 
 				return array(
 					'content' => array(

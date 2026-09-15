@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - work/minimal-mcp-transport
+      - work/minimal-mcp-http-conformance
     paths:
       - "workbench/harnesses/minimal-mcp/**"
       - ".github/workflows/minimal-mcp-transport.yml"
@@ -75,6 +76,6 @@ jobs:
           php /tmp/wp-cli.phar plugin is-active minimal-mcp-tunnel --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin is-active minimal-mcp-dynamic-fixture --path=/tmp/wordpress
 
-      - name: Prove MCP over external HTTP, official SDK, and Inspector
+      - name: Prove MCP HTTP/JSON-RPC conformance with curl, official SDK, and Inspector
         shell: bash
         run: bash workbench/harnesses/minimal-mcp/transport-probe.sh

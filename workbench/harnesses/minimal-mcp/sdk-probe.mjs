@@ -31,7 +31,7 @@ try {
   }
 
   const server = client.getServerVersion();
-  if (!server || server.name !== 'minimal-mcp-tunnel' || server.version !== '0.0.4') {
+  if (!server || server.name !== 'minimal-mcp-tunnel' || server.version !== '0.0.5') {
     throw new Error(`Unexpected server identity: ${JSON.stringify(server)}`);
   }
 
@@ -54,8 +54,6 @@ try {
     throw new Error(`Unexpected WordPress title: ${JSON.stringify(site.structuredContent)}`);
   }
 
-  // The official 2026-07-28 client must derive Mcp-Param-Text from the
-  // cached tool definition. The server will reject this call if it does not.
   const echo = await client.callTool({ name: 'fixture.echo', arguments: { text: 'registry-works' } });
   if (echo.isError !== false || !echo.structuredContent) {
     throw new Error(`fixture.echo failed: ${JSON.stringify(echo)}`);
@@ -69,7 +67,21 @@ try {
     throw new Error(`SDK Base64 mirrored-header path failed: ${JSON.stringify(unicode)}`);
   }
 
-  console.log('minimal-mcp-official-sdk: PASS protocol=2026-07-28 era=modern tools=2 x-mcp-header=verified');
+  let unknownRejected = false;
+  try {
+    await client.callTool({ name: 'missing.tool', arguments: {} });
+  } catch (error) {
+    const code = error && typeof error === 'object' && 'code' in error ? error.code : undefined;
+    if (code !== -32602) {
+      throw new Error(`Unknown tool rejected with unexpected error: ${String(error)} code=${String(code)}`);
+    }
+    unknownRejected = true;
+  }
+  if (!unknownRejected) {
+    throw new Error('Unknown tool was not rejected as JSON-RPC -32602 Invalid Params.');
+  }
+
+  console.log('minimal-mcp-official-sdk: PASS protocol=2026-07-28 era=modern tools=2 x-mcp-header=verified unknown-tool=-32602');
 } finally {
   await client.close().catch(() => {});
 }

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Minimal MCP Tunnel
  * Description: Workbench-only MCP transport proof for Chattanooga Music Scene.
- * Version: 0.0.4
+ * Version: 0.0.5
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
