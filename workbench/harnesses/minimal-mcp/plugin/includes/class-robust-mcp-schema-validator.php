@@ -12,7 +12,32 @@ final class CMSA_Robust_MCP_Schema_Validator {
 	private const MAX_SCHEMA_DEPTH = 48;
 	private const MAX_ERRORS       = 8;
 
+	/**
+	 * JSON Schema keywords whose values are JSON objects/maps, not arrays.
+	 * This matters in PHP because an empty array otherwise serializes as `[]`.
+	 */
+	private const OBJECT_MAP_KEYWORDS = array(
+		'$defs',
+		'$vocabulary',
+		'definitions',
+		'dependentRequired',
+		'dependentSchemas',
+		'patternProperties',
+		'properties',
+	);
+
 	private static ?CompliantValidator $validator = null;
+
+	/**
+	 * Canonicalize PHP schema data so JSON object-valued keywords remain objects
+	 * even when their maps are empty.
+	 *
+	 * @param array<string,mixed> $schema
+	 * @return array<string,mixed>
+	 */
+	public static function canonicalize( array $schema ): array {
+		return self::canonicalize_array( $schema, null );
+	}
 
 	/** @param array<string,mixed> $schema @return true|WP_Error */
 	public static function validate_definition( array $schema, bool $input_schema = false ) {
@@ -20,6 +45,7 @@ final class CMSA_Robust_MCP_Schema_Validator {
 			return new WP_Error( 'robust_mcp_schema_dependency_missing', 'The JSON Schema 2020-12 validator is unavailable.' );
 		}
 
+		$schema = self::canonicalize( $schema );
 		$encoded = wp_json_encode( $schema, JSON_UNESCAPED_SLASHES );
 		if ( ! is_string( $encoded ) ) {
 			return new WP_Error( 'robust_mcp_schema_encode_failed', 'The JSON Schema could not be encoded.' );
@@ -67,6 +93,7 @@ final class CMSA_Robust_MCP_Schema_Validator {
 	 * @return true|WP_Error
 	 */
 	public static function validate_value( $data, array $schema, string $context ) {
+		$schema = self::canonicalize( $schema );
 		$definition = self::validate_definition( $schema, 'input' === $context );
 		if ( is_wp_error( $definition ) ) {
 			return $definition;
@@ -118,13 +145,50 @@ final class CMSA_Robust_MCP_Schema_Validator {
 		return is_array( $type ) && in_array( 'object', $type, true );
 	}
 
+	/**
+	 * @param array<mixed> $value
+	 * @return array<mixed>|stdClass
+	 */
+	private static function canonicalize_array( array $value, ?string $keyword ) {
+		if ( empty( $value ) && null !== $keyword && in_array( $keyword, self::OBJECT_MAP_KEYWORDS, true ) ) {
+			return new stdClass();
+		}
+
+		$output = array();
+		foreach ( $value as $key => $child ) {
+			if ( is_array( $child ) ) {
+				$output[ $key ] = self::canonicalize_array( $child, is_string( $key ) ? $key : null );
+			} elseif ( is_object( $child ) ) {
+				$output[ $key ] = self::canonicalize_object( $child );
+			} else {
+				$output[ $key ] = $child;
+			}
+		}
+		return $output;
+	}
+
+	private static function canonicalize_object( object $value ): object {
+		$output = new stdClass();
+		foreach ( get_object_vars( $value ) as $key => $child ) {
+			if ( is_array( $child ) ) {
+				$output->{$key} = self::canonicalize_array( $child, $key );
+			} elseif ( is_object( $child ) ) {
+				$output->{$key} = self::canonicalize_object( $child );
+			} else {
+				$output->{$key} = $child;
+			}
+		}
+		return $output;
+	}
+
 	/** @param mixed $value */
 	private static function depth( $value, int $level = 1 ): int {
-		if ( ! is_array( $value ) ) {
+		if ( ! is_array( $value ) && ! is_object( $value ) ) {
 			return $level;
 		}
+		$children = is_array( $value ) ? $value : get_object_vars( $value );
 		$max = $level;
-		foreach ( $value as $child ) {
+		foreach ( $children as $child ) {
 			$max = max( $max, self::depth( $child, $level + 1 ) );
 		}
 		return $max;
@@ -132,10 +196,11 @@ final class CMSA_Robust_MCP_Schema_Validator {
 
 	/** @param mixed $value @return true|WP_Error */
 	private static function reject_external_refs( $value ) {
-		if ( ! is_array( $value ) ) {
+		if ( ! is_array( $value ) && ! is_object( $value ) ) {
 			return true;
 		}
-		foreach ( $value as $key => $child ) {
+		$children = is_array( $value ) ? $value : get_object_vars( $value );
+		foreach ( $children as $key => $child ) {
 			if ( '$ref' === $key ) {
 				if ( ! is_string( $child ) || '' === $child || '#' !== $child[0] ) {
 					return new WP_Error( 'robust_mcp_external_ref_rejected', 'External JSON Schema $ref values are not permitted.' );
