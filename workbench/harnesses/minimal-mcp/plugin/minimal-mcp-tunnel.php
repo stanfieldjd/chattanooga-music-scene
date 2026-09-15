@@ -1,14 +1,21 @@
 <?php
 /**
- * Plugin Name: Minimal MCP Tunnel
- * Description: Workbench-only MCP transport proof for Chattanooga Music Scene.
- * Version: 0.0.5
+ * Plugin Name: Robust MCP Server
+ * Description: Production-oriented MCP 2026-07-28 server transport for WordPress.
+ * Version: 0.1.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+$cmsa_robust_mcp_autoload = __DIR__ . '/vendor/autoload.php';
+if ( is_readable( $cmsa_robust_mcp_autoload ) ) {
+	require_once $cmsa_robust_mcp_autoload;
+}
+unset( $cmsa_robust_mcp_autoload );
+
+require_once __DIR__ . '/includes/class-robust-mcp-schema-validator.php';
 require_once __DIR__ . '/includes/class-minimal-mcp-tool-registry.php';
 require_once __DIR__ . '/includes/class-minimal-mcp-request-router.php';
 require_once __DIR__ . '/includes/class-minimal-mcp-http-transport.php';
@@ -16,9 +23,9 @@ require_once __DIR__ . '/includes/class-minimal-mcp-http-transport.php';
 CMSA_Minimal_MCP_HTTP_Transport::bootstrap();
 
 // Optional manual bearer mode. There is deliberately no endpoint that mints
-// or rotates this credential. When both constants are configured, bearer auth
-// becomes the sole credential accepted for MCP POSTs; WordPress Application
-// Password / Basic auth is not a fallback in this mode.
+// or rotates this credential. Robust constants are primary; the earlier
+// workbench constants remain accepted on this branch so checkpoint fixtures
+// can prove backward compatibility while the server is being promoted.
 add_filter(
 	'rest_pre_dispatch',
 	static function ( $result, $server, $request ) {
@@ -32,37 +39,30 @@ add_filter(
 			return $result;
 		}
 
-		$token_defined = defined( 'CMSA_MINIMAL_MCP_BEARER_TOKEN' );
-		$user_defined  = defined( 'CMSA_MINIMAL_MCP_BEARER_USER_ID' );
-		if ( ! $token_defined && ! $user_defined ) {
+		$robust_pair = defined( 'CMSA_ROBUST_MCP_BEARER_TOKEN' ) || defined( 'CMSA_ROBUST_MCP_BEARER_USER_ID' );
+		$legacy_pair = defined( 'CMSA_MINIMAL_MCP_BEARER_TOKEN' ) || defined( 'CMSA_MINIMAL_MCP_BEARER_USER_ID' );
+		if ( ! $robust_pair && ! $legacy_pair ) {
 			return $result;
 		}
-
-		if ( ! $token_defined || ! $user_defined ) {
-			return new WP_Error(
-				'minimal_mcp_bearer_misconfigured',
-				'MCP bearer authentication is incompletely configured.',
-				array( 'status' => 500 )
-			);
+		if ( $robust_pair && $legacy_pair ) {
+			return new WP_Error( 'robust_mcp_bearer_ambiguous', 'Configure only one MCP bearer credential pair.', array( 'status' => 500 ) );
 		}
 
-		$token   = constant( 'CMSA_MINIMAL_MCP_BEARER_TOKEN' );
-		$user_id = constant( 'CMSA_MINIMAL_MCP_BEARER_USER_ID' );
+		$token_name = $robust_pair ? 'CMSA_ROBUST_MCP_BEARER_TOKEN' : 'CMSA_MINIMAL_MCP_BEARER_TOKEN';
+		$user_name  = $robust_pair ? 'CMSA_ROBUST_MCP_BEARER_USER_ID' : 'CMSA_MINIMAL_MCP_BEARER_USER_ID';
+		if ( ! defined( $token_name ) || ! defined( $user_name ) ) {
+			return new WP_Error( 'robust_mcp_bearer_misconfigured', 'MCP bearer authentication is incompletely configured.', array( 'status' => 500 ) );
+		}
+
+		$token   = constant( $token_name );
+		$user_id = constant( $user_name );
 		if ( ! is_string( $token ) || strlen( $token ) < 32 || ! is_int( $user_id ) || $user_id <= 0 ) {
-			return new WP_Error(
-				'minimal_mcp_bearer_misconfigured',
-				'MCP bearer authentication configuration is invalid.',
-				array( 'status' => 500 )
-			);
+			return new WP_Error( 'robust_mcp_bearer_misconfigured', 'MCP bearer authentication configuration is invalid.', array( 'status' => 500 ) );
 		}
 
 		$user = get_userdata( $user_id );
 		if ( ! $user instanceof WP_User || ! user_can( $user, 'manage_options' ) ) {
-			return new WP_Error(
-				'minimal_mcp_bearer_misconfigured',
-				'MCP bearer authentication identity is not an administrator.',
-				array( 'status' => 500 )
-			);
+			return new WP_Error( 'robust_mcp_bearer_misconfigured', 'MCP bearer authentication identity is not an administrator.', array( 'status' => 500 ) );
 		}
 
 		$authorization = (string) $request->get_header( 'authorization' );
@@ -70,11 +70,7 @@ add_filter(
 		$valid_header  = 1 === preg_match( '/^Bearer[ \t]+([^\s]+)$/i', $authorization, $matches );
 		$provided      = $valid_header ? $matches[1] : '';
 		if ( '' === $provided || ! hash_equals( $token, $provided ) ) {
-			return new WP_Error(
-				'minimal_mcp_bearer_required',
-				'A valid manually configured MCP bearer token is required.',
-				array( 'status' => 401 )
-			);
+			return new WP_Error( 'robust_mcp_bearer_required', 'A valid manually configured MCP bearer token is required.', array( 'status' => 401 ) );
 		}
 
 		wp_set_current_user( $user_id );
@@ -95,7 +91,7 @@ add_filter(
 	static function ( $result, $server, $request ) {
 		unset( $server );
 		if (
-		null !== $result
+			null !== $result
 			|| ! $request instanceof WP_REST_Request
 			|| '/minimal-mcp/v1/mcp' !== $request->get_route()
 			|| 'POST' !== $request->get_method()
