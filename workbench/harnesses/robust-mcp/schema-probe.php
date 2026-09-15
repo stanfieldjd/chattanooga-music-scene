@@ -48,6 +48,11 @@ $valid = [
 $guard->assertSafeSchema($valid, 'valid-complex-schema');
 $guard->assertSafeSchema([], 'empty-output-schema');
 $guard->assertValidData(['kind' => 'person', 'name' => 'Ada'], $valid, 'valid-data', true);
+$guard->assertSafeSchema([
+    '$schema' => 'http://json-schema.org/draft-07/schema#',
+    'type' => 'object',
+    'properties' => ['name' => ['type' => 'string']],
+], 'supported-draft-07');
 
 $expectReject('conditional-required', static fn () => $guard->assertValidData(
     ['kind' => 'service', 'name' => 'daemon'],
@@ -72,10 +77,10 @@ $expectReject('opis-extension', static fn () => $guard->assertSafeSchema([
     '$data' => ['unsafe' => true],
 ], 'opis-extension'));
 
-$expectReject('wrong-dialect', static fn () => $guard->assertSafeSchema([
-    '$schema' => 'http://json-schema.org/draft-07/schema#',
+$expectReject('unsupported-dialect', static fn () => $guard->assertSafeSchema([
+    '$schema' => 'http://json-schema.org/draft-04/schema#',
     'type' => 'object',
-], 'wrong-dialect'));
+], 'unsupported-dialect'));
 
 $expectReject('malformed-keyword', static fn () => $guard->assertSafeSchema([
     '$schema' => SchemaGuard::DRAFT_2020_12,
@@ -111,8 +116,9 @@ $expectReject('data-node-budget', static fn () => $guard->assertValidData(
 ));
 
 printf(
-    "robust-mcp-schema-guard: PASS rejected=%d draft=2020-12 max_schema_bytes=%d max_schema_depth=%d max_schema_nodes=%d max_data_depth=%d max_data_nodes=%d\n",
+    "robust-mcp-schema-guard: PASS rejected=%d dialects=%d max_schema_bytes=%d max_schema_depth=%d max_schema_nodes=%d max_data_depth=%d max_data_nodes=%d\n",
     $rejected,
+    count(SchemaGuard::SUPPORTED_DIALECTS),
     SchemaGuard::MAX_SCHEMA_BYTES,
     SchemaGuard::MAX_SCHEMA_DEPTH,
     SchemaGuard::MAX_SCHEMA_NODES,
