@@ -13,6 +13,16 @@ test "${#token}" -eq 64
 printf '%s' "$token" | grep -Eq '^[a-f0-9]{64}$'
 printf '%s' "$digest" | grep -Eq '^[a-f0-9]{64}$'
 
+common_headers=(
+  -H 'Content-Type: application/json'
+  -H 'Accept: application/json, text/event-stream'
+)
+meta='"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"robust-mcp-bearer-ci","version":"1.0.0"},"io.modelcontextprotocol/clientCapabilities":{}}'
+
+cat > /tmp/robust-bearer-discover.json <<JSON
+{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{${meta}}}
+JSON
+
 # Configuration accepts only the digest shape used by the previously proven
 # manual-bearer design. The plaintext token never enters the server process.
 php -r '
@@ -26,7 +36,33 @@ try {
 exit(1);
 ' "$base_dir"
 
+# Explicit manual-bearer mode without a digest must fail closed instead of
+# falling through to an unauthenticated server.
 ROBUST_MCP_AUTH_MODE='manual-bearer' \
+php -S 127.0.0.1:8095 "$base_dir/server.php" >/tmp/robust-mcp-bearer-misconfigured.log 2>&1 &
+misconfigured_pid=$!
+for attempt in $(seq 1 30); do
+  if curl -sS -o /dev/null -w '%{http_code}' 'http://127.0.0.1:8095/not-mcp' | grep -q '^404$'; then
+    break
+  fi
+  if [ "$attempt" -eq 30 ]; then
+    cat /tmp/robust-mcp-bearer-misconfigured.log >&2
+    kill "$misconfigured_pid" 2>/dev/null || true
+    exit 1
+  fi
+  sleep 1
+done
+misconfigured_code="$(curl -sS -o /tmp/robust-bearer-misconfigured.json -w '%{http_code}' \
+  "${common_headers[@]}" -H 'MCP-Protocol-Version: 2026-07-28' -H 'Mcp-Method: server/discover' \
+  --data-binary @/tmp/robust-bearer-discover.json 'http://127.0.0.1:8095/mcp')"
+test "$misconfigured_code" = '500'
+grep -Fq '"error":"server_configuration_error"' /tmp/robust-bearer-misconfigured.json
+kill "$misconfigured_pid" 2>/dev/null || true
+wait "$misconfigured_pid" 2>/dev/null || true
+
+# As in the earlier WordPress proof, presence of a valid digest automatically
+# enables manual bearer mode. There is no separate flag that can accidentally
+# leave a configured credential dormant.
 ROBUST_MCP_BEARER_SHA256="$digest" \
 ROBUST_MCP_COUNTER_FILE="$counter" \
 php -S 127.0.0.1:8094 "$base_dir/server.php" >/tmp/robust-mcp-bearer-http.log 2>&1 &
@@ -43,16 +79,6 @@ for attempt in $(seq 1 30); do
   fi
   sleep 1
 done
-
-common_headers=(
-  -H 'Content-Type: application/json'
-  -H 'Accept: application/json, text/event-stream'
-)
-meta='"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"robust-mcp-bearer-ci","version":"1.0.0"},"io.modelcontextprotocol/clientCapabilities":{}}'
-
-cat > /tmp/robust-bearer-discover.json <<JSON
-{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{${meta}}}
-JSON
 
 missing_code="$(curl -sS -D /tmp/robust-bearer-missing-headers.txt -o /tmp/robust-bearer-missing.json -w '%{http_code}' \
   "${common_headers[@]}" -H 'MCP-Protocol-Version: 2026-07-28' -H 'Mcp-Method: server/discover' \
@@ -171,4 +197,4 @@ grep -Fq "$token" /tmp/robust-mcp-bearer-http.log && {
   exit 1
 }
 
-printf '%s\n' 'robust-mcp-manual-bearer: PASS 256-bit-random digest-at-rest exclusive-bearer auth-before-parse case-sensitive-token callback-blocked curl+official-sdk+inspector'
+printf '%s\n' 'robust-mcp-manual-bearer: PASS 256-bit-random digest-at-rest exclusive-bearer fail-closed-config auth-before-parse case-sensitive-token callback-blocked curl+official-sdk+inspector'
