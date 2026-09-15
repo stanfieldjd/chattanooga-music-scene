@@ -50,9 +50,6 @@ final class RemoteHttpSecurityMiddleware implements MiddlewareInterface
     ) {
         foreach ($allowedHosts as $host) {
             $normalized = self::normalizeConfiguredHost($host);
-            if (isset($this->allowedHosts[$normalized])) {
-                continue;
-            }
             $this->allowedHosts[$normalized] = true;
         }
         if ([] === $this->allowedHosts) {
@@ -94,7 +91,11 @@ final class RemoteHttpSecurityMiddleware implements MiddlewareInterface
                 return $this->plain(403, 'Forbidden: Requested CORS method is not allowed.');
             }
 
-            $requestedHeaders = $this->requestedHeaders($request->getHeaderLine('Access-Control-Request-Headers'));
+            try {
+                $requestedHeaders = $this->requestedHeaders($request->getHeaderLine('Access-Control-Request-Headers'));
+            } catch (\InvalidArgumentException) {
+                return $this->plain(403, 'Forbidden: Requested CORS header is malformed.');
+            }
             foreach ($requestedHeaders as $header) {
                 if (!$this->requestHeaderAllowed($header)) {
                     return $this->plain(403, 'Forbidden: Requested CORS header is not allowed.');
@@ -160,7 +161,7 @@ final class RemoteHttpSecurityMiddleware implements MiddlewareInterface
         $headers = [];
         foreach (explode(',', $headerLine) as $header) {
             $header = strtolower(trim($header));
-            if ('' === $header || 1 !== preg_match('/^[a-z0-9!#$%&\'*+.^_`|~-]+$/D', $header)) {
+            if ('' === $header || 1 !== preg_match("/^[a-z0-9!#$%&'*+.^_`|~-]+$/D", $header)) {
                 throw new \InvalidArgumentException('Malformed CORS request header name.');
             }
             $headers[$header] = true;
@@ -242,7 +243,9 @@ final class RemoteHttpSecurityMiddleware implements MiddlewareInterface
             throw new \InvalidArgumentException('Origin scheme must be HTTP or HTTPS.');
         }
         $host = strtolower((string) $parts['host']);
-        $port = isset($parts['port']) ? ':' . (int) $parts['port'] : '';
+        $portNumber = isset($parts['port']) ? (int) $parts['port'] : null;
+        $defaultPort = ('https' === $scheme && 443 === $portNumber) || ('http' === $scheme && 80 === $portNumber);
+        $port = null !== $portNumber && !$defaultPort ? ':' . $portNumber : '';
 
         return $scheme . '://' . $host . $port;
     }
