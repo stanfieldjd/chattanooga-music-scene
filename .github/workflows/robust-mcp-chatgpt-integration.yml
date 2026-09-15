@@ -1,0 +1,110 @@
+name: Robust MCP ChatGPT Integration
+
+on:
+  push:
+    branches:
+      - work/robust-mcp-chatgpt-integration
+    paths:
+      - "workbench/harnesses/robust-mcp/**"
+      - ".github/workflows/robust-mcp-chatgpt-integration.yml"
+  pull_request:
+    paths:
+      - "workbench/harnesses/robust-mcp/**"
+      - ".github/workflows/robust-mcp-chatgpt-integration.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  integration:
+    name: Dual-era ChatGPT MCP proof
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: fileinfo
+          tools: composer:v2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.23.2"
+
+      - name: Enforce MCP-only scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e workbench/harnesses/robust-mcp/src/WordPress/GenericPostAdministrator.php
+          test ! -e workbench/harnesses/robust-mcp/src/WordPress/GenericTaxonomyAdministrator.php
+          test ! -e workbench/harnesses/robust-mcp/src/WordPress/WordPressAdminException.php
+          if grep -R -nE '\b(wp_insert_post|wp_update_post|wp_delete_post|update_option|delete_option|wp_insert_term|wp_update_term|wp_delete_term)\b' \
+            workbench/harnesses/robust-mcp/src workbench/harnesses/robust-mcp/server.php; then
+            echo 'WordPress administration/mutation code is prohibited on the MCP integration branch.' >&2
+            exit 1
+          fi
+
+      - name: Install locked PHP dependencies
+        working-directory: workbench/harnesses/robust-mcp
+        run: |
+          set -euo pipefail
+          composer validate --strict
+          composer install --no-interaction --prefer-dist --no-progress
+          composer audit --locked
+          composer check-platform-reqs --no-dev
+          git diff --exit-code -- composer.lock
+
+      - name: Install locked MCP reference clients
+        working-directory: workbench/harnesses/robust-mcp
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --no-fund
+          npm audit --audit-level=high
+          node - <<'NODE'
+          const lock = require('./package-lock.json');
+          const client = lock.packages?.['node_modules/@modelcontextprotocol/client']?.version;
+          const inspector = lock.packages?.['node_modules/@modelcontextprotocol/inspector']?.version;
+          if (client !== '2.0.0' || inspector !== '2.6.0') {
+            throw new Error(`Unexpected locked clients: client=${client} inspector=${inspector}`);
+          }
+          NODE
+          git diff --exit-code -- package-lock.json
+
+      - name: Lint MCP and integration probes
+        working-directory: workbench/harnesses/robust-mcp
+        shell: bash
+        run: |
+          set -euo pipefail
+          find src -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+          php -l server.php
+          php -l schema-probe.php
+          php -l wordpress-runtime-probe.php
+          bash -n transport-probe.sh
+          bash -n transport-probe-ci.sh
+          bash -n bearer-dual-era-probe.sh
+          node --check sdk-probe.mjs
+          node --check legacy-sdk-probe.mjs
+          node --check auto-sdk-probe.mjs
+          node --check chatgpt-scan-probe.mjs
+          node --check bearer-sdk-probe.mjs
+          node --check bearer-legacy-sdk-probe.mjs
+
+      - name: Red-team strict JSON Schema boundary
+        working-directory: workbench/harnesses/robust-mcp
+        run: php schema-probe.php
+
+      - name: Preserve WordPress runtime discovery contract
+        working-directory: workbench/harnesses/robust-mcp
+        run: php wordpress-runtime-probe.php
+
+      - name: Prove dual-era transport and ChatGPT scan compatibility
+        working-directory: workbench/harnesses/robust-mcp
+        shell: bash
+        run: bash transport-probe-ci.sh
+
+      - name: Red-team dual-era bearer authentication
+        working-directory: workbench/harnesses/robust-mcp
+        shell: bash
+        run: bash bearer-dual-era-probe.sh
