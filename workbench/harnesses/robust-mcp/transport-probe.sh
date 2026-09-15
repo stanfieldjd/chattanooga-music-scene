@@ -118,7 +118,7 @@ invalid_call_code="$(curl -sS -o /tmp/robust-invalid-call-response.json -w '%{ht
   "${common_headers[@]}" -H 'MCP-Protocol-Version: 2026-07-28' -H 'Mcp-Method: tools/call' \
   -H 'Mcp-Name: robust.echo' -H 'Mcp-Param-Text: missing-count' \
   --data-binary @/tmp/robust-invalid-call.json "$endpoint")"
-test "$invalid_call_code" = '200'
+test "$invalid_call_code" = '400'
 assert_error /tmp/robust-invalid-call-response.json -32602
 test ! -e "$counter"
 
@@ -150,7 +150,7 @@ JSON
 unknown_tool_code="$(curl -sS -o /tmp/robust-unknown-tool-response.json -w '%{http_code}' \
   "${common_headers[@]}" -H 'MCP-Protocol-Version: 2026-07-28' -H 'Mcp-Method: tools/call' -H 'Mcp-Name: missing.tool' \
   --data-binary @/tmp/robust-unknown-tool.json "$endpoint")"
-test "$unknown_tool_code" = '200'
+test "$unknown_tool_code" = '400'
 assert_error /tmp/robust-unknown-tool-response.json -32602
 
 cat > /tmp/robust-unknown-method.json <<JSON
