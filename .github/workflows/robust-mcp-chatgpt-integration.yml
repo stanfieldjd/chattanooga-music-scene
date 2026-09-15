@@ -56,12 +56,12 @@ jobs:
           composer check-platform-reqs --no-dev
           php -r '
           $lock=json_decode(file_get_contents("composer.lock"),true,512,JSON_THROW_ON_ERROR);
-          $jwt=null;
-          foreach ($lock["packages"] as $package) {
-            if (($package["name"]??"")==="firebase/php-jwt") {$jwt=ltrim((string)$package["version"],"v"); break;}
-          }
+          $versions=[];
+          foreach ($lock["packages"] as $package) {$versions[$package["name"]]=$package["version"];}
+          $jwt=isset($versions["firebase/php-jwt"])?ltrim((string)$versions["firebase/php-jwt"],"v"):null;
           if (null===$jwt || version_compare($jwt,"7.1.1","<")) {fwrite(STDERR,"Patched firebase/php-jwt 7.1.1+ is required.\n"); exit(1);}
-          echo "firebase/php-jwt locked at $jwt\n";
+          if (!isset($versions["psr/simple-cache"])) {fwrite(STDERR,"Explicit PSR-16 interface dependency is required.\n"); exit(2);}
+          echo "OAuth runtime locks: firebase/php-jwt=$jwt psr/simple-cache={$versions["psr/simple-cache"]}\n";
           '
           git diff --exit-code -- composer.lock
 
@@ -97,6 +97,7 @@ jobs:
           bash -n transport-probe-ci.sh
           bash -n bearer-dual-era-probe.sh
           bash -n oauth-auth-probe.sh
+          bash -n oauth-auth-probe-ci.sh
           bash -n readiness-probe.sh
           bash -n multiworker-session-probe.sh
           bash -n tool-contract-probe.sh
@@ -136,7 +137,7 @@ jobs:
       - name: Red-team OAuth ChatGPT authentication
         working-directory: workbench/harnesses/robust-mcp
         shell: bash
-        run: bash oauth-auth-probe.sh
+        run: bash oauth-auth-probe-ci.sh
 
       - name: Prove liveness and readiness fail independently
         working-directory: workbench/harnesses/robust-mcp
