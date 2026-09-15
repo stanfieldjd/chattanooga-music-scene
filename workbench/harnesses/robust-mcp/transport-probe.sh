@@ -106,7 +106,7 @@ $d=json_decode(file_get_contents("/tmp/robust-list-response.json"),true); $tools
 $names=array_map(static fn($t)=>$t["name"]??"",$tools); sort($names,SORT_STRING);
 if ($names!==["robust.bad-output","robust.echo"]) exit(1);
 $echo=null; foreach($tools as $tool){if(($tool["name"]??"")==="robust.echo"){$echo=$tool;break;}}
-if (!isset($echo["inputSchema"]["$defs"],$echo["inputSchema"]["allOf"])) exit(2);
+if (!isset($echo["inputSchema"]["\$defs"],$echo["inputSchema"]["allOf"])) exit(2);
 if (($echo["inputSchema"]["properties"]["text"]["x-mcp-header"]??"")!=="Text") exit(3);
 '
 
