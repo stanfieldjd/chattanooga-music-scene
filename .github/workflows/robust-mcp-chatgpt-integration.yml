@@ -89,6 +89,7 @@ jobs:
           find src -type f -name '*.php' -print0 | xargs -0 -n1 php -l
           php -l server.php
           php -l schema-probe.php
+          php -l tool-boundary-probe.php
           php -l wordpress-runtime-probe.php
           php -l oauth-fixture-router.php
           php -l oauth-refresh-fixture-router.php
@@ -118,6 +119,10 @@ jobs:
       - name: Red-team strict JSON Schema boundary
         working-directory: workbench/harnesses/robust-mcp
         run: php schema-probe.php
+
+      - name: Red-team tool registration and result boundaries
+        working-directory: workbench/harnesses/robust-mcp
+        run: php tool-boundary-probe.php
 
       - name: Preserve WordPress runtime discovery contract
         working-directory: workbench/harnesses/robust-mcp
