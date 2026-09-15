@@ -94,6 +94,7 @@ jobs:
           php -l oauth-refresh-fixture-router.php
           php -l oauth-fixture-keygen.php
           php -l oauth-fixture-token.php
+          php -l session-lock-probe.php
           bash -n transport-probe.sh
           bash -n transport-probe-ci.sh
           bash -n bearer-dual-era-probe.sh
@@ -102,6 +103,7 @@ jobs:
           bash -n oauth-refresh-flow-probe.sh
           bash -n readiness-probe.sh
           bash -n multiworker-session-probe.sh
+          bash -n session-concurrency-probe.sh
           bash -n tool-contract-probe.sh
           node --check sdk-probe.mjs
           node --check legacy-sdk-probe.mjs
@@ -155,3 +157,8 @@ jobs:
         working-directory: workbench/harnesses/robust-mcp
         shell: bash
         run: bash multiworker-session-probe.sh
+
+      - name: Red-team legacy session concurrency conflicts
+        working-directory: workbench/harnesses/robust-mcp
+        shell: bash
+        run: bash session-concurrency-probe.sh
