@@ -48,7 +48,7 @@ final class CMSA_Minimal_MCP_Request_Router {
 				return self::success(
 					$id,
 					array(
-						'tools'      => CMSA_Minimal_MCP_Tool_Registry::all(),
+						'tools'      => self::canonical_tool_definitions(),
 						'ttlMs'      => 30000,
 						'cacheScope' => 'private',
 					)
@@ -91,6 +91,21 @@ final class CMSA_Minimal_MCP_Request_Router {
 			default:
 				return self::protocol_error( $id, -32601, 'Method not found.', 404 );
 		}
+	}
+
+	/** @return array<int,array<string,mixed>> */
+	private static function canonical_tool_definitions(): array {
+		$tools = CMSA_Minimal_MCP_Tool_Registry::all();
+		foreach ( $tools as &$tool ) {
+			if ( isset( $tool['inputSchema'] ) && is_array( $tool['inputSchema'] ) ) {
+				$tool['inputSchema'] = CMSA_Robust_MCP_Schema_Validator::canonicalize( $tool['inputSchema'] );
+			}
+			if ( isset( $tool['outputSchema'] ) && is_array( $tool['outputSchema'] ) ) {
+				$tool['outputSchema'] = CMSA_Robust_MCP_Schema_Validator::canonicalize( $tool['outputSchema'] );
+			}
+		}
+		unset( $tool );
+		return $tools;
 	}
 
 	/** @param mixed $id @param array<string,mixed> $result @return array<string,mixed> */
