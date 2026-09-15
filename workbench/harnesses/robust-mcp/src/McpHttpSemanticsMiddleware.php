@@ -11,6 +11,14 @@ use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 
+/**
+ * HTTP semantics shared by the legacy/handshake and modern MCP eras.
+ *
+ * POST carries MCP JSON-RPC in both eras. DELETE is reserved for handshake-era
+ * session teardown. OPTIONS is handled by the transport. The official PHP SDK
+ * currently does not implement the optional GET/SSE receive stream, so GET is
+ * rejected explicitly rather than pretending the endpoint supports it.
+ */
 final class McpHttpSemanticsMiddleware implements MiddlewareInterface
 {
     public function __construct(
@@ -22,13 +30,13 @@ final class McpHttpSemanticsMiddleware implements MiddlewareInterface
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
         $method = strtoupper($request->getMethod());
-        if ('OPTIONS' === $method) {
+        if ('OPTIONS' === $method || 'DELETE' === $method) {
             return $handler->handle($request);
         }
 
         if ('POST' !== $method) {
-            return $this->jsonRpcError(405, -32600, sprintf('The modern MCP lifecycle accepts POST only, got %s.', $method))
-                ->withHeader('Allow', 'POST');
+            return $this->jsonRpcError(405, -32600, sprintf('MCP over this endpoint accepts POST and handshake-session DELETE, got %s.', $method))
+                ->withHeader('Allow', 'POST, DELETE, OPTIONS');
         }
 
         if ('application/json' !== $this->baseMediaType($request->getHeaderLine('Content-Type'))) {
