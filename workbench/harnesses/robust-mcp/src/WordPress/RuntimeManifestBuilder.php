@@ -10,6 +10,7 @@ final class RuntimeManifestBuilder
 
     /** @var list<string> */
     private const REQUIRED_SECTIONS = [
+        'runtime',
         'site',
         'principal',
         'plugins',
