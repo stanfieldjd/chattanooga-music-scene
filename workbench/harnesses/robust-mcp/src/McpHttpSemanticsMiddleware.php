@@ -8,6 +8,7 @@ use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamFactoryInterface;
+use Psr\Http\Message\StreamInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 
@@ -24,7 +25,11 @@ final class McpHttpSemanticsMiddleware implements MiddlewareInterface
     public function __construct(
         private readonly ResponseFactoryInterface $responseFactory,
         private readonly StreamFactoryInterface $streamFactory,
+        private readonly int $maxBodyBytes = 1024 * 1024,
     ) {
+        if ($this->maxBodyBytes < 1) {
+            throw new \InvalidArgumentException('MCP body limit must be positive.');
+        }
     }
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
@@ -48,7 +53,47 @@ final class McpHttpSemanticsMiddleware implements MiddlewareInterface
             return $this->jsonRpcError(406, -32600, 'Accept must permit application/json and text/event-stream.');
         }
 
+        $raw = $this->readBounded($request->getBody());
+        if (null === $raw) {
+            return $this->jsonRpcError(413, -32600, sprintf('Request body exceeds the maximum allowed size of %d bytes.', $this->maxBodyBytes));
+        }
+
+        try {
+            json_decode($raw, true, flags: JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return $this->jsonRpcError(400, -32700, 'Parse error');
+        }
+
+        // The transport/classifier needs to read the same bytes after this edge
+        // validation. Always replace the stream rather than relying on seekability.
+        $request = $request->withBody($this->streamFactory->createStream($raw));
+
         return $handler->handle($request);
+    }
+
+    private function readBounded(StreamInterface $stream): ?string
+    {
+        if ($stream->isSeekable()) {
+            $stream->rewind();
+        }
+
+        $body = '';
+        while (!$stream->eof()) {
+            $remaining = $this->maxBodyBytes + 1 - strlen($body);
+            if ($remaining <= 0) {
+                return null;
+            }
+            $chunk = $stream->read(min(8192, $remaining));
+            if ('' === $chunk) {
+                break;
+            }
+            $body .= $chunk;
+            if (strlen($body) > $this->maxBodyBytes) {
+                return null;
+            }
+        }
+
+        return $body;
     }
 
     private function baseMediaType(string $value): string
