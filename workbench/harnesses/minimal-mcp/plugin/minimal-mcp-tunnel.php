@@ -9,6 +9,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+if ( ! defined( 'CMSA_ROBUST_MCP_MAX_REQUEST_BYTES' ) ) {
+	define( 'CMSA_ROBUST_MCP_MAX_REQUEST_BYTES', 1048576 );
+}
+
 $cmsa_robust_mcp_autoload = __DIR__ . '/vendor/autoload.php';
 if ( is_readable( $cmsa_robust_mcp_autoload ) ) {
 	require_once $cmsa_robust_mcp_autoload;
@@ -77,6 +81,50 @@ add_filter(
 		return $result;
 	},
 	1,
+	3
+);
+
+// Reject oversized request bodies before WP_REST_Request::has_valid_params()
+// asks WordPress to decode JSON. Authenticate first so a large anonymous body
+// cannot use the early-return path to learn MCP response behavior.
+add_filter(
+	'rest_pre_dispatch',
+	static function ( $result, $server, $request ) {
+		unset( $server );
+		if (
+			null !== $result
+			|| ! $request instanceof WP_REST_Request
+			|| '/minimal-mcp/v1/mcp' !== $request->get_route()
+			|| 'POST' !== $request->get_method()
+		) {
+			return $result;
+		}
+
+		$body = (string) $request->get_body();
+		if ( strlen( $body ) <= CMSA_ROBUST_MCP_MAX_REQUEST_BYTES ) {
+			return $result;
+		}
+
+		$authorization = CMSA_Minimal_MCP_HTTP_Transport::authorize_request( $request );
+		if ( is_wp_error( $authorization ) ) {
+			return $authorization;
+		}
+
+		$response = new WP_REST_Response(
+			array(
+				'jsonrpc' => '2.0',
+				'id'      => null,
+				'error'   => array(
+					'code'    => -32000,
+					'message' => 'Request body exceeds the MCP server size limit.',
+				),
+			),
+			413
+		);
+		$response->header( 'MCP-Protocol-Version', CMSA_Minimal_MCP_Request_Router::PROTOCOL_VERSION );
+		return $response;
+	},
+	2,
 	3
 );
 
