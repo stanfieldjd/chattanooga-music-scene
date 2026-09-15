@@ -84,6 +84,8 @@ jobs:
           bash -n transport-probe.sh
           bash -n transport-probe-ci.sh
           bash -n bearer-dual-era-probe.sh
+          bash -n readiness-probe.sh
+          bash -n multiworker-session-probe.sh
           node --check sdk-probe.mjs
           node --check legacy-sdk-probe.mjs
           node --check auto-sdk-probe.mjs
@@ -108,3 +110,13 @@ jobs:
         working-directory: workbench/harnesses/robust-mcp
         shell: bash
         run: bash bearer-dual-era-probe.sh
+
+      - name: Prove liveness and readiness fail independently
+        working-directory: workbench/harnesses/robust-mcp
+        shell: bash
+        run: bash readiness-probe.sh
+
+      - name: Prove persistent sessions across PHP workers
+        working-directory: workbench/harnesses/robust-mcp
+        shell: bash
+        run: bash multiworker-session-probe.sh
