@@ -1,0 +1,153 @@
+{
+  "catalog_version": 1,
+  "server": "chattanooga-robust-mcp",
+  "tools": [
+    {
+      "name": "robust.bad-output",
+      "title": "Output Guard Probe",
+      "description": "Read-only CI probe that intentionally violates its declared output schema so clients and tests can verify that invalid structured output is contained as a tool error.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "robust.echo",
+      "title": "Robust Echo",
+      "description": "Read-only schema-conformance probe. Echoes validated input to prove deterministic MCP tool discovery, JSON Schema 2020-12 validation, and mirrored-header interoperability.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "$defs": {
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 32
+            },
+            "maxItems": 8,
+            "uniqueItems": true
+          }
+        },
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "x-mcp-header": "Text"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "plain",
+              "counted"
+            ]
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "tags": {
+            "$ref": "#/$defs/tags"
+          },
+          "meta": {
+            "type": "object",
+            "properties": {
+              "trace": {
+                "type": "string",
+                "maxLength": 64
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "text",
+          "mode"
+        ],
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "mode": {
+                  "const": "counted"
+                }
+              },
+              "required": [
+                "mode"
+              ]
+            },
+            "then": {
+              "required": [
+                "count"
+              ]
+            }
+          }
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "$defs": {
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8
+          }
+        },
+        "properties": {
+          "echo": {
+            "type": "string"
+          },
+          "source": {
+            "const": "robust-mcp"
+          },
+          "count": {
+            "type": "integer"
+          },
+          "tags": {
+            "$ref": "#/$defs/tags"
+          }
+        },
+        "required": [
+          "echo",
+          "source",
+          "tags"
+        ],
+        "additionalProperties": false
+      }
+    }
+  ]
+}
