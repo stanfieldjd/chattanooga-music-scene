@@ -31,7 +31,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "22.23.2"
 
       - name: Install locked PHP MCP dependencies
         working-directory: workbench/harnesses/robust-mcp
@@ -43,8 +43,21 @@ jobs:
           composer check-platform-reqs --no-dev
           git diff --exit-code -- composer.lock
 
-      - name: Install MCP reference clients
-        run: npm install --no-save @modelcontextprotocol/client@latest @modelcontextprotocol/inspector@latest
+      - name: Install locked MCP reference clients
+        working-directory: workbench/harnesses/robust-mcp
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --no-fund
+          npm audit --audit-level=high
+          node - <<'NODE'
+          const lock = require('./package-lock.json');
+          const client = lock.packages?.['node_modules/@modelcontextprotocol/client']?.version;
+          const inspector = lock.packages?.['node_modules/@modelcontextprotocol/inspector']?.version;
+          if (client !== '2.0.0' || inspector !== '2.6.0') {
+            throw new Error(`Unexpected locked MCP clients: client=${client} inspector=${inspector}`);
+          }
+          NODE
+          git diff --exit-code -- package-lock.json
 
       - name: Lint robust MCP core
         shell: bash
