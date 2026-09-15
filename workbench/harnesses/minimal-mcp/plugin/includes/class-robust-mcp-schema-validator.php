@@ -48,7 +48,14 @@ final class CMSA_Robust_MCP_Schema_Validator {
 			// Force Opis to parse the schema now so malformed keyword shapes fail at registration time.
 			self::validator()->validate( new stdClass(), $schema_object );
 		} catch ( Throwable $error ) {
-			return new WP_Error( 'robust_mcp_invalid_schema', 'The JSON Schema is not valid Draft 2020-12 syntax.' );
+			return new WP_Error(
+				'robust_mcp_invalid_schema',
+				'The JSON Schema is not valid Draft 2020-12 syntax.',
+				array(
+					'internal_exception_class'   => get_class( $error ),
+					'internal_exception_message' => $error->getMessage(),
+				)
+			);
 		}
 
 		return true;
@@ -69,7 +76,14 @@ final class CMSA_Robust_MCP_Schema_Validator {
 		try {
 			$result = self::validator()->validate( $data, $schema_object );
 		} catch ( Throwable $error ) {
-			return new WP_Error( 'robust_mcp_schema_validation_failed', 'JSON Schema validation failed unexpectedly.' );
+			return new WP_Error(
+				'robust_mcp_schema_validation_failed',
+				'JSON Schema validation failed unexpectedly.',
+				array(
+					'internal_exception_class'   => get_class( $error ),
+					'internal_exception_message' => $error->getMessage(),
+				)
+			);
 		}
 
 		if ( $result->isValid() ) {
