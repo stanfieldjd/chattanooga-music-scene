@@ -30,7 +30,7 @@ trap cleanup EXIT
 
 rm -rf "$sessions" "$cache"
 rm -f "$private_key" "$bad_private_key" "$jwks" "$bad_jwks" "$idp_counter" "$telemetry" \
-  /tmp/robust-oauth-*.json /tmp/robust-oauth-*.headers /tmp/robust-oauth-*.log
+  /tmp/robust-oauth-*.json /tmp/robust-oauth-*.headers /tmp/robust-oauth-*.log /tmp/robust-oauth-*.txt
 mkdir -p "$sessions" "$cache"
 
 php "$base_dir/oauth-fixture-keygen.php" "$private_key" "$jwks"
@@ -121,21 +121,44 @@ grep -Eiq 'scope="mcp:connect"' /tmp/robust-oauth-missing.headers
 malformed_code="$(curl -sS -D /tmp/robust-oauth-malformed.headers -o /tmp/robust-oauth-malformed.json -w '%{http_code}' \
   "${common_headers[@]}" -H 'Authorization: Basic not-oauth' \
   --data-binary @/tmp/robust-oauth-discover.json "$endpoint")"
-# The SDK follows the Bearer challenge model for malformed credentials: HTTP
-# 401 carries error="invalid_request" rather than using a separate 400 status.
 test "$malformed_code" = '401'
 grep -Eiq 'error="invalid_request"' /tmp/robust-oauth-malformed.headers
 
-# CORS preflight must never require a bearer token.
-preflight_code="$(curl -sS -o /tmp/robust-oauth-preflight.txt -w '%{http_code}' \
-  -X OPTIONS -H 'Origin: https://chatgpt.com' -H 'Access-Control-Request-Method: POST' "$endpoint")"
+# ChatGPT browser preflight is handled before authentication. Host and Origin are
+# separate security boundaries: ChatGPT's Origin is allowed but never substitutes
+# for validation of the MCP server Host.
+preflight_code="$(curl -sS -D /tmp/robust-oauth-preflight.headers -o /tmp/robust-oauth-preflight.txt -w '%{http_code}' \
+  -X OPTIONS \
+  -H 'Origin: https://chatgpt.com' \
+  -H 'Access-Control-Request-Method: POST' \
+  -H 'Access-Control-Request-Headers: Authorization, Content-Type, MCP-Protocol-Version, Mcp-Method, Mcp-Name, Mcp-Param-Text' \
+  "$endpoint")"
 test "$preflight_code" = '204'
+grep -Eiq '^Access-Control-Allow-Origin: https://chatgpt\.com' /tmp/robust-oauth-preflight.headers
+grep -Eiq '^Access-Control-Allow-Methods: POST, DELETE' /tmp/robust-oauth-preflight.headers
+grep -Eiq '^Access-Control-Allow-Headers: .*authorization.*content-type.*mcp-method.*mcp-name.*mcp-param-text.*mcp-protocol-version' /tmp/robust-oauth-preflight.headers
 
-# A valid token fills both OIDC-discovery and JWKS caches.
+evil_origin_code="$(curl -sS -o /tmp/robust-oauth-evil-origin.txt -w '%{http_code}' \
+  -X OPTIONS -H 'Origin: https://evil.example' -H 'Access-Control-Request-Method: POST' "$endpoint")"
+test "$evil_origin_code" = '403'
+
+forbidden_header_code="$(curl -sS -o /tmp/robust-oauth-forbidden-header.txt -w '%{http_code}' \
+  -X OPTIONS -H 'Origin: https://chatgpt.com' -H 'Access-Control-Request-Method: POST' \
+  -H 'Access-Control-Request-Headers: X-Secret-Bypass' "$endpoint")"
+test "$forbidden_header_code" = '403'
+
+evil_host_code="$(curl -sS -o /tmp/robust-oauth-evil-host.txt -w '%{http_code}' \
+  -H 'Host: attacker.invalid' "${common_headers[@]}" --data-binary @/tmp/robust-oauth-discover.json "$endpoint")"
+test "$evil_host_code" = '403'
+
+# A valid token fills both OIDC-discovery and JWKS caches and a browser-origin
+# request receives the exact CORS origin, never a wildcard.
 valid_code="$(curl -sS -D /tmp/robust-oauth-valid.headers -o /tmp/robust-oauth-valid.json -w '%{http_code}' \
-  "${common_headers[@]}" -H "Authorization: Bearer ${valid_token}" \
+  "${common_headers[@]}" -H 'Origin: https://chatgpt.com' -H "Authorization: Bearer ${valid_token}" \
   --data-binary @/tmp/robust-oauth-discover.json "$endpoint")"
 test "$valid_code" = '200'
+grep -Eiq '^Access-Control-Allow-Origin: https://chatgpt\.com' /tmp/robust-oauth-valid.headers
+! grep -Eiq '^Access-Control-Allow-Origin: \*' /tmp/robust-oauth-valid.headers
 php -r '$d=json_decode(file_get_contents("/tmp/robust-oauth-valid.json"),true,512,JSON_THROW_ON_ERROR); if (($d["result"]["supportedVersions"]??[])!==["2026-07-28"]) exit(1);'
 grep -Fq '/.well-known/oauth-authorization-server' "$idp_counter"
 grep -Fq '/jwks' "$idp_counter"
@@ -195,4 +218,4 @@ if curl -fsS --max-time 1 "$idp/.well-known/oauth-authorization-server" >/dev/nu
   exit 1
 fi
 
-printf '%s\n' 'robust-mcp-oauth: PASS rfc9728 jwt-signature issuer audience expiration scopes preflight cache-offline modern+legacy+auto no-token-logs'
+printf '%s\n' 'robust-mcp-oauth: PASS rfc9728 jwt-signature issuer audience expiration scopes strict-host strict-chatgpt-origin dynamic-mcp-cors cache-offline modern+legacy+auto no-token-logs'
