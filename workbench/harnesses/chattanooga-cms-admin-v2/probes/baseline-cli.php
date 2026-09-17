@@ -74,8 +74,8 @@ foreach ( wp_get_abilities() as $registered_ability ) {
 		continue;
 	}
 	$meta = $registered_ability->get_meta();
-	if ( true === ( $meta['mcp']['public'] ?? false ) ) {
-		fwrite( STDERR, "A generated universal facade leaked into MCP tool discovery.\n" );
+	if ( true !== ( $meta['mcp']['public'] ?? false ) ) {
+		fwrite( STDERR, "A generated site-operation facade was not exposed to MCP tool discovery.\n" );
 		exit( 1 );
 	}
 }
