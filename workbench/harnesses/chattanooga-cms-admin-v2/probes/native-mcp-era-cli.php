@@ -82,7 +82,7 @@ $initialized->set_header( 'content-type', 'application/json' );
 $initialized->set_header( 'Mcp-Session-Id', $session_id );
 $initialized->set_body( wp_json_encode( array( 'jsonrpc' => '2.0', 'method' => 'notifications/initialized' ) ) );
 $initialized_response = rest_do_request( $initialized );
-cmsa_native_mcp_era_assert( 202 === $initialized_response->get_status(), 'Standard initialized notification was not accepted.' );
+cmsa_native_mcp_era_assert( 202 === $initialized_response->get_status(), 'Standard initialized notification was not accepted: ' . $initialized_response->get_status() . ' ' . wp_json_encode( $initialized_response->get_data() ) );
 
 $standard_list = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
 $standard_list->set_header( 'content-type', 'application/json' );
