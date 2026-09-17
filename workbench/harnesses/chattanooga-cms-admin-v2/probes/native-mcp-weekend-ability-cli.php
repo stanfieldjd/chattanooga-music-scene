@@ -18,13 +18,25 @@ function cmsa_weekend_mcp_assert( $condition, $message ) {
 
 function cmsa_weekend_mcp_call( $tool, array $arguments ) {
 	static $id = 900;
+	static $session_id = '';
 	++$id;
+
+	if ( '' === $session_id ) {
+		$initialize = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
+		$initialize->set_header( 'content-type', 'application/json' );
+		$initialize->set_body( wp_json_encode( array( 'jsonrpc' => '2.0', 'id' => 899, 'method' => 'initialize', 'params' => array( 'protocolVersion' => '2026-07-28', 'capabilities' => array(), 'clientInfo' => array( 'name' => 'cmsa-weekend-ability-probe', 'version' => '1.0.0' ) ) ) ) );
+		$initialize_response = rest_do_request( $initialize );
+		$initialize_headers = array_change_key_case( $initialize_response->get_headers(), CASE_LOWER );
+		$session_id = trim( (string) ( $initialize_headers['mcp-session-id'] ?? '' ) );
+		cmsa_weekend_mcp_assert( 200 === $initialize_response->get_status() && '' !== $session_id, 'Native MCP initialize did not establish a session.' );
+	}
 
 	$request = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
 	$request->set_header( 'content-type', 'application/json' );
 	$request->set_header( 'MCP-Protocol-Version', '2026-07-28' );
 	$request->set_header( 'Mcp-Method', 'tools/call' );
 	$request->set_header( 'Mcp-Name', $tool );
+	$request->set_header( 'Mcp-Session-Id', $session_id );
 	$request->set_body(
 		wp_json_encode(
 			array(

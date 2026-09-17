@@ -25,8 +25,8 @@ Its production identity is `Chattanooga CMS Admin`, its entrypoint is `chattanoo
 
 The clean harness covers dynamic Ability and REST discovery, plugin/theme lifecycle, package installation, update policy, audit, registered settings, WordPress core content and user REST administration, local/database/core backups and rollback, and an actual Core Upgrader transition followed by verified rollback.
 
-The native MCP probe separately verifies the WordPress REST MCP endpoint, modern MCP 2026-07-28 discovery/tool calls, legacy 2025-11-25 initialization compatibility, administrator authorization, origin/header validation, deterministic public tool listing, private bridge exclusion, and a real read-only administration call.
+The native MCP probe separately verifies the WordPress REST MCP endpoint, modern MCP 2026-07-28 discovery/tool calls, legacy 2025-11-25 initialization contract verification, administrator authorization, origin/header validation, deterministic public tool listing, private bridge exclusion, and a real read-only administration call.
 
-The provider compatibility workflow separately verifies real Events Manager, WooCommerce, and Rank Math execution through public contracts and verifies that AWP Classifieds' private generic CPT Ability remains excluded from the universal namespace.
+The provider contract verification workflow separately verifies real Events Manager, WooCommerce, and Rank Math execution through public contracts and verifies that AWP Classifieds' private generic CPT Ability remains excluded from the universal namespace.
 
 Production deployment is outside this harness and remains a separately authorized transition.
