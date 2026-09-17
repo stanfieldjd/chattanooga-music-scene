@@ -12,6 +12,10 @@ final class CUA_MCP_Server {
 	const PROTOCOL_VERSION = '2026-07-28';
 
 	public static function register_route() {
+		if ( ! CUA_MCP_Settings_Page::is_enabled() ) {
+			return;
+		}
+
 		register_rest_route(
 			self::REST_NAMESPACE,
 			self::REST_ROUTE,
@@ -41,7 +45,7 @@ final class CUA_MCP_Server {
 		}
 
 		$origin = trim( (string) $request->get_header( 'origin' ) );
-		if ( '' !== $origin && ! self::origin_is_allowed( $origin ) ) {
+		if ( '' !== $origin && ! CUA_MCP_Settings_Page::is_origin_allowed( $origin ) ) {
 			return new WP_Error(
 				'cmsa_mcp_origin_forbidden',
 				'The request Origin is not permitted for this MCP endpoint.',
@@ -165,7 +169,7 @@ final class CUA_MCP_Server {
 					'listChanged' => false,
 				),
 			),
-			'instructions'      => 'Authenticated WordPress administrator tools. Use read-only tools for inspection and mutating tools only for explicitly authorized site changes.',
+			'instructions'      => 'Authenticated WordPress site-operation tools. Use read-only tools for inspection and mutating tools only for explicitly authorized site changes.',
 			'ttlMs'             => 30000,
 			'cacheScope'        => 'private',
 		);
@@ -414,42 +418,6 @@ final class CUA_MCP_Server {
 			'version'    => defined( 'CUA_VERSION' ) ? CUA_VERSION : 'unknown',
 			'websiteUrl' => home_url( '/' ),
 		);
-	}
-
-	private static function origin_is_allowed( $origin ) {
-		$candidate = self::normalize_origin( $origin );
-		if ( '' === $candidate ) {
-			return false;
-		}
-
-		foreach ( array( home_url( '/' ), site_url( '/' ) ) as $url ) {
-			if ( $candidate === self::normalize_origin( $url ) ) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	private static function normalize_origin( $url ) {
-		$parts = wp_parse_url( trim( (string) $url ) );
-		if ( ! is_array( $parts ) || empty( $parts['scheme'] ) || empty( $parts['host'] ) ) {
-			return '';
-		}
-
-		$scheme = strtolower( (string) $parts['scheme'] );
-		$host   = strtolower( (string) $parts['host'] );
-		if ( ! in_array( $scheme, array( 'http', 'https' ), true ) ) {
-			return '';
-		}
-
-		$origin = $scheme . '://' . $host;
-		if ( isset( $parts['port'] ) ) {
-			$port = (int) $parts['port'];
-			if ( ( 'http' === $scheme && 80 !== $port ) || ( 'https' === $scheme && 443 !== $port ) ) {
-				$origin .= ':' . $port;
-			}
-		}
-		return $origin;
 	}
 
 	private static function json_text( $value ) {

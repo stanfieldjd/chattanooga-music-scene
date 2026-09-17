@@ -29,12 +29,14 @@ require_once CUA_DIR . 'includes/class-cua-platform-package-lifecycle.php';
 require_once CUA_DIR . 'includes/class-cua-backups.php';
 require_once CUA_DIR . 'includes/class-cua-platform-core-maintenance.php';
 require_once CUA_DIR . 'includes/class-cua-platform-settings.php';
+require_once CUA_DIR . 'includes/class-cua-mcp-settings-page.php';
 require_once CUA_DIR . 'includes/class-cua-rest-bridge.php';
 require_once CUA_DIR . 'includes/class-cua-ability-bridge.php';
 require_once CUA_DIR . 'includes/class-cua-bridge-gateway.php';
 require_once CUA_DIR . 'includes/class-cua-mcp-server.php';
 
 CUA_Audit::bootstrap();
+CUA_MCP_Settings_Page::register_admin_hooks();
 
 add_action( 'wp_abilities_api_categories_init', array( 'CUA_Ability_Bridge', 'register_category' ) );
 add_action( 'wp_abilities_api_init', array( 'CUA_Ability_Bridge', 'register_catalog_ability' ), 5 );
