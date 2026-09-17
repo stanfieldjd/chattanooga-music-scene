@@ -58,46 +58,19 @@ $required = array(
 	'cmsa.catalog',
 	'cmsa.read-bridge',
 	'cmsa.write-bridge',
-	'cmsa.get-health',
-	'cmsa.list-updates',
-	'cmsa.list-plugins',
-	'cmsa.list-themes',
-	'cmsa.list-backups',
-	'cmsa.get-audit-log',
-	'cmsa.create-backup',
-	'cmsa.verify-backup',
-	'cmsa.update-plugin',
-	'cmsa.update-theme',
-	'cmsa.update-core',
-	'cmsa.install-plugin',
-	'cmsa.install-plugin-package',
-	'cmsa.activate-plugin',
-	'cmsa.deactivate-plugin',
-	'cmsa.delete-plugin',
-	'cmsa.set-plugin-auto-update',
-	'cmsa.install-theme',
-	'cmsa.switch-theme',
-	'cmsa.delete-theme',
-	'cmsa.set-theme-auto-update',
-	'cmsa.clear-cache',
-	'cmsa.restore-component-backup',
-	'cmsa.restore-database-backup',
-	'cmsa.restore-core-backup',
-	'cmsa.list-registered-settings',
-	'cmsa.get-registered-setting',
-	'cmsa.update-registered-setting',
 );
 
 $missing = array_values( array_diff( $required, $names ) );
 cmsa_native_mcp_surface_assert(
 	empty( $missing ),
-	'MCP administrator surface is incomplete. Missing: ' . implode( ', ', $missing )
+	'MCP site-operation surface is incomplete. Missing: ' . implode( ', ', $missing )
 );
 
 foreach ( $names as $name ) {
+	cmsa_native_mcp_surface_assert( in_array( $name, $required, true ), 'Administrator/control-plane tool leaked into MCP: ' . $name );
 	cmsa_native_mcp_surface_assert( 0 !== strpos( $name, 'cmsa.bridge-' ), 'Private dynamic Ability facade leaked into MCP: ' . $name );
 	cmsa_native_mcp_surface_assert( 0 !== strpos( $name, 'cmsa.rest-' ), 'Private dynamic REST facade leaked into MCP: ' . $name );
 }
 
-echo 'cmsa-native-mcp-admin-surface: PASS required=' . count( $required ) . ' exposed=' . count( $names ) . " private_facades=hidden\n";
+echo 'cmsa-native-mcp-site-surface: PASS required=' . count( $required ) . ' exposed=' . count( $names ) . " administrator_surface=excluded private_facades=hidden\n";
 exit( 0 );
