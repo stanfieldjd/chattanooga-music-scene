@@ -46,7 +46,7 @@ cmsa_native_mcp_era_assert( 200 === $modern_response->get_status(), 'Current MCP
 cmsa_native_mcp_era_assert( 'complete' === ( $modern_data['result']['resultType'] ?? '' ), 'Current MCP discovery did not complete.' );
 cmsa_native_mcp_era_assert(
 	array( '2026-07-28', '2025-11-25' ) === ( $modern_data['result']['supportedVersions'] ?? null ),
-	'Current MCP discovery advertised compatibility versions.'
+	'Current MCP discovery advertised contract verification versions.'
 );
 
 $initialize = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
@@ -128,5 +128,5 @@ cmsa_native_mcp_era_assert( '2025-11-25' === ( $legacy_data['result']['protocolV
 $legacy_headers = array_change_key_case( $legacy_response->get_headers(), CASE_LOWER );
 cmsa_native_mcp_era_assert( '2025-11-25' === ( $legacy_headers['mcp-protocol-version'] ?? '' ), 'Legacy initialize returned the wrong protocol response header.' );
 
-echo "cmsa-native-mcp-era: PASS protocol=2026-07-28,2025-11-25 standard_lifecycle=verified legacy_compatibility=verified\n";
+echo "cmsa-native-mcp-era: PASS protocol=2026-07-28,2025-11-25 standard_lifecycle=verified legacy_versions=verified\n";
 exit( 0 );
