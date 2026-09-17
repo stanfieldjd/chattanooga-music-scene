@@ -17,7 +17,7 @@ function cmsa_v2_em_catalog() {
 	}
 	$catalog = wp_get_ability( 'chattanooga-cms-admin/catalog' );
 	if ( ! $catalog instanceof WP_Ability ) {
-		cmsa_v2_em_fail( 'Universal catalog is unavailable in Events Manager compatibility job.' );
+		cmsa_v2_em_fail( 'Universal catalog is unavailable in Events Manager contract verification job.' );
 	}
 	$result = $catalog->execute( array() );
 	if ( is_wp_error( $result ) || empty( $result['items'] ) || ! is_array( $result['items'] ) ) {
@@ -107,7 +107,7 @@ function cmsa_v2_em_extract_id( $value ) {
 wp_set_current_user( 1 );
 
 if ( ! defined( 'EM_VERSION' ) || '7.4.3' !== (string) EM_VERSION ) {
-	cmsa_v2_em_fail( 'Events Manager 7.4.3 is not the active compatibility target.' );
+	cmsa_v2_em_fail( 'Events Manager 7.4.3 is not the active contract verification target.' );
 }
 
 $list = cmsa_v2_em_ability( 'events-manager/list-events' );
@@ -142,7 +142,7 @@ $created = cmsa_v2_em_rest_call(
 	'/events-manager/v1/events',
 	array(
 		'event_name'       => $name,
-		'content'          => 'Disposable Events Manager compatibility event.',
+		'content'          => 'Disposable Events Manager contract verification event.',
 		'event_type'       => 'single',
 		'post_status'      => 'draft',
 		'event_start_date' => $start,

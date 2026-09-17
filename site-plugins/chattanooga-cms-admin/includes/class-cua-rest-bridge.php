@@ -365,7 +365,10 @@ final class CUA_REST_Bridge {
 		return array(
 			'public'       => true,
 			'show_in_rest' => false,
-			'mcp'          => array( 'public' => false ),
+			// REST facades are generated only for public, callable external routes;
+			// Chattanooga's own control-plane routes are excluded by the bridge
+			// registration and self-mutation guard.
+			'mcp'          => array( 'public' => true ),
 			'annotations'  => self::annotations( $method ),
 		);
 	}

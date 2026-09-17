@@ -9,7 +9,11 @@ final class CUA_MCP_Server {
 	const REST_ROUTE     = '/mcp';
 	const ABILITY_PREFIX = 'chattanooga-cms-admin/';
 	const TOOL_PREFIX    = 'cmsa.';
+	const RESOURCE_CATALOG_URI = 'chattanooga://site-operation-catalog';
+	const PROMPT_SITE_OPERATION = 'site-operation-guide';
 	const PROTOCOL_VERSION = '2026-07-28';
+	const LEGACY_PROTOCOL_VERSION = '2025-11-25';
+	const TOOL_PAGE_SIZE = 50;
 
 	public static function register_route() {
 		if ( ! CUA_MCP_Settings_Page::is_enabled() ) {
@@ -20,7 +24,10 @@ final class CUA_MCP_Server {
 			self::REST_NAMESPACE,
 			self::REST_ROUTE,
 			array(
-				'methods'             => WP_REST_Server::CREATABLE,
+				// Streamable HTTP permits a server to omit server-to-client SSE. In
+				// that mode GET remains a defined MCP endpoint and returns 405 with
+				// the allowed method instead of falling through to a WordPress 404.
+				'methods'             => array( WP_REST_Server::CREATABLE, WP_REST_Server::READABLE ),
 				'callback'            => array( __CLASS__, 'handle_request' ),
 				'permission_callback' => array( __CLASS__, 'authorize_request' ),
 			)
@@ -57,6 +64,12 @@ final class CUA_MCP_Server {
 	}
 
 	public static function handle_request( WP_REST_Request $request ) {
+		if ( 'GET' === strtoupper( $request->get_method() ) ) {
+			$response = new WP_REST_Response( null, 405 );
+			$response->header( 'Allow', 'POST' );
+			return $response;
+		}
+
 		$payload = self::decode_request( $request );
 		if ( is_wp_error( $payload ) ) {
 			return self::protocol_error_response( null, -32700, $payload->get_error_message(), 400 );
@@ -74,6 +87,12 @@ final class CUA_MCP_Server {
 		$method = $payload['method'];
 		$params = isset( $payload['params'] ) && is_array( $payload['params'] ) ? $payload['params'] : array();
 
+		$transport_error = self::validate_transport_headers( $request );
+		if ( is_wp_error( $transport_error ) ) {
+			$status = 'cmsa_mcp_accept_not_supported' === $transport_error->get_error_code() ? 406 : 415;
+			return self::protocol_error_response( $id, -32020, $transport_error->get_error_message(), $status );
+		}
+
 		$header_error = self::validate_headers( $request, $method, $params );
 		if ( is_wp_error( $header_error ) ) {
 			return self::protocol_error_response( $id, -32020, $header_error->get_error_message(), 400 );
@@ -86,7 +105,7 @@ final class CUA_MCP_Server {
 				-32022,
 				$version_error->get_error_message(),
 				400,
-				array( 'supportedVersions' => array( self::PROTOCOL_VERSION ) )
+				array( 'supportedVersions' => self::supported_protocol_versions() )
 			);
 		}
 
@@ -98,22 +117,48 @@ final class CUA_MCP_Server {
 			return self::protocol_error_response( null, -32600, 'A request id is required for this MCP method.', 400 );
 		}
 
+		$protocol_version = self::request_protocol_version( $request, $params );
+
 		switch ( $method ) {
 			case 'initialize':
-				return self::success_response( $id, self::initialize_result() );
+				return self::success_response( $id, self::initialize_result( $protocol_version ), $protocol_version );
 
 			case 'server/discover':
-				return self::success_response( $id, self::discover_result() );
+				return self::success_response( $id, self::discover_result(), $protocol_version );
 
 			case 'tools/list':
-				return self::success_response( $id, self::list_tools_result() );
+				$tools = self::list_tools_result( $params );
+				if ( is_wp_error( $tools ) ) {
+					return self::protocol_error_response( $id, -32602, $tools->get_error_message(), 400 );
+				}
+				return self::success_response( $id, $tools, $protocol_version );
 
 			case 'tools/call':
 				$call = self::call_tool( $params );
 				if ( is_wp_error( $call ) ) {
-					return self::success_response( $id, self::tool_error_result( $call ) );
+					return self::success_response( $id, self::tool_error_result( $call ), $protocol_version );
 				}
-				return self::success_response( $id, $call );
+				return self::success_response( $id, $call, $protocol_version );
+
+			case 'resources/list':
+				return self::success_response( $id, self::list_resources_result(), $protocol_version );
+
+			case 'resources/read':
+				$resource = self::read_resource_result( $params );
+				if ( is_wp_error( $resource ) ) {
+					return self::protocol_error_response( $id, -32602, $resource->get_error_message(), 400 );
+				}
+				return self::success_response( $id, $resource, $protocol_version );
+
+			case 'prompts/list':
+				return self::success_response( $id, self::list_prompts_result(), $protocol_version );
+
+			case 'prompts/get':
+				$prompt = self::get_prompt_result( $params );
+				if ( is_wp_error( $prompt ) ) {
+					return self::protocol_error_response( $id, -32602, $prompt->get_error_message(), 400 );
+				}
+				return self::success_response( $id, $prompt, $protocol_version );
 
 			default:
 				return self::protocol_error_response( $id, -32601, 'Method not found.', 404 );
@@ -154,16 +199,35 @@ final class CUA_MCP_Server {
 			return new WP_Error( 'cmsa_mcp_version_missing', 'initialize requires params.protocolVersion.' );
 		}
 
-		if ( '' !== $header_version && self::PROTOCOL_VERSION !== $header_version ) {
+		$supported = self::supported_protocol_versions();
+		if ( '' !== $header_version && ! in_array( $header_version, $supported, true ) ) {
 			return new WP_Error(
 				'cmsa_mcp_version_mismatch',
-				'MCP protocol version ' . self::PROTOCOL_VERSION . ' is required.'
+				'MCP protocol version is not supported.'
 			);
 		}
-		if ( '' !== $body_version && self::PROTOCOL_VERSION !== $body_version ) {
-			return new WP_Error( 'cmsa_mcp_version_mismatch', 'MCP protocol version ' . self::PROTOCOL_VERSION . ' is required.' );
+		if ( '' !== $body_version && ! in_array( $body_version, $supported, true ) ) {
+			return new WP_Error( 'cmsa_mcp_version_mismatch', 'MCP protocol version is not supported.' );
 		}
 		return true;
+	}
+
+	private static function supported_protocol_versions() {
+		return array( self::PROTOCOL_VERSION, self::LEGACY_PROTOCOL_VERSION );
+	}
+
+	private static function request_protocol_version( WP_REST_Request $request, array $params ) {
+		$header_version = trim( (string) $request->get_header( 'mcp-protocol-version' ) );
+		if ( '' !== $header_version ) {
+			return $header_version;
+		}
+		if ( isset( $params['protocolVersion'] ) && '' !== trim( (string) $params['protocolVersion'] ) ) {
+			return trim( (string) $params['protocolVersion'] );
+		}
+		if ( isset( $params['_meta']['io.modelcontextprotocol/protocolVersion'] ) ) {
+			return trim( (string) $params['_meta']['io.modelcontextprotocol/protocolVersion'] );
+		}
+		return self::PROTOCOL_VERSION;
 	}
 
 	private static function validate_headers( WP_REST_Request $request, $method, array $params ) {
@@ -183,11 +247,41 @@ final class CUA_MCP_Server {
 		return true;
 	}
 
+	private static function validate_transport_headers( WP_REST_Request $request ) {
+		$content_type = strtolower( trim( (string) $request->get_header( 'content-type' ) ) );
+		$content_type = '' !== $content_type ? trim( strtok( $content_type, ';' ) ) : '';
+		if ( 'application/json' !== $content_type ) {
+			return new WP_Error( 'cmsa_mcp_content_type_required', 'MCP POST requests require Content-Type: application/json.' );
+		}
+
+		$accept = trim( (string) $request->get_header( 'accept' ) );
+		if ( '' !== $accept ) {
+			$accepted = array_map(
+				static function ( $value ) {
+					return trim( strtolower( strtok( trim( $value ), ';' ) ) );
+				},
+				explode( ',', $accept )
+			);
+			if ( ! in_array( 'application/json', $accepted, true ) && ! in_array( 'text/event-stream', $accepted, true ) && ! in_array( '*/*', $accepted, true ) ) {
+				return new WP_Error( 'cmsa_mcp_accept_not_supported', 'MCP clients must accept application/json or text/event-stream.' );
+			}
+		}
+
+		return true;
+	}
+
 	private static function discover_result() {
 		return array(
-			'supportedVersions' => array( self::PROTOCOL_VERSION ),
+			'supportedVersions' => self::supported_protocol_versions(),
 			'capabilities'      => array(
 				'tools' => array(
+					'listChanged' => false,
+				),
+				'resources' => array(
+					'listChanged' => false,
+					'subscribe'   => false,
+				),
+				'prompts' => array(
 					'listChanged' => false,
 				),
 			),
@@ -197,11 +291,18 @@ final class CUA_MCP_Server {
 		);
 	}
 
-	private static function initialize_result() {
+	private static function initialize_result( $protocol_version = self::PROTOCOL_VERSION ) {
 		return array(
-			'protocolVersion' => self::PROTOCOL_VERSION,
+			'protocolVersion' => $protocol_version,
 			'capabilities'    => array(
 				'tools' => array(
+					'listChanged' => false,
+				),
+				'resources' => array(
+					'listChanged' => false,
+					'subscribe'   => false,
+				),
+				'prompts' => array(
 					'listChanged' => false,
 				),
 			),
@@ -210,11 +311,115 @@ final class CUA_MCP_Server {
 		);
 	}
 
-	private static function list_tools_result() {
-		return array(
-			'tools'      => array_values( self::tools() ),
+	private static function list_tools_result( array $params ) {
+		$all_tools = array_values( self::tools() );
+		$offset    = 0;
+		$cursor    = isset( $params['cursor'] ) ? trim( (string) $params['cursor'] ) : '';
+
+		if ( '' !== $cursor ) {
+			$decoded = base64_decode( strtr( $cursor, '-_', '+/' ), true );
+			if ( false === $decoded || ! preg_match( '/^cmsa-tools:(\\d+)$/', $decoded, $matches ) ) {
+				return new WP_Error( 'cmsa_mcp_invalid_cursor', 'The tools/list cursor is invalid.' );
+			}
+			$offset = (int) $matches[1];
+			if ( $offset < 0 || $offset > count( $all_tools ) ) {
+				return new WP_Error( 'cmsa_mcp_invalid_cursor', 'The tools/list cursor is outside the current tool set.' );
+			}
+		}
+
+		$result = array(
+			'tools'      => array_slice( $all_tools, $offset, self::TOOL_PAGE_SIZE ),
 			'ttlMs'      => 30000,
 			'cacheScope' => 'private',
+		);
+		$next_offset = $offset + count( $result['tools'] );
+		if ( $next_offset < count( $all_tools ) ) {
+			$result['nextCursor'] = rtrim( strtr( base64_encode( 'cmsa-tools:' . $next_offset ), '+/', '-_' ), '=' );
+		}
+		return $result;
+	}
+
+	private static function list_resources_result() {
+		return array(
+			'resources' => array(
+				array(
+					'uri'         => self::RESOURCE_CATALOG_URI,
+					'name'        => 'site-operation-catalog',
+					'title'       => 'Site operation catalog',
+					'description' => 'Current read and write site-operation bridges discovered from public WordPress contracts.',
+					'mimeType'    => 'application/json',
+				),
+			),
+			'ttlMs'      => 30000,
+			'cacheScope' => 'private',
+		);
+	}
+
+	private static function read_resource_result( array $params ) {
+		$uri = isset( $params['uri'] ) ? trim( (string) $params['uri'] ) : '';
+		if ( self::RESOURCE_CATALOG_URI !== $uri ) {
+			return new WP_Error( 'cmsa_mcp_resource_not_found', 'The requested MCP resource is not available.' );
+		}
+
+		$catalog = class_exists( 'CUA_Ability_Bridge' ) ? CUA_Ability_Bridge::catalog() : array( 'count' => 0, 'items' => array() );
+		if ( is_wp_error( $catalog ) ) {
+			return $catalog;
+		}
+
+		return array(
+			'contents' => array(
+				array(
+					'uri'      => self::RESOURCE_CATALOG_URI,
+					'mimeType' => 'application/json',
+					'text'     => self::json_text( $catalog ),
+				),
+			),
+		);
+	}
+
+	private static function list_prompts_result() {
+		return array(
+			'prompts' => array(
+				array(
+					'name'        => self::PROMPT_SITE_OPERATION,
+					'title'       => 'Site operation guide',
+					'description' => 'Guides a caller from the public site-operation catalog to the least-privilege MCP tool.',
+					'arguments'   => array(
+						array(
+							'name'        => 'request',
+							'description' => 'The site operation the caller wants to perform.',
+							'required'    => true,
+						),
+					),
+				),
+			),
+			'cacheScope' => 'private',
+		);
+	}
+
+	private static function get_prompt_result( array $params ) {
+		$name = isset( $params['name'] ) ? trim( (string) $params['name'] ) : '';
+		if ( self::PROMPT_SITE_OPERATION !== $name ) {
+			return new WP_Error( 'cmsa_mcp_prompt_not_found', 'The requested MCP prompt is not available.' );
+		}
+
+		$arguments = isset( $params['arguments'] ) && is_array( $params['arguments'] ) ? $params['arguments'] : array();
+		$request = isset( $arguments['request'] ) ? trim( (string) $arguments['request'] ) : '';
+		if ( '' === $request ) {
+			return new WP_Error( 'cmsa_mcp_prompt_argument_required', 'The site-operation prompt requires a request argument.' );
+		}
+
+		return array(
+			'description' => 'Use the public site-operation catalog and select the least-privilege read or write tool for the requested operation.',
+			'messages'    => array(
+				array(
+					'role'    => 'user',
+					'content' => array(
+						'type' => 'text',
+						'text' => 'Requested site operation: ' . $request . '. Read chattanooga://site-operation-catalog, preserve the target contract permissions, and use a read-only tool unless an explicitly authorized mutation is required.',
+					),
+				),
+			),
 		);
 	}
 
@@ -346,8 +551,9 @@ final class CUA_MCP_Server {
 			return null;
 		}
 
-		// Only generic site operations are exposed through MCP. Administrator
-		// and control-plane abilities remain WordPress-internal capabilities.
+		// Only generic site operations and runtime-discovered external facades are
+		// exposed through MCP. Chattanooga's administrator/control-plane abilities
+		// remain WordPress-internal capabilities.
 		if ( ! self::is_site_surface_tool( $tool_name ) ) {
 			return null;
 		}
@@ -372,7 +578,7 @@ final class CUA_MCP_Server {
 	}
 
 	private static function is_site_surface_tool( $tool_name ) {
-		return in_array(
+		if ( in_array(
 			$tool_name,
 			array(
 				self::TOOL_PREFIX . 'catalog',
@@ -380,7 +586,11 @@ final class CUA_MCP_Server {
 				self::TOOL_PREFIX . 'write-bridge',
 			),
 			true
-		);
+		) ) {
+			return true;
+		}
+
+		return 1 === preg_match( '/^cmsa\\.(?:bridge|rest)-[a-f0-9]{24}$/', (string) $tool_name );
 	}
 
 	private static function tool_name( $ability_name ) {
@@ -405,7 +615,7 @@ final class CUA_MCP_Server {
 		return $result;
 	}
 
-	private static function success_response( $id, array $result ) {
+	private static function success_response( $id, array $result, $protocol_version = self::PROTOCOL_VERSION ) {
 		$result['resultType'] = 'complete';
 		$result['_meta'] = isset( $result['_meta'] ) && is_array( $result['_meta'] ) ? $result['_meta'] : array();
 		$result['_meta']['io.modelcontextprotocol/serverInfo'] = self::server_info();
@@ -418,7 +628,7 @@ final class CUA_MCP_Server {
 			),
 			200
 		);
-		$response->header( 'MCP-Protocol-Version', self::PROTOCOL_VERSION );
+		$response->header( 'MCP-Protocol-Version', $protocol_version );
 		return $response;
 	}
 
