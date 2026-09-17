@@ -6,6 +6,7 @@ WP_PATH="${WP_PATH:-/tmp/wordpress}"
 BASE_URL="${BASE_URL:-http://127.0.0.1:8090}"
 ENDPOINT="${BASE_URL}/index.php?rest_route=%2Fchattanooga-cms-admin%2Fv1%2Fmcp"
 PROTOCOL='2026-07-28'
+MCP_SESSION_ID=''
 
 fail() {
   printf 'FAIL: %s\n' "$1" >&2
@@ -46,6 +47,9 @@ mcp_call() {
   if [ -n "$tool_name" ]; then
     headers+=( -H "Mcp-Name: ${tool_name}" )
   fi
+  if [ -n "$MCP_SESSION_ID" ]; then
+    headers+=( -H "Mcp-Session-Id: ${MCP_SESSION_ID}" )
+  fi
 
   local code
   code="$(curl -sS -o "$output_file" -w '%{http_code}' \
@@ -61,6 +65,19 @@ mcp_call() {
   php -r '$d=json_decode(file_get_contents($argv[1]),true); if (!is_array($d) || isset($d["error"]) || !isset($d["result"]) || (($d["result"]["isError"]??false)===true)) { fwrite(STDERR,file_get_contents($argv[1])); exit(1); }' "$output_file" \
     || fail "MCP ${method} returned an application error."
 }
+
+cat > /tmp/cmsa-external-initialize.json <<'JSON'
+{"jsonrpc":"2.0","id":1000,"method":"initialize","params":{"protocolVersion":"2026-07-28","capabilities":{},"clientInfo":{"name":"cmsa-external-functional-redteam","version":"1.0.0"}}}
+JSON
+curl -sS -D /tmp/cmsa-external-initialize-headers.txt -o /tmp/cmsa-external-initialize-response.json \
+  --user "admin:${app_password}" \
+  -H 'Content-Type: application/json' \
+  -H "MCP-Protocol-Version: ${PROTOCOL}" \
+  -H 'Mcp-Method: initialize' \
+  --data-binary @/tmp/cmsa-external-initialize.json \
+  -w '%{http_code}' "$ENDPOINT" | grep -q '^200$' || fail 'MCP initialize failed.'
+MCP_SESSION_ID="$(awk 'BEGIN{IGNORECASE=1} /^Mcp-Session-Id:/ {gsub("\r", "", $0); sub(/^[^:]*:[[:space:]]*/, "", $0); print $0}' /tmp/cmsa-external-initialize-headers.txt | tail -n 1)"
+test -n "$MCP_SESSION_ID" || fail 'MCP initialize did not return a session identifier.'
 
 make_tool_body() {
   local id="$1"
