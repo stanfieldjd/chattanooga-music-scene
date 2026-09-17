@@ -67,6 +67,25 @@ function cmsa_native_mcp_tool( array $tools, $name ) {
 	return null;
 }
 
+function cmsa_native_mcp_all_tools() {
+	$all_tools = array();
+	$cursor = '';
+	for ( $page = 0; $page < 20; $page++ ) {
+		$params = '' === $cursor ? array() : array( 'cursor' => $cursor );
+		$response = cmsa_native_mcp_modern( 'tools/list', $params, 110 + $page );
+		cmsa_native_mcp_assert( 200 === $response->get_status(), 'Paginated tools/list did not return HTTP 200.' );
+		$data = $response->get_data();
+		$page_tools = $data['result']['tools'] ?? null;
+		cmsa_native_mcp_assert( is_array( $page_tools ), 'Paginated tools/list returned no tools array.' );
+		$all_tools = array_merge( $all_tools, $page_tools );
+		$cursor = trim( (string) ( $data['result']['nextCursor'] ?? '' ) );
+		if ( '' === $cursor ) {
+			return $all_tools;
+		}
+	}
+	cmsa_native_mcp_fail( 'Paginated tools/list exceeded the cursor safety limit.' );
+}
+
 wp_set_current_user( 1 );
 cmsa_native_mcp_assert( defined( 'CUA_VERSION' ) && '1.1.0' === CUA_VERSION, 'Chattanooga CMS Admin 1.1.0 did not load.' );
 cmsa_native_mcp_assert( class_exists( 'CUA_MCP_Server' ), 'Native MCP server class did not load.' );
@@ -74,6 +93,13 @@ cmsa_native_mcp_assert( class_exists( 'CUA_MCP_Server' ), 'Native MCP server cla
 $server = rest_get_server();
 $routes = $server->get_routes();
 cmsa_native_mcp_assert( isset( $routes['/chattanooga-cms-admin/v1/mcp'] ), 'Native MCP REST route is not registered.' );
+
+// This server uses stateless JSON responses rather than server-to-client SSE.
+$get_request = new WP_REST_Request( 'GET', '/chattanooga-cms-admin/v1/mcp' );
+$get_response = rest_do_request( $get_request );
+cmsa_native_mcp_assert( 405 === $get_response->get_status(), 'MCP GET fallback did not return HTTP 405.' );
+$get_headers = array_change_key_case( $get_response->get_headers(), CASE_LOWER );
+cmsa_native_mcp_assert( 'POST' === ( $get_headers['allow'] ?? '' ), 'MCP GET fallback did not advertise Allow: POST.' );
 
 // Discovery: the single supported protocol, capabilities, server identity, and private cache policy.
 $discover = cmsa_native_mcp_modern( 'server/discover', array(), 101 );
@@ -101,7 +127,7 @@ cmsa_native_mcp_assert(
 $list = cmsa_native_mcp_modern( 'tools/list', array(), 102 );
 cmsa_native_mcp_assert( 200 === $list->get_status(), 'tools/list did not return HTTP 200.' );
 $list_data = $list->get_data();
-$tools = $list_data['result']['tools'] ?? null;
+$tools = cmsa_native_mcp_all_tools();
 cmsa_native_mcp_assert( is_array( $tools ) && ! empty( $tools ), 'tools/list returned no tools.' );
 
 $names = array();
@@ -117,9 +143,9 @@ foreach ( array( 'cmsa.catalog', 'cmsa.read-bridge', 'cmsa.write-bridge' ) as $r
 	cmsa_native_mcp_assert( in_array( $required_tool, $names, true ), 'Required MCP tool is missing: ' . $required_tool );
 }
 foreach ( $names as $name ) {
-	cmsa_native_mcp_assert( in_array( $name, array( 'cmsa.catalog', 'cmsa.read-bridge', 'cmsa.write-bridge' ), true ), 'Administrator/control-plane tool leaked into tools/list: ' . $name );
-	cmsa_native_mcp_assert( 0 !== strpos( $name, 'cmsa.bridge-' ), 'Private dynamic ability bridge leaked into tools/list.' );
-	cmsa_native_mcp_assert( 0 !== strpos( $name, 'cmsa.rest-' ), 'Private dynamic REST bridge leaked into tools/list.' );
+	$allowed = in_array( $name, array( 'cmsa.catalog', 'cmsa.read-bridge', 'cmsa.write-bridge' ), true )
+		|| 1 === preg_match( '/^cmsa\\.(?:bridge|rest)-[a-f0-9]{24}$/', $name );
+	cmsa_native_mcp_assert( $allowed, 'Administrator/control-plane tool leaked into tools/list: ' . $name );
 }
 
 $catalog_tool = cmsa_native_mcp_tool( $tools, 'cmsa.catalog' );
