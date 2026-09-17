@@ -196,6 +196,9 @@ final class CUA_MCP_Server {
 			}
 
 			$tool_name = self::tool_name( $ability_name );
+			if ( ! self::is_site_surface_tool( $tool_name ) ) {
+				continue;
+			}
 			$schema = $ability->get_input_schema();
 			if ( ! is_array( $schema ) ) {
 				$schema = array(
@@ -304,6 +307,12 @@ final class CUA_MCP_Server {
 			return null;
 		}
 
+		// Only generic site operations are exposed through MCP. Administrator
+		// and control-plane abilities remain WordPress-internal capabilities.
+		if ( ! self::is_site_surface_tool( $tool_name ) ) {
+			return null;
+		}
+
 		$short = substr( $tool_name, strlen( self::TOOL_PREFIX ) );
 		if ( '' === $short || ! preg_match( '/^[A-Za-z0-9_.-]+$/', $short ) ) {
 			return null;
@@ -321,6 +330,18 @@ final class CUA_MCP_Server {
 		return isset( $meta['mcp'] )
 			&& is_array( $meta['mcp'] )
 			&& true === ( $meta['mcp']['public'] ?? false );
+	}
+
+	private static function is_site_surface_tool( $tool_name ) {
+		return in_array(
+			$tool_name,
+			array(
+				self::TOOL_PREFIX . 'catalog',
+				self::TOOL_PREFIX . 'read-bridge',
+				self::TOOL_PREFIX . 'write-bridge',
+			),
+			true
+		);
 	}
 
 	private static function tool_name( $ability_name ) {
