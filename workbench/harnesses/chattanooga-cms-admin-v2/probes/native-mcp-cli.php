@@ -293,5 +293,11 @@ $anonymous = cmsa_native_mcp_modern( 'server/discover', array(), 107 );
 cmsa_native_mcp_assert( 401 === $anonymous->get_status(), 'Anonymous MCP access was not rejected with HTTP 401.' );
 
 wp_set_current_user( 1 );
+
+$close_session = new WP_REST_Request( 'DELETE', '/chattanooga-cms-admin/v1/mcp' );
+$close_session->set_header( 'Mcp-Session-Id', $cmsa_native_mcp_session_id );
+$close_session_response = rest_do_request( $close_session );
+cmsa_native_mcp_assert( 204 === $close_session_response->get_status(), 'MCP DELETE did not close the session.' );
+
 echo "cmsa-native-mcp: PASS version=1.1.0 protocol=2026-07-28 supported_versions=none route=verified admin_boundary=verified origin_guard=verified tools_list=deterministic read_call=verified private_bridges=hidden header_validation=verified\n";
 exit( 0 );
