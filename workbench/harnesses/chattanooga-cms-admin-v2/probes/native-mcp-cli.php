@@ -17,18 +17,28 @@ function cmsa_native_mcp_assert( $condition, $message ) {
 }
 
 function cmsa_native_mcp_post( $method, array $params = array(), array $headers = array(), $id = 1 ) {
+	global $cmsa_native_mcp_session_id;
 	$request = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
 	$request->set_header( 'content-type', 'application/json' );
+	if ( ! empty( $cmsa_native_mcp_session_id ) ) {
+		$request->set_header( 'Mcp-Session-Id', $cmsa_native_mcp_session_id );
+	}
 	foreach ( $headers as $name => $value ) {
 		$request->set_header( $name, $value );
 	}
 	$request->set_body(
 		wp_json_encode(
+			array_filter(
 			array(
 				'jsonrpc' => '2.0',
 				'id'      => $id,
 				'method'  => $method,
 				'params'  => $params,
+			),
+			static function ( $value, $key ) {
+				return 'id' !== $key || null !== $value;
+			},
+			ARRAY_FILTER_USE_BOTH
 			)
 		)
 	);
@@ -99,7 +109,7 @@ $get_request = new WP_REST_Request( 'GET', '/chattanooga-cms-admin/v1/mcp' );
 $get_response = rest_do_request( $get_request );
 cmsa_native_mcp_assert( 405 === $get_response->get_status(), 'MCP GET fallback did not return HTTP 405.' );
 $get_headers = array_change_key_case( $get_response->get_headers(), CASE_LOWER );
-cmsa_native_mcp_assert( 'POST' === ( $get_headers['allow'] ?? '' ), 'MCP GET fallback did not advertise Allow: POST.' );
+cmsa_native_mcp_assert( 'POST, DELETE' === ( $get_headers['allow'] ?? '' ), 'MCP GET fallback did not advertise the allowed MCP methods.' );
 
 $bad_content_type = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
 $bad_content_type->set_header( 'content-type', 'text/plain' );
@@ -136,6 +146,23 @@ cmsa_native_mcp_assert(
 	'Discovery did not identify the Chattanooga CMS Admin server.'
 );
 cmsa_native_mcp_assert( false === ( $discover_data['result']['capabilities']['resources']['subscribe'] ?? true ), 'Discovery returned the wrong resources capability.' );
+
+$initialize = cmsa_native_mcp_modern(
+	'initialize',
+	array(
+		'protocolVersion' => '2026-07-28',
+		'capabilities'    => array(),
+		'clientInfo'      => array( 'name' => 'cmsa-native-mcp-probe', 'version' => '1.0.0' ),
+	),
+	108
+);
+cmsa_native_mcp_assert( 200 === $initialize->get_status(), 'MCP initialize did not return HTTP 200.' );
+$initialize_headers = array_change_key_case( $initialize->get_headers(), CASE_LOWER );
+$cmsa_native_mcp_session_id = trim( (string) ( $initialize_headers['mcp-session-id'] ?? '' ) );
+cmsa_native_mcp_assert( '' !== $cmsa_native_mcp_session_id, 'MCP initialize did not establish a session.' );
+
+$initialized = cmsa_native_mcp_modern( 'notifications/initialized', array(), null );
+cmsa_native_mcp_assert( 202 === $initialized->get_status(), 'MCP initialized notification did not return HTTP 202.' );
 
 $resources = cmsa_native_mcp_modern( 'resources/list', array(), 109 );
 cmsa_native_mcp_assert( 200 === $resources->get_status(), 'resources/list did not return HTTP 200.' );
