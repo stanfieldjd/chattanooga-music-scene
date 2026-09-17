@@ -175,7 +175,7 @@ cmsa_native_mcp_assert( is_array( $resources_data['result']['resources'] ?? null
 cmsa_native_mcp_assert( CUA_MCP_Server::RESOURCE_CATALOG_URI === ( $resources_data['result']['resources'][0]['uri'] ?? '' ), 'Site-operation catalog resource was not listed.' );
 
 $resource_read = cmsa_native_mcp_modern( 'resources/read', array( 'uri' => CUA_MCP_Server::RESOURCE_CATALOG_URI ), 110 );
-cmsa_native_mcp_assert( 200 === $resource_read->get_status(), 'resources/read did not return HTTP 200.' );
+cmsa_native_mcp_assert( 200 === $resource_read->get_status(), 'resources/read did not return HTTP 200: ' . $resource_read->get_status() . ' ' . wp_json_encode( $resource_read->get_data() ) );
 $resource_read_data = $resource_read->get_data();
 cmsa_native_mcp_assert( 'application/json' === ( $resource_read_data['result']['contents'][0]['mimeType'] ?? '' ), 'Site-operation resource returned the wrong MIME type.' );
 cmsa_native_mcp_assert( false !== strpos( (string) ( $resource_read_data['result']['contents'][0]['text'] ?? '' ), 'items' ), 'Site-operation resource did not return catalog content.' );
