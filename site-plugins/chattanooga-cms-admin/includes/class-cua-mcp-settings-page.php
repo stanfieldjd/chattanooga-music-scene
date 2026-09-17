@@ -151,7 +151,7 @@ final class CUA_MCP_Settings_Page {
 		printf(
 			'<p id="%1$s-description" class="description">%2$s</p>',
 			esc_attr( self::OPTION_ORIGINS . '-description' ),
-			esc_html__( 'One origin per line, including scheme (for example, https://example.com). Paths are not accepted. Empty or invalid entries restore the site’s own origins.', 'chattanooga-cms-admin' )
+			esc_html__( 'One origin per line, including scheme (for example, https://example.com). Any path is stripped because browser origins do not include paths. Empty or invalid entries restore the site’s own origins.', 'chattanooga-cms-admin' )
 		);
 	}
 
@@ -174,7 +174,7 @@ final class CUA_MCP_Settings_Page {
 
 		$scheme = strtolower( (string) $parts['scheme'] );
 		$host   = strtolower( (string) $parts['host'] );
-		if ( ! in_array( $scheme, array( 'http', 'https' ), true ) || ( ! empty( $parts['path'] ) && '/' !== $parts['path'] ) || isset( $parts['query'] ) || isset( $parts['fragment'] ) || isset( $parts['user'] ) || isset( $parts['pass'] ) ) {
+		if ( ! in_array( $scheme, array( 'http', 'https' ), true ) || isset( $parts['query'] ) || isset( $parts['fragment'] ) || isset( $parts['user'] ) || isset( $parts['pass'] ) ) {
 			return '';
 		}
 
