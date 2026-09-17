@@ -138,14 +138,29 @@ jobs:
           test "$authenticated_code" = '200'
           php -r '$d=json_decode(file_get_contents("/tmp/cmsa-discover-response.json"),true); if (($d["result"]["resultType"]??"")!=="complete" || ($d["result"]["supportedVersions"]??[])!==["2026-07-28","2025-11-25"]) exit(1);'
 
+          cat > /tmp/cmsa-initialize.json <<'JSON'
+          {"jsonrpc":"2.0","id":402,"method":"initialize","params":{"protocolVersion":"2026-07-28","capabilities":{},"clientInfo":{"name":"cmsa-http-ci","version":"1.0.0"}}}
+          JSON
+          initialize_code="$(curl -sS -D /tmp/cmsa-initialize-headers.txt -o /tmp/cmsa-initialize-response.json -w '%{http_code}' \
+            --user "admin:${app_password}" \
+            -H 'Content-Type: application/json' \
+            -H 'MCP-Protocol-Version: 2026-07-28' \
+            -H 'Mcp-Method: initialize' \
+            --data-binary @/tmp/cmsa-initialize.json \
+            "$endpoint")"
+          test "$initialize_code" = '200'
+          session_id="$(awk 'BEGIN{IGNORECASE=1} /^Mcp-Session-Id:/ {gsub("\r", "", $0); sub(/^[^:]*:[[:space:]]*/, "", $0); print $0}' /tmp/cmsa-initialize-headers.txt | tail -n 1)"
+          test -n "$session_id"
+
           cat > /tmp/cmsa-catalog.json <<'JSON'
-          {"jsonrpc":"2.0","id":402,"method":"tools/call","params":{"name":"cmsa.catalog","arguments":{},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"cmsa-http-ci","version":"1.0.0"}}}}
+          {"jsonrpc":"2.0","id":403,"method":"tools/call","params":{"name":"cmsa.catalog","arguments":{},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"cmsa-http-ci","version":"1.0.0"}}}}
           JSON
 
           catalog_code="$(curl -sS -o /tmp/cmsa-catalog-response.json -w '%{http_code}' \
             --user "admin:${app_password}" \
             -H 'Content-Type: application/json' \
             -H 'MCP-Protocol-Version: 2026-07-28' \
+            -H "Mcp-Session-Id: $session_id" \
             -H 'Mcp-Method: tools/call' \
             -H 'Mcp-Name: cmsa.catalog' \
             --data-binary @/tmp/cmsa-catalog.json \
@@ -155,12 +170,13 @@ jobs:
           bridge="$(php -r '$d=json_decode(file_get_contents("/tmp/cmsa-catalog-response.json"),true); foreach (($d["result"]["structuredContent"]["items"]??[]) as $item) { if (($item["contract"]??"")==="rest" && ($item["method"]??"")==="POST" && ($item["route"]??"")==="/wp/v2/posts") { echo $item["bridge"]; exit(0); } } exit(1);')"
           test -n "$bridge"
 
-          BRIDGE="$bridge" php -r '$b=getenv("BRIDGE"); echo json_encode(["jsonrpc"=>"2.0","id"=>403,"method"=>"tools/call","params"=>["name"=>"cmsa.write-bridge","arguments"=>["bridge"=>$b,"input"=>["path"=>"/wp/v2/posts","params"=>["title"=>"CMSA MCP HTTP Write Probe","status"=>"draft","content"=>"Disposable native MCP CI write-authority probe."]]],"_meta"=>["io.modelcontextprotocol/protocolVersion"=>"2026-07-28","io.modelcontextprotocol/clientInfo"=>["name"=>"cmsa-http-ci","version"=>"1.0.0"]]]]);' > /tmp/cmsa-write.json
+          BRIDGE="$bridge" php -r '$b=getenv("BRIDGE"); echo json_encode(["jsonrpc"=>"2.0","id"=>404,"method"=>"tools/call","params"=>["name"=>"cmsa.write-bridge","arguments"=>["bridge"=>$b,"input"=>["path"=>"/wp/v2/posts","params"=>["title"=>"CMSA MCP HTTP Write Probe","status"=>"draft","content"=>"Disposable native MCP CI write-authority probe."]]],"_meta"=>["io.modelcontextprotocol/protocolVersion"=>"2026-07-28","io.modelcontextprotocol/clientInfo"=>["name"=>"cmsa-http-ci","version"=>"1.0.0"]]]]);' > /tmp/cmsa-write.json
 
           write_code="$(curl -sS -o /tmp/cmsa-write-response.json -w '%{http_code}' \
             --user "admin:${app_password}" \
             -H 'Content-Type: application/json' \
             -H 'MCP-Protocol-Version: 2026-07-28' \
+            -H "Mcp-Session-Id: $session_id" \
             -H 'Mcp-Method: tools/call' \
             -H 'Mcp-Name: cmsa.write-bridge' \
             --data-binary @/tmp/cmsa-write.json \
