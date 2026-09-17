@@ -82,11 +82,12 @@ function cmsa_native_mcp_tool( array $tools, $name ) {
 }
 
 function cmsa_native_mcp_all_tools() {
+	global $cmsa_native_mcp_session_id;
 	$all_tools = array();
 	$cursor = '';
 	for ( $page = 0; $page < 20; $page++ ) {
 		$params = '' === $cursor ? array() : array( 'cursor' => $cursor );
-		$response = cmsa_native_mcp_modern( 'tools/list', $params, 110 + $page, array( 'Mcp-Session-Id' => $GLOBALS['cmsa_native_mcp_session_id'] ) );
+		$response = cmsa_native_mcp_modern( 'tools/list', $params, 110 + $page, array( 'Mcp-Session-Id' => $cmsa_native_mcp_session_id ) );
 		cmsa_native_mcp_assert( 200 === $response->get_status(), 'Paginated tools/list did not return HTTP 200.' );
 		$data = $response->get_data();
 		$page_tools = $data['result']['tools'] ?? null;
@@ -203,7 +204,7 @@ cmsa_native_mcp_assert( false !== strpos( (string) ( $prompt_get_data['result'][
 $list = cmsa_native_mcp_modern( 'tools/list', array(), 102, array( 'Mcp-Session-Id' => $cmsa_native_mcp_session_id ) );
 cmsa_native_mcp_assert( 200 === $list->get_status(), 'tools/list did not return HTTP 200.' );
 $list_data = $list->get_data();
-$tools = $list_data['result']['tools'] ?? array();
+$tools = cmsa_native_mcp_all_tools();
 cmsa_native_mcp_assert( is_array( $tools ) && ! empty( $tools ), 'tools/list returned no tools.' );
 
 $names = array();
