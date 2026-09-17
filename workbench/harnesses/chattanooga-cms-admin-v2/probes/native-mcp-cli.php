@@ -149,6 +149,24 @@ $resource_read_data = $resource_read->get_data();
 cmsa_native_mcp_assert( 'application/json' === ( $resource_read_data['result']['contents'][0]['mimeType'] ?? '' ), 'Site-operation resource returned the wrong MIME type.' );
 cmsa_native_mcp_assert( false !== strpos( (string) ( $resource_read_data['result']['contents'][0]['text'] ?? '' ), 'items' ), 'Site-operation resource did not return catalog content.' );
 
+$prompts = cmsa_native_mcp_modern( 'prompts/list', array(), 111 );
+cmsa_native_mcp_assert( 200 === $prompts->get_status(), 'prompts/list did not return HTTP 200.' );
+$prompts_data = $prompts->get_data();
+cmsa_native_mcp_assert( CUA_MCP_Server::PROMPT_SITE_OPERATION === ( $prompts_data['result']['prompts'][0]['name'] ?? '' ), 'Site-operation prompt was not listed.' );
+
+$prompt_get = cmsa_native_mcp_modern(
+	'prompts/get',
+	array(
+		'name'      => CUA_MCP_Server::PROMPT_SITE_OPERATION,
+		'arguments' => array( 'request' => 'inspect the current public site-operation catalog' ),
+	),
+	112
+);
+cmsa_native_mcp_assert( 200 === $prompt_get->get_status(), 'prompts/get did not return HTTP 200.' );
+$prompt_get_data = $prompt_get->get_data();
+cmsa_native_mcp_assert( 'user' === ( $prompt_get_data['result']['messages'][0]['role'] ?? '' ), 'Site-operation prompt returned the wrong message role.' );
+cmsa_native_mcp_assert( false !== strpos( (string) ( $prompt_get_data['result']['messages'][0]['content']['text'] ?? '' ), 'site-operation catalog' ), 'Site-operation prompt returned incomplete guidance.' );
+
 // tools/list: deterministic names, bounded public ability surface, and correct read/write annotations.
 $list = cmsa_native_mcp_modern( 'tools/list', array(), 102 );
 cmsa_native_mcp_assert( 200 === $list->get_status(), 'tools/list did not return HTTP 200.' );
