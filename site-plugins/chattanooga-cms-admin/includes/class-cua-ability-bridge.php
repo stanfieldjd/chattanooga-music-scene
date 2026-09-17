@@ -8,8 +8,6 @@ final class CUA_Ability_Bridge {
 	const NAMESPACE_PREFIX = 'chattanooga-cms-admin/';
 	const CATEGORY = 'chattanooga-cms-admin';
 
-	private static $bridges = array();
-
 	public static function register_category() {
 		if ( ! function_exists( 'wp_register_ability_category' ) ) {
 			return;
@@ -64,8 +62,7 @@ final class CUA_Ability_Bridge {
 			return;
 		}
 
-		$abilities = wp_get_abilities();
-		foreach ( $abilities as $ability ) {
+		foreach ( wp_get_abilities() as $ability ) {
 			if ( ! $ability instanceof WP_Ability || ! self::is_bridgeable( $ability ) ) {
 				continue;
 			}
@@ -100,36 +97,11 @@ final class CUA_Ability_Bridge {
 			}
 
 			wp_register_ability( $bridge_name, $args );
-			if ( wp_get_ability( $bridge_name ) instanceof WP_Ability ) {
-				self::$bridges[ $bridge_name ] = $target_name;
-			}
 		}
 	}
 
 	public static function catalog() {
-		$items = array();
-		foreach ( self::$bridges as $bridge_name => $target_name ) {
-			$target = wp_get_ability( $target_name );
-			if ( ! $target instanceof WP_Ability || ! self::is_bridgeable( $target ) ) {
-				continue;
-			}
-
-			$meta = $target->get_meta();
-			$annotations = isset( $meta['annotations'] ) && is_array( $meta['annotations'] ) ? $meta['annotations'] : array();
-			$items[] = array(
-				'contract'    => 'ability',
-				'bridge'      => $bridge_name,
-				'target'      => $target_name,
-				'label'       => $target->get_label(),
-				'description' => $target->get_description(),
-				'category'    => $target->get_category(),
-				'annotations' => array(
-					'readonly'    => array_key_exists( 'readonly', $annotations ) && null !== $annotations['readonly'] ? (bool) $annotations['readonly'] : null,
-					'destructive' => array_key_exists( 'destructive', $annotations ) && null !== $annotations['destructive'] ? (bool) $annotations['destructive'] : null,
-					'idempotent'  => array_key_exists( 'idempotent', $annotations ) && null !== $annotations['idempotent'] ? (bool) $annotations['idempotent'] : null,
-				),
-			);
-		}
+		$items = self::catalog_items();
 
 		if ( class_exists( 'CUA_REST_Bridge' ) ) {
 			$items = array_merge( $items, CUA_REST_Bridge::catalog_items() );
@@ -146,6 +118,45 @@ final class CUA_Ability_Bridge {
 			'count' => count( $items ),
 			'items' => $items,
 		);
+	}
+
+	public static function catalog_items() {
+		if ( ! function_exists( 'wp_get_abilities' ) ) {
+			return array();
+		}
+
+		$items = array();
+		foreach ( wp_get_abilities() as $target ) {
+			if ( ! $target instanceof WP_Ability || ! self::is_bridgeable( $target ) ) {
+				continue;
+			}
+
+			$target_name = $target->get_name();
+			$meta = $target->get_meta();
+			$annotations = isset( $meta['annotations'] ) && is_array( $meta['annotations'] ) ? $meta['annotations'] : array();
+			$items[] = array(
+				'contract'    => 'ability',
+				'bridge'      => self::bridge_name( $target_name ),
+				'target'      => $target_name,
+				'label'       => $target->get_label(),
+				'description' => $target->get_description(),
+				'category'    => $target->get_category(),
+				'annotations' => array(
+					'readonly'    => array_key_exists( 'readonly', $annotations ) && null !== $annotations['readonly'] ? (bool) $annotations['readonly'] : null,
+					'destructive' => array_key_exists( 'destructive', $annotations ) && null !== $annotations['destructive'] ? (bool) $annotations['destructive'] : null,
+					'idempotent'  => array_key_exists( 'idempotent', $annotations ) && null !== $annotations['idempotent'] ? (bool) $annotations['idempotent'] : null,
+				),
+			);
+		}
+
+		usort(
+			$items,
+			static function ( $left, $right ) {
+				return strcmp( (string) $left['target'], (string) $right['target'] );
+			}
+		);
+
+		return $items;
 	}
 
 	public static function target_permission( $target_name, $input = null ) {

@@ -8,8 +8,6 @@ final class CUA_REST_Bridge {
 	const NAMESPACE_PREFIX = 'chattanooga-cms-admin/';
 	const CATEGORY = 'chattanooga-cms-admin';
 
-	private static $bridges = array();
-
 	public static function register_external_bridges() {
 		if ( ! function_exists( 'rest_get_server' ) || ! function_exists( 'wp_register_ability' ) || ! function_exists( 'wp_get_ability' ) ) {
 			return;
@@ -54,13 +52,6 @@ final class CUA_REST_Bridge {
 							'meta'                => self::bridge_meta( $method ),
 						)
 					);
-
-					if ( wp_get_ability( $bridge_name ) instanceof WP_Ability ) {
-						self::$bridges[ $bridge_name ] = array(
-							'method' => $method,
-							'route'  => $route_regex,
-						);
-					}
 				}
 			}
 		}
@@ -68,8 +59,8 @@ final class CUA_REST_Bridge {
 
 	public static function catalog_items() {
 		$items = array();
-		foreach ( self::$bridges as $bridge_name => $route ) {
-			$method = $route['method'];
+		foreach ( self::live_bridges() as $bridge_name => $route ) {
+			$method      = $route['method'];
 			$route_regex = $route['route'];
 			$items[] = array(
 				'contract'    => 'rest',
@@ -85,6 +76,42 @@ final class CUA_REST_Bridge {
 		}
 
 		return $items;
+	}
+
+	public static function check_bridge_permissions( $bridge_name, array $input ) {
+		$route = self::resolve_live_bridge( $bridge_name );
+		if ( is_wp_error( $route ) ) {
+			return $route;
+		}
+
+		return self::target_permission(
+			$route['route'],
+			$route['method'],
+			$route['handler'],
+			$input
+		);
+	}
+
+	public static function execute_bridge( $bridge_name, array $input ) {
+		$route = self::resolve_live_bridge( $bridge_name );
+		if ( is_wp_error( $route ) ) {
+			return $route;
+		}
+
+		$permission = self::target_permission(
+			$route['route'],
+			$route['method'],
+			$route['handler'],
+			$input
+		);
+		if ( is_wp_error( $permission ) ) {
+			return $permission;
+		}
+		if ( ! $permission ) {
+			return new WP_Error( 'cua_rest_forbidden', 'The selected REST bridge denied the current request.' );
+		}
+
+		return self::execute_route( $route['route'], $route['method'], $input );
 	}
 
 	public static function target_permission( $route_regex, $method, array $handler, array $input ) {
@@ -149,6 +176,49 @@ final class CUA_REST_Bridge {
 			'status' => (int) $response->get_status(),
 			'data'   => $response->get_data(),
 		);
+	}
+
+	private static function live_bridges() {
+		$server = function_exists( 'rest_get_server' ) ? rest_get_server() : null;
+		if ( ! $server instanceof WP_REST_Server ) {
+			return array();
+		}
+
+		$bridges = array();
+		foreach ( $server->get_routes() as $route_regex => $handlers ) {
+			if ( ! is_string( $route_regex ) || ! is_array( $handlers ) ) {
+				continue;
+			}
+
+			foreach ( $handlers as $handler ) {
+				if ( ! self::handler_is_bridgeable( $handler ) ) {
+					continue;
+				}
+
+				foreach ( self::supported_methods( $handler['methods'] ) as $method ) {
+					$bridge_name = self::bridge_name( $method, $route_regex );
+					if ( isset( $bridges[ $bridge_name ] ) ) {
+						continue;
+					}
+					$bridges[ $bridge_name ] = array(
+						'method'  => $method,
+						'route'   => $route_regex,
+						'handler' => $handler,
+					);
+				}
+			}
+		}
+
+		ksort( $bridges, SORT_STRING );
+		return $bridges;
+	}
+
+	private static function resolve_live_bridge( $bridge_name ) {
+		$bridges = self::live_bridges();
+		if ( ! isset( $bridges[ $bridge_name ] ) ) {
+			return new WP_Error( 'cua_rest_route_unavailable', 'The selected REST bridge is no longer present in the live route table.' );
+		}
+		return $bridges[ $bridge_name ];
 	}
 
 	private static function validate_and_guard_request( WP_REST_Request $request, $method ) {

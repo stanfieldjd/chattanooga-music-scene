@@ -19,8 +19,12 @@ define( 'CMS_CORE_DIR', plugin_dir_path( __FILE__ ) );
 define( 'CMS_CORE_URL', plugin_dir_url( __FILE__ ) );
 
 require_once CMS_CORE_DIR . 'includes/class-cms-weekend-posts.php';
+require_once CMS_CORE_DIR . 'includes/class-cms-weekend-abilities.php';
 
 CMS_Weekend_Posts::instance();
+
+add_action( 'wp_abilities_api_categories_init', array( 'CMS_Weekend_Abilities', 'register_category' ) );
+add_action( 'wp_abilities_api_init', array( 'CMS_Weekend_Abilities', 'register_abilities' ) );
 
 register_activation_hook( CMS_CORE_FILE, array( 'CMS_Weekend_Posts', 'activate' ) );
 register_deactivation_hook( CMS_CORE_FILE, array( 'CMS_Weekend_Posts', 'deactivate' ) );
