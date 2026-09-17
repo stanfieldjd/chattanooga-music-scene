@@ -16,6 +16,19 @@ function cmsa_native_mcp_surface_assert( $condition, $message ) {
 	}
 }
 
+function cmsa_native_mcp_surface_page( $cursor = '' ) {
+	$params = array( '_meta' => array( 'io.modelcontextprotocol/protocolVersion' => '2026-07-28' ) );
+	if ( '' !== $cursor ) {
+		$params['cursor'] = $cursor;
+	}
+	$request = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
+	$request->set_header( 'content-type', 'application/json' );
+	$request->set_header( 'MCP-Protocol-Version', '2026-07-28' );
+	$request->set_header( 'Mcp-Method', 'tools/list' );
+	$request->set_body( wp_json_encode( array( 'jsonrpc' => '2.0', 'id' => 301, 'method' => 'tools/list', 'params' => $params ) ) );
+	return rest_do_request( $request );
+}
+
 wp_set_current_user( 1 );
 
 $request = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
@@ -46,6 +59,17 @@ cmsa_native_mcp_surface_assert( 200 === $response->get_status(), 'MCP tools/list
 $data  = $response->get_data();
 $tools = $data['result']['tools'] ?? null;
 cmsa_native_mcp_surface_assert( is_array( $tools ), 'MCP tools/list did not return a tools array.' );
+$cursor = trim( (string) ( $data['result']['nextCursor'] ?? '' ) );
+for ( $page = 0; '' !== $cursor && $page < 19; $page++ ) {
+	$response = cmsa_native_mcp_surface_page( $cursor );
+	cmsa_native_mcp_surface_assert( 200 === $response->get_status(), 'Paginated MCP tools/list failed.' );
+	$data = $response->get_data();
+	$page_tools = $data['result']['tools'] ?? null;
+	cmsa_native_mcp_surface_assert( is_array( $page_tools ), 'Paginated MCP tools/list returned no tools array.' );
+	$tools = array_merge( $tools, $page_tools );
+	$cursor = trim( (string) ( $data['result']['nextCursor'] ?? '' ) );
+}
+cmsa_native_mcp_surface_assert( '' === $cursor, 'MCP tools/list pagination exceeded the cursor safety limit.' );
 
 $names = array();
 foreach ( $tools as $tool ) {
@@ -72,5 +96,5 @@ foreach ( $names as $name ) {
 	cmsa_native_mcp_surface_assert( $allowed, 'Administrator/control-plane tool leaked into MCP: ' . $name );
 }
 
-echo 'cmsa-native-mcp-site-surface: PASS required=' . count( $required ) . ' exposed=' . count( $names ) . " administrator_surface=excluded private_facades=hidden\n";
+echo 'cmsa-native-mcp-site-surface: PASS required=' . count( $required ) . ' exposed=' . count( $names ) . " administrator_surface=excluded typed_external_facades=exposed\n";
 exit( 0 );
