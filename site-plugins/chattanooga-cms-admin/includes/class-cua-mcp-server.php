@@ -14,6 +14,8 @@ final class CUA_MCP_Server {
 	const PROTOCOL_VERSION = '2026-07-28';
 	const LEGACY_PROTOCOL_VERSION = '2025-11-25';
 	const TOOL_PAGE_SIZE = 50;
+	const SESSION_TTL = HOUR_IN_SECONDS;
+	const SESSION_HEADER = 'Mcp-Session-Id';
 
 	public static function register_route() {
 		if ( ! CUA_MCP_Settings_Page::is_enabled() ) {
@@ -27,7 +29,7 @@ final class CUA_MCP_Server {
 				// Streamable HTTP permits a server to omit server-to-client SSE. In
 				// that mode GET remains a defined MCP endpoint and returns 405 with
 				// the allowed method instead of falling through to a WordPress 404.
-				'methods'             => array( WP_REST_Server::CREATABLE, WP_REST_Server::READABLE ),
+				'methods'             => array( WP_REST_Server::CREATABLE, WP_REST_Server::READABLE, WP_REST_Server::DELETABLE ),
 				'callback'            => array( __CLASS__, 'handle_request' ),
 				'permission_callback' => array( __CLASS__, 'authorize_request' ),
 			)
@@ -64,9 +66,22 @@ final class CUA_MCP_Server {
 	}
 
 	public static function handle_request( WP_REST_Request $request ) {
-		if ( 'GET' === strtoupper( $request->get_method() ) ) {
+		$http_method = strtoupper( $request->get_method() );
+		$session_id  = self::request_session_id( $request );
+
+		if ( 'DELETE' === $http_method ) {
+			if ( ! self::session_is_valid( $session_id ) ) {
+				return self::protocol_error_response( null, -32001, 'A valid MCP session is required to close this endpoint session.', 400 );
+			}
+			delete_transient( self::session_key( $session_id ) );
+			$response = new WP_REST_Response( null, 204 );
+			$response->header( self::SESSION_HEADER, $session_id );
+			return $response;
+		}
+
+		if ( 'GET' === $http_method ) {
 			$response = new WP_REST_Response( null, 405 );
-			$response->header( 'Allow', 'POST' );
+			$response->header( 'Allow', 'POST, DELETE' );
 			return $response;
 		}
 
@@ -109,8 +124,12 @@ final class CUA_MCP_Server {
 			);
 		}
 
+		if ( 'initialize' !== $method && 'server/discover' !== $method && ! self::session_is_valid( $session_id ) ) {
+			return self::protocol_error_response( $id, -32001, 'A valid MCP session is required for this method.', 400 );
+		}
+
 		if ( 'notifications/initialized' === $method && ! array_key_exists( 'id', $payload ) ) {
-			return self::notification_response();
+			return self::notification_response( $session_id );
 		}
 
 		if ( ! array_key_exists( 'id', $payload ) ) {
@@ -121,44 +140,45 @@ final class CUA_MCP_Server {
 
 		switch ( $method ) {
 			case 'initialize':
-				return self::success_response( $id, self::initialize_result( $protocol_version ), $protocol_version );
+				$session_id = self::create_session( $protocol_version );
+				return self::success_response( $id, self::initialize_result( $protocol_version ), $protocol_version, $session_id );
 
 			case 'server/discover':
-				return self::success_response( $id, self::discover_result(), $protocol_version );
+				return self::success_response( $id, self::discover_result(), $protocol_version, $session_id );
 
 			case 'tools/list':
 				$tools = self::list_tools_result( $params );
 				if ( is_wp_error( $tools ) ) {
 					return self::protocol_error_response( $id, -32602, $tools->get_error_message(), 400 );
 				}
-				return self::success_response( $id, $tools, $protocol_version );
+				return self::success_response( $id, $tools, $protocol_version, $session_id );
 
 			case 'tools/call':
 				$call = self::call_tool( $params );
 				if ( is_wp_error( $call ) ) {
-					return self::success_response( $id, self::tool_error_result( $call ), $protocol_version );
+					return self::success_response( $id, self::tool_error_result( $call ), $protocol_version, $session_id );
 				}
-				return self::success_response( $id, $call, $protocol_version );
+				return self::success_response( $id, $call, $protocol_version, $session_id );
 
 			case 'resources/list':
-				return self::success_response( $id, self::list_resources_result(), $protocol_version );
+				return self::success_response( $id, self::list_resources_result(), $protocol_version, $session_id );
 
 			case 'resources/read':
 				$resource = self::read_resource_result( $params );
 				if ( is_wp_error( $resource ) ) {
 					return self::protocol_error_response( $id, -32602, $resource->get_error_message(), 400 );
 				}
-				return self::success_response( $id, $resource, $protocol_version );
+				return self::success_response( $id, $resource, $protocol_version, $session_id );
 
 			case 'prompts/list':
-				return self::success_response( $id, self::list_prompts_result(), $protocol_version );
+				return self::success_response( $id, self::list_prompts_result(), $protocol_version, $session_id );
 
 			case 'prompts/get':
 				$prompt = self::get_prompt_result( $params );
 				if ( is_wp_error( $prompt ) ) {
 					return self::protocol_error_response( $id, -32602, $prompt->get_error_message(), 400 );
 				}
-				return self::success_response( $id, $prompt, $protocol_version );
+				return self::success_response( $id, $prompt, $protocol_version, $session_id );
 
 			default:
 				return self::protocol_error_response( $id, -32601, 'Method not found.', 404 );
@@ -214,6 +234,42 @@ final class CUA_MCP_Server {
 
 	private static function supported_protocol_versions() {
 		return array( self::PROTOCOL_VERSION, self::LEGACY_PROTOCOL_VERSION );
+	}
+
+	private static function request_session_id( WP_REST_Request $request ) {
+		return trim( (string) $request->get_header( self::SESSION_HEADER ) );
+	}
+
+	private static function session_key( $session_id ) {
+		return 'cmsa_mcp_session_' . hash( 'sha256', (string) $session_id );
+	}
+
+	private static function create_session( $protocol_version ) {
+		$session_id = wp_generate_uuid4();
+		set_transient(
+			self::session_key( $session_id ),
+			array(
+				'user_id'         => get_current_user_id(),
+				'protocolVersion' => (string) $protocol_version,
+				'createdAt'       => time(),
+			),
+			self::SESSION_TTL
+		);
+		return $session_id;
+	}
+
+	private static function session_is_valid( $session_id ) {
+		if ( '' === (string) $session_id ) {
+			return false;
+		}
+
+		$session = get_transient( self::session_key( $session_id ) );
+		if ( ! is_array( $session ) || (int) ( $session['user_id'] ?? 0 ) !== (int) get_current_user_id() ) {
+			return false;
+		}
+
+		set_transient( self::session_key( $session_id ), $session, self::SESSION_TTL );
+		return true;
 	}
 
 	private static function request_protocol_version( WP_REST_Request $request, array $params ) {
@@ -615,7 +671,7 @@ final class CUA_MCP_Server {
 		return $result;
 	}
 
-	private static function success_response( $id, array $result, $protocol_version = self::PROTOCOL_VERSION ) {
+	private static function success_response( $id, array $result, $protocol_version = self::PROTOCOL_VERSION, $session_id = '' ) {
 		$result['resultType'] = 'complete';
 		$result['_meta'] = isset( $result['_meta'] ) && is_array( $result['_meta'] ) ? $result['_meta'] : array();
 		$result['_meta']['io.modelcontextprotocol/serverInfo'] = self::server_info();
@@ -629,11 +685,18 @@ final class CUA_MCP_Server {
 			200
 		);
 		$response->header( 'MCP-Protocol-Version', $protocol_version );
+		if ( '' !== (string) $session_id ) {
+			$response->header( self::SESSION_HEADER, $session_id );
+		}
 		return $response;
 	}
 
-	private static function notification_response() {
-		return new WP_REST_Response( null, 202 );
+	private static function notification_response( $session_id = '' ) {
+		$response = new WP_REST_Response( null, 202 );
+		if ( '' !== (string) $session_id ) {
+			$response->header( self::SESSION_HEADER, $session_id );
+		}
+		return $response;
 	}
 
 	private static function protocol_error_response( $id, $code, $message, $status, array $data = array() ) {
