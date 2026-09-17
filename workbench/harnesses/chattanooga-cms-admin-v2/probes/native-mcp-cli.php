@@ -88,7 +88,7 @@ function cmsa_native_mcp_all_tools() {
 	for ( $page = 0; $page < 20; $page++ ) {
 		$params = '' === $cursor ? array() : array( 'cursor' => $cursor );
 		$response = cmsa_native_mcp_modern( 'tools/list', $params, 110 + $page, array( 'Mcp-Session-Id' => $cmsa_native_mcp_session_id ) );
-		cmsa_native_mcp_assert( 200 === $response->get_status(), 'Paginated tools/list did not return HTTP 200.' );
+		cmsa_native_mcp_assert( 200 === $response->get_status(), 'Paginated tools/list did not return HTTP 200: ' . $response->get_status() . ' ' . wp_json_encode( $response->get_data() ) );
 		$data = $response->get_data();
 		$page_tools = $data['result']['tools'] ?? null;
 		cmsa_native_mcp_assert( is_array( $page_tools ), 'Paginated tools/list returned no tools array.' );
