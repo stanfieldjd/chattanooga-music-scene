@@ -239,7 +239,10 @@ final class CUA_Ability_Bridge {
 		return array(
 			'public'       => true,
 			'show_in_rest' => false,
-			'mcp'          => array( 'public' => false ),
+			// External provider abilities are site-operation tools. Chattanooga's
+			// own abilities never reach this method because is_bridgeable() rejects
+			// the Chattanooga namespace.
+			'mcp'          => array( 'public' => true ),
 			'annotations'  => array(
 				'readonly'    => array_key_exists( 'readonly', $annotations ) && null !== $annotations['readonly'] ? (bool) $annotations['readonly'] : null,
 				'destructive' => array_key_exists( 'destructive', $annotations ) && null !== $annotations['destructive'] ? (bool) $annotations['destructive'] : null,
