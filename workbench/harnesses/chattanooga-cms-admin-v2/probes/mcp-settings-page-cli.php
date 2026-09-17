@@ -22,8 +22,8 @@ CUA_MCP_Settings_Page::register_settings();
 cmsa_mcp_settings_assert( true === CUA_MCP_Settings_Page::is_enabled(), 'MCP endpoint is not enabled by default.' );
 
 $default_origins = CUA_MCP_Settings_Page::allowed_origins();
-$site_origin     = rtrim( home_url( '/' ), '/' );
-cmsa_mcp_settings_assert( in_array( $site_origin, $default_origins, true ), 'The site origin is not allowed by default.' );
+cmsa_mcp_settings_assert( ! empty( $default_origins ), 'No default MCP origins were generated.' );
+cmsa_mcp_settings_assert( CUA_MCP_Settings_Page::is_origin_allowed( home_url( '/' ) ), 'The site origin is not allowed by default.' );
 
 $sanitized = CUA_MCP_Settings_Page::sanitize_origins(
 	array(
