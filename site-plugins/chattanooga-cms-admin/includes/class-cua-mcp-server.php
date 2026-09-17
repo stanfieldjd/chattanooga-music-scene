@@ -388,7 +388,7 @@ final class CUA_MCP_Server {
 						array(
 							'name'        => 'request',
 							'description' => 'The site operation the caller wants to perform.',
-							required'    => true,
+							'required'    => true,
 						),
 					),
 				),
