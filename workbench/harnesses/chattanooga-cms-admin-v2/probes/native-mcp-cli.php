@@ -67,6 +67,25 @@ function cmsa_native_mcp_tool( array $tools, $name ) {
 	return null;
 }
 
+function cmsa_native_mcp_all_tools() {
+	$all_tools = array();
+	$cursor = '';
+	for ( $page = 0; $page < 20; $page++ ) {
+		$params = '' === $cursor ? array() : array( 'cursor' => $cursor );
+		$response = cmsa_native_mcp_modern( 'tools/list', $params, 110 + $page );
+		cmsa_native_mcp_assert( 200 === $response->get_status(), 'Paginated tools/list did not return HTTP 200.' );
+		$data = $response->get_data();
+		$page_tools = $data['result']['tools'] ?? null;
+		cmsa_native_mcp_assert( is_array( $page_tools ), 'Paginated tools/list returned no tools array.' );
+		$all_tools = array_merge( $all_tools, $page_tools );
+		$cursor = trim( (string) ( $data['result']['nextCursor'] ?? '' ) );
+		if ( '' === $cursor ) {
+			return $all_tools;
+		}
+	}
+	cmsa_native_mcp_fail( 'Paginated tools/list exceeded the cursor safety limit.' );
+}
+
 wp_set_current_user( 1 );
 cmsa_native_mcp_assert( defined( 'CUA_VERSION' ) && '1.1.0' === CUA_VERSION, 'Chattanooga CMS Admin 1.1.0 did not load.' );
 cmsa_native_mcp_assert( class_exists( 'CUA_MCP_Server' ), 'Native MCP server class did not load.' );
@@ -101,7 +120,7 @@ cmsa_native_mcp_assert(
 $list = cmsa_native_mcp_modern( 'tools/list', array(), 102 );
 cmsa_native_mcp_assert( 200 === $list->get_status(), 'tools/list did not return HTTP 200.' );
 $list_data = $list->get_data();
-$tools = $list_data['result']['tools'] ?? null;
+$tools = cmsa_native_mcp_all_tools();
 cmsa_native_mcp_assert( is_array( $tools ) && ! empty( $tools ), 'tools/list returned no tools.' );
 
 $names = array();
