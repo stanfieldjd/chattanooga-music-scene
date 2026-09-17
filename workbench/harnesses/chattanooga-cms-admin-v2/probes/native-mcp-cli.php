@@ -109,7 +109,7 @@ cmsa_native_mcp_assert( '2.0' === ( $discover_data['jsonrpc'] ?? '' ), 'Discover
 cmsa_native_mcp_assert( 101 === ( $discover_data['id'] ?? null ), 'Discovery returned the wrong request id.' );
 cmsa_native_mcp_assert( 'complete' === ( $discover_data['result']['resultType'] ?? '' ), 'Discovery omitted complete resultType.' );
 cmsa_native_mcp_assert(
-	array( '2026-07-28' ) === ( $discover_data['result']['supportedVersions'] ?? null ),
+	array( '2026-07-28', '2025-11-25' ) === ( $discover_data['result']['supportedVersions'] ?? null ),
 	'Discovery advertised an unexpected MCP protocol version.'
 );
 cmsa_native_mcp_assert(
