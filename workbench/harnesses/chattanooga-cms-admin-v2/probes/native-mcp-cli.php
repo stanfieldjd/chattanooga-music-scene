@@ -162,7 +162,7 @@ $cmsa_native_mcp_session_id = trim( (string) ( $initialize_headers['mcp-session-
 cmsa_native_mcp_assert( '' !== $cmsa_native_mcp_session_id, 'MCP initialize did not establish a session.' );
 
 $initialized = cmsa_native_mcp_modern( 'notifications/initialized', array(), null );
-cmsa_native_mcp_assert( 202 === $initialized->get_status(), 'MCP initialized notification did not return HTTP 202.' );
+cmsa_native_mcp_assert( 202 === $initialized->get_status(), 'MCP initialized notification did not return HTTP 202: ' . $initialized->get_status() . ' ' . wp_json_encode( $initialized->get_data() ) );
 
 $resources = cmsa_native_mcp_modern( 'resources/list', array(), 109 );
 cmsa_native_mcp_assert( 200 === $resources->get_status(), 'resources/list did not return HTTP 200.' );
