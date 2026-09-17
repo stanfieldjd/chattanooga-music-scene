@@ -135,6 +135,19 @@ cmsa_native_mcp_assert(
 	'chattanooga-cms-admin' === ( $discover_data['result']['_meta']['io.modelcontextprotocol/serverInfo']['name'] ?? '' ),
 	'Discovery did not identify the Chattanooga CMS Admin server.'
 );
+cmsa_native_mcp_assert( false === ( $discover_data['result']['capabilities']['resources']['subscribe'] ?? true ), 'Discovery returned the wrong resources capability.' );
+
+$resources = cmsa_native_mcp_modern( 'resources/list', array(), 109 );
+cmsa_native_mcp_assert( 200 === $resources->get_status(), 'resources/list did not return HTTP 200.' );
+$resources_data = $resources->get_data();
+cmsa_native_mcp_assert( is_array( $resources_data['result']['resources'] ?? null ), 'resources/list did not return resources.' );
+cmsa_native_mcp_assert( CUA_MCP_Server::RESOURCE_CATALOG_URI === ( $resources_data['result']['resources'][0]['uri'] ?? '' ), 'Site-operation catalog resource was not listed.' );
+
+$resource_read = cmsa_native_mcp_modern( 'resources/read', array( 'uri' => CUA_MCP_Server::RESOURCE_CATALOG_URI ), 110 );
+cmsa_native_mcp_assert( 200 === $resource_read->get_status(), 'resources/read did not return HTTP 200.' );
+$resource_read_data = $resource_read->get_data();
+cmsa_native_mcp_assert( 'application/json' === ( $resource_read_data['result']['contents'][0]['mimeType'] ?? '' ), 'Site-operation resource returned the wrong MIME type.' );
+cmsa_native_mcp_assert( false !== strpos( (string) ( $resource_read_data['result']['contents'][0]['text'] ?? '' ), 'items' ), 'Site-operation resource did not return catalog content.' );
 
 // tools/list: deterministic names, bounded public ability surface, and correct read/write annotations.
 $list = cmsa_native_mcp_modern( 'tools/list', array(), 102 );
