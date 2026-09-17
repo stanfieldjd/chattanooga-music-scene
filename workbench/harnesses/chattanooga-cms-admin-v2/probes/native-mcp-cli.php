@@ -169,7 +169,7 @@ $initialized = cmsa_native_mcp_modern( 'notifications/initialized', array(), nul
 cmsa_native_mcp_assert( 202 === $initialized->get_status(), 'MCP initialized notification did not return HTTP 202: ' . $initialized->get_status() . ' ' . wp_json_encode( $initialized->get_data() ) );
 
 $resources = cmsa_native_mcp_modern( 'resources/list', array(), 109 );
-cmsa_native_mcp_assert( 200 === $resources->get_status(), 'resources/list did not return HTTP 200.' );
+cmsa_native_mcp_assert( 200 === $resources->get_status(), 'resources/list did not return HTTP 200: ' . $resources->get_status() . ' ' . wp_json_encode( $resources->get_data() ) );
 $resources_data = $resources->get_data();
 cmsa_native_mcp_assert( is_array( $resources_data['result']['resources'] ?? null ), 'resources/list did not return resources.' );
 cmsa_native_mcp_assert( CUA_MCP_Server::RESOURCE_CATALOG_URI === ( $resources_data['result']['resources'][0]['uri'] ?? '' ), 'Site-operation catalog resource was not listed.' );
