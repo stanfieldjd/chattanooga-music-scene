@@ -94,6 +94,13 @@ $server = rest_get_server();
 $routes = $server->get_routes();
 cmsa_native_mcp_assert( isset( $routes['/chattanooga-cms-admin/v1/mcp'] ), 'Native MCP REST route is not registered.' );
 
+// This server uses stateless JSON responses rather than server-to-client SSE.
+$get_request = new WP_REST_Request( 'GET', '/chattanooga-cms-admin/v1/mcp' );
+$get_response = rest_do_request( $get_request );
+cmsa_native_mcp_assert( 405 === $get_response->get_status(), 'MCP GET fallback did not return HTTP 405.' );
+$get_headers = array_change_key_case( $get_response->get_headers(), CASE_LOWER );
+cmsa_native_mcp_assert( 'POST' === ( $get_headers['allow'] ?? '' ), 'MCP GET fallback did not advertise Allow: POST.' );
+
 // Discovery: the single supported protocol, capabilities, server identity, and private cache policy.
 $discover = cmsa_native_mcp_modern( 'server/discover', array(), 101 );
 cmsa_native_mcp_assert( 200 === $discover->get_status(), 'server/discover did not return HTTP 200.' );
