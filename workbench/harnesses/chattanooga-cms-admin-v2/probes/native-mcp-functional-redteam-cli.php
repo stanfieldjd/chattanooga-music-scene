@@ -18,12 +18,27 @@ function cmsa_mcp_redteam_assert( $condition, $message ) {
 
 function cmsa_mcp_redteam_call( $method, array $params, $tool_name = '' ) {
 	static $id = 700;
+	static $session_id = '';
 	++$id;
+
+	if ( '' === $session_id && 'initialize' !== $method ) {
+		cmsa_mcp_redteam_call(
+			'initialize',
+			array(
+				'protocolVersion' => '2026-07-28',
+				'capabilities'    => array(),
+				'clientInfo'      => array( 'name' => 'cmsa-functional-redteam', 'version' => '1.0.0' ),
+			)
+		);
+	}
 
 	$request = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
 	$request->set_header( 'content-type', 'application/json' );
 	$request->set_header( 'MCP-Protocol-Version', '2026-07-28' );
 	$request->set_header( 'Mcp-Method', $method );
+	if ( '' !== $session_id ) {
+		$request->set_header( 'Mcp-Session-Id', $session_id );
+	}
 	if ( '' !== $tool_name ) {
 		$request->set_header( 'Mcp-Name', $tool_name );
 	}
@@ -48,6 +63,10 @@ function cmsa_mcp_redteam_call( $method, array $params, $tool_name = '' ) {
 	);
 
 	$response = rest_do_request( $request );
+	if ( 'initialize' === $method ) {
+		$response_headers = array_change_key_case( $response->get_headers(), CASE_LOWER );
+		$session_id = trim( (string) ( $response_headers['mcp-session-id'] ?? '' ) );
+	}
 	cmsa_mcp_redteam_assert( $response instanceof WP_REST_Response, 'Native MCP did not return a REST response.' );
 	cmsa_mcp_redteam_assert( 200 === $response->get_status(), sprintf( 'Native MCP %s returned HTTP %d.', $method, $response->get_status() ) );
 
