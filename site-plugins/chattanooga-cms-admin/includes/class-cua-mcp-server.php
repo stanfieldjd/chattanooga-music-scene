@@ -21,7 +21,10 @@ final class CUA_MCP_Server {
 			self::REST_NAMESPACE,
 			self::REST_ROUTE,
 			array(
-				'methods'             => WP_REST_Server::CREATABLE,
+				// Streamable HTTP permits a server to omit server-to-client SSE. In
+				// that mode GET remains a defined MCP endpoint and returns 405 with
+				// the allowed method instead of falling through to a WordPress 404.
+				'methods'             => array( WP_REST_Server::CREATABLE, WP_REST_Server::READABLE ),
 				'callback'            => array( __CLASS__, 'handle_request' ),
 				'permission_callback' => array( __CLASS__, 'authorize_request' ),
 			)
@@ -58,6 +61,12 @@ final class CUA_MCP_Server {
 	}
 
 	public static function handle_request( WP_REST_Request $request ) {
+		if ( 'GET' === strtoupper( $request->get_method() ) ) {
+			$response = new WP_REST_Response( null, 405 );
+			$response->header( 'Allow', 'POST' );
+			return $response;
+		}
+
 		$payload = self::decode_request( $request );
 		if ( is_wp_error( $payload ) ) {
 			return self::protocol_error_response( null, -32700, $payload->get_error_message(), 400 );
