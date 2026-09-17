@@ -79,7 +79,7 @@ final class CUA_MCP_Server {
 			return self::protocol_error_response( $id, -32020, $header_error->get_error_message(), 400 );
 		}
 
-		$version_error = self::validate_version( $request, $params );
+		$version_error = self::validate_version( $request, $method, $params );
 		if ( is_wp_error( $version_error ) ) {
 			return self::protocol_error_response(
 				$id,
@@ -90,11 +90,18 @@ final class CUA_MCP_Server {
 			);
 		}
 
+		if ( 'notifications/initialized' === $method && ! array_key_exists( 'id', $payload ) ) {
+			return self::notification_response();
+		}
+
 		if ( ! array_key_exists( 'id', $payload ) ) {
-			return self::protocol_error_response( null, -32600, 'Unsupported notification.', 400 );
+			return self::protocol_error_response( null, -32600, 'A request id is required for this MCP method.', 400 );
 		}
 
 		switch ( $method ) {
+			case 'initialize':
+				return self::success_response( $id, self::initialize_result() );
+
 			case 'server/discover':
 				return self::success_response( $id, self::discover_result() );
 
@@ -126,35 +133,50 @@ final class CUA_MCP_Server {
 		return $payload;
 	}
 
-	private static function validate_version( WP_REST_Request $request, array $params ) {
+	private static function validate_version( WP_REST_Request $request, $method, array $params ) {
 		$header_version = trim( (string) $request->get_header( 'mcp-protocol-version' ) );
 		$body_version   = '';
+		if ( isset( $params['protocolVersion'] ) ) {
+			$body_version = trim( (string) $params['protocolVersion'] );
+		}
 		if ( isset( $params['_meta'] ) && is_array( $params['_meta'] ) ) {
-			$body_version = isset( $params['_meta']['io.modelcontextprotocol/protocolVersion'] )
+			$meta_version = isset( $params['_meta']['io.modelcontextprotocol/protocolVersion'] )
 				? trim( (string) $params['_meta']['io.modelcontextprotocol/protocolVersion'] )
 				: '';
+			if ( '' !== $body_version && '' !== $meta_version && $body_version !== $meta_version ) {
+				return new WP_Error( 'cmsa_mcp_version_mismatch', 'MCP protocol version declarations do not match.' );
+			}
+		if ( '' === $body_version ) {
+				$body_version = $meta_version;
+			}
+		}
+		if ( 'initialize' === $method && '' === $body_version ) {
+			return new WP_Error( 'cmsa_mcp_version_missing', 'initialize requires params.protocolVersion.' );
 		}
 
-		if ( self::PROTOCOL_VERSION !== $header_version || self::PROTOCOL_VERSION !== $body_version ) {
+		if ( '' !== $header_version && self::PROTOCOL_VERSION !== $header_version ) {
 			return new WP_Error(
 				'cmsa_mcp_version_mismatch',
-				'MCP ' . self::PROTOCOL_VERSION . ' requires matching protocol version declarations in the request header and params._meta.'
+				'MCP protocol version ' . self::PROTOCOL_VERSION . ' is required.'
 			);
+		}
+		if ( '' !== $body_version && self::PROTOCOL_VERSION !== $body_version ) {
+			return new WP_Error( 'cmsa_mcp_version_mismatch', 'MCP protocol version ' . self::PROTOCOL_VERSION . ' is required.' );
 		}
 		return true;
 	}
 
 	private static function validate_headers( WP_REST_Request $request, $method, array $params ) {
 		$header_method = trim( (string) $request->get_header( 'mcp-method' ) );
-		if ( '' === $header_method || $method !== $header_method ) {
-			return new WP_Error( 'cmsa_mcp_method_header_mismatch', 'Mcp-Method must be present and match the JSON-RPC method.' );
+		if ( '' !== $header_method && $method !== $header_method ) {
+			return new WP_Error( 'cmsa_mcp_method_header_mismatch', 'Mcp-Method does not match the JSON-RPC method.' );
 		}
 
 		if ( 'tools/call' === $method ) {
 			$name = isset( $params['name'] ) ? (string) $params['name'] : '';
 			$header_name = trim( (string) $request->get_header( 'mcp-name' ) );
-			if ( '' === $name || '' === $header_name || $name !== $header_name ) {
-				return new WP_Error( 'cmsa_mcp_name_header_mismatch', 'Mcp-Name must be present and match params.name for tools/call.' );
+			if ( '' !== $header_name && $name !== $header_name ) {
+				return new WP_Error( 'cmsa_mcp_name_header_mismatch', 'Mcp-Name does not match params.name for tools/call.' );
 			}
 		}
 
@@ -172,6 +194,19 @@ final class CUA_MCP_Server {
 			'instructions'      => 'Authenticated WordPress site-operation tools. Use read-only tools for inspection and mutating tools only for explicitly authorized site changes.',
 			'ttlMs'             => 30000,
 			'cacheScope'        => 'private',
+		);
+	}
+
+	private static function initialize_result() {
+		return array(
+			'protocolVersion' => self::PROTOCOL_VERSION,
+			'capabilities'    => array(
+				'tools' => array(
+					'listChanged' => false,
+				),
+			),
+			'serverInfo'      => self::server_info(),
+			'instructions'    => 'Authenticated WordPress site-operation tools. Use read-only tools for inspection and mutating tools only for explicitly authorized site changes.',
 		);
 	}
 
@@ -385,6 +420,10 @@ final class CUA_MCP_Server {
 		);
 		$response->header( 'MCP-Protocol-Version', self::PROTOCOL_VERSION );
 		return $response;
+	}
+
+	private static function notification_response() {
+		return new WP_REST_Response( null, 202 );
 	}
 
 	private static function protocol_error_response( $id, $code, $message, $status, array $data = array() ) {

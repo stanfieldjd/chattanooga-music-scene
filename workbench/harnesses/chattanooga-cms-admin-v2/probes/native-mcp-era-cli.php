@@ -49,6 +49,54 @@ cmsa_native_mcp_era_assert(
 	'Current MCP discovery advertised compatibility versions.'
 );
 
+$initialize = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
+$initialize->set_header( 'content-type', 'application/json' );
+$initialize->set_body(
+	wp_json_encode(
+		array(
+			'jsonrpc' => '2.0',
+			'id'      => 201,
+			'method'  => 'initialize',
+			'params'  => array(
+				'protocolVersion' => '2026-07-28',
+				'capabilities'    => array(),
+				'clientInfo'      => array(
+					'name'    => 'cmsa-standard-probe',
+					'version' => '1.0.0',
+				),
+			),
+		)
+	)
+);
+$initialize_response = rest_do_request( $initialize );
+$initialize_data     = $initialize_response->get_data();
+cmsa_native_mcp_era_assert( 200 === $initialize_response->get_status(), 'Standard MCP initialize was not accepted.' );
+cmsa_native_mcp_era_assert( '2026-07-28' === ( $initialize_data['result']['protocolVersion'] ?? '' ), 'Standard initialize returned the wrong protocol version.' );
+cmsa_native_mcp_era_assert( 'chattanooga-cms-admin' === ( $initialize_data['result']['serverInfo']['name'] ?? '' ), 'Standard initialize omitted server identity.' );
+
+$initialized = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
+$initialized->set_header( 'content-type', 'application/json' );
+$initialized->set_body( wp_json_encode( array( 'jsonrpc' => '2.0', 'method' => 'notifications/initialized' ) ) );
+$initialized_response = rest_do_request( $initialized );
+cmsa_native_mcp_era_assert( 202 === $initialized_response->get_status(), 'Standard initialized notification was not accepted.' );
+
+$standard_list = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
+$standard_list->set_header( 'content-type', 'application/json' );
+$standard_list->set_body(
+	wp_json_encode(
+		array(
+			'jsonrpc' => '2.0',
+			'id'      => 203,
+			'method'  => 'tools/list',
+			'params'  => array(),
+		)
+	)
+);
+$standard_list_response = rest_do_request( $standard_list );
+$standard_list_data     = $standard_list_response->get_data();
+cmsa_native_mcp_era_assert( 200 === $standard_list_response->get_status(), 'Standard tools/list was not accepted without custom headers.' );
+cmsa_native_mcp_era_assert( is_array( $standard_list_data['result']['tools'] ?? null ), 'Standard tools/list did not return tools.' );
+
 $legacy = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
 $legacy->set_header( 'content-type', 'application/json' );
 $legacy->set_header( 'MCP-Protocol-Version', '2025-11-25' );
@@ -82,5 +130,5 @@ cmsa_native_mcp_era_assert(
 	'Legacy rejection advertised compatibility versions.'
 );
 
-echo "cmsa-native-mcp-era: PASS protocol=2026-07-28 legacy_compatibility=removed\n";
+echo "cmsa-native-mcp-era: PASS protocol=2026-07-28 standard_lifecycle=verified legacy_compatibility=removed\n";
 exit( 0 );
