@@ -10,6 +10,7 @@ final class CUA_MCP_Server {
 	const ABILITY_PREFIX = 'chattanooga-cms-admin/';
 	const TOOL_PREFIX    = 'cmsa.';
 	const PROTOCOL_VERSION = '2026-07-28';
+	const TOOL_PAGE_SIZE = 50;
 
 	public static function register_route() {
 		if ( ! CUA_MCP_Settings_Page::is_enabled() ) {
@@ -20,7 +21,10 @@ final class CUA_MCP_Server {
 			self::REST_NAMESPACE,
 			self::REST_ROUTE,
 			array(
-				'methods'             => WP_REST_Server::CREATABLE,
+				// Streamable HTTP permits a server to omit server-to-client SSE. In
+				// that mode GET remains a defined MCP endpoint and returns 405 with
+				// the allowed method instead of falling through to a WordPress 404.
+				'methods'             => array( WP_REST_Server::CREATABLE, WP_REST_Server::READABLE ),
 				'callback'            => array( __CLASS__, 'handle_request' ),
 				'permission_callback' => array( __CLASS__, 'authorize_request' ),
 			)
@@ -57,6 +61,12 @@ final class CUA_MCP_Server {
 	}
 
 	public static function handle_request( WP_REST_Request $request ) {
+		if ( 'GET' === strtoupper( $request->get_method() ) ) {
+			$response = new WP_REST_Response( null, 405 );
+			$response->header( 'Allow', 'POST' );
+			return $response;
+		}
+
 		$payload = self::decode_request( $request );
 		if ( is_wp_error( $payload ) ) {
 			return self::protocol_error_response( null, -32700, $payload->get_error_message(), 400 );
@@ -106,7 +116,11 @@ final class CUA_MCP_Server {
 				return self::success_response( $id, self::discover_result() );
 
 			case 'tools/list':
-				return self::success_response( $id, self::list_tools_result() );
+				$tools = self::list_tools_result( $params );
+				if ( is_wp_error( $tools ) ) {
+					return self::protocol_error_response( $id, -32602, $tools->get_error_message(), 400 );
+				}
+				return self::success_response( $id, $tools );
 
 			case 'tools/call':
 				$call = self::call_tool( $params );
@@ -210,12 +224,32 @@ final class CUA_MCP_Server {
 		);
 	}
 
-	private static function list_tools_result() {
-		return array(
-			'tools'      => array_values( self::tools() ),
+	private static function list_tools_result( array $params ) {
+		$all_tools = array_values( self::tools() );
+		$offset    = 0;
+		$cursor    = isset( $params['cursor'] ) ? trim( (string) $params['cursor'] ) : '';
+
+		if ( '' !== $cursor ) {
+			$decoded = base64_decode( strtr( $cursor, '-_', '+/' ), true );
+			if ( false === $decoded || ! preg_match( '/^cmsa-tools:(\\d+)$/', $decoded, $matches ) ) {
+				return new WP_Error( 'cmsa_mcp_invalid_cursor', 'The tools/list cursor is invalid.' );
+			}
+			$offset = (int) $matches[1];
+			if ( $offset < 0 || $offset > count( $all_tools ) ) {
+				return new WP_Error( 'cmsa_mcp_invalid_cursor', 'The tools/list cursor is outside the current tool set.' );
+			}
+		}
+
+		$result = array(
+			'tools'      => array_slice( $all_tools, $offset, self::TOOL_PAGE_SIZE ),
 			'ttlMs'      => 30000,
 			'cacheScope' => 'private',
 		);
+		$next_offset = $offset + count( $result['tools'] );
+		if ( $next_offset < count( $all_tools ) ) {
+			$result['nextCursor'] = rtrim( strtr( base64_encode( 'cmsa-tools:' . $next_offset ), '+/', '-_' ), '=' );
+		}
+		return $result;
 	}
 
 	private static function tools() {
@@ -346,8 +380,9 @@ final class CUA_MCP_Server {
 			return null;
 		}
 
-		// Only generic site operations are exposed through MCP. Administrator
-		// and control-plane abilities remain WordPress-internal capabilities.
+		// Only generic site operations and runtime-discovered external facades are
+		// exposed through MCP. Chattanooga's administrator/control-plane abilities
+		// remain WordPress-internal capabilities.
 		if ( ! self::is_site_surface_tool( $tool_name ) ) {
 			return null;
 		}
@@ -372,7 +407,7 @@ final class CUA_MCP_Server {
 	}
 
 	private static function is_site_surface_tool( $tool_name ) {
-		return in_array(
+		if ( in_array(
 			$tool_name,
 			array(
 				self::TOOL_PREFIX . 'catalog',
@@ -380,7 +415,11 @@ final class CUA_MCP_Server {
 				self::TOOL_PREFIX . 'write-bridge',
 			),
 			true
-		);
+		) ) {
+			return true;
+		}
+
+		return 1 === preg_match( '/^cmsa\\.(?:bridge|rest)-[a-f0-9]{24}$/', (string) $tool_name );
 	}
 
 	private static function tool_name( $ability_name ) {
