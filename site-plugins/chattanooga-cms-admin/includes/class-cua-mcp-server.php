@@ -10,6 +10,7 @@ final class CUA_MCP_Server {
 	const ABILITY_PREFIX = 'chattanooga-cms-admin/';
 	const TOOL_PREFIX    = 'cmsa.';
 	const PROTOCOL_VERSION = '2026-07-28';
+	const LEGACY_PROTOCOL_VERSION = '2025-11-25';
 	const TOOL_PAGE_SIZE = 50;
 
 	public static function register_route() {
@@ -96,7 +97,7 @@ final class CUA_MCP_Server {
 				-32022,
 				$version_error->get_error_message(),
 				400,
-				array( 'supportedVersions' => array( self::PROTOCOL_VERSION ) )
+				array( 'supportedVersions' => self::supported_protocol_versions() )
 			);
 		}
 
@@ -108,26 +109,28 @@ final class CUA_MCP_Server {
 			return self::protocol_error_response( null, -32600, 'A request id is required for this MCP method.', 400 );
 		}
 
+		$protocol_version = self::request_protocol_version( $request, $params );
+
 		switch ( $method ) {
 			case 'initialize':
-				return self::success_response( $id, self::initialize_result() );
+				return self::success_response( $id, self::initialize_result( $protocol_version ), $protocol_version );
 
 			case 'server/discover':
-				return self::success_response( $id, self::discover_result() );
+				return self::success_response( $id, self::discover_result(), $protocol_version );
 
 			case 'tools/list':
 				$tools = self::list_tools_result( $params );
 				if ( is_wp_error( $tools ) ) {
 					return self::protocol_error_response( $id, -32602, $tools->get_error_message(), 400 );
 				}
-				return self::success_response( $id, $tools );
+				return self::success_response( $id, $tools, $protocol_version );
 
 			case 'tools/call':
 				$call = self::call_tool( $params );
 				if ( is_wp_error( $call ) ) {
-					return self::success_response( $id, self::tool_error_result( $call ) );
+					return self::success_response( $id, self::tool_error_result( $call ), $protocol_version );
 				}
-				return self::success_response( $id, $call );
+				return self::success_response( $id, $call, $protocol_version );
 
 			default:
 				return self::protocol_error_response( $id, -32601, 'Method not found.', 404 );
@@ -168,16 +171,35 @@ final class CUA_MCP_Server {
 			return new WP_Error( 'cmsa_mcp_version_missing', 'initialize requires params.protocolVersion.' );
 		}
 
-		if ( '' !== $header_version && self::PROTOCOL_VERSION !== $header_version ) {
+		$supported = self::supported_protocol_versions();
+		if ( '' !== $header_version && ! in_array( $header_version, $supported, true ) ) {
 			return new WP_Error(
 				'cmsa_mcp_version_mismatch',
-				'MCP protocol version ' . self::PROTOCOL_VERSION . ' is required.'
+				'MCP protocol version is not supported.'
 			);
 		}
-		if ( '' !== $body_version && self::PROTOCOL_VERSION !== $body_version ) {
-			return new WP_Error( 'cmsa_mcp_version_mismatch', 'MCP protocol version ' . self::PROTOCOL_VERSION . ' is required.' );
+		if ( '' !== $body_version && ! in_array( $body_version, $supported, true ) ) {
+			return new WP_Error( 'cmsa_mcp_version_mismatch', 'MCP protocol version is not supported.' );
 		}
 		return true;
+	}
+
+	private static function supported_protocol_versions() {
+		return array( self::PROTOCOL_VERSION, self::LEGACY_PROTOCOL_VERSION );
+	}
+
+	private static function request_protocol_version( WP_REST_Request $request, array $params ) {
+		$header_version = trim( (string) $request->get_header( 'mcp-protocol-version' ) );
+		if ( '' !== $header_version ) {
+			return $header_version;
+		}
+		if ( isset( $params['protocolVersion'] ) && '' !== trim( (string) $params['protocolVersion'] ) ) {
+			return trim( (string) $params['protocolVersion'] );
+		}
+		if ( isset( $params['_meta']['io.modelcontextprotocol/protocolVersion'] ) ) {
+			return trim( (string) $params['_meta']['io.modelcontextprotocol/protocolVersion'] );
+		}
+		return self::PROTOCOL_VERSION;
 	}
 
 	private static function validate_headers( WP_REST_Request $request, $method, array $params ) {
@@ -199,7 +221,7 @@ final class CUA_MCP_Server {
 
 	private static function discover_result() {
 		return array(
-			'supportedVersions' => array( self::PROTOCOL_VERSION ),
+			'supportedVersions' => self::supported_protocol_versions(),
 			'capabilities'      => array(
 				'tools' => array(
 					'listChanged' => false,
@@ -211,9 +233,9 @@ final class CUA_MCP_Server {
 		);
 	}
 
-	private static function initialize_result() {
+	private static function initialize_result( $protocol_version = self::PROTOCOL_VERSION ) {
 		return array(
-			'protocolVersion' => self::PROTOCOL_VERSION,
+			'protocolVersion' => $protocol_version,
 			'capabilities'    => array(
 				'tools' => array(
 					'listChanged' => false,
@@ -444,7 +466,7 @@ final class CUA_MCP_Server {
 		return $result;
 	}
 
-	private static function success_response( $id, array $result ) {
+	private static function success_response( $id, array $result, $protocol_version = self::PROTOCOL_VERSION ) {
 		$result['resultType'] = 'complete';
 		$result['_meta'] = isset( $result['_meta'] ) && is_array( $result['_meta'] ) ? $result['_meta'] : array();
 		$result['_meta']['io.modelcontextprotocol/serverInfo'] = self::server_info();
@@ -457,7 +479,7 @@ final class CUA_MCP_Server {
 			),
 			200
 		);
-		$response->header( 'MCP-Protocol-Version', self::PROTOCOL_VERSION );
+		$response->header( 'MCP-Protocol-Version', $protocol_version );
 		return $response;
 	}
 
