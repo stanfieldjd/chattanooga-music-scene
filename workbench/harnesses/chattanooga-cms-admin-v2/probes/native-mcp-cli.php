@@ -101,6 +101,19 @@ cmsa_native_mcp_assert( 405 === $get_response->get_status(), 'MCP GET fallback d
 $get_headers = array_change_key_case( $get_response->get_headers(), CASE_LOWER );
 cmsa_native_mcp_assert( 'POST' === ( $get_headers['allow'] ?? '' ), 'MCP GET fallback did not advertise Allow: POST.' );
 
+$bad_content_type = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
+$bad_content_type->set_header( 'content-type', 'text/plain' );
+$bad_content_type->set_body( '{"jsonrpc":"2.0","id":108,"method":"server/discover","params":{}}' );
+$bad_content_type_response = rest_do_request( $bad_content_type );
+cmsa_native_mcp_assert( 415 === $bad_content_type_response->get_status(), 'Invalid MCP Content-Type was not rejected with HTTP 415.' );
+
+$bad_accept = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
+$bad_accept->set_header( 'content-type', 'application/json' );
+$bad_accept->set_header( 'accept', 'text/html' );
+$bad_accept->set_body( '{"jsonrpc":"2.0","id":109,"method":"server/discover","params":{}}' );
+$bad_accept_response = rest_do_request( $bad_accept );
+cmsa_native_mcp_assert( 406 === $bad_accept_response->get_status(), 'Invalid MCP Accept was not rejected with HTTP 406.' );
+
 // Discovery: the single supported protocol, capabilities, server identity, and private cache policy.
 $discover = cmsa_native_mcp_modern( 'server/discover', array(), 101 );
 cmsa_native_mcp_assert( 200 === $discover->get_status(), 'server/discover did not return HTTP 200.' );
