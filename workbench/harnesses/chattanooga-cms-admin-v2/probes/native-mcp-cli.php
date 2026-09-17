@@ -161,7 +161,7 @@ $initialize_headers = array_change_key_case( $initialize->get_headers(), CASE_LO
 $cmsa_native_mcp_session_id = trim( (string) ( $initialize_headers['mcp-session-id'] ?? '' ) );
 cmsa_native_mcp_assert( '' !== $cmsa_native_mcp_session_id, 'MCP initialize did not establish a session.' );
 
-$initialized = cmsa_native_mcp_modern( 'notifications/initialized', array(), null );
+$initialized = cmsa_native_mcp_modern( 'notifications/initialized', array(), null, array( 'Mcp-Session-Id' => $cmsa_native_mcp_session_id ) );
 cmsa_native_mcp_assert( 202 === $initialized->get_status(), 'MCP initialized notification did not return HTTP 202: ' . $initialized->get_status() . ' ' . wp_json_encode( $initialized->get_data() ) );
 
 $resources = cmsa_native_mcp_modern( 'resources/list', array(), 109 );
