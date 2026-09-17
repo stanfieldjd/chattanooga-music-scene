@@ -5,11 +5,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class CUA_MCP_Server {
+	private static $active_sessions = array();
 	const REST_NAMESPACE = 'chattanooga-cms-admin/v1';
 	const REST_ROUTE     = '/mcp';
 	const ABILITY_PREFIX = 'chattanooga-cms-admin/';
 	const TOOL_PREFIX    = 'cmsa.';
+	const RESOURCE_CATALOG_URI = 'chattanooga://site-operation-catalog';
+	const PROMPT_SITE_OPERATION = 'site-operation-guide';
 	const PROTOCOL_VERSION = '2026-07-28';
+	const LEGACY_PROTOCOL_VERSION = '2025-11-25';
+	const TOOL_PAGE_SIZE = 50;
+	const SESSION_TTL = HOUR_IN_SECONDS;
+	const SESSION_HEADER = 'Mcp-Session-Id';
 
 	public static function register_route() {
 		if ( ! CUA_MCP_Settings_Page::is_enabled() ) {
@@ -20,22 +27,51 @@ final class CUA_MCP_Server {
 			self::REST_NAMESPACE,
 			self::REST_ROUTE,
 			array(
-				'methods'             => WP_REST_Server::CREATABLE,
+				// Streamable HTTP permits a server to omit server-to-client SSE. In
+				// that mode GET remains a defined MCP endpoint and returns 405 with
+				// the allowed method instead of falling through to a WordPress 404.
+				'methods'             => array( WP_REST_Server::CREATABLE, WP_REST_Server::READABLE, WP_REST_Server::DELETABLE ),
 				'callback'            => array( __CLASS__, 'handle_request' ),
-				'permission_callback' => array( __CLASS__, 'authorize_request' ),
+				// Authentication is handled inside the callback so bearer failures can
+				// return the MCP WWW-Authenticate challenge and JSON-RPC metadata.
+				'permission_callback' => '__return_true',
 			)
 		);
 	}
 
 	public static function authorize_request( WP_REST_Request $request ) {
-		if ( ! is_user_logged_in() ) {
+		$authorization_header = trim( (string) $request->get_header( 'authorization' ) );
+		if ( ( '' === $authorization_header || preg_match( '/^Basic\\s/i', $authorization_header ) ) && is_user_logged_in() ) {
+			if ( ! current_user_can( 'manage_options' ) ) {
+				return new WP_Error(
+					'cmsa_mcp_forbidden',
+					'The authenticated WordPress user does not have administrator authority.',
+					array( 'status' => 403 )
+				);
+			}
+			$origin = trim( (string) $request->get_header( 'origin' ) );
+			if ( '' !== $origin && ! CUA_MCP_Settings_Page::is_origin_allowed( $origin ) ) {
+				return new WP_Error(
+					'cmsa_mcp_origin_forbidden',
+					'The request Origin is not permitted for cookie-authenticated MCP access.',
+					array( 'status' => 403 )
+				);
+			}
+			return true;
+		}
+
+		if ( '' !== $authorization_header && ! preg_match( '/^Bearer\\s/i', $authorization_header ) ) {
 			return new WP_Error(
 				'cmsa_mcp_authentication_required',
-				'Authenticated WordPress administrator access is required.',
+				'Only WordPress Basic authentication or the configured Bearer token is accepted.',
 				array( 'status' => 401 )
 			);
 		}
 
+		$authorized = CUA_OAuth_Server::authenticate_bearer( $request );
+		if ( is_wp_error( $authorized ) ) {
+			return $authorized;
+		}
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return new WP_Error(
 				'cmsa_mcp_forbidden',
@@ -44,35 +80,67 @@ final class CUA_MCP_Server {
 			);
 		}
 
-		$origin = trim( (string) $request->get_header( 'origin' ) );
-		if ( '' !== $origin && ! CUA_MCP_Settings_Page::is_origin_allowed( $origin ) ) {
-			return new WP_Error(
-				'cmsa_mcp_origin_forbidden',
-				'The request Origin is not permitted for this MCP endpoint.',
-				array( 'status' => 403 )
-			);
-		}
-
 		return true;
 	}
 
 	public static function handle_request( WP_REST_Request $request ) {
+		$started = microtime( true );
+		$authorization = self::authorize_request( $request );
+		if ( is_wp_error( $authorization ) ) {
+			self::audit_request( $request, '', '', 'authentication_failed', self::error_status( $authorization ), $authorization->get_error_code(), $started );
+			return self::authentication_error_response( $authorization );
+		}
+
+		$http_method = strtoupper( $request->get_method() );
+		$session_id  = self::request_session_id( $request );
+
+		if ( 'DELETE' === $http_method ) {
+			if ( ! self::session_is_valid( $session_id ) ) {
+				self::audit_request( $request, '', '', 'protocol_error', 400, 'cmsa_mcp_session_required', $started );
+				return self::protocol_error_response( null, -32001, 'A valid MCP session is required to close this endpoint session.', 400 );
+			}
+			unset( self::$active_sessions[ $session_id ] );
+			delete_transient( self::session_key( $session_id ) );
+			$response = new WP_REST_Response( null, 204 );
+			$response->header( self::SESSION_HEADER, $session_id );
+			self::audit_request( $request, 'DELETE', '', 'success', 204, '', $started );
+			return $response;
+		}
+
+		if ( 'GET' === $http_method ) {
+			$response = new WP_REST_Response( null, 405 );
+			$response->header( 'Allow', 'POST, DELETE' );
+			self::audit_request( $request, 'GET', '', 'method_not_allowed', 405, 'cmsa_mcp_method_not_allowed', $started );
+			return $response;
+		}
+
 		$payload = self::decode_request( $request );
 		if ( is_wp_error( $payload ) ) {
+			self::audit_request( $request, '', '', 'protocol_error', 400, $payload->get_error_code(), $started );
 			return self::protocol_error_response( null, -32700, $payload->get_error_message(), 400 );
 		}
 
 		if ( ! is_array( $payload ) || self::is_list_array( $payload ) ) {
+			self::audit_request( $request, '', '', 'protocol_error', 400, 'cmsa_mcp_invalid_request', $started );
 			return self::protocol_error_response( null, -32600, 'MCP requests must be a single JSON-RPC object.', 400 );
 		}
 
 		$id = array_key_exists( 'id', $payload ) ? $payload['id'] : null;
 		if ( '2.0' !== ( $payload['jsonrpc'] ?? null ) || ! isset( $payload['method'] ) || ! is_string( $payload['method'] ) || '' === $payload['method'] ) {
+			self::audit_request( $request, '', '', 'protocol_error', 400, 'cmsa_mcp_invalid_request', $started, $payload['id'] ?? null );
 			return self::protocol_error_response( $id, -32600, 'Invalid JSON-RPC request.', 400 );
 		}
 
 		$method = $payload['method'];
 		$params = isset( $payload['params'] ) && is_array( $payload['params'] ) ? $payload['params'] : array();
+		$tool = 'tools/call' === $method && isset( $params['name'] ) ? (string) $params['name'] : '';
+		self::audit_request( $request, $method, $tool, 'received', 0, '', $started, $id, $params );
+
+		$transport_error = self::validate_transport_headers( $request );
+		if ( is_wp_error( $transport_error ) ) {
+			$status = 'cmsa_mcp_accept_not_supported' === $transport_error->get_error_code() ? 406 : 415;
+			return self::protocol_error_response( $id, -32020, $transport_error->get_error_message(), $status );
+		}
 
 		$header_error = self::validate_headers( $request, $method, $params );
 		if ( is_wp_error( $header_error ) ) {
@@ -86,12 +154,29 @@ final class CUA_MCP_Server {
 				-32022,
 				$version_error->get_error_message(),
 				400,
-				array( 'supportedVersions' => array( self::PROTOCOL_VERSION ) )
+				array( 'supportedVersions' => self::supported_protocol_versions() )
+			);
+		}
+
+		$protocol_version = self::request_protocol_version( $request, $params );
+		$declared_protocol_version = self::declared_protocol_version( $request, $params );
+		$session_required = ! in_array( $method, array( 'initialize', 'server/discover', 'notifications/initialized', 'tools/list', 'resources/list', 'resources/read', 'prompts/list', 'prompts/get' ), true );
+		if ( $session_required && ! self::session_is_valid( $session_id ) ) {
+			return self::protocol_error_response( $id, -32001, 'A valid MCP session is required for this method.', 400 );
+		}
+		$session_supplied = '' !== $session_id && self::session_is_valid( $session_id );
+		if ( $session_supplied && '' !== $declared_protocol_version && ! self::session_protocol_matches( $session_id, $declared_protocol_version ) ) {
+			return self::protocol_error_response(
+				$id,
+				-32022,
+				'The request protocol version does not match the negotiated MCP session version.',
+				400,
+				array( 'supportedVersions' => self::supported_protocol_versions() )
 			);
 		}
 
 		if ( 'notifications/initialized' === $method && ! array_key_exists( 'id', $payload ) ) {
-			return self::notification_response();
+			return self::notification_response( $session_id );
 		}
 
 		if ( ! array_key_exists( 'id', $payload ) ) {
@@ -100,20 +185,47 @@ final class CUA_MCP_Server {
 
 		switch ( $method ) {
 			case 'initialize':
-				return self::success_response( $id, self::initialize_result() );
+				$session_id = self::create_session( $protocol_version );
+				return self::success_response( $id, self::initialize_result( $protocol_version ), $protocol_version, $session_id );
 
 			case 'server/discover':
-				return self::success_response( $id, self::discover_result() );
+				return self::success_response( $id, self::discover_result(), $protocol_version, $session_id );
 
 			case 'tools/list':
-				return self::success_response( $id, self::list_tools_result() );
+				$tools = self::list_tools_result( $params );
+				if ( is_wp_error( $tools ) ) {
+					return self::protocol_error_response( $id, -32602, $tools->get_error_message(), 400 );
+				}
+				return self::success_response( $id, $tools, $protocol_version, $session_id );
 
 			case 'tools/call':
 				$call = self::call_tool( $params );
 				if ( is_wp_error( $call ) ) {
-					return self::success_response( $id, self::tool_error_result( $call ) );
+					self::audit_request( $request, $method, $tool, 'tool_error', 200, $call->get_error_code(), $started, $id, $params );
+					return self::success_response( $id, self::tool_error_result( $call ), $protocol_version, $session_id );
 				}
-				return self::success_response( $id, $call );
+				self::audit_request( $request, $method, $tool, 'success', 200, '', $started, $id, $params );
+				return self::success_response( $id, $call, $protocol_version, $session_id );
+
+			case 'resources/list':
+				return self::success_response( $id, self::list_resources_result(), $protocol_version, $session_id );
+
+			case 'resources/read':
+				$resource = self::read_resource_result( $params );
+				if ( is_wp_error( $resource ) ) {
+					return self::protocol_error_response( $id, -32602, $resource->get_error_message(), 400 );
+				}
+				return self::success_response( $id, $resource, $protocol_version, $session_id );
+
+			case 'prompts/list':
+				return self::success_response( $id, self::list_prompts_result(), $protocol_version, $session_id );
+
+			case 'prompts/get':
+				$prompt = self::get_prompt_result( $params );
+				if ( is_wp_error( $prompt ) ) {
+					return self::protocol_error_response( $id, -32602, $prompt->get_error_message(), 400 );
+				}
+				return self::success_response( $id, $prompt, $protocol_version, $session_id );
 
 			default:
 				return self::protocol_error_response( $id, -32601, 'Method not found.', 404 );
@@ -143,27 +255,110 @@ final class CUA_MCP_Server {
 			$meta_version = isset( $params['_meta']['io.modelcontextprotocol/protocolVersion'] )
 				? trim( (string) $params['_meta']['io.modelcontextprotocol/protocolVersion'] )
 				: '';
+			if ( '' !== $header_version && '' !== $meta_version && $header_version !== $meta_version ) {
+				return new WP_Error( 'cmsa_mcp_version_mismatch', 'MCP protocol version declarations do not match.' );
+			}
 			if ( '' !== $body_version && '' !== $meta_version && $body_version !== $meta_version ) {
 				return new WP_Error( 'cmsa_mcp_version_mismatch', 'MCP protocol version declarations do not match.' );
 			}
-		if ( '' === $body_version ) {
+			if ( '' === $body_version ) {
 				$body_version = $meta_version;
 			}
+		}
+		if ( '' !== $header_version && '' !== $body_version && $header_version !== $body_version ) {
+			return new WP_Error( 'cmsa_mcp_version_mismatch', 'MCP protocol version declarations do not match.' );
 		}
 		if ( 'initialize' === $method && '' === $body_version ) {
 			return new WP_Error( 'cmsa_mcp_version_missing', 'initialize requires params.protocolVersion.' );
 		}
 
-		if ( '' !== $header_version && self::PROTOCOL_VERSION !== $header_version ) {
+		$supported = self::supported_protocol_versions();
+		if ( '' !== $header_version && ! in_array( $header_version, $supported, true ) ) {
 			return new WP_Error(
 				'cmsa_mcp_version_mismatch',
-				'MCP protocol version ' . self::PROTOCOL_VERSION . ' is required.'
+				'MCP protocol version is not supported.'
 			);
 		}
-		if ( '' !== $body_version && self::PROTOCOL_VERSION !== $body_version ) {
-			return new WP_Error( 'cmsa_mcp_version_mismatch', 'MCP protocol version ' . self::PROTOCOL_VERSION . ' is required.' );
+		if ( '' !== $body_version && ! in_array( $body_version, $supported, true ) ) {
+			return new WP_Error( 'cmsa_mcp_version_mismatch', 'MCP protocol version is not supported.' );
 		}
 		return true;
+	}
+
+	private static function supported_protocol_versions() {
+		return array( self::PROTOCOL_VERSION, self::LEGACY_PROTOCOL_VERSION );
+	}
+
+	private static function request_session_id( WP_REST_Request $request ) {
+		return trim( (string) $request->get_header( self::SESSION_HEADER ) );
+	}
+
+	private static function session_key( $session_id ) {
+		return 'cmsa_mcp_session_' . hash( 'sha256', (string) $session_id );
+	}
+
+	private static function create_session( $protocol_version ) {
+		$session_id = wp_generate_uuid4();
+		$session = array(
+			'user_id'         => get_current_user_id(),
+			'protocolVersion' => (string) $protocol_version,
+			'createdAt'       => time(),
+		);
+		self::$active_sessions[ $session_id ] = $session;
+		set_transient(
+			self::session_key( $session_id ),
+			$session,
+			self::SESSION_TTL
+		);
+		return $session_id;
+	}
+
+	private static function session_is_valid( $session_id ) {
+		if ( '' === (string) $session_id ) {
+			return false;
+		}
+
+		$session = isset( self::$active_sessions[ $session_id ] ) ? self::$active_sessions[ $session_id ] : get_transient( self::session_key( $session_id ) );
+		if ( ! is_array( $session ) || (int) ( $session['user_id'] ?? 0 ) !== (int) get_current_user_id() ) {
+			return false;
+		}
+
+		self::$active_sessions[ $session_id ] = $session;
+		set_transient( self::session_key( $session_id ), $session, self::SESSION_TTL );
+		return true;
+	}
+
+	private static function request_protocol_version( WP_REST_Request $request, array $params ) {
+		$header_version = trim( (string) $request->get_header( 'mcp-protocol-version' ) );
+		if ( '' !== $header_version ) {
+			return $header_version;
+		}
+		if ( isset( $params['protocolVersion'] ) && '' !== trim( (string) $params['protocolVersion'] ) ) {
+			return trim( (string) $params['protocolVersion'] );
+		}
+		if ( isset( $params['_meta']['io.modelcontextprotocol/protocolVersion'] ) ) {
+			return trim( (string) $params['_meta']['io.modelcontextprotocol/protocolVersion'] );
+		}
+		return self::PROTOCOL_VERSION;
+	}
+
+	private static function declared_protocol_version( WP_REST_Request $request, array $params ) {
+		$header_version = trim( (string) $request->get_header( 'mcp-protocol-version' ) );
+		if ( '' !== $header_version ) {
+			return $header_version;
+		}
+		if ( isset( $params['protocolVersion'] ) && '' !== trim( (string) $params['protocolVersion'] ) ) {
+			return trim( (string) $params['protocolVersion'] );
+		}
+		if ( isset( $params['_meta']['io.modelcontextprotocol/protocolVersion'] ) ) {
+			return trim( (string) $params['_meta']['io.modelcontextprotocol/protocolVersion'] );
+		}
+		return '';
+	}
+
+	private static function session_protocol_matches( $session_id, $protocol_version ) {
+		$session = isset( self::$active_sessions[ $session_id ] ) ? self::$active_sessions[ $session_id ] : get_transient( self::session_key( $session_id ) );
+		return is_array( $session ) && hash_equals( (string) ( $session['protocolVersion'] ?? '' ), (string) $protocol_version );
 	}
 
 	private static function validate_headers( WP_REST_Request $request, $method, array $params ) {
@@ -183,11 +378,41 @@ final class CUA_MCP_Server {
 		return true;
 	}
 
+	private static function validate_transport_headers( WP_REST_Request $request ) {
+		$content_type = strtolower( trim( (string) $request->get_header( 'content-type' ) ) );
+		$content_type = '' !== $content_type ? trim( strtok( $content_type, ';' ) ) : '';
+		if ( 'application/json' !== $content_type ) {
+			return new WP_Error( 'cmsa_mcp_content_type_required', 'MCP POST requests require Content-Type: application/json.' );
+		}
+
+		$accept = trim( (string) $request->get_header( 'accept' ) );
+		if ( '' !== $accept ) {
+			$accepted = array_map(
+				static function ( $value ) {
+					return trim( strtolower( strtok( trim( $value ), ';' ) ) );
+				},
+				explode( ',', $accept )
+			);
+			if ( ! in_array( 'application/json', $accepted, true ) && ! in_array( 'text/event-stream', $accepted, true ) && ! in_array( '*/*', $accepted, true ) ) {
+				return new WP_Error( 'cmsa_mcp_accept_not_supported', 'MCP clients must accept application/json or text/event-stream.' );
+			}
+		}
+
+		return true;
+	}
+
 	private static function discover_result() {
 		return array(
-			'supportedVersions' => array( self::PROTOCOL_VERSION ),
+			'supportedVersions' => self::supported_protocol_versions(),
 			'capabilities'      => array(
 				'tools' => array(
+					'listChanged' => false,
+				),
+				'resources' => array(
+					'listChanged' => false,
+					'subscribe'   => false,
+				),
+				'prompts' => array(
 					'listChanged' => false,
 				),
 			),
@@ -197,11 +422,18 @@ final class CUA_MCP_Server {
 		);
 	}
 
-	private static function initialize_result() {
+	private static function initialize_result( $protocol_version = self::PROTOCOL_VERSION ) {
 		return array(
-			'protocolVersion' => self::PROTOCOL_VERSION,
+			'protocolVersion' => $protocol_version,
 			'capabilities'    => array(
 				'tools' => array(
+					'listChanged' => false,
+				),
+				'resources' => array(
+					'listChanged' => false,
+					'subscribe'   => false,
+				),
+				'prompts' => array(
 					'listChanged' => false,
 				),
 			),
@@ -210,11 +442,115 @@ final class CUA_MCP_Server {
 		);
 	}
 
-	private static function list_tools_result() {
-		return array(
-			'tools'      => array_values( self::tools() ),
+	private static function list_tools_result( array $params ) {
+		$all_tools = array_values( self::tools() );
+		$offset    = 0;
+		$cursor    = isset( $params['cursor'] ) ? trim( (string) $params['cursor'] ) : '';
+
+		if ( '' !== $cursor ) {
+			$decoded = base64_decode( strtr( $cursor, '-_', '+/' ), true );
+			if ( false === $decoded || ! preg_match( '/^cmsa-tools:(\\d+)$/', $decoded, $matches ) ) {
+				return new WP_Error( 'cmsa_mcp_invalid_cursor', 'The tools/list cursor is invalid.' );
+			}
+			$offset = (int) $matches[1];
+			if ( $offset < 0 || $offset > count( $all_tools ) ) {
+				return new WP_Error( 'cmsa_mcp_invalid_cursor', 'The tools/list cursor is outside the current tool set.' );
+			}
+		}
+
+		$result = array(
+			'tools'      => array_slice( $all_tools, $offset, self::TOOL_PAGE_SIZE ),
 			'ttlMs'      => 30000,
 			'cacheScope' => 'private',
+		);
+		$next_offset = $offset + count( $result['tools'] );
+		if ( $next_offset < count( $all_tools ) ) {
+			$result['nextCursor'] = rtrim( strtr( base64_encode( 'cmsa-tools:' . $next_offset ), '+/', '-_' ), '=' );
+		}
+		return $result;
+	}
+
+	private static function list_resources_result() {
+		return array(
+			'resources' => array(
+				array(
+					'uri'         => self::RESOURCE_CATALOG_URI,
+					'name'        => 'site-operation-catalog',
+					'title'       => 'Site operation catalog',
+					'description' => 'Current read and write site-operation bridges discovered from public WordPress contracts.',
+					'mimeType'    => 'application/json',
+				),
+			),
+			'ttlMs'      => 30000,
+			'cacheScope' => 'private',
+		);
+	}
+
+	private static function read_resource_result( array $params ) {
+		$uri = isset( $params['uri'] ) ? trim( (string) $params['uri'] ) : '';
+		if ( self::RESOURCE_CATALOG_URI !== $uri ) {
+			return new WP_Error( 'cmsa_mcp_resource_not_found', 'The requested MCP resource is not available.' );
+		}
+
+		$catalog = class_exists( 'CUA_Ability_Bridge' ) ? CUA_Ability_Bridge::catalog() : array( 'count' => 0, 'items' => array() );
+		if ( is_wp_error( $catalog ) ) {
+			return $catalog;
+		}
+
+		return array(
+			'contents' => array(
+				array(
+					'uri'      => self::RESOURCE_CATALOG_URI,
+					'mimeType' => 'application/json',
+					'text'     => self::json_text( $catalog ),
+				),
+			),
+		);
+	}
+
+	private static function list_prompts_result() {
+		return array(
+			'prompts' => array(
+				array(
+					'name'        => self::PROMPT_SITE_OPERATION,
+					'title'       => 'Site operation guide',
+					'description' => 'Guides a caller from the public site-operation catalog to the least-privilege MCP tool.',
+					'arguments'   => array(
+						array(
+							'name'        => 'request',
+							'description' => 'The site operation the caller wants to perform.',
+							'required'    => true,
+						),
+					),
+				),
+			),
+			'cacheScope' => 'private',
+		);
+	}
+
+	private static function get_prompt_result( array $params ) {
+		$name = isset( $params['name'] ) ? trim( (string) $params['name'] ) : '';
+		if ( self::PROMPT_SITE_OPERATION !== $name ) {
+			return new WP_Error( 'cmsa_mcp_prompt_not_found', 'The requested MCP prompt is not available.' );
+		}
+
+		$arguments = isset( $params['arguments'] ) && is_array( $params['arguments'] ) ? $params['arguments'] : array();
+		$request = isset( $arguments['request'] ) ? trim( (string) $arguments['request'] ) : '';
+		if ( '' === $request ) {
+			return new WP_Error( 'cmsa_mcp_prompt_argument_required', 'The site-operation prompt requires a request argument.' );
+		}
+
+		return array(
+			'description' => 'Use the public site-operation catalog and select the least-privilege read or write tool for the requested operation.',
+			'messages'    => array(
+				array(
+					'role'    => 'user',
+					'content' => array(
+						'type' => 'text',
+						'text' => 'Requested site operation: ' . $request . '. Read chattanooga://site-operation-catalog, preserve the target contract permissions, and use a read-only tool unless an explicitly authorized mutation is required.',
+					),
+				),
+			),
 		);
 	}
 
@@ -253,6 +589,7 @@ final class CUA_MCP_Server {
 				'description' => $ability->get_description(),
 				'inputSchema' => $schema,
 				'annotations' => self::tool_annotations( $ability ),
+				'securitySchemes' => self::auth_security_schemes(),
 			);
 
 			$output_schema = $ability->get_output_schema();
@@ -346,8 +683,9 @@ final class CUA_MCP_Server {
 			return null;
 		}
 
-		// Only generic site operations are exposed through MCP. Administrator
-		// and control-plane abilities remain WordPress-internal capabilities.
+		// Only generic site operations and runtime-discovered external facades are
+		// exposed through MCP. Chattanooga's administrator/control-plane abilities
+		// remain WordPress-internal capabilities.
 		if ( ! self::is_site_surface_tool( $tool_name ) ) {
 			return null;
 		}
@@ -372,7 +710,7 @@ final class CUA_MCP_Server {
 	}
 
 	private static function is_site_surface_tool( $tool_name ) {
-		return in_array(
+		if ( in_array(
 			$tool_name,
 			array(
 				self::TOOL_PREFIX . 'catalog',
@@ -380,7 +718,11 @@ final class CUA_MCP_Server {
 				self::TOOL_PREFIX . 'write-bridge',
 			),
 			true
-		);
+		) ) {
+			return true;
+		}
+
+		return 1 === preg_match( '/^cmsa\\.(?:bridge|rest)-[a-f0-9]{24}$/', (string) $tool_name );
 	}
 
 	private static function tool_name( $ability_name ) {
@@ -405,7 +747,7 @@ final class CUA_MCP_Server {
 		return $result;
 	}
 
-	private static function success_response( $id, array $result ) {
+	private static function success_response( $id, array $result, $protocol_version = self::PROTOCOL_VERSION, $session_id = '' ) {
 		$result['resultType'] = 'complete';
 		$result['_meta'] = isset( $result['_meta'] ) && is_array( $result['_meta'] ) ? $result['_meta'] : array();
 		$result['_meta']['io.modelcontextprotocol/serverInfo'] = self::server_info();
@@ -418,12 +760,19 @@ final class CUA_MCP_Server {
 			),
 			200
 		);
-		$response->header( 'MCP-Protocol-Version', self::PROTOCOL_VERSION );
+		$response->header( 'MCP-Protocol-Version', $protocol_version );
+		if ( '' !== (string) $session_id ) {
+			$response->header( self::SESSION_HEADER, $session_id );
+		}
 		return $response;
 	}
 
-	private static function notification_response() {
-		return new WP_REST_Response( null, 202 );
+	private static function notification_response( $session_id = '' ) {
+		$response = new WP_REST_Response( null, 202 );
+		if ( '' !== (string) $session_id ) {
+			$response->header( self::SESSION_HEADER, $session_id );
+		}
+		return $response;
 	}
 
 	private static function protocol_error_response( $id, $code, $message, $status, array $data = array() ) {
@@ -448,6 +797,86 @@ final class CUA_MCP_Server {
 		);
 		$response->header( 'MCP-Protocol-Version', self::PROTOCOL_VERSION );
 		return $response;
+	}
+
+	private static function auth_security_schemes() {
+		if ( CUA_MCP_Settings_Page::is_manual_auth() ) {
+			return array(
+				array(
+					'type'         => 'http',
+					'scheme'       => 'bearer',
+					'bearerFormat' => 'manual-mcp-token',
+				),
+			);
+		}
+		return array(
+			array(
+				'type'   => 'oauth2',
+				'scopes' => array( CUA_OAuth_Server::SCOPE ),
+			),
+		);
+	}
+
+	private static function authentication_error_response( WP_Error $error ) {
+		$data = $error->get_error_data();
+		$status = is_array( $data ) && isset( $data['status'] ) ? (int) $data['status'] : 401;
+		$challenge = CUA_OAuth_Server::resource_challenge();
+		$response = self::protocol_error_response( null, -32001, $error->get_error_message(), $status );
+		$body = $response->get_data();
+		$body['_meta']['mcp/www_authenticate'] = array( $challenge );
+		$response->set_data( $body );
+		$response->header( 'WWW-Authenticate', $challenge );
+		return $response;
+	}
+
+	private static function error_status( WP_Error $error ) {
+		$data = $error->get_error_data();
+		return is_array( $data ) && isset( $data['status'] ) ? (int) $data['status'] : 401;
+	}
+
+	private static function audit_request( WP_REST_Request $request, $method, $tool, $outcome, $http_status, $error_code, $started, $request_id = null, array $params = array() ) {
+		if ( ! class_exists( 'CUA_Audit' ) ) {
+			return;
+		}
+
+		$session_id = trim( (string) $request->get_header( self::SESSION_HEADER ) );
+		$authorization = trim( (string) $request->get_header( 'authorization' ) );
+		if ( '' === $authorization ) {
+			$auth_mode = is_user_logged_in() ? 'wordpress' : 'missing';
+		} elseif ( preg_match( '/^Basic\s/i', $authorization ) ) {
+			$auth_mode = 'basic';
+		} elseif ( preg_match( '/^Bearer\s/i', $authorization ) ) {
+			$auth_mode = CUA_MCP_Settings_Page::is_manual_auth() ? 'manual' : 'oauth';
+		} else {
+			$auth_mode = 'invalid';
+		}
+
+		$entry = array(
+			'time'              => gmdate( 'c' ),
+			'user_id'           => get_current_user_id(),
+			'method'            => (string) $method,
+			'tool'              => (string) $tool,
+			'auth_mode'         => $auth_mode,
+			'outcome'           => (string) $outcome,
+			'http_status'       => (int) $http_status,
+			'error_code'        => (string) $error_code,
+			'duration_ms'       => max( 0, (int) round( ( microtime( true ) - (float) $started ) * 1000 ) ),
+		);
+		if ( '' !== $session_id ) {
+			$entry['session_sha256'] = hash( 'sha256', $session_id );
+		}
+		if ( null !== $request_id && is_scalar( $request_id ) ) {
+			$entry['request_id_sha256'] = hash( 'sha256', (string) $request_id );
+		}
+		if ( isset( $params['protocolVersion'] ) && is_scalar( $params['protocolVersion'] ) ) {
+			$entry['protocol_version'] = (string) $params['protocolVersion'];
+		} else {
+			$header_version = trim( (string) $request->get_header( 'mcp-protocol-version' ) );
+			if ( '' !== $header_version ) {
+				$entry['protocol_version'] = $header_version;
+			}
+		}
+		CUA_Audit::log_mcp_request( $entry );
 	}
 
 	private static function server_info() {
