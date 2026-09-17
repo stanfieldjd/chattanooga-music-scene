@@ -167,7 +167,7 @@ final class CUA_MCP_Settings_Page {
 	}
 
 	private static function normalize_origin( $url ) {
-		$parts = wp_parse_url( trim( (string) $url ) );
+		$parts = parse_url( trim( (string) $url ) );
 		if ( ! is_array( $parts ) || empty( $parts['scheme'] ) || empty( $parts['host'] ) ) {
 			return '';
 		}
