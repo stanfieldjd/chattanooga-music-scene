@@ -85,6 +85,12 @@ final class CUA_MCP_Server {
 		$method = $payload['method'];
 		$params = isset( $payload['params'] ) && is_array( $payload['params'] ) ? $payload['params'] : array();
 
+		$transport_error = self::validate_transport_headers( $request );
+		if ( is_wp_error( $transport_error ) ) {
+			$status = 'cmsa_mcp_accept_not_supported' === $transport_error->get_error_code() ? 406 : 415;
+			return self::protocol_error_response( $id, -32020, $transport_error->get_error_message(), $status );
+		}
+
 		$header_error = self::validate_headers( $request, $method, $params );
 		if ( is_wp_error( $header_error ) ) {
 			return self::protocol_error_response( $id, -32020, $header_error->get_error_message(), 400 );
@@ -213,6 +219,29 @@ final class CUA_MCP_Server {
 			$header_name = trim( (string) $request->get_header( 'mcp-name' ) );
 			if ( '' !== $header_name && $name !== $header_name ) {
 				return new WP_Error( 'cmsa_mcp_name_header_mismatch', 'Mcp-Name does not match params.name for tools/call.' );
+			}
+		}
+
+		return true;
+	}
+
+	private static function validate_transport_headers( WP_REST_Request $request ) {
+		$content_type = strtolower( trim( (string) $request->get_header( 'content-type' ) ) );
+		$content_type = '' !== $content_type ? trim( strtok( $content_type, ';' ) ) : '';
+		if ( 'application/json' !== $content_type ) {
+			return new WP_Error( 'cmsa_mcp_content_type_required', 'MCP POST requests require Content-Type: application/json.' );
+		}
+
+		$accept = trim( (string) $request->get_header( 'accept' ) );
+		if ( '' !== $accept ) {
+			$accepted = array_map(
+				static function ( $value ) {
+					return trim( strtolower( strtok( trim( $value ), ';' ) ) );
+				},
+				explode( ',', $accept )
+			);
+			if ( ! in_array( 'application/json', $accepted, true ) && ! in_array( 'text/event-stream', $accepted, true ) && ! in_array( '*/*', $accepted, true ) ) {
+				return new WP_Error( 'cmsa_mcp_accept_not_supported', 'MCP clients must accept application/json or text/event-stream.' );
 			}
 		}
 
