@@ -46,6 +46,7 @@ function cmsa_native_mcp_post( $method, array $params = array(), array $headers 
 }
 
 function cmsa_native_mcp_modern( $method, array $params = array(), $id = 1, array $extra_headers = array() ) {
+	global $cmsa_native_mcp_session_id;
 	$params['_meta'] = isset( $params['_meta'] ) && is_array( $params['_meta'] ) ? $params['_meta'] : array();
 	$params['_meta']['io.modelcontextprotocol/protocolVersion'] = '2026-07-28';
 	$params['_meta']['io.modelcontextprotocol/clientInfo'] = array(
@@ -63,6 +64,9 @@ function cmsa_native_mcp_modern( $method, array $params = array(), $id = 1, arra
 
 	if ( 'tools/call' === $method && isset( $params['name'] ) ) {
 		$headers['Mcp-Name'] = (string) $params['name'];
+	}
+	if ( '' !== (string) $cmsa_native_mcp_session_id ) {
+		$headers['Mcp-Session-Id'] = $cmsa_native_mcp_session_id;
 	}
 
 	return cmsa_native_mcp_post( $method, $params, $headers, $id );
