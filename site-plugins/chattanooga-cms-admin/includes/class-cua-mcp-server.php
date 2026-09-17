@@ -5,6 +5,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class CUA_MCP_Server {
+	private static $active_sessions = array();
 	const REST_NAMESPACE = 'chattanooga-cms-admin/v1';
 	const REST_ROUTE     = '/mcp';
 	const ABILITY_PREFIX = 'chattanooga-cms-admin/';
@@ -73,6 +74,7 @@ final class CUA_MCP_Server {
 			if ( ! self::session_is_valid( $session_id ) ) {
 				return self::protocol_error_response( null, -32001, 'A valid MCP session is required to close this endpoint session.', 400 );
 			}
+			unset( self::$active_sessions[ $session_id ] );
 			delete_transient( self::session_key( $session_id ) );
 			$response = new WP_REST_Response( null, 204 );
 			$response->header( self::SESSION_HEADER, $session_id );
@@ -246,13 +248,15 @@ final class CUA_MCP_Server {
 
 	private static function create_session( $protocol_version ) {
 		$session_id = wp_generate_uuid4();
+		$session = array(
+			'user_id'         => get_current_user_id(),
+			'protocolVersion' => (string) $protocol_version,
+			'createdAt'       => time(),
+		);
+		self::$active_sessions[ $session_id ] = $session;
 		set_transient(
 			self::session_key( $session_id ),
-			array(
-				'user_id'         => get_current_user_id(),
-				'protocolVersion' => (string) $protocol_version,
-				'createdAt'       => time(),
-			),
+			$session,
 			self::SESSION_TTL
 		);
 		return $session_id;
@@ -263,11 +267,12 @@ final class CUA_MCP_Server {
 			return false;
 		}
 
-		$session = get_transient( self::session_key( $session_id ) );
+		$session = isset( self::$active_sessions[ $session_id ] ) ? self::$active_sessions[ $session_id ] : get_transient( self::session_key( $session_id ) );
 		if ( ! is_array( $session ) || (int) ( $session['user_id'] ?? 0 ) !== (int) get_current_user_id() ) {
 			return false;
 		}
 
+		self::$active_sessions[ $session_id ] = $session;
 		set_transient( self::session_key( $session_id ), $session, self::SESSION_TTL );
 		return true;
 	}
