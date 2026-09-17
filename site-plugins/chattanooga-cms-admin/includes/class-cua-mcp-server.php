@@ -9,6 +9,7 @@ final class CUA_MCP_Server {
 	const REST_ROUTE     = '/mcp';
 	const ABILITY_PREFIX = 'chattanooga-cms-admin/';
 	const TOOL_PREFIX    = 'cmsa.';
+	const RESOURCE_CATALOG_URI = 'chattanooga://site-operation-catalog';
 	const PROTOCOL_VERSION = '2026-07-28';
 	const LEGACY_PROTOCOL_VERSION = '2025-11-25';
 	const TOOL_PAGE_SIZE = 50;
@@ -138,6 +139,16 @@ final class CUA_MCP_Server {
 				}
 				return self::success_response( $id, $call, $protocol_version );
 
+			case 'resources/list':
+				return self::success_response( $id, self::list_resources_result(), $protocol_version );
+
+			case 'resources/read':
+				$resource = self::read_resource_result( $params );
+				if ( is_wp_error( $resource ) ) {
+					return self::protocol_error_response( $id, -32602, $resource->get_error_message(), 400 );
+				}
+				return self::success_response( $id, $resource, $protocol_version );
+
 			default:
 				return self::protocol_error_response( $id, -32601, 'Method not found.', 404 );
 		}
@@ -255,6 +266,10 @@ final class CUA_MCP_Server {
 				'tools' => array(
 					'listChanged' => false,
 				),
+				'resources' => array(
+					'listChanged' => false,
+					'subscribe'   => false,
+				),
 			),
 			'instructions'      => 'Authenticated WordPress site-operation tools. Use read-only tools for inspection and mutating tools only for explicitly authorized site changes.',
 			'ttlMs'             => 30000,
@@ -268,6 +283,10 @@ final class CUA_MCP_Server {
 			'capabilities'    => array(
 				'tools' => array(
 					'listChanged' => false,
+				),
+				'resources' => array(
+					'listChanged' => false,
+					'subscribe'   => false,
 				),
 			),
 			'serverInfo'      => self::server_info(),
@@ -301,6 +320,44 @@ final class CUA_MCP_Server {
 			$result['nextCursor'] = rtrim( strtr( base64_encode( 'cmsa-tools:' . $next_offset ), '+/', '-_' ), '=' );
 		}
 		return $result;
+	}
+
+	private static function list_resources_result() {
+		return array(
+			'resources' => array(
+				array(
+					'uri'         => self::RESOURCE_CATALOG_URI,
+					'name'        => 'site-operation-catalog',
+					'title'       => 'Site operation catalog',
+					'description' => 'Current read and write site-operation bridges discovered from public WordPress contracts.',
+					'mimeType'    => 'application/json',
+				),
+			),
+			'ttlMs'      => 30000,
+			'cacheScope' => 'private',
+		);
+	}
+
+	private static function read_resource_result( array $params ) {
+		$uri = isset( $params['uri'] ) ? trim( (string) $params['uri'] ) : '';
+		if ( self::RESOURCE_CATALOG_URI !== $uri ) {
+			return new WP_Error( 'cmsa_mcp_resource_not_found', 'The requested MCP resource is not available.' );
+		}
+
+		$catalog = class_exists( 'CUA_Ability_Bridge' ) ? CUA_Ability_Bridge::catalog() : array( 'count' => 0, 'items' => array() );
+		if ( is_wp_error( $catalog ) ) {
+			return $catalog;
+		}
+
+		return array(
+			'contents' => array(
+				array(
+					'uri'      => self::RESOURCE_CATALOG_URI,
+					'mimeType' => 'application/json',
+					'text'     => self::json_text( $catalog ),
+				),
+			),
+		);
 	}
 
 	private static function tools() {
