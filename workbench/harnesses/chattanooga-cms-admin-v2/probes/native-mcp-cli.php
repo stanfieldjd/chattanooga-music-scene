@@ -248,5 +248,5 @@ $anonymous = cmsa_native_mcp_modern( 'server/discover', array(), 107 );
 cmsa_native_mcp_assert( 401 === $anonymous->get_status(), 'Anonymous MCP access was not rejected with HTTP 401.' );
 
 wp_set_current_user( 1 );
-echo "cmsa-native-mcp: PASS version=1.1.0 protocol=2026-07-28 compatibility_versions=none route=verified admin_boundary=verified origin_guard=verified tools_list=deterministic read_call=verified private_bridges=hidden header_validation=verified\n";
+echo "cmsa-native-mcp: PASS version=1.1.0 protocol=2026-07-28 supported_versions=none route=verified admin_boundary=verified origin_guard=verified tools_list=deterministic read_call=verified private_bridges=hidden header_validation=verified\n";
 exit( 0 );
