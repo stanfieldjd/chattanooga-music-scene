@@ -168,7 +168,7 @@ cmsa_native_mcp_assert( '' !== $cmsa_native_mcp_session_id, 'MCP initialize did 
 $initialized = cmsa_native_mcp_modern( 'notifications/initialized', array(), null, array( 'Mcp-Session-Id' => $cmsa_native_mcp_session_id ) );
 cmsa_native_mcp_assert( 202 === $initialized->get_status(), 'MCP initialized notification did not return HTTP 202: ' . $initialized->get_status() . ' ' . wp_json_encode( $initialized->get_data() ) );
 
-$resources = cmsa_native_mcp_modern( 'resources/list', array(), 109 );
+$resources = cmsa_native_mcp_modern( 'resources/list', array(), 109, array( 'Mcp-Session-Id' => $cmsa_native_mcp_session_id ) );
 cmsa_native_mcp_assert( 200 === $resources->get_status(), 'resources/list did not return HTTP 200: ' . $resources->get_status() . ' ' . wp_json_encode( $resources->get_data() ) );
 $resources_data = $resources->get_data();
 cmsa_native_mcp_assert( is_array( $resources_data['result']['resources'] ?? null ), 'resources/list did not return resources.' );
