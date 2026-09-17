@@ -10,6 +10,7 @@ final class CUA_MCP_Server {
 	const ABILITY_PREFIX = 'chattanooga-cms-admin/';
 	const TOOL_PREFIX    = 'cmsa.';
 	const RESOURCE_CATALOG_URI = 'chattanooga://site-operation-catalog';
+	const PROMPT_SITE_OPERATION = 'site-operation-guide';
 	const PROTOCOL_VERSION = '2026-07-28';
 	const LEGACY_PROTOCOL_VERSION = '2025-11-25';
 	const TOOL_PAGE_SIZE = 50;
@@ -149,6 +150,16 @@ final class CUA_MCP_Server {
 				}
 				return self::success_response( $id, $resource, $protocol_version );
 
+			case 'prompts/list':
+				return self::success_response( $id, self::list_prompts_result(), $protocol_version );
+
+			case 'prompts/get':
+				$prompt = self::get_prompt_result( $params );
+				if ( is_wp_error( $prompt ) ) {
+					return self::protocol_error_response( $id, -32602, $prompt->get_error_message(), 400 );
+				}
+				return self::success_response( $id, $prompt, $protocol_version );
+
 			default:
 				return self::protocol_error_response( $id, -32601, 'Method not found.', 404 );
 		}
@@ -270,6 +281,9 @@ final class CUA_MCP_Server {
 					'listChanged' => false,
 					'subscribe'   => false,
 				),
+				'prompts' => array(
+					'listChanged' => false,
+				),
 			),
 			'instructions'      => 'Authenticated WordPress site-operation tools. Use read-only tools for inspection and mutating tools only for explicitly authorized site changes.',
 			'ttlMs'             => 30000,
@@ -287,6 +301,9 @@ final class CUA_MCP_Server {
 				'resources' => array(
 					'listChanged' => false,
 					'subscribe'   => false,
+				),
+				'prompts' => array(
+					'listChanged' => false,
 				),
 			),
 			'serverInfo'      => self::server_info(),
@@ -355,6 +372,52 @@ final class CUA_MCP_Server {
 					'uri'      => self::RESOURCE_CATALOG_URI,
 					'mimeType' => 'application/json',
 					'text'     => self::json_text( $catalog ),
+				),
+			),
+		);
+	}
+
+	private static function list_prompts_result() {
+		return array(
+			'prompts' => array(
+				array(
+					'name'        => self::PROMPT_SITE_OPERATION,
+					'title'       => 'Site operation guide',
+					'description' => 'Guides a caller from the public site-operation catalog to the least-privilege MCP tool.',
+					'arguments'   => array(
+						array(
+							'name'        => 'request',
+							'description' => 'The site operation the caller wants to perform.',
+							required'    => true,
+						),
+					),
+				),
+			),
+			'cacheScope' => 'private',
+		);
+	}
+
+	private static function get_prompt_result( array $params ) {
+		$name = isset( $params['name'] ) ? trim( (string) $params['name'] ) : '';
+		if ( self::PROMPT_SITE_OPERATION !== $name ) {
+			return new WP_Error( 'cmsa_mcp_prompt_not_found', 'The requested MCP prompt is not available.' );
+		}
+
+		$arguments = isset( $params['arguments'] ) && is_array( $params['arguments'] ) ? $params['arguments'] : array();
+		$request = isset( $arguments['request'] ) ? trim( (string) $arguments['request'] ) : '';
+		if ( '' === $request ) {
+			return new WP_Error( 'cmsa_mcp_prompt_argument_required', 'The site-operation prompt requires a request argument.' );
+		}
+
+		return array(
+			'description' => 'Use the public site-operation catalog and select the least-privilege read or write tool for the requested operation.',
+			'messages'    => array(
+				array(
+					'role'    => 'user',
+					'content' => array(
+						'type' => 'text',
+						'text' => 'Requested site operation: ' . $request . '. Read chattanooga://site-operation-catalog, preserve the target contract permissions, and use a read-only tool unless an explicitly authorized mutation is required.',
+					),
 				),
 			),
 		);
