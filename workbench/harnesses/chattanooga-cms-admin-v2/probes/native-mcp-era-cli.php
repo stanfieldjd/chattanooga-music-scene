@@ -73,15 +73,20 @@ $initialize_data     = $initialize_response->get_data();
 cmsa_native_mcp_era_assert( 200 === $initialize_response->get_status(), 'Standard MCP initialize was not accepted.' );
 cmsa_native_mcp_era_assert( '2026-07-28' === ( $initialize_data['result']['protocolVersion'] ?? '' ), 'Standard initialize returned the wrong protocol version.' );
 cmsa_native_mcp_era_assert( 'chattanooga-cms-admin' === ( $initialize_data['result']['serverInfo']['name'] ?? '' ), 'Standard initialize omitted server identity.' );
+$initialize_headers = array_change_key_case( $initialize_response->get_headers(), CASE_LOWER );
+$session_id = trim( (string) ( $initialize_headers['mcp-session-id'] ?? '' ) );
+cmsa_native_mcp_era_assert( '' !== $session_id, 'Standard initialize did not establish an MCP session.' );
 
 $initialized = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
 $initialized->set_header( 'content-type', 'application/json' );
+$initialized->set_header( 'Mcp-Session-Id', $session_id );
 $initialized->set_body( wp_json_encode( array( 'jsonrpc' => '2.0', 'method' => 'notifications/initialized' ) ) );
 $initialized_response = rest_do_request( $initialized );
 cmsa_native_mcp_era_assert( 202 === $initialized_response->get_status(), 'Standard initialized notification was not accepted.' );
 
 $standard_list = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
 $standard_list->set_header( 'content-type', 'application/json' );
+$standard_list->set_header( 'Mcp-Session-Id', $session_id );
 $standard_list->set_body(
 	wp_json_encode(
 		array(
@@ -94,7 +99,7 @@ $standard_list->set_body(
 );
 $standard_list_response = rest_do_request( $standard_list );
 $standard_list_data     = $standard_list_response->get_data();
-cmsa_native_mcp_era_assert( 200 === $standard_list_response->get_status(), 'Standard tools/list was not accepted without custom headers.' );
+cmsa_native_mcp_era_assert( 200 === $standard_list_response->get_status(), 'Standard tools/list was not accepted with the negotiated session.' );
 cmsa_native_mcp_era_assert( is_array( $standard_list_data['result']['tools'] ?? null ), 'Standard tools/list did not return tools.' );
 
 $legacy = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
