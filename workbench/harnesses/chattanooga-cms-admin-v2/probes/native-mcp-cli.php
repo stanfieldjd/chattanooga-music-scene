@@ -113,37 +113,35 @@ $sorted_names = $names;
 sort( $sorted_names, SORT_STRING );
 cmsa_native_mcp_assert( $names === $sorted_names, 'MCP tools/list is not deterministic.' );
 
-foreach ( array( 'cmsa.catalog', 'cmsa.get-health', 'cmsa.read-bridge', 'cmsa.write-bridge' ) as $required_tool ) {
+foreach ( array( 'cmsa.catalog', 'cmsa.read-bridge', 'cmsa.write-bridge' ) as $required_tool ) {
 	cmsa_native_mcp_assert( in_array( $required_tool, $names, true ), 'Required MCP tool is missing: ' . $required_tool );
 }
 foreach ( $names as $name ) {
+	cmsa_native_mcp_assert( in_array( $name, array( 'cmsa.catalog', 'cmsa.read-bridge', 'cmsa.write-bridge' ), true ), 'Administrator/control-plane tool leaked into tools/list: ' . $name );
 	cmsa_native_mcp_assert( 0 !== strpos( $name, 'cmsa.bridge-' ), 'Private dynamic ability bridge leaked into tools/list.' );
 	cmsa_native_mcp_assert( 0 !== strpos( $name, 'cmsa.rest-' ), 'Private dynamic REST bridge leaked into tools/list.' );
 }
 
-$health_tool = cmsa_native_mcp_tool( $tools, 'cmsa.get-health' );
+$catalog_tool = cmsa_native_mcp_tool( $tools, 'cmsa.catalog' );
 $write_tool  = cmsa_native_mcp_tool( $tools, 'cmsa.write-bridge' );
-cmsa_native_mcp_assert( true === ( $health_tool['annotations']['readOnlyHint'] ?? null ), 'get-health is not annotated read-only.' );
+cmsa_native_mcp_assert( true === ( $catalog_tool['annotations']['readOnlyHint'] ?? null ), 'catalog is not annotated read-only.' );
 cmsa_native_mcp_assert( false === ( $write_tool['annotations']['readOnlyHint'] ?? null ), 'write-bridge is incorrectly annotated read-only.' );
 cmsa_native_mcp_assert( true === ( $write_tool['annotations']['destructiveHint'] ?? null ), 'write-bridge is not annotated as mutating/destructive.' );
 
-// Execute one real read-only administrator tool through MCP.
-$health = cmsa_native_mcp_modern(
+// Execute one real site-operation catalog call through MCP.
+$catalog = cmsa_native_mcp_modern(
 	'tools/call',
 	array(
-		'name'      => 'cmsa.get-health',
+		'name'      => 'cmsa.catalog',
 		'arguments' => array(),
 	),
 	103
 );
-cmsa_native_mcp_assert( 200 === $health->get_status(), 'MCP get-health tool call did not return HTTP 200.' );
-$health_data = $health->get_data();
-cmsa_native_mcp_assert( 'complete' === ( $health_data['result']['resultType'] ?? '' ), 'MCP tool call omitted complete resultType.' );
-cmsa_native_mcp_assert( false === ( $health_data['result']['isError'] ?? true ), 'MCP get-health returned a tool error.' );
-cmsa_native_mcp_assert(
-	get_bloginfo( 'version' ) === ( $health_data['result']['structuredContent']['wordpress_version'] ?? '' ),
-	'MCP get-health returned the wrong WordPress version.'
-);
+cmsa_native_mcp_assert( 200 === $catalog->get_status(), 'MCP catalog tool call did not return HTTP 200.' );
+$catalog_data = $catalog->get_data();
+cmsa_native_mcp_assert( 'complete' === ( $catalog_data['result']['resultType'] ?? '' ), 'MCP tool call omitted complete resultType.' );
+cmsa_native_mcp_assert( false === ( $catalog_data['result']['isError'] ?? true ), 'MCP catalog returned a tool error.' );
+cmsa_native_mcp_assert( is_array( $catalog_data['result']['structuredContent']['items'] ?? null ), 'MCP catalog did not return bridgeable site-operation items.' );
 
 // Tool errors stay inside a successful tools/call result instead of becoming protocol transport failures.
 $missing = cmsa_native_mcp_modern(
