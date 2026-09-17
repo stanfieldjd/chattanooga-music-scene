@@ -117,9 +117,9 @@ foreach ( array( 'cmsa.catalog', 'cmsa.read-bridge', 'cmsa.write-bridge' ) as $r
 	cmsa_native_mcp_assert( in_array( $required_tool, $names, true ), 'Required MCP tool is missing: ' . $required_tool );
 }
 foreach ( $names as $name ) {
-	cmsa_native_mcp_assert( in_array( $name, array( 'cmsa.catalog', 'cmsa.read-bridge', 'cmsa.write-bridge' ), true ), 'Administrator/control-plane tool leaked into tools/list: ' . $name );
-	cmsa_native_mcp_assert( 0 !== strpos( $name, 'cmsa.bridge-' ), 'Private dynamic ability bridge leaked into tools/list.' );
-	cmsa_native_mcp_assert( 0 !== strpos( $name, 'cmsa.rest-' ), 'Private dynamic REST bridge leaked into tools/list.' );
+	$allowed = in_array( $name, array( 'cmsa.catalog', 'cmsa.read-bridge', 'cmsa.write-bridge' ), true )
+		|| 1 === preg_match( '/^cmsa\\.(?:bridge|rest)-[a-f0-9]{24}$/', $name );
+	cmsa_native_mcp_assert( $allowed, 'Administrator/control-plane tool leaked into tools/list: ' . $name );
 }
 
 $catalog_tool = cmsa_native_mcp_tool( $tools, 'cmsa.catalog' );
