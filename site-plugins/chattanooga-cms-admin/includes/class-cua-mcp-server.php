@@ -124,7 +124,7 @@ final class CUA_MCP_Server {
 			);
 		}
 
-		if ( 'initialize' !== $method && 'server/discover' !== $method && ! self::session_is_valid( $session_id ) ) {
+		if ( 'initialize' !== $method && 'server/discover' !== $method && 'notifications/initialized' !== $method && ! self::session_is_valid( $session_id ) ) {
 			return self::protocol_error_response( $id, -32001, 'A valid MCP session is required for this method.', 400 );
 		}
 
