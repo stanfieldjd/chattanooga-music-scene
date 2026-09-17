@@ -159,6 +159,58 @@ final class CUA_Audit {
 		return array( 'entries' => array_reverse( $entries ) );
 	}
 
+	/**
+	 * Record MCP boundary metadata without retaining request bodies, arguments,
+	 * responses, credentials, or session identifiers.
+	 *
+	 * @param array $entry Sanitized MCP request metadata.
+	 * @return bool Whether the entry was written.
+	 */
+	public static function log_mcp_request( array $entry ) {
+		$allowed = array(
+			'surface',
+			'time',
+			'user_id',
+			'method',
+			'tool',
+			'auth_mode',
+			'session_sha256',
+			'request_id_sha256',
+			'protocol_version',
+			'outcome',
+			'http_status',
+			'error_code',
+			'duration_ms',
+		);
+		$sanitized = array( 'surface' => 'mcp' );
+		foreach ( $allowed as $key ) {
+			if ( 'surface' === $key || ! array_key_exists( $key, $entry ) ) {
+				continue;
+			}
+			$sanitized[ $key ] = $entry[ $key ];
+		}
+
+		$sanitized['time'] = isset( $sanitized['time'] ) ? sanitize_text_field( (string) $sanitized['time'] ) : gmdate( 'c' );
+		$sanitized['user_id'] = isset( $sanitized['user_id'] ) ? (int) $sanitized['user_id'] : get_current_user_id();
+		foreach ( array( 'method', 'tool', 'auth_mode', 'protocol_version', 'outcome', 'error_code' ) as $key ) {
+			if ( isset( $sanitized[ $key ] ) ) {
+				$sanitized[ $key ] = substr( sanitize_text_field( (string) $sanitized[ $key ] ), 0, 191 );
+			}
+		}
+		foreach ( array( 'http_status', 'duration_ms' ) as $key ) {
+			if ( isset( $sanitized[ $key ] ) ) {
+				$sanitized[ $key ] = max( 0, (int) $sanitized[ $key ] );
+			}
+		}
+		foreach ( array( 'session_sha256', 'request_id_sha256' ) as $key ) {
+			if ( isset( $sanitized[ $key ] ) ) {
+				$sanitized[ $key ] = preg_match( '/^[a-f0-9]{64}$/', (string) $sanitized[ $key ] ) ? (string) $sanitized[ $key ] : '';
+			}
+		}
+
+		return self::append( $sanitized );
+	}
+
 	private static function finish( $ability_name, $status, $error_code ) {
 		$ability_name = (string) $ability_name;
 		if ( empty( self::$pending[ $ability_name ] ) ) {
