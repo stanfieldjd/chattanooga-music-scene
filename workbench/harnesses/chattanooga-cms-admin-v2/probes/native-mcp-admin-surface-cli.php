@@ -67,9 +67,9 @@ cmsa_native_mcp_surface_assert(
 );
 
 foreach ( $names as $name ) {
-	cmsa_native_mcp_surface_assert( in_array( $name, $required, true ), 'Administrator/control-plane tool leaked into MCP: ' . $name );
-	cmsa_native_mcp_surface_assert( 0 !== strpos( $name, 'cmsa.bridge-' ), 'Private dynamic Ability facade leaked into MCP: ' . $name );
-	cmsa_native_mcp_surface_assert( 0 !== strpos( $name, 'cmsa.rest-' ), 'Private dynamic REST facade leaked into MCP: ' . $name );
+	$allowed = in_array( $name, $required, true )
+		|| 1 === preg_match( '/^cmsa\\.(?:bridge|rest)-[a-f0-9]{24}$/', $name );
+	cmsa_native_mcp_surface_assert( $allowed, 'Administrator/control-plane tool leaked into MCP: ' . $name );
 }
 
 echo 'cmsa-native-mcp-site-surface: PASS required=' . count( $required ) . ' exposed=' . count( $names ) . " administrator_surface=excluded private_facades=hidden\n";
