@@ -58,6 +58,23 @@ function cmsa_mcp_redteam_call( $method, array $params, $tool_name = '' ) {
 	return $data['result'];
 }
 
+function cmsa_mcp_redteam_all_tools() {
+	$tools = array();
+	$cursor = '';
+	for ( $page = 0; $page < 20; $page++ ) {
+		$params = '' === $cursor ? array() : array( 'cursor' => $cursor );
+		$result = cmsa_mcp_redteam_call( 'tools/list', $params );
+		$page_tools = $result['tools'] ?? null;
+		cmsa_mcp_redteam_assert( is_array( $page_tools ), 'MCP tools/list returned no tools array.' );
+		$tools = array_merge( $tools, $page_tools );
+		$cursor = trim( (string) ( $result['nextCursor'] ?? '' ) );
+		if ( '' === $cursor ) {
+			return $tools;
+		}
+	}
+	cmsa_mcp_redteam_fail( 'MCP tools/list exceeded the cursor safety limit.' );
+}
+
 function cmsa_mcp_redteam_tool( $name, array $arguments = array() ) {
 	$result = cmsa_mcp_redteam_call(
 		'tools/call',
@@ -146,9 +163,9 @@ cmsa_mcp_redteam_assert( defined( 'EM_VERSION' ) && '7.4.3' === (string) EM_VERS
 cmsa_mcp_redteam_assert( defined( 'CMS_CORE_VERSION' ) && '0.2.1' === CMS_CORE_VERSION, 'Weekend Feature 0.2.1 is not active.' );
 cmsa_mcp_redteam_assert( class_exists( 'CMS_Weekend_Posts' ), 'Weekend Feature generator is unavailable.' );
 
-$tools_result = cmsa_mcp_redteam_call( 'tools/list', array() );
+$tools = cmsa_mcp_redteam_all_tools();
 $tool_names = array();
-foreach ( $tools_result['tools'] ?? array() as $tool ) {
+foreach ( $tools as $tool ) {
 	if ( is_array( $tool ) && isset( $tool['name'] ) ) {
 		$tool_names[] = (string) $tool['name'];
 	}
