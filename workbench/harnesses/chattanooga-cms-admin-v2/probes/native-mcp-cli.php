@@ -102,7 +102,7 @@ function cmsa_native_mcp_all_tools() {
 }
 
 wp_set_current_user( 1 );
-cmsa_native_mcp_assert( defined( 'CUA_VERSION' ) && '1.2.1' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.1 did not load.' );
+cmsa_native_mcp_assert( defined( 'CUA_VERSION' ) && '1.1.0' === CUA_VERSION, 'Chattanooga CMS Admin 1.1.0 did not load.' );
 cmsa_native_mcp_assert( class_exists( 'CUA_MCP_Server' ), 'Chattanooga MCP server class did not load.' );
 
 $server = rest_get_server();
