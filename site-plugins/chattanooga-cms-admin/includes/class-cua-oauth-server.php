@@ -94,7 +94,7 @@ final class CUA_OAuth_Server {
 			'grant_types_supported'                  => array( 'authorization_code', 'refresh_token' ),
 			'code_challenge_methods_supported'       => array( 'S256' ),
 			'token_endpoint_auth_methods_supported'  => array( 'none' ),
-			'scopes_supported'                      => array( self::SCOPE ),
+			'scopes_supported'                      => array( self::SCOPE, self::OFFLINE_SCOPE ),
 			'client_id_metadata_document_supported' => true,
 		);
 	}
