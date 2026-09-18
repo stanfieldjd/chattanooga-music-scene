@@ -6,7 +6,6 @@ on:
       - work/chattanooga-universal-admin-v2
       - main
       - work/custom-plugin-integration
-      - work/mcp-2026-interop-fix-20260918
     paths:
       - "site-plugins/chattanooga-cms-admin/**"
       - "workbench/harnesses/chattanooga-cms-admin-v2/**"
