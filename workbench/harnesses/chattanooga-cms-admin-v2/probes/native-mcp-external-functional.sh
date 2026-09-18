@@ -79,6 +79,7 @@ make_tool_body() {
         "arguments"=>$args,
         "_meta"=>[
           "io.modelcontextprotocol/protocolVersion"=>getenv("PROTOCOL"),
+          "io.modelcontextprotocol/clientCapabilities"=>[],
           "io.modelcontextprotocol/clientInfo"=>["name"=>"cmsa-external-functional-redteam","version"=>"1.0.0"]
         ]
       ]

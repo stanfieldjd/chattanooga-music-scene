@@ -142,11 +142,6 @@ final class CUA_MCP_Server {
 			return self::protocol_error_response( $id, -32020, $transport_error->get_error_message(), $status );
 		}
 
-		$header_error = self::validate_headers( $request, $method, $params );
-		if ( is_wp_error( $header_error ) ) {
-			return self::protocol_error_response( $id, -32020, $header_error->get_error_message(), 400 );
-		}
-
 		$version_error = self::validate_version( $request, $method, $params );
 		if ( is_wp_error( $version_error ) ) {
 			return self::protocol_error_response(
@@ -159,12 +154,33 @@ final class CUA_MCP_Server {
 		}
 
 		$protocol_version = self::request_protocol_version( $request, $params );
-		$declared_protocol_version = self::declared_protocol_version( $request, $params );
-		$session_required = ! in_array( $method, array( 'initialize', 'server/discover', 'notifications/initialized', 'tools/list', 'resources/list', 'resources/read', 'prompts/list', 'prompts/get' ), true );
-		if ( $session_required && ! self::session_is_valid( $session_id ) ) {
-			return self::protocol_error_response( $id, -32001, 'A valid MCP session is required for this method.', 400 );
+		if ( self::PROTOCOL_VERSION === $protocol_version && in_array( $method, array( 'initialize', 'notifications/initialized' ), true ) ) {
+			return self::protocol_error_response(
+				$id,
+				-32022,
+				'The 2026-07-28 protocol is stateless and does not use initialize or initialized.',
+				400,
+				array( 'supportedVersions' => self::supported_protocol_versions() )
+			);
 		}
-		$session_supplied = '' !== $session_id && self::session_is_valid( $session_id );
+
+		$header_error = self::validate_headers( $request, $method, $params, $protocol_version );
+		if ( is_wp_error( $header_error ) ) {
+			return self::protocol_error_response( $id, -32020, $header_error->get_error_message(), 400 );
+		}
+
+		$meta_error = self::validate_request_meta( $params, $protocol_version );
+		if ( is_wp_error( $meta_error ) ) {
+			return self::protocol_error_response( $id, -32020, $meta_error->get_error_message(), 400 );
+		}
+
+		$declared_protocol_version = self::declared_protocol_version( $request, $params );
+		$is_legacy = self::LEGACY_PROTOCOL_VERSION === $protocol_version;
+		$session_required = $is_legacy && ! in_array( $method, array( 'initialize', 'server/discover', 'notifications/initialized', 'tools/list', 'resources/list', 'resources/read', 'prompts/list', 'prompts/get' ), true );
+		if ( $session_required && ! self::session_is_valid( $session_id ) ) {
+			return self::protocol_error_response( $id, -32001, 'A valid MCP session is required for this legacy MCP method.', 400 );
+		}
+		$session_supplied = $is_legacy && '' !== $session_id && self::session_is_valid( $session_id );
 		if ( $session_supplied && '' !== $declared_protocol_version && ! self::session_protocol_matches( $session_id, $declared_protocol_version ) ) {
 			return self::protocol_error_response(
 				$id,
@@ -185,8 +201,8 @@ final class CUA_MCP_Server {
 
 		switch ( $method ) {
 			case 'initialize':
-				$session_id = self::create_session( $protocol_version );
-				return self::success_response( $id, self::initialize_result( $protocol_version ), $protocol_version, $session_id );
+				$session_id = self::create_session( self::LEGACY_PROTOCOL_VERSION );
+				return self::success_response( $id, self::initialize_result( self::LEGACY_PROTOCOL_VERSION ), self::LEGACY_PROTOCOL_VERSION, $session_id );
 
 			case 'server/discover':
 				return self::success_response( $id, self::discover_result(), $protocol_version, $session_id );
@@ -339,7 +355,14 @@ final class CUA_MCP_Server {
 		if ( isset( $params['_meta']['io.modelcontextprotocol/protocolVersion'] ) ) {
 			return trim( (string) $params['_meta']['io.modelcontextprotocol/protocolVersion'] );
 		}
-		return self::PROTOCOL_VERSION;
+		$session_id = self::request_session_id( $request );
+		if ( '' !== $session_id ) {
+			$session = isset( self::$active_sessions[ $session_id ] ) ? self::$active_sessions[ $session_id ] : get_transient( self::session_key( $session_id ) );
+			if ( is_array( $session ) && isset( $session['protocolVersion'] ) ) {
+				return (string) $session['protocolVersion'];
+			}
+		}
+		return self::LEGACY_PROTOCOL_VERSION;
 	}
 
 	private static function declared_protocol_version( WP_REST_Request $request, array $params ) {
@@ -361,20 +384,52 @@ final class CUA_MCP_Server {
 		return is_array( $session ) && hash_equals( (string) ( $session['protocolVersion'] ?? '' ), (string) $protocol_version );
 	}
 
-	private static function validate_headers( WP_REST_Request $request, $method, array $params ) {
+	private static function validate_headers( WP_REST_Request $request, $method, array $params, $protocol_version ) {
 		$header_method = trim( (string) $request->get_header( 'mcp-method' ) );
+		$header_name   = trim( (string) $request->get_header( 'mcp-name' ) );
+		if ( self::PROTOCOL_VERSION === $protocol_version ) {
+			if ( self::PROTOCOL_VERSION !== trim( (string) $request->get_header( 'mcp-protocol-version' ) ) ) {
+				return new WP_Error( 'cmsa_mcp_protocol_header_required', 'Modern MCP requests require MCP-Protocol-Version: 2026-07-28.' );
+			}
+			if ( '' === $header_method ) {
+				return new WP_Error( 'cmsa_mcp_method_header_required', 'Modern MCP requests require Mcp-Method.' );
+			}
+		}
 		if ( '' !== $header_method && $method !== $header_method ) {
 			return new WP_Error( 'cmsa_mcp_method_header_mismatch', 'Mcp-Method does not match the JSON-RPC method.' );
 		}
-
-		if ( 'tools/call' === $method ) {
-			$name = isset( $params['name'] ) ? (string) $params['name'] : '';
-			$header_name = trim( (string) $request->get_header( 'mcp-name' ) );
-			if ( '' !== $header_name && $name !== $header_name ) {
-				return new WP_Error( 'cmsa_mcp_name_header_mismatch', 'Mcp-Name does not match params.name for tools/call.' );
-			}
+		$mirrored_name = '';
+		if ( 'tools/call' === $method || 'prompts/get' === $method ) {
+			$mirrored_name = isset( $params['name'] ) ? (string) $params['name'] : '';
+		} elseif ( 'resources/read' === $method ) {
+			$mirrored_name = isset( $params['uri'] ) ? (string) $params['uri'] : '';
 		}
+		if ( self::PROTOCOL_VERSION === $protocol_version && '' !== $mirrored_name && '' === $header_name ) {
+			return new WP_Error( 'cmsa_mcp_name_header_required', 'Modern MCP requests for this method require Mcp-Name.' );
+		}
+		if ( '' !== $header_name && $mirrored_name !== $header_name ) {
+			return new WP_Error( 'cmsa_mcp_name_header_mismatch', 'Mcp-Name does not match the mirrored request parameter.' );
+		}
+		return true;
+	}
 
+	private static function validate_request_meta( array $params, $protocol_version ) {
+		if ( self::PROTOCOL_VERSION !== $protocol_version ) {
+			return true;
+		}
+		$meta = isset( $params['_meta'] ) && is_array( $params['_meta'] ) ? $params['_meta'] : null;
+		if ( ! is_array( $meta ) ) {
+			return new WP_Error( 'cmsa_mcp_meta_required', 'Modern MCP requests require a _meta envelope.' );
+		}
+		if ( self::PROTOCOL_VERSION !== trim( (string) ( $meta['io.modelcontextprotocol/protocolVersion'] ?? '' ) ) ) {
+			return new WP_Error( 'cmsa_mcp_meta_version_required', 'Modern MCP requests require the 2026-07-28 protocol version in _meta.' );
+		}
+		if ( ! isset( $meta['io.modelcontextprotocol/clientCapabilities'] ) || ! is_array( $meta['io.modelcontextprotocol/clientCapabilities'] ) ) {
+			return new WP_Error( 'cmsa_mcp_client_capabilities_required', 'Modern MCP requests require clientCapabilities in _meta.' );
+		}
+		if ( isset( $meta['io.modelcontextprotocol/clientInfo'] ) && ! is_array( $meta['io.modelcontextprotocol/clientInfo'] ) ) {
+			return new WP_Error( 'cmsa_mcp_client_info_invalid', 'Modern MCP clientInfo must be an object when supplied.' );
+		}
 		return true;
 	}
 
@@ -505,6 +560,8 @@ final class CUA_MCP_Server {
 					'text'     => self::json_text( $catalog ),
 				),
 			),
+			'ttlMs'      => 30000,
+			'cacheScope' => 'private',
 		);
 	}
 
@@ -524,6 +581,7 @@ final class CUA_MCP_Server {
 					),
 				),
 			),
+			'ttlMs'      => 30000,
 			'cacheScope' => 'private',
 		);
 	}
@@ -580,13 +638,15 @@ final class CUA_MCP_Server {
 				);
 			}
 
+			$security_schemes = self::auth_security_schemes();
 			$tool = array(
 				'name'        => $tool_name,
 				'title'       => $ability->get_label(),
 				'description' => $ability->get_description(),
 				'inputSchema' => $schema,
 				'annotations' => self::tool_annotations( $ability ),
-				'securitySchemes' => self::auth_security_schemes(),
+				'securitySchemes' => $security_schemes,
+				'_meta'       => array( 'securitySchemes' => $security_schemes ),
 			);
 
 			$output_schema = $ability->get_output_schema();
@@ -728,7 +788,7 @@ final class CUA_MCP_Server {
 			200
 		);
 		$response->header( 'MCP-Protocol-Version', $protocol_version );
-		if ( '' !== (string) $session_id ) {
+		if ( self::LEGACY_PROTOCOL_VERSION === $protocol_version && '' !== (string) $session_id ) {
 			$response->header( self::SESSION_HEADER, $session_id );
 		}
 		return $response;
@@ -829,7 +889,10 @@ final class CUA_MCP_Server {
 			'error_code'        => (string) $error_code,
 			'duration_ms'       => max( 0, (int) round( ( microtime( true ) - (float) $started ) * 1000 ) ),
 		);
-		if ( '' !== $session_id ) {
+		$protocol_version = isset( $params['protocolVersion'] ) && is_scalar( $params['protocolVersion'] )
+			? (string) $params['protocolVersion']
+			: trim( (string) $request->get_header( 'mcp-protocol-version' ) );
+		if ( self::LEGACY_PROTOCOL_VERSION === $protocol_version && '' !== $session_id ) {
 			$entry['session_sha256'] = hash( 'sha256', $session_id );
 		}
 		if ( null !== $request_id && is_scalar( $request_id ) ) {

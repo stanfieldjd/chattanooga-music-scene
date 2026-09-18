@@ -42,5 +42,11 @@ cmsa_mcp_settings_assert( false !== strpos( $page, esc_url( rest_url( CUA_MCP_Se
 cmsa_mcp_settings_assert( false !== strpos( $page, CUA_MCP_Server::PROTOCOL_VERSION ), 'MCP protocol version is missing from the settings page.' );
 cmsa_mcp_settings_assert( false !== strpos( $page, 'Allowed browser origins' ), 'MCP origin setting is missing from the settings page.' );
 
+$oauth_metadata = CUA_OAuth_Server::authorization_server_metadata();
+$resource_metadata = CUA_OAuth_Server::protected_resource_metadata();
+cmsa_mcp_settings_assert( in_array( CUA_OAuth_Server::OFFLINE_SCOPE, $oauth_metadata['scopes_supported'] ?? array(), true ), 'OAuth discovery does not advertise offline_access.' );
+cmsa_mcp_settings_assert( in_array( CUA_OAuth_Server::OFFLINE_SCOPE, $resource_metadata['scopes_supported'] ?? array(), true ), 'Protected-resource metadata does not advertise offline_access.' );
+cmsa_mcp_settings_assert( in_array( 'refresh_token', $oauth_metadata['grant_types_supported'] ?? array(), true ), 'OAuth discovery does not advertise refresh_token.' );
+
 echo "cmsa-mcp-settings-page: PASS enabled=default origin_sanitization=verified endpoint=visible protocol=visible\n";
 exit( 0 );

@@ -30,6 +30,7 @@ function cmsa_mcp_redteam_call( $method, array $params, $tool_name = '' ) {
 
 	$params['_meta'] = array(
 		'io.modelcontextprotocol/protocolVersion' => '2026-07-28',
+			'io.modelcontextprotocol/clientCapabilities' => array(),
 		'io.modelcontextprotocol/clientInfo'      => array(
 			'name'    => 'cmsa-functional-redteam',
 			'version' => '1.0.0',
@@ -55,6 +56,23 @@ function cmsa_mcp_redteam_call( $method, array $params, $tool_name = '' ) {
 	cmsa_mcp_redteam_assert( is_array( $data ) && empty( $data['error'] ), 'Native MCP returned a JSON-RPC error.' );
 	cmsa_mcp_redteam_assert( isset( $data['result'] ) && is_array( $data['result'] ), 'Native MCP returned no structured result.' );
 	return $data['result'];
+}
+
+function cmsa_mcp_redteam_all_tools() {
+	$tools = array();
+	$cursor = '';
+	for ( $page = 0; $page < 20; $page++ ) {
+		$params = '' === $cursor ? array() : array( 'cursor' => $cursor );
+		$result = cmsa_mcp_redteam_call( 'tools/list', $params );
+		$page_tools = $result['tools'] ?? null;
+		cmsa_mcp_redteam_assert( is_array( $page_tools ), 'MCP tools/list returned no tools array.' );
+		$tools = array_merge( $tools, $page_tools );
+		$cursor = trim( (string) ( $result['nextCursor'] ?? '' ) );
+		if ( '' === $cursor ) {
+			return $tools;
+		}
+	}
+	cmsa_mcp_redteam_fail( 'MCP tools/list exceeded the cursor safety limit.' );
 }
 
 function cmsa_mcp_redteam_tool( $name, array $arguments = array() ) {
@@ -140,14 +158,14 @@ function cmsa_mcp_redteam_extract_id( $value ) {
 
 wp_set_current_user( 1 );
 
-cmsa_mcp_redteam_assert( defined( 'CUA_VERSION' ) && '1.2.2' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.2 is not active.' );
+cmsa_mcp_redteam_assert( defined( 'CUA_VERSION' ) && '1.2.3' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.3 is not active.' );
 cmsa_mcp_redteam_assert( defined( 'EM_VERSION' ) && '7.4.3' === (string) EM_VERSION, 'Events Manager 7.4.3 is not active.' );
 cmsa_mcp_redteam_assert( defined( 'CMS_CORE_VERSION' ) && '0.2.1' === CMS_CORE_VERSION, 'Weekend Feature 0.2.1 is not active.' );
 cmsa_mcp_redteam_assert( class_exists( 'CMS_Weekend_Posts' ), 'Weekend Feature generator is unavailable.' );
 
-$tools_result = cmsa_mcp_redteam_call( 'tools/list', array() );
+$tools = cmsa_mcp_redteam_all_tools();
 $tool_names = array();
-foreach ( $tools_result['tools'] ?? array() as $tool ) {
+foreach ( $tools as $tool ) {
 	if ( is_array( $tool ) && isset( $tool['name'] ) ) {
 		$tool_names[] = (string) $tool['name'];
 	}
@@ -278,6 +296,7 @@ $anonymous_request->set_body(
 			'params'  => array(
 				'_meta' => array(
 					'io.modelcontextprotocol/protocolVersion' => '2026-07-28',
+			'io.modelcontextprotocol/clientCapabilities' => array(),
 					'io.modelcontextprotocol/clientInfo'      => array(
 						'name'    => 'cmsa-functional-redteam-anonymous',
 						'version' => '1.0.0',
