@@ -45,8 +45,8 @@ $modern_data     = $modern_response->get_data();
 cmsa_native_mcp_era_assert( 200 === $modern_response->get_status(), 'Current MCP protocol was not accepted.' );
 cmsa_native_mcp_era_assert( 'complete' === ( $modern_data['result']['resultType'] ?? '' ), 'Current MCP discovery did not complete.' );
 cmsa_native_mcp_era_assert(
-	array( '2026-07-28' ) === ( $modern_data['result']['supportedVersions'] ?? null ),
-	'Current MCP discovery advertised compatibility versions.'
+	array( '2026-07-28', '2025-11-25' ) === ( $modern_data['result']['supportedVersions'] ?? null ),
+	'MCP discovery did not advertise the complete supported protocol set.'
 );
 
 $initialize = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
@@ -123,12 +123,9 @@ $legacy->set_body(
 );
 $legacy_response = rest_do_request( $legacy );
 $legacy_data     = $legacy_response->get_data();
-cmsa_native_mcp_era_assert( 400 === $legacy_response->get_status(), 'Legacy MCP protocol remained accepted.' );
-cmsa_native_mcp_era_assert( -32022 === ( $legacy_data['error']['code'] ?? null ), 'Legacy MCP protocol did not fail version validation.' );
-cmsa_native_mcp_era_assert(
-	array( '2026-07-28' ) === ( $legacy_data['error']['data']['supportedVersions'] ?? null ),
-	'Legacy rejection advertised compatibility versions.'
-);
+cmsa_native_mcp_era_assert( 200 === $legacy_response->get_status(), 'Legacy MCP compatibility protocol was not accepted.' );
+cmsa_native_mcp_era_assert( '2025-11-25' === ( $legacy_data['result']['protocolVersion'] ?? '' ), 'Legacy initialize returned the wrong negotiated protocol version.' );
+cmsa_native_mcp_era_assert( 'chattanooga-cms-admin' === ( $legacy_data['result']['serverInfo']['name'] ?? '' ), 'Legacy initialize omitted server identity.' );
 
-echo "cmsa-native-mcp-era: PASS protocol=2026-07-28 standard_lifecycle=verified legacy_compatibility=removed\n";
+echo "cmsa-native-mcp-era: PASS primary=2026-07-28 legacy=2025-11-25 standard_lifecycle=verified compatibility=verified\n";
 exit( 0 );
