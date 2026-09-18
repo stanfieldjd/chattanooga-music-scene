@@ -36,7 +36,7 @@ function cmsa_v2_rm_catalog() {
 
 	$catalog = wp_get_ability( 'chattanooga-cms-admin/catalog' );
 	if ( ! $catalog instanceof WP_Ability ) {
-		cmsa_v2_rm_fail( 'Universal catalog is unavailable in Rank Math compatibility job.' );
+		cmsa_v2_rm_fail( 'Universal catalog is unavailable in Rank Math contract verification job.' );
 	}
 
 	$result = $catalog->execute( array() );
@@ -109,7 +109,7 @@ if ( ! function_exists( 'get_plugin_data' ) ) {
 }
 $plugin_data = get_plugin_data( $plugin_file, false, false );
 if ( '1.0.278' !== (string) ( $plugin_data['Version'] ?? '' ) ) {
-	cmsa_v2_rm_fail( 'Rank Math SEO 1.0.278 is not the active compatibility target.' );
+	cmsa_v2_rm_fail( 'Rank Math SEO 1.0.278 is not the active contract verification target.' );
 }
 
 $pre_registry_ability_hooks = cmsa_v2_rm_rank_math_hook_count( 'wp_abilities_api_init' );
@@ -147,7 +147,7 @@ $alternate_separator = '|' === $original_separator ? '-' : '|';
 $post_id = wp_insert_post(
 	array(
 		'post_title'   => 'CMSA v2 Rank Math disposable post',
-		'post_content' => 'Disposable SEO compatibility content.',
+		'post_content' => 'Disposable SEO contract verification content.',
 		'post_status'  => 'draft',
 		'post_type'    => 'post',
 	),
@@ -175,7 +175,7 @@ cmsa_v2_rm_execute( 'rank-math/set-global-seo-settings', array( 'title_separator
 $restored = cmsa_v2_rm_execute( 'rank-math/get-settings', $settings_input );
 if ( $original_separator !== (string) ( $restored['titles']['title_separator'] ?? '' ) ) {
 	wp_delete_post( (int) $post_id, true );
-	cmsa_v2_rm_fail( 'Rank Math global SEO setting was not restored after compatibility test.' );
+	cmsa_v2_rm_fail( 'Rank Math global SEO setting was not restored after contract verification test.' );
 }
 
 wp_set_current_user( 0 );

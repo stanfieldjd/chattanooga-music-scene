@@ -1,15 +1,18 @@
+# Disposable end-to-end simulation of the Chattanooga MCP plug-in.
 name: Chattanooga CMS Admin Native MCP
 
 on:
   push:
     branches:
       - work/chattanooga-native-mcp
+      - work/mcp-comparable-oauth
     paths:
       - "site-plugins/chattanooga-cms-admin/**"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-settings-page-cli.php"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/oauth-cli.php"
       - ".github/workflows/chattanooga-cms-admin-native-mcp.yml"
   pull_request:
     paths:
@@ -18,6 +21,7 @@ on:
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-settings-page-cli.php"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/oauth-cli.php"
       - ".github/workflows/chattanooga-cms-admin-native-mcp.yml"
 
 permissions:
@@ -59,10 +63,12 @@ jobs:
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-settings-page-cli.php >/dev/null
+          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/oauth-cli.php >/dev/null
           grep -q '^ \* Plugin Name: Chattanooga CMS Admin$' "$source/chattanooga-cms-admin.php"
-          grep -q '^ \* Version: 1.1.0$' "$source/chattanooga-cms-admin.php"
+          grep -q '^ \* Version: 1.2.1$' "$source/chattanooga-cms-admin.php"
           grep -Fq "add_action( 'rest_api_init', array( 'CUA_MCP_Server', 'register_route' ) );" "$source/chattanooga-cms-admin.php"
           test -f "$source/includes/class-cua-mcp-server.php"
+          test -f "$source/includes/class-cua-mcp-stdio.php"
           if grep -REiq 'WooCommerce|WC_Product|wc_get_product|Events_Manager|events-manager|EM_Event|EM_Location|BuddyBoss|Marketplace|Weekend_Feature|Rank_Math|rank-math|seo-by-rank-math|awpcp|another-wordpress-classifieds-plugin|miniOrange|miniorange' "$source"; then
             echo "Native MCP source contains provider-specific implementation logic." >&2
             exit 1
@@ -84,6 +90,14 @@ jobs:
 
       - name: Verify native MCP transport
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php" --path=/tmp/wordpress
+
+      - name: Verify first-party stdio transport
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\n' '{"jsonrpc":"2.0","id":501,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}}}' | \
+            php /tmp/wp-cli.phar chattanooga-mcp stdio --user=1 --path=/tmp/wordpress > /tmp/cmsa-stdio-response.jsonl
+          php -r '$line=trim(file_get_contents("/tmp/cmsa-stdio-response.jsonl")); $d=json_decode($line,true); if (($d["result"]["resultType"]??"")!=="complete" || ($d["id"]??null)!==501) exit(1);'
 
       - name: Verify single MCP protocol boundary
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php" --path=/tmp/wordpress
@@ -116,6 +130,8 @@ jobs:
             sleep 1
           done
 
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/oauth-cli.php" --path=/tmp/wordpress
+
           cat > /tmp/cmsa-discover.json <<'JSON'
           {"jsonrpc":"2.0","id":401,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"cmsa-http-ci","version":"1.0.0"}}}}
           JSON
@@ -136,16 +152,35 @@ jobs:
             --data-binary @/tmp/cmsa-discover.json \
             "$endpoint")"
           test "$authenticated_code" = '200'
-          php -r '$d=json_decode(file_get_contents("/tmp/cmsa-discover-response.json"),true); if (($d["result"]["resultType"]??"")!=="complete" || ($d["result"]["supportedVersions"]??[])!==["2026-07-28"]) exit(1);'
+          php -r '$d=json_decode(file_get_contents("/tmp/cmsa-discover-response.json"),true); if (($d["result"]["resultType"]??"")!=="complete" || ($d["result"]["supportedVersions"]??[])!==["2026-07-28","2025-11-25"]) exit(1);'
+
+          cat > /tmp/cmsa-initialize.json <<'JSON'
+          {"jsonrpc":"2.0","id":402,"method":"initialize","params":{"protocolVersion":"2026-07-28","capabilities":{},"clientInfo":{"name":"cmsa-http-ci","version":"1.0.0"}}}
+          JSON
+          initialize_code="$(curl -sS -D /tmp/cmsa-initialize-headers.txt -o /tmp/cmsa-initialize-response.json -w '%{http_code}' \
+            --user "admin:${app_password}" \
+            -H 'Content-Type: application/json' \
+            -H 'MCP-Protocol-Version: 2026-07-28' \
+            -H 'Mcp-Method: initialize' \
+            --data-binary @/tmp/cmsa-initialize.json \
+            "$endpoint")"
+          if [ "$initialize_code" != '200' ]; then
+            cat /tmp/cmsa-initialize-response.json >&2
+            cat /tmp/cmsa-initialize-headers.txt >&2
+            exit 1
+          fi
+          session_id="$(awk 'BEGIN{IGNORECASE=1} /^Mcp-Session-Id:/ {gsub("\r", "", $0); sub(/^[^:]*:[[:space:]]*/, "", $0); print $0}' /tmp/cmsa-initialize-headers.txt | tail -n 1)"
+          test -n "$session_id"
 
           cat > /tmp/cmsa-catalog.json <<'JSON'
-          {"jsonrpc":"2.0","id":402,"method":"tools/call","params":{"name":"cmsa.catalog","arguments":{},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"cmsa-http-ci","version":"1.0.0"}}}}
+          {"jsonrpc":"2.0","id":403,"method":"tools/call","params":{"name":"cmsa.catalog","arguments":{},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"cmsa-http-ci","version":"1.0.0"}}}}
           JSON
 
           catalog_code="$(curl -sS -o /tmp/cmsa-catalog-response.json -w '%{http_code}' \
             --user "admin:${app_password}" \
             -H 'Content-Type: application/json' \
             -H 'MCP-Protocol-Version: 2026-07-28' \
+            -H "Mcp-Session-Id: $session_id" \
             -H 'Mcp-Method: tools/call' \
             -H 'Mcp-Name: cmsa.catalog' \
             --data-binary @/tmp/cmsa-catalog.json \
@@ -155,12 +190,13 @@ jobs:
           bridge="$(php -r '$d=json_decode(file_get_contents("/tmp/cmsa-catalog-response.json"),true); foreach (($d["result"]["structuredContent"]["items"]??[]) as $item) { if (($item["contract"]??"")==="rest" && ($item["method"]??"")==="POST" && ($item["route"]??"")==="/wp/v2/posts") { echo $item["bridge"]; exit(0); } } exit(1);')"
           test -n "$bridge"
 
-          BRIDGE="$bridge" php -r '$b=getenv("BRIDGE"); echo json_encode(["jsonrpc"=>"2.0","id"=>403,"method"=>"tools/call","params"=>["name"=>"cmsa.write-bridge","arguments"=>["bridge"=>$b,"input"=>["path"=>"/wp/v2/posts","params"=>["title"=>"CMSA MCP HTTP Write Probe","status"=>"draft","content"=>"Disposable native MCP CI write-authority probe."]]],"_meta"=>["io.modelcontextprotocol/protocolVersion"=>"2026-07-28","io.modelcontextprotocol/clientInfo"=>["name"=>"cmsa-http-ci","version"=>"1.0.0"]]]]);' > /tmp/cmsa-write.json
+          BRIDGE="$bridge" php -r '$b=getenv("BRIDGE"); echo json_encode(["jsonrpc"=>"2.0","id"=>404,"method"=>"tools/call","params"=>["name"=>"cmsa.write-bridge","arguments"=>["bridge"=>$b,"input"=>["path"=>"/wp/v2/posts","params"=>["title"=>"CMSA MCP HTTP Write Probe","status"=>"draft","content"=>"Disposable native MCP CI write-authority probe."]]],"_meta"=>["io.modelcontextprotocol/protocolVersion"=>"2026-07-28","io.modelcontextprotocol/clientInfo"=>["name"=>"cmsa-http-ci","version"=>"1.0.0"]]]]);' > /tmp/cmsa-write.json
 
-          write_code="$(curl -sS -o /tmp/cmsa-write-response.json -w '%{http_code}' \
+          write_code="$(curl -sS -D /tmp/cmsa-write-headers.txt -o /tmp/cmsa-write-response.json -w '%{http_code}' \
             --user "admin:${app_password}" \
             -H 'Content-Type: application/json' \
             -H 'MCP-Protocol-Version: 2026-07-28' \
+            -H "Mcp-Session-Id: $session_id" \
             -H 'Mcp-Method: tools/call' \
             -H 'Mcp-Name: cmsa.write-bridge' \
             --data-binary @/tmp/cmsa-write.json \
@@ -168,7 +204,10 @@ jobs:
           test "$write_code" = '200'
 
           post_id="$(php -r '$d=json_decode(file_get_contents("/tmp/cmsa-write-response.json"),true); $result=$d["result"]??[]; $rest=$result["structuredContent"]["result"]??[]; if (($result["isError"]??true)!==false || ($rest["status"]??0)!==201 || ($rest["data"]["status"]??"")!=="draft" || empty($rest["data"]["id"])) exit(1); echo (int)$rest["data"]["id"];')"
-          test -n "$post_id"
+          if [ -z "$post_id" ]; then
+            cat /tmp/cmsa-write-response.json >&2
+            exit 1
+          fi
           test "$(php /tmp/wp-cli.phar post get "$post_id" --field=post_status --path=/tmp/wordpress)" = 'draft'
           php /tmp/wp-cli.phar post delete "$post_id" --force --path=/tmp/wordpress >/dev/null
 

@@ -6,6 +6,7 @@ WP_PATH="${WP_PATH:-/tmp/wordpress}"
 BASE_URL="${BASE_URL:-http://127.0.0.1:8090}"
 ENDPOINT="${BASE_URL}/index.php?rest_route=%2Fchattanooga-cms-admin%2Fv1%2Fmcp"
 PROTOCOL='2026-07-28'
+MCP_SESSION_ID=''
 
 fail() {
   printf 'FAIL: %s\n' "$1" >&2
@@ -46,10 +47,17 @@ mcp_call() {
   if [ -n "$tool_name" ]; then
     headers+=( -H "Mcp-Name: ${tool_name}" )
   fi
+  if [ -n "$MCP_SESSION_ID" ]; then
+    headers+=( -H "Mcp-Session-Id: ${MCP_SESSION_ID}" )
+  fi
 
   local code
+  local -a auth_args=( --user "admin:${app_password}" )
+  if [ -n "${MCP_BEARER_TOKEN:-}" ]; then
+    auth_args=( -H "Authorization: Bearer ${MCP_BEARER_TOKEN}" )
+  fi
   code="$(curl -sS -o "$output_file" -w '%{http_code}' \
-    --user "admin:${app_password}" \
+    "${auth_args[@]}" \
     "${headers[@]}" \
     --data-binary "@${body_file}" \
     "$ENDPOINT")"
@@ -61,6 +69,19 @@ mcp_call() {
   php -r '$d=json_decode(file_get_contents($argv[1]),true); if (!is_array($d) || isset($d["error"]) || !isset($d["result"]) || (($d["result"]["isError"]??false)===true)) { fwrite(STDERR,file_get_contents($argv[1])); exit(1); }' "$output_file" \
     || fail "MCP ${method} returned an application error."
 }
+
+cat > /tmp/cmsa-external-initialize.json <<'JSON'
+{"jsonrpc":"2.0","id":1000,"method":"initialize","params":{"protocolVersion":"2026-07-28","capabilities":{},"clientInfo":{"name":"cmsa-external-functional-redteam","version":"1.0.0"}}}
+JSON
+curl -sS -D /tmp/cmsa-external-initialize-headers.txt -o /tmp/cmsa-external-initialize-response.json \
+  --user "admin:${app_password}" \
+  -H 'Content-Type: application/json' \
+  -H "MCP-Protocol-Version: ${PROTOCOL}" \
+  -H 'Mcp-Method: initialize' \
+  --data-binary @/tmp/cmsa-external-initialize.json \
+  -w '%{http_code}' "$ENDPOINT" | grep -q '^200$' || { cat /tmp/cmsa-external-initialize-response.json >&2 || true; cat /tmp/cmsa-external-initialize-headers.txt >&2 || true; fail 'MCP initialize failed.'; }
+MCP_SESSION_ID="$(awk 'BEGIN{IGNORECASE=1} /^Mcp-Session-Id:/ {gsub("\r", "", $0); sub(/^[^:]*:[[:space:]]*/, "", $0); print $0}' /tmp/cmsa-external-initialize-headers.txt | tail -n 1)"
+test -n "$MCP_SESSION_ID" || fail 'MCP initialize did not return a session identifier.'
 
 make_tool_body() {
   local id="$1"
@@ -130,7 +151,7 @@ bridge_call() {
   mcp_call /tmp/cmsa-external-call.json 'tools/call' "$tool" "$output_file"
 }
 
-# 1. Rank Math external read/write/rollback through native MCP.
+# 1. Rank Math external read/write/rollback through Chattanooga MCP.
 get_settings_bridge="$(find_ability_bridge 'rank-math/get-settings')"
 set_global_bridge="$(find_ability_bridge 'rank-math/set-global-seo-settings')"
 bridge_call 1010 'cmsa.read-bridge' "$get_settings_bridge" '{"sections":["titles"]}' /tmp/cmsa-seo-before.json
@@ -147,7 +168,50 @@ bridge_call 1014 'cmsa.read-bridge' "$get_settings_bridge" '{"sections":["titles
 restored_separator="$(php -r '$d=json_decode(file_get_contents("/tmp/cmsa-seo-restored.json"),true); echo (string)($d["result"]["structuredContent"]["result"]["titles"]["title_separator"]??"");')"
 test "$restored_separator" = "$original_separator" || fail 'External MCP Rank Math rollback failed.'
 
-# 2. Create a published Events Manager event through external native MCP.
+# 2. Exercise core WordPress user administration through external Chattanooga MCP.
+user_suffix="$(php -r 'echo substr(hash("sha256", random_bytes(16)), 0, 10);')"
+user_name="cmsaexternaluser${user_suffix}"
+user_password="$(php -r 'echo bin2hex(random_bytes(24));')"
+create_user_bridge="$(find_rest_bridge 'POST' '/wp/v2/users')"
+user_create_input="$(USER_NAME="$user_name" USER_PASSWORD="$user_password" php -r 'echo json_encode(["path"=>"/wp/v2/users","params"=>["username"=>getenv("USER_NAME"),"email"=>getenv("USER_NAME")."@example.com","password"=>getenv("USER_PASSWORD"),"roles"=>["subscriber"]]], JSON_UNESCAPED_SLASHES);')"
+bridge_call 1020 'cmsa.write-bridge' "$create_user_bridge" "$user_create_input" /tmp/cmsa-user-create.json
+user_id="$(php -r '
+  $d=json_decode(file_get_contents("/tmp/cmsa-user-create.json"),true);
+  $data=$d["result"]["structuredContent"]["result"]["data"]??[];
+  $id=(int)($data["id"]??0);
+  if($id<2)exit(1);
+  echo $id;
+' || fail 'External MCP core user creation returned no user ID.')"
+read_user_bridge="$(find_rest_bridge 'GET' "/wp/v2/users/${user_id}")"
+user_read_input="$(USER_PATH="/wp/v2/users/${user_id}" php -r 'echo json_encode(["path"=>getenv("USER_PATH"),"params"=>["context"=>"edit"]], JSON_UNESCAPED_SLASHES);')"
+bridge_call 1021 'cmsa.read-bridge' "$read_user_bridge" "$user_read_input" /tmp/cmsa-user-read.json
+USER_NAME="$user_name" php -r '
+  $d=json_decode(file_get_contents("/tmp/cmsa-user-read.json"),true);
+  $data=$d["result"]["structuredContent"]["result"]["data"]??[];
+  if((int)($data["id"]??0)<2 || (string)($data["username"]??"")!==getenv("USER_NAME") || !in_array("subscriber",(array)($data["roles"]??[]),true))exit(1);
+' || fail 'External MCP core user read did not preserve identity and role.'
+updated_user_name="CMSA External MCP User ${user_suffix}"
+update_user_bridge="$(find_rest_bridge 'POST' "/wp/v2/users/${user_id}")"
+user_update_input="$(USER_PATH="/wp/v2/users/${user_id}" USER_LABEL="$updated_user_name" php -r 'echo json_encode(["path"=>getenv("USER_PATH"),"params"=>["name"=>getenv("USER_LABEL")]], JSON_UNESCAPED_SLASHES);')"
+bridge_call 1022 'cmsa.write-bridge' "$update_user_bridge" "$user_update_input" /tmp/cmsa-user-update.json
+USER_ID="$user_id" USER_LABEL="$updated_user_name" php -r '
+  $d=json_decode(file_get_contents("/tmp/cmsa-user-update.json"),true);
+  $data=$d["result"]["structuredContent"]["result"]["data"]??[];
+  if((int)($data["id"]??0)!==(int)getenv("USER_ID") || (string)($data["name"]??"")!==getenv("USER_LABEL"))exit(1);
+' || fail 'External MCP core user update did not persist.'
+delete_user_bridge="$(find_rest_bridge 'DELETE' "/wp/v2/users/${user_id}")"
+user_delete_input="$(USER_PATH="/wp/v2/users/${user_id}" php -r 'echo json_encode(["path"=>getenv("USER_PATH"),"params"=>["force"=>true,"reassign"=>1]], JSON_UNESCAPED_SLASHES);')"
+bridge_call 1023 'cmsa.write-bridge' "$delete_user_bridge" "$user_delete_input" /tmp/cmsa-user-delete.json
+php -r '
+  $d=json_decode(file_get_contents("/tmp/cmsa-user-delete.json"),true);
+  $data=$d["result"]["structuredContent"]["result"]["data"]??[];
+  if(empty($data["deleted"]))exit(1);
+' || fail 'External MCP core user deletion was not confirmed.'
+if php "$WP_CLI" user get "$user_id" --field=ID --path="$WP_PATH" >/dev/null 2>&1; then
+  fail 'External MCP core user cleanup did not remove the disposable user.'
+fi
+
+# 3. Create a published Events Manager event through external Chattanooga MCP.
 event_date="$(php "$WP_CLI" eval '$tz=wp_timezone(); $now=new DateTimeImmutable("now",$tz); $friday=$now->modify("friday this week")->setTime(0,0,0); $sunday=$friday->modify("+2 days")->setTime(23,59,59); if($now>$sunday){$friday=$friday->modify("+1 week");} echo $friday->format("Y-m-d");' --path="$WP_PATH")"
 timezone="$(php "$WP_CLI" eval 'echo wp_timezone_string() ?: "UTC";' --path="$WP_PATH")"
 event_name="CMSA External MCP $(php -r 'echo substr(hash("sha256",random_bytes(16)),0,10);')"
@@ -159,13 +223,13 @@ event_id="$(php -r '
   $d=json_decode(file_get_contents("/tmp/cmsa-event-create.json"),true); $id=xid($d["result"]["structuredContent"]["result"]["data"]??[]); if($id<1)exit(1); echo $id;
 ' || fail 'External MCP event creation returned no event ID.')"
 
-# 3. Invoke the declared Weekend Feature ability through external native MCP.
+# 4. Invoke the declared Weekend Feature ability through external Chattanooga MCP.
 weekend_bridge="$(find_ability_bridge 'chattanooga-music-scene/generate-weekend-feature')"
 bridge_call 1030 'cmsa.write-bridge' "$weekend_bridge" '{"status":"draft"}' /tmp/cmsa-weekend-generate.json
 feature_id="$(php -r '$d=json_decode(file_get_contents("/tmp/cmsa-weekend-generate.json"),true); $r=$d["result"]["structuredContent"]["result"]??[]; if (($r["event_count"]??0)<1 || empty($r["post_id"])) exit(1); echo (int)$r["post_id"];' || fail 'External MCP Weekend Feature generation returned no usable result.')"
 php "$WP_CLI" post get "$feature_id" --field=post_content --path="$WP_PATH" | grep -Fq "$event_name" || fail 'Externally generated Weekend Feature does not contain the external MCP event.'
 
-# 4. Roll back disposable content through external native MCP.
+# 5. Roll back disposable content through external Chattanooga MCP.
 event_path="/events-manager/v1/events/${event_id}"
 delete_event_bridge="$(find_rest_bridge 'DELETE' "$event_path")"
 event_delete_input="$(PATH_VALUE="$event_path" php -r 'echo json_encode(["path"=>getenv("PATH_VALUE"),"params"=>["context"=>"edit"]], JSON_UNESCAPED_SLASHES);')"
@@ -179,4 +243,54 @@ bridge_call 1041 'cmsa.write-bridge' "$delete_feature_bridge" "$feature_delete_i
 feature_status="$(php "$WP_CLI" post get "$feature_id" --field=post_status --path="$WP_PATH" 2>/dev/null || true)"
 test -z "$feature_status" || fail 'External MCP Weekend Feature cleanup did not remove the disposable post.'
 
-printf '%s\n' 'cmsa-native-mcp-external-functional: PASS app_password=verified seo_read=verified seo_write=verified seo_rollback=verified event_create=verified weekend_generate=verified event_cleanup=verified feature_cleanup=verified'
+# 6. Verify manual bearer authorization through the external MCP transport.
+manual_token="$(php -r 'echo bin2hex(random_bytes(32));')"
+MANUAL_TOKEN="$manual_token" php "$WP_CLI" eval '
+  $token = getenv("MANUAL_TOKEN");
+  update_option("cua_mcp_manual_token", array("digest" => hash_hmac("sha256", $token, wp_salt("auth")), "user_id" => 1, "created_at" => time()), false);
+  update_option("cua_mcp_auth_mode", "manual", false);
+' --path="$WP_PATH"
+MCP_SESSION_ID=''
+MCP_BEARER_TOKEN="$manual_token"
+manual_initialize_code="$(curl -sS -D /tmp/cmsa-manual-initialize-response.headers -o /tmp/cmsa-manual-initialize-response.json -w '%{http_code}' \
+  -H "Authorization: Bearer ${manual_token}" \
+  -H 'Content-Type: application/json' \
+  -H "MCP-Protocol-Version: ${PROTOCOL}" \
+  -H 'Mcp-Method: initialize' \
+  --data-binary @/tmp/cmsa-external-initialize.json \
+  "$ENDPOINT")"
+test "$manual_initialize_code" = '200' || { cat /tmp/cmsa-manual-initialize-response.json >&2 || true; fail 'Manual bearer MCP initialize failed.'; }
+MCP_SESSION_ID="$(awk 'BEGIN{IGNORECASE=1} /^Mcp-Session-Id:/ {gsub("\r", "", $0); sub(/^[^:]*:[[:space:]]*/, "", $0); print $0}' /tmp/cmsa-manual-initialize-response.headers | tail -n 1)"
+test -n "$MCP_SESSION_ID" || fail 'Manual bearer MCP initialize did not return a session identifier.'
+manual_catalog_body=/tmp/cmsa-manual-catalog.json
+make_tool_body 1050 'cmsa.catalog' '{}' "$manual_catalog_body"
+mcp_call "$manual_catalog_body" 'tools/call' 'cmsa.catalog' /tmp/cmsa-manual-catalog-response.json
+cat > /tmp/cmsa-manual-tools-list.json <<'JSON'
+{"jsonrpc":"2.0","id":1051,"method":"tools/list","params":{}}
+JSON
+manual_tools_code="$(curl -sS -o /tmp/cmsa-manual-tools-list-response.json -w '%{http_code}' \
+  -H "Authorization: Bearer ${manual_token}" \
+  -H 'Content-Type: application/json' \
+  -H "MCP-Protocol-Version: ${PROTOCOL}" \
+  -H 'Mcp-Method: tools/list' \
+  -H "Mcp-Session-Id: ${MCP_SESSION_ID}" \
+  --data-binary @/tmp/cmsa-manual-tools-list.json \
+  "$ENDPOINT")"
+test "$manual_tools_code" = '200' || { cat /tmp/cmsa-manual-tools-list-response.json >&2 || true; fail 'Manual bearer MCP tools/list failed.'; }
+php -r '
+  $d=json_decode(file_get_contents("/tmp/cmsa-manual-tools-list-response.json"),true);
+  $tool=$d["result"]["tools"][0]??[];
+  $scheme=$tool["securitySchemes"][0]??[];
+  if(($scheme["type"]??"")!=="http" || ($scheme["scheme"]??"")!=="bearer" || ($scheme["bearerFormat"]??"")!=="manual-mcp-token")exit(1);
+' || fail 'Manual bearer MCP tools/list did not advertise the manual bearer scheme.'
+wrong_manual_code="$(MCP_BEARER_TOKEN="${manual_token}wrong" curl -sS -o /tmp/cmsa-manual-invalid-response.json -w '%{http_code}' \
+  -H "Authorization: Bearer ${manual_token}wrong" \
+  -H 'Content-Type: application/json' \
+  -H "MCP-Protocol-Version: ${PROTOCOL}" \
+  -H 'Mcp-Method: server/discover' \
+  --data-binary @/tmp/cmsa-external-initialize.json \
+  "$ENDPOINT")"
+test "$wrong_manual_code" = '401' || fail 'Invalid manual bearer token was accepted.'
+php "$WP_CLI" eval 'update_option("cua_mcp_auth_mode", "oauth", false);' --path="$WP_PATH"
+
+printf '%s\n' 'cmsa-native-mcp-external-functional: PASS app_password=verified manual_bearer=verified manual_scheme=verified seo_read=verified seo_write=verified seo_rollback=verified user_crud=verified event_create=verified weekend_generate=verified event_cleanup=verified feature_cleanup=verified'

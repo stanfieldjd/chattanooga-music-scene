@@ -108,6 +108,14 @@ cmsa_native_mcp_assert( class_exists( 'CUA_MCP_Server' ), 'Chattanooga MCP serve
 $server = rest_get_server();
 $routes = $server->get_routes();
 cmsa_native_mcp_assert( isset( $routes['/chattanooga-cms-admin/v1/mcp'] ), 'Chattanooga MCP REST route is not registered.' );
+cmsa_native_mcp_assert( isset( $routes['/chattanooga-cms-admin/v1/mcp/sse'] ) && isset( $routes['/chattanooga-cms-admin/v1/mcp/messages'] ), 'Legacy MCP SSE routes are not registered.' );
+
+$legacy_sse = new WP_REST_Request( 'GET', '/chattanooga-cms-admin/v1/mcp/sse' );
+$legacy_sse_response = rest_do_request( $legacy_sse );
+cmsa_native_mcp_assert( 200 === $legacy_sse_response->get_status(), 'Legacy MCP SSE endpoint did not return HTTP 200.' );
+$legacy_sse_headers = array_change_key_case( $legacy_sse_response->get_headers(), CASE_LOWER );
+cmsa_native_mcp_assert( 'text/event-stream' === ( $legacy_sse_headers['content-type'] ?? '' ), 'Legacy MCP SSE endpoint did not return an event stream.' );
+cmsa_native_mcp_assert( false !== strpos( (string) $legacy_sse_response->get_data(), 'event: endpoint' ), 'Legacy MCP SSE endpoint did not publish an endpoint event.' );
 
 // This server uses stateless JSON responses rather than server-to-client SSE.
 $get_request = new WP_REST_Request( 'GET', '/chattanooga-cms-admin/v1/mcp' );
@@ -115,6 +123,8 @@ $get_response = rest_do_request( $get_request );
 cmsa_native_mcp_assert( 405 === $get_response->get_status(), 'MCP GET fallback did not return HTTP 405.' );
 $get_headers = array_change_key_case( $get_response->get_headers(), CASE_LOWER );
 cmsa_native_mcp_assert( 'POST, DELETE' === ( $get_headers['allow'] ?? '' ), 'MCP GET fallback did not advertise the allowed MCP methods.' );
+cmsa_native_mcp_assert( 'no-store' === ( $get_headers['cache-control'] ?? '' ), 'MCP GET fallback did not disable caching.' );
+cmsa_native_mcp_assert( 'nosniff' === ( $get_headers['x-content-type-options'] ?? '' ), 'MCP GET fallback did not set X-Content-Type-Options.' );
 
 $bad_content_type = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
 $bad_content_type->set_header( 'content-type', 'text/plain' );
@@ -154,10 +164,13 @@ cmsa_native_mcp_assert(
 );
 cmsa_native_mcp_assert( 30000 === ( $discover_data['result']['ttlMs'] ?? null ), 'Discovery cache TTL is incorrect.' );
 cmsa_native_mcp_assert( 'private' === ( $discover_data['result']['cacheScope'] ?? '' ), 'Discovery cache scope is not private.' );
+cmsa_native_mcp_assert( preg_match( '/^[a-f0-9]{64}$/', (string) ( $discover_data['result']['capabilityRevision'] ?? '' ) ), 'Discovery did not provide a capability revision.' );
+cmsa_native_mcp_assert( 'poll' === ( $discover_data['result']['changeDetection']['mode'] ?? '' ) && 30000 === ( $discover_data['result']['changeDetection']['intervalMs'] ?? null ), 'Discovery did not advertise capability change detection.' );
 cmsa_native_mcp_assert(
 	'chattanooga-cms-admin' === ( $discover_data['result']['_meta']['io.modelcontextprotocol/serverInfo']['name'] ?? '' ),
 	'Discovery did not identify the Chattanooga CMS Admin server.'
 );
+cmsa_native_mcp_assert( '' !== (string) ( $discover_data['result']['_meta']['io.modelcontextprotocol/serverInfo']['environmentId'] ?? '' ), 'Discovery did not identify the site environment.' );
 cmsa_native_mcp_assert( false === ( $discover_data['result']['capabilities']['resources']['subscribe'] ?? true ), 'Discovery returned the wrong resources capability.' );
 
 $initialize = cmsa_native_mcp_modern(
@@ -217,6 +230,7 @@ cmsa_native_mcp_assert( 200 === $list->get_status(), 'tools/list did not return 
 $list_data = $list->get_data();
 $tools = cmsa_native_mcp_all_tools();
 cmsa_native_mcp_assert( is_array( $tools ) && ! empty( $tools ), 'tools/list returned no tools.' );
+cmsa_native_mcp_assert( (string) ( $discover_data['result']['capabilityRevision'] ?? '' ) === (string) ( $list_data['result']['capabilityRevision'] ?? '' ), 'tools/list returned a capability revision different from discovery.' );
 
 $names = array();
 foreach ( $tools as $tool ) {
@@ -235,6 +249,29 @@ foreach ( $names as $name ) {
 		|| 1 === preg_match( '/^cmsa\\.(?:bridge|rest)-[a-f0-9]{24}$/', $name );
 	cmsa_native_mcp_assert( $allowed, 'Administrator/control-plane tool leaked into tools/list: ' . $name );
 }
+
+// Per-site capability gating: an explicit allowlist narrows the public site surface
+// without making administrator/control-plane abilities eligible.
+$original_allowed_tools = get_option( CUA_MCP_Settings_Page::OPTION_ALLOWED_TOOLS, array() );
+update_option( CUA_MCP_Settings_Page::OPTION_ALLOWED_TOOLS, array( 'cmsa.catalog' ) );
+$gated_tools = cmsa_native_mcp_all_tools();
+$gated_names = array_map(
+	static function ( $tool ) {
+		return is_array( $tool ) ? (string) ( $tool['name'] ?? '' ) : '';
+	},
+	$gated_tools
+);
+cmsa_native_mcp_assert( array( 'cmsa.catalog' ) === $gated_names, 'Per-site capability gating did not narrow tools/list to the configured tool.' );
+$gated_write = cmsa_native_mcp_modern(
+	'tools/call',
+	array( 'name' => 'cmsa.write-bridge', 'arguments' => array() ),
+	113,
+	array( 'Mcp-Session-Id' => $cmsa_native_mcp_session_id )
+);
+cmsa_native_mcp_assert( 200 === $gated_write->get_status(), 'A gated tool call did not return an MCP tool result.' );
+cmsa_native_mcp_assert( true === ( $gated_write->get_data()['result']['isError'] ?? false ), 'A tool excluded by per-site gating was callable.' );
+cmsa_native_mcp_assert( 'cmsa_mcp_tool_not_found' === ( $gated_write->get_data()['result']['_meta']['chattanooga-cms-admin/errorCode'] ?? '' ), 'A gated tool returned the wrong error.' );
+update_option( CUA_MCP_Settings_Page::OPTION_ALLOWED_TOOLS, $original_allowed_tools );
 
 $catalog_tool = cmsa_native_mcp_tool( $tools, 'cmsa.catalog' );
 $write_tool  = cmsa_native_mcp_tool( $tools, 'cmsa.write-bridge' );
@@ -277,6 +314,41 @@ cmsa_native_mcp_assert( preg_match( '/^[a-f0-9]{64}$/', (string) ( $mcp_audit['s
 foreach ( array( 'authorization', 'token', 'arguments', 'input', 'output', 'response', 'session_id' ) as $forbidden_key ) {
 	cmsa_native_mcp_assert( ! array_key_exists( $forbidden_key, $mcp_audit ), 'MCP audit entry retained a sensitive raw field: ' . $forbidden_key );
 }
+
+// Rate limiting and response hardening are enforced at the MCP boundary.
+$rate_limit_option = CUA_MCP_Settings_Page::OPTION_RATE_LIMIT;
+$rate_limit_original = get_option( $rate_limit_option, CUA_MCP_Settings_Page::DEFAULT_RATE_LIMIT );
+$rate_limit_source = isset( $_SERVER['REMOTE_ADDR'] ) ? trim( (string) wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : 'unknown';
+$rate_limit_key = 'cmsa_mcp_rate_' . hash( 'sha256', '1|' . $rate_limit_source );
+delete_transient( $rate_limit_key );
+update_option( $rate_limit_option, 2 );
+$rate_one = cmsa_native_mcp_modern( 'server/discover', array(), 113, array( 'Mcp-Session-Id' => $cmsa_native_mcp_session_id ) );
+$rate_two = cmsa_native_mcp_modern( 'server/discover', array(), 114, array( 'Mcp-Session-Id' => $cmsa_native_mcp_session_id ) );
+$rate_three = cmsa_native_mcp_modern( 'server/discover', array(), 115, array( 'Mcp-Session-Id' => $cmsa_native_mcp_session_id ) );
+cmsa_native_mcp_assert( 200 === $rate_one->get_status() && 200 === $rate_two->get_status(), 'MCP rate limiting rejected requests before the configured threshold.' );
+cmsa_native_mcp_assert( 429 === $rate_three->get_status(), 'MCP rate limiting did not return HTTP 429 after the configured threshold.' );
+$rate_headers = array_change_key_case( $rate_three->get_headers(), CASE_LOWER );
+cmsa_native_mcp_assert( isset( $rate_headers['retry-after'] ) && (int) $rate_headers['retry-after'] >= 1, 'MCP rate limiting did not return Retry-After.' );
+cmsa_native_mcp_assert( 'no-store' === ( $rate_headers['cache-control'] ?? '' ) && 'nosniff' === ( $rate_headers['x-content-type-options'] ?? '' ), 'Rate-limit responses did not retain MCP security headers.' );
+update_option( $rate_limit_option, $rate_limit_original );
+
+// Read-only mode blocks the mutating gateway while preserving the MCP surface.
+update_option( CUA_MCP_Settings_Page::OPTION_READ_ONLY, true );
+$read_only_discover = cmsa_native_mcp_modern( 'server/discover', array(), 117, array( 'Mcp-Session-Id' => $cmsa_native_mcp_session_id ) );
+cmsa_native_mcp_assert( 200 === $read_only_discover->get_status() && (string) ( $read_only_discover->get_data()['result']['capabilityRevision'] ?? '' ) !== (string) ( $discover_data['result']['capabilityRevision'] ?? '' ), 'Capability revision did not change when MCP read-only mode changed.' );
+$read_only_write = cmsa_native_mcp_modern(
+	'tools/call',
+	array(
+		'name'      => 'cmsa.write-bridge',
+		'arguments' => array(),
+	),
+	116,
+	array( 'Mcp-Session-Id' => $cmsa_native_mcp_session_id )
+);
+cmsa_native_mcp_assert( 200 === $read_only_write->get_status(), 'Read-only MCP mode returned the wrong transport status.' );
+cmsa_native_mcp_assert( true === ( $read_only_write->get_data()['result']['isError'] ?? false ), 'Read-only MCP mode permitted a mutating tool.' );
+cmsa_native_mcp_assert( 'cmsa_mcp_read_only_mode' === ( $read_only_write->get_data()['result']['_meta']['chattanooga-cms-admin/errorCode'] ?? '' ), 'Read-only MCP mode returned the wrong denial code.' );
+update_option( CUA_MCP_Settings_Page::OPTION_READ_ONLY, false );
 
 // Tool errors stay inside a successful tools/call result instead of becoming protocol transport failures.
 $missing = cmsa_native_mcp_modern(
@@ -338,5 +410,5 @@ $close_session->set_header( 'Mcp-Session-Id', $cmsa_native_mcp_session_id );
 $close_session_response = rest_do_request( $close_session );
 cmsa_native_mcp_assert( 204 === $close_session_response->get_status(), 'MCP DELETE did not close the session.' );
 
-echo "cmsa-native-mcp: PASS version=1.2.1 protocol=2026-07-28 supported_versions=none route=verified admin_boundary=verified origin_guard=verified tools_list=deterministic read_call=verified private_bridges=hidden header_validation=verified\n";
+echo "cmsa-native-mcp: PASS version=1.2.1 protocol=2026-07-28 supported_versions=none route=verified admin_boundary=verified origin_guard=verified tools_list=deterministic read_call=verified private_bridges=hidden header_validation=verified rate_limit=verified response_hardening=verified\n";
 exit( 0 );

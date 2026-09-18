@@ -17,7 +17,7 @@ function cmsa_v2_wc_catalog() {
 	}
 	$catalog = wp_get_ability( 'chattanooga-cms-admin/catalog' );
 	if ( ! $catalog instanceof WP_Ability ) {
-		cmsa_v2_wc_fail( 'Universal catalog is unavailable in WooCommerce compatibility job.' );
+		cmsa_v2_wc_fail( 'Universal catalog is unavailable in WooCommerce contract verification job.' );
 	}
 	$result = $catalog->execute( array() );
 	if ( is_wp_error( $result ) || empty( $result['items'] ) || ! is_array( $result['items'] ) ) {
@@ -86,7 +86,7 @@ function cmsa_v2_wc_extract_id( $value ) {
 wp_set_current_user( 1 );
 
 if ( ! defined( 'WC_VERSION' ) || '11.0.1' !== (string) WC_VERSION ) {
-	cmsa_v2_wc_fail( 'WooCommerce 11.0.1 is not the active compatibility target.' );
+	cmsa_v2_wc_fail( 'WooCommerce 11.0.1 is not the active contract verification target.' );
 }
 if ( ! function_exists( 'wc_get_product' ) ) {
 	cmsa_v2_wc_fail( 'WooCommerce product API is unavailable.' );

@@ -8,7 +8,7 @@ Production state: NOT_DEPLOYED
 
 ## Objective
 
-Replace the existing Chattanooga CMS Admin implementation with one provider-agnostic Chattanooga CMS Admin plugin that administers WordPress and compatible active plugins through public WordPress contracts, while retaining bounded intrinsic WordPress platform administration for functions WordPress itself owns.
+Replace the existing Chattanooga CMS Admin implementation with one provider-agnostic Chattanooga CMS Admin plugin that administers WordPress and public-contract active plugins through public WordPress contracts, while retaining bounded intrinsic WordPress platform administration for functions WordPress itself owns.
 
 This is a replacement of the existing plugin slot, not an additional production plugin.
 
@@ -85,7 +85,7 @@ Standard WordPress content administration is provided through generated REST fac
 
 Registered Settings API administration is provided through bounded intrinsic abilities for listing, inspecting, and conflict-checked updating currently registered settings. Arbitrary unregistered `wp_options` access is not exposed.
 
-## Real-provider compatibility
+## Real-provider contract verification
 
 ### Events Manager 7.4.3 — VERIFIED E3
 
@@ -143,9 +143,9 @@ The same run passed:
 - core/database rollback; and
 - actual `Core_Upgrader` transition followed by verified rollback.
 
-### Final real-provider compatibility suite
+### Final real-provider contract verification suite
 
-Workflow: `Chattanooga CMS Admin v2 Provider Compatibility`
+Workflow: `Chattanooga CMS Admin v2 Provider Contract Verification`
 Run: `34505114334`
 Result: SUCCESS
 
@@ -183,7 +183,7 @@ The obsolete Phase-1 `workbench/labs/chattanooga-universal-admin` probes/provide
 
 SOURCE ENGINEERING: COMPLETE / VERIFIED.
 
-The canonical `1.0.0` replacement has passed the final post-cleanup universal harness, replacement-coverage acceptance gate, real Events Manager compatibility, real WooCommerce compatibility, real Rank Math SEO compatibility, and the AWP private-contract boundary test.
+The canonical `1.0.0` replacement has passed the final post-cleanup universal harness, replacement-coverage acceptance gate, real Events Manager contract verification, real WooCommerce contract verification, real Rank Math SEO contract verification, and the AWP private-contract boundary test.
 
 This decision applies to source engineering only.
 

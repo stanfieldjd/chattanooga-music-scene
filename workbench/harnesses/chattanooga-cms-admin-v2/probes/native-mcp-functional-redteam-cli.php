@@ -18,12 +18,27 @@ function cmsa_mcp_redteam_assert( $condition, $message ) {
 
 function cmsa_mcp_redteam_call( $method, array $params, $tool_name = '' ) {
 	static $id = 700;
+	static $session_id = '';
 	++$id;
+
+	if ( '' === $session_id && 'initialize' !== $method ) {
+		cmsa_mcp_redteam_call(
+			'initialize',
+			array(
+				'protocolVersion' => '2026-07-28',
+				'capabilities'    => array(),
+				'clientInfo'      => array( 'name' => 'cmsa-functional-redteam', 'version' => '1.0.0' ),
+			)
+		);
+	}
 
 	$request = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
 	$request->set_header( 'content-type', 'application/json' );
 	$request->set_header( 'MCP-Protocol-Version', '2026-07-28' );
 	$request->set_header( 'Mcp-Method', $method );
+	if ( '' !== $session_id ) {
+		$request->set_header( 'Mcp-Session-Id', $session_id );
+	}
 	if ( '' !== $tool_name ) {
 		$request->set_header( 'Mcp-Name', $tool_name );
 	}
@@ -48,13 +63,34 @@ function cmsa_mcp_redteam_call( $method, array $params, $tool_name = '' ) {
 	);
 
 	$response = rest_do_request( $request );
-	cmsa_mcp_redteam_assert( $response instanceof WP_REST_Response, 'Native MCP did not return a REST response.' );
-	cmsa_mcp_redteam_assert( 200 === $response->get_status(), sprintf( 'Native MCP %s returned HTTP %d.', $method, $response->get_status() ) );
+	if ( 'initialize' === $method ) {
+		$response_headers = array_change_key_case( $response->get_headers(), CASE_LOWER );
+		$session_id = trim( (string) ( $response_headers['mcp-session-id'] ?? '' ) );
+	}
+	cmsa_mcp_redteam_assert( $response instanceof WP_REST_Response, 'Chattanooga MCP did not return a REST response.' );
+	cmsa_mcp_redteam_assert( 200 === $response->get_status(), sprintf( 'Chattanooga MCP %s returned HTTP %d.', $method, $response->get_status() ) );
 
 	$data = $response->get_data();
-	cmsa_mcp_redteam_assert( is_array( $data ) && empty( $data['error'] ), 'Native MCP returned a JSON-RPC error.' );
-	cmsa_mcp_redteam_assert( isset( $data['result'] ) && is_array( $data['result'] ), 'Native MCP returned no structured result.' );
+	cmsa_mcp_redteam_assert( is_array( $data ) && empty( $data['error'] ), 'Chattanooga MCP returned a JSON-RPC error.' );
+	cmsa_mcp_redteam_assert( isset( $data['result'] ) && is_array( $data['result'] ), 'Chattanooga MCP returned no structured result.' );
 	return $data['result'];
+}
+
+function cmsa_mcp_redteam_all_tools() {
+	$all_tools = array();
+	$cursor = '';
+	for ( $page = 0; $page < 20; $page++ ) {
+		$params = '' === $cursor ? array() : array( 'cursor' => $cursor );
+		$result = cmsa_mcp_redteam_call( 'tools/list', $params );
+		$page_tools = $result['tools'] ?? null;
+		cmsa_mcp_redteam_assert( is_array( $page_tools ), 'Paginated tools/list returned no tools array.' );
+		$all_tools = array_merge( $all_tools, $page_tools );
+		$cursor = trim( (string) ( $result['nextCursor'] ?? '' ) );
+		if ( '' === $cursor ) {
+			return $all_tools;
+		}
+	}
+	cmsa_mcp_redteam_fail( 'Paginated tools/list exceeded the cursor safety limit.' );
 }
 
 function cmsa_mcp_redteam_tool( $name, array $arguments = array() ) {
@@ -140,12 +176,12 @@ function cmsa_mcp_redteam_extract_id( $value ) {
 
 wp_set_current_user( 1 );
 
-cmsa_mcp_redteam_assert( defined( 'CUA_VERSION' ) && '1.1.0' === CUA_VERSION, 'Chattanooga CMS Admin 1.1.0 is not active.' );
+cmsa_mcp_redteam_assert( defined( 'CUA_VERSION' ) && '1.2.1' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.1 is not active.' );
 cmsa_mcp_redteam_assert( defined( 'EM_VERSION' ) && '7.4.3' === (string) EM_VERSION, 'Events Manager 7.4.3 is not active.' );
 cmsa_mcp_redteam_assert( defined( 'CMS_CORE_VERSION' ) && '0.2.1' === CMS_CORE_VERSION, 'Weekend Feature 0.2.1 is not active.' );
 cmsa_mcp_redteam_assert( class_exists( 'CMS_Weekend_Posts' ), 'Weekend Feature generator is unavailable.' );
 
-$tools_result = cmsa_mcp_redteam_call( 'tools/list', array() );
+$tools_result = array( 'tools' => cmsa_mcp_redteam_all_tools() );
 $tool_names = array();
 foreach ( $tools_result['tools'] ?? array() as $tool ) {
 	if ( is_array( $tool ) && isset( $tool['name'] ) ) {
@@ -288,7 +324,7 @@ $anonymous_request->set_body(
 	)
 );
 $anonymous_response = rest_do_request( $anonymous_request );
-cmsa_mcp_redteam_assert( $anonymous_response instanceof WP_REST_Response && 401 === $anonymous_response->get_status(), 'Anonymous native MCP access was not blocked.' );
+cmsa_mcp_redteam_assert( $anonymous_response instanceof WP_REST_Response && 401 === $anonymous_response->get_status(), 'Anonymous Chattanooga MCP access was not blocked.' );
 
 echo "cmsa-native-mcp-functional-redteam: PASS event_create=verified event_read=verified event_update=verified seo_read=verified seo_write=verified seo_rollback=verified weekend_generation=verified weekend_mcp_readback=verified content_cleanup=verified anonymous_block=verified\n";
 exit( 0 );
