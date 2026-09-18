@@ -49,6 +49,7 @@ function cmsa_native_mcp_modern( $method, array $params = array(), $id = 1, arra
 	global $cmsa_native_mcp_session_id;
 	$params['_meta'] = isset( $params['_meta'] ) && is_array( $params['_meta'] ) ? $params['_meta'] : array();
 	$params['_meta']['io.modelcontextprotocol/protocolVersion'] = '2026-07-28';
+	$params['_meta']['io.modelcontextprotocol/clientCapabilities'] = array();
 	$params['_meta']['io.modelcontextprotocol/clientInfo'] = array(
 		'name'    => 'cmsa-native-mcp-probe',
 		'version' => '1.0.0',
