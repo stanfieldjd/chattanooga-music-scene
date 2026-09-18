@@ -13,6 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class CUA_OAuth_Server {
 	const REST_NAMESPACE = 'chattanooga-cms-admin/v1';
 	const SCOPE          = 'mcp:admin';
+	const OFFLINE_SCOPE  = 'offline_access';
 	const CLIENT_OPTION  = 'cua_oauth_clients';
 	const CODE_TTL       = 300;
 	const ACCESS_TTL     = 3600;
@@ -78,7 +79,7 @@ final class CUA_OAuth_Server {
 		return array(
 			'resource'              => self::canonical_resource(),
 			'authorization_servers' => array( self::canonical_issuer() ),
-			'scopes_supported'      => array( self::SCOPE ),
+			'scopes_supported'      => array( self::SCOPE, self::OFFLINE_SCOPE ),
 			'bearer_methods_supported' => array( 'header' ),
 		);
 	}
@@ -184,8 +185,9 @@ final class CUA_OAuth_Server {
 		if ( 'code' !== $response_type || 'S256' !== $challenge_method || ! preg_match( '/^[A-Za-z0-9_-]{43,128}$/', $challenge ) ) {
 			self::authorization_redirect_error( $redirect_uri, 'invalid_request', 'Authorization code flow with PKCE S256 is required.', $state );
 		}
-		if ( ! self::scope_is_valid( $scope ) ) {
-			self::authorization_redirect_error( $redirect_uri, 'invalid_scope', 'The requested scope is not supported.', $state );
+		$scope = self::normalize_scope( $scope );
+		if ( is_wp_error( $scope ) ) {
+			self::authorization_redirect_error( $redirect_uri, 'invalid_scope', $scope->get_error_message(), $state );
 		}
 		if ( ! hash_equals( self::canonical_resource(), $resource ) ) {
 			self::authorization_redirect_error( $redirect_uri, 'invalid_target', 'The requested resource is not supported.', $state );
@@ -207,13 +209,13 @@ final class CUA_OAuth_Server {
 				'client_id'      => $client_id,
 				'redirect_uri'   => $redirect_uri,
 				'user_id'        => get_current_user_id(),
-				'scope'          => self::SCOPE,
+				'scope'          => $scope,
 				'resource'       => $resource,
 				'code_challenge' => $challenge,
 			),
 			self::CODE_TTL
 		);
-		$url = add_query_arg( array_filter( array( 'code' => $code, 'state' => $state, 'resource' => $resource ), 'strlen' ), $redirect_uri );
+		$url = add_query_arg( array_filter( array( 'code' => $code, 'state' => $state, 'resource' => $resource, 'iss' => self::canonical_issuer() ), 'strlen' ), $redirect_uri );
 		wp_redirect( $url );
 		exit;
 	}
@@ -251,7 +253,7 @@ final class CUA_OAuth_Server {
 		}
 
 		$record = get_transient( self::transient_key( 'access', $matches[1] ) );
-		if ( ! is_array( $record ) || empty( $record['user_id'] ) || self::SCOPE !== ( $record['scope'] ?? '' ) || self::canonical_resource() !== ( $record['resource'] ?? '' ) ) {
+		if ( ! is_array( $record ) || empty( $record['user_id'] ) || ! self::scope_contains( $record['scope'] ?? '', self::SCOPE ) || self::canonical_resource() !== ( $record['resource'] ?? '' ) ) {
 			return new WP_Error( 'cmsa_oauth_token_invalid', 'The Bearer access token is invalid or expired.', array( 'status' => 401 ) );
 		}
 		$user = get_user_by( 'id', (int) $record['user_id'] );
@@ -315,24 +317,26 @@ final class CUA_OAuth_Server {
 	private static function issue_tokens( array $record ) {
 		$access = self::random_token( 32 );
 		$refresh = self::random_token( 32 );
+		$granted_scope = isset( $record['scope'] ) ? (string) $record['scope'] : self::SCOPE;
 		$stored = array(
 			'client_id' => (string) $record['client_id'],
 			'user_id'   => (int) $record['user_id'],
-			'scope'     => self::SCOPE,
+			'scope'     => $granted_scope,
 			'resource'  => (string) $record['resource'],
 		);
 		set_transient( self::transient_key( 'access', $access ), $stored, self::ACCESS_TTL );
-		set_transient( self::transient_key( 'refresh', $refresh ), $stored, self::REFRESH_TTL );
-		return self::no_store_response(
-			array(
-				'access_token'  => $access,
-				'token_type'    => 'Bearer',
-				'expires_in'    => self::ACCESS_TTL,
-				'refresh_token' => $refresh,
-				'scope'         => self::SCOPE,
-				'resource'      => (string) $record['resource'],
-			)
+		$body = array(
+			'access_token' => $access,
+			'token_type'   => 'Bearer',
+			'expires_in'   => self::ACCESS_TTL,
+			'scope'        => $granted_scope,
+			'resource'     => (string) $record['resource'],
 		);
+		if ( self::scope_contains( $granted_scope, self::OFFLINE_SCOPE ) ) {
+			$body['refresh_token'] = $refresh;
+			set_transient( self::transient_key( 'refresh', $refresh ), $stored, self::REFRESH_TTL );
+		}
+		return self::no_store_response( $body );
 	}
 
 	private static function resolve_client( $client_id, $redirect_uri ) {
@@ -425,7 +429,7 @@ final class CUA_OAuth_Server {
 	}
 
 	private static function authorization_redirect_error( $redirect_uri, $error, $description, $state ) {
-		$url = add_query_arg( array_filter( array( 'error' => $error, 'error_description' => $description, 'state' => $state ), 'strlen' ), $redirect_uri );
+		$url = add_query_arg( array_filter( array( 'error' => $error, 'error_description' => $description, 'state' => $state, 'iss' => self::canonical_issuer() ), 'strlen' ), $redirect_uri );
 		wp_redirect( $url );
 		exit;
 	}
@@ -434,9 +438,27 @@ final class CUA_OAuth_Server {
 		return (bool) preg_match( '#^application/json(?:\s*;|$)#i', trim( (string) $request->get_header( 'content-type' ) ) );
 	}
 
-	private static function scope_is_valid( $scope ) {
-		$scopes = preg_split( '/\s+/', trim( (string) $scope ) );
-		return array( self::SCOPE ) === $scopes;
+	private static function normalize_scope( $scope ) {
+		$scopes = preg_split( '/\s+/', trim( (string) $scope ), -1, PREG_SPLIT_NO_EMPTY );
+		$scopes = array_values( array_unique( is_array( $scopes ) ? $scopes : array() ) );
+		if ( ! in_array( self::SCOPE, $scopes, true ) ) {
+			return new WP_Error( 'cmsa_oauth_scope_required', 'The mcp:admin scope is required.' );
+		}
+		foreach ( $scopes as $candidate ) {
+			if ( ! in_array( $candidate, array( self::SCOPE, self::OFFLINE_SCOPE ), true ) ) {
+				return new WP_Error( 'cmsa_oauth_scope_unsupported', 'The requested scope is not supported.' );
+			}
+		}
+		$normalized = array( self::SCOPE );
+		if ( in_array( self::OFFLINE_SCOPE, $scopes, true ) ) {
+			$normalized[] = self::OFFLINE_SCOPE;
+		}
+		return implode( ' ', $normalized );
+	}
+
+	private static function scope_contains( $scope, $required ) {
+		$scopes = preg_split( '/\s+/', trim( (string) $scope ), -1, PREG_SPLIT_NO_EMPTY );
+		return is_array( $scopes ) && in_array( (string) $required, $scopes, true );
 	}
 
 	private static function canonical_issuer() {
