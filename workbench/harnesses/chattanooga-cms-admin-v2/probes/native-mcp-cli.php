@@ -230,11 +230,21 @@ cmsa_native_mcp_assert( $names === $sorted_names, 'MCP tools/list is not determi
 foreach ( array( 'cmsa.catalog', 'cmsa.read-bridge', 'cmsa.write-bridge' ) as $required_tool ) {
 	cmsa_native_mcp_assert( in_array( $required_tool, $names, true ), 'Required MCP tool is missing: ' . $required_tool );
 }
-foreach ( $names as $name ) {
-	$allowed = in_array( $name, array( 'cmsa.catalog', 'cmsa.read-bridge', 'cmsa.write-bridge' ), true )
-		|| 1 === preg_match( '/^cmsa\\.(?:bridge|rest)-[a-f0-9]{24}$/', $name );
-	cmsa_native_mcp_assert( $allowed, 'Administrator/control-plane tool leaked into tools/list: ' . $name );
+
+$expected_names = array();
+foreach ( wp_get_abilities() as $ability ) {
+	if ( ! $ability instanceof WP_Ability ) {
+		continue;
+	}
+	$ability_name = $ability->get_name();
+	if ( 0 !== strpos( $ability_name, CUA_MCP_Server::ABILITY_PREFIX ) ) {
+		continue;
+	}
+	$short = substr( $ability_name, strlen( CUA_MCP_Server::ABILITY_PREFIX ) );
+	$expected_names[] = CUA_MCP_Server::TOOL_PREFIX . preg_replace( '/[^A-Za-z0-9_.-]/', '-', $short );
 }
+sort( $expected_names, SORT_STRING );
+cmsa_native_mcp_assert( $names === $expected_names, 'MCP tools/list does not expose the complete registered Chattanooga administrator ability set.' );
 
 $catalog_tool = cmsa_native_mcp_tool( $tools, 'cmsa.catalog' );
 $write_tool  = cmsa_native_mcp_tool( $tools, 'cmsa.write-bridge' );
@@ -338,5 +348,5 @@ $close_session->set_header( 'Mcp-Session-Id', $cmsa_native_mcp_session_id );
 $close_session_response = rest_do_request( $close_session );
 cmsa_native_mcp_assert( 204 === $close_session_response->get_status(), 'MCP DELETE did not close the session.' );
 
-echo "cmsa-native-mcp: PASS version=1.2.1 protocol=2026-07-28 supported_versions=none route=verified admin_boundary=verified origin_guard=verified tools_list=deterministic read_call=verified private_bridges=hidden header_validation=verified\n";
+echo "cmsa-native-mcp: PASS version=1.1.0 protocol=2026-07-28 route=verified administrator_surface=exposed origin_guard=verified tools_list=complete-deterministic read_call=verified header_validation=verified\n";
 exit( 0 );
