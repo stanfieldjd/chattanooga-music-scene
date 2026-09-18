@@ -102,7 +102,7 @@ function cmsa_native_mcp_all_tools() {
 }
 
 wp_set_current_user( 1 );
-cmsa_native_mcp_assert( defined( 'CUA_VERSION' ) && '1.1.0' === CUA_VERSION, 'Chattanooga CMS Admin 1.1.0 did not load.' );
+cmsa_native_mcp_assert( defined( 'CUA_VERSION' ) && '1.2.2' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.2 did not load.' );
 cmsa_native_mcp_assert( class_exists( 'CUA_MCP_Server' ), 'Chattanooga MCP server class did not load.' );
 
 $server = rest_get_server();
@@ -348,5 +348,5 @@ $close_session->set_header( 'Mcp-Session-Id', $cmsa_native_mcp_session_id );
 $close_session_response = rest_do_request( $close_session );
 cmsa_native_mcp_assert( 204 === $close_session_response->get_status(), 'MCP DELETE did not close the session.' );
 
-echo "cmsa-native-mcp: PASS version=1.1.0 protocol=2026-07-28 route=verified administrator_surface=exposed origin_guard=verified tools_list=complete-deterministic read_call=verified header_validation=verified\n";
+echo "cmsa-native-mcp: PASS version=1.2.2 protocol=2026-07-28 route=verified administrator_surface=exposed origin_guard=verified tools_list=complete-deterministic read_call=verified header_validation=verified\n";
 exit( 0 );
