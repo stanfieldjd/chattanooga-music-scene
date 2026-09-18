@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - work/cmsa-functional-redteam
+      - work/mcp-oauth-refresh-migration-20260918
     paths:
       - "site-plugins/chattanooga-cms-admin/**"
       - "site-plugins/chattanooga-music-scene-core/**"
