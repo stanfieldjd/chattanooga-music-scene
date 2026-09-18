@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - work/cmsa-functional-redteam
+      - work/mcp-2026-interop-fix-20260918
     paths:
       - "site-plugins/chattanooga-cms-admin/**"
       - "site-plugins/chattanooga-music-scene-core/**"
