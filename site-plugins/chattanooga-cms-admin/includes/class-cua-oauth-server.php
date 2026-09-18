@@ -299,7 +299,6 @@ final class CUA_OAuth_Server {
 		$refresh = trim( (string) $request->get_param( 'refresh_token' ) );
 		$key = self::transient_key( 'refresh', $refresh );
 		$record = get_transient( $key );
-		delete_transient( $key );
 		if ( ! is_array( $record ) ) {
 			return self::oauth_error( 'invalid_grant', 'The refresh token is invalid, expired, or already used.', 400 );
 		}
@@ -311,7 +310,16 @@ final class CUA_OAuth_Server {
 		if ( ! isset( $record['resource'] ) || ! hash_equals( (string) $record['resource'], $resource ) || ! hash_equals( self::canonical_resource(), $resource ) ) {
 			return self::oauth_error( 'invalid_target', 'The resource does not match the refresh token.', 400 );
 		}
-		return self::issue_tokens( $record );
+
+		$response = self::issue_tokens( $record );
+		if ( self::scope_contains( $record['scope'] ?? '', self::OFFLINE_SCOPE ) ) {
+			// Modern offline-access grants rotate refresh tokens. A pre-1.2.3
+			// refresh token has no offline_access scope; preserve that existing
+			// token until its original TTL expires instead of consuming it
+			// without returning a replacement.
+			delete_transient( $key );
+		}
+		return $response;
 	}
 
 	private static function issue_tokens( array $record ) {
