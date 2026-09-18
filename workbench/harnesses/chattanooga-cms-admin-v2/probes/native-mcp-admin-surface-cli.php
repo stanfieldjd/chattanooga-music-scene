@@ -56,6 +56,7 @@ do {
 	$params = array(
 		'_meta' => array(
 			'io.modelcontextprotocol/protocolVersion' => '2026-07-28',
+			'io.modelcontextprotocol/clientCapabilities' => array(),
 			'io.modelcontextprotocol/clientInfo'      => array(
 				'name'    => 'cmsa-admin-surface-probe',
 				'version' => '1.0.0',
