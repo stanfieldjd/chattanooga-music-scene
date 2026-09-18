@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - work/chattanooga-universal-admin-v2
+      - work/mcp-oauth-refresh-migration-20260918
     paths:
       - "site-plugins/chattanooga-cms-admin/**"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/replacement-coverage-cli.php"
