@@ -35,7 +35,8 @@ function cmsa_weekend_mcp_call( $tool, array $arguments ) {
 					'name'      => $tool,
 					'arguments' => $arguments,
 					'_meta'     => array(
-						'io.modelcontextprotocol/protocolVersion' => '2026-07-28',
+						'io.modelcontextprotocol/protocolVersion'    => '2026-07-28',
+						'io.modelcontextprotocol/clientCapabilities' => array(),
 						'io.modelcontextprotocol/clientInfo'      => array(
 							'name'    => 'cmsa-weekend-ability-probe',
 							'version' => '1.0.0',
