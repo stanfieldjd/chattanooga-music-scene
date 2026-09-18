@@ -147,6 +147,46 @@ jobs:
           fi
           php -r '$d=json_decode(file_get_contents("/tmp/cmsa-discover-response.json"),true); if (($d["result"]["resultType"]??"")!=="complete" || ($d["result"]["supportedVersions"]??[])!==["2026-07-28","2025-11-25"]) { fwrite(STDERR, "Authenticated MCP discovery body did not match the protocol contract.\n"); fwrite(STDERR, file_get_contents("/tmp/cmsa-discover-response.json")); exit(1); }'
 
+          cat > /tmp/cmsa-initialize.json <<'JSON'
+          {"jsonrpc":"2.0","id":400,"method":"initialize","params":{"protocolVersion":"2026-07-28","capabilities":{},"clientInfo":{"name":"cmsa-http-ci","version":"1.0.0"}}}
+          JSON
+
+          initialize_code="$(curl -sS -D /tmp/cmsa-initialize-headers.txt -o /tmp/cmsa-initialize-response.json -w '%{http_code}' \
+            --user "admin:${app_password}" \
+            -H 'Content-Type: application/json' \
+            -H 'MCP-Protocol-Version: 2026-07-28' \
+            -H 'Mcp-Method: initialize' \
+            --data-binary @/tmp/cmsa-initialize.json \
+            "$endpoint")"
+          if [ "$initialize_code" != '200' ]; then
+            echo "Authenticated MCP initialize returned HTTP $initialize_code" >&2
+            cat /tmp/cmsa-initialize-response.json >&2
+            exit 1
+          fi
+          session_id="$(awk 'BEGIN{IGNORECASE=1} /^Mcp-Session-Id:/ {gsub("\\r","",$2); print $2}' /tmp/cmsa-initialize-headers.txt | tail -n1)"
+          if [ -z "$session_id" ]; then
+            echo "Authenticated MCP initialize did not return Mcp-Session-Id." >&2
+            cat /tmp/cmsa-initialize-headers.txt >&2
+            exit 1
+          fi
+
+          cat > /tmp/cmsa-initialized.json <<'JSON'
+          {"jsonrpc":"2.0","method":"notifications/initialized","params":{}}
+          JSON
+          initialized_code="$(curl -sS -o /tmp/cmsa-initialized-response.txt -w '%{http_code}' \
+            --user "admin:${app_password}" \
+            -H 'Content-Type: application/json' \
+            -H 'MCP-Protocol-Version: 2026-07-28' \
+            -H 'Mcp-Method: notifications/initialized' \
+            -H "Mcp-Session-Id: $session_id" \
+            --data-binary @/tmp/cmsa-initialized.json \
+            "$endpoint")"
+          if [ "$initialized_code" != '202' ]; then
+            echo "Authenticated MCP initialized notification returned HTTP $initialized_code" >&2
+            cat /tmp/cmsa-initialized-response.txt >&2
+            exit 1
+          fi
+
           cat > /tmp/cmsa-catalog.json <<'JSON'
           {"jsonrpc":"2.0","id":402,"method":"tools/call","params":{"name":"cmsa.catalog","arguments":{},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"cmsa-http-ci","version":"1.0.0"}}}}
           JSON
@@ -157,6 +197,7 @@ jobs:
             -H 'MCP-Protocol-Version: 2026-07-28' \
             -H 'Mcp-Method: tools/call' \
             -H 'Mcp-Name: cmsa.catalog' \
+            -H "Mcp-Session-Id: $session_id" \
             --data-binary @/tmp/cmsa-catalog.json \
             "$endpoint")"
           if [ "$catalog_code" != '200' ]; then
@@ -180,6 +221,7 @@ jobs:
             -H 'MCP-Protocol-Version: 2026-07-28' \
             -H 'Mcp-Method: tools/call' \
             -H 'Mcp-Name: cmsa.write-bridge' \
+            -H "Mcp-Session-Id: $session_id" \
             --data-binary @/tmp/cmsa-write.json \
             "$endpoint")"
           if [ "$write_code" != '200' ]; then
