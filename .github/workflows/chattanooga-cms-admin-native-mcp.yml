@@ -127,7 +127,11 @@ jobs:
             -H 'Mcp-Method: server/discover' \
             --data-binary @/tmp/cmsa-discover.json \
             "$endpoint")"
-          test "$anonymous_code" = '401'
+          if [ "$anonymous_code" != '401' ]; then
+            echo "Anonymous MCP request returned HTTP $anonymous_code" >&2
+            cat /tmp/cmsa-anonymous.json >&2
+            exit 1
+          fi
 
           authenticated_code="$(curl -sS -o /tmp/cmsa-discover-response.json -w '%{http_code}' \
             --user "admin:${app_password}" \
@@ -136,8 +140,12 @@ jobs:
             -H 'Mcp-Method: server/discover' \
             --data-binary @/tmp/cmsa-discover.json \
             "$endpoint")"
-          test "$authenticated_code" = '200'
-          php -r '$d=json_decode(file_get_contents("/tmp/cmsa-discover-response.json"),true); if (($d["result"]["resultType"]??"")!=="complete" || ($d["result"]["supportedVersions"]??[])!==["2026-07-28","2025-11-25"]) exit(1);'
+          if [ "$authenticated_code" != '200' ]; then
+            echo "Authenticated MCP discovery returned HTTP $authenticated_code" >&2
+            cat /tmp/cmsa-discover-response.json >&2
+            exit 1
+          fi
+          php -r '$d=json_decode(file_get_contents("/tmp/cmsa-discover-response.json"),true); if (($d["result"]["resultType"]??"")!=="complete" || ($d["result"]["supportedVersions"]??[])!==["2026-07-28","2025-11-25"]) { fwrite(STDERR, "Authenticated MCP discovery body did not match the protocol contract.\n"); fwrite(STDERR, file_get_contents("/tmp/cmsa-discover-response.json")); exit(1); }'
 
           cat > /tmp/cmsa-catalog.json <<'JSON'
           {"jsonrpc":"2.0","id":402,"method":"tools/call","params":{"name":"cmsa.catalog","arguments":{},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"cmsa-http-ci","version":"1.0.0"}}}}
@@ -151,9 +159,17 @@ jobs:
             -H 'Mcp-Name: cmsa.catalog' \
             --data-binary @/tmp/cmsa-catalog.json \
             "$endpoint")"
-          test "$catalog_code" = '200'
+          if [ "$catalog_code" != '200' ]; then
+            echo "Authenticated MCP catalog call returned HTTP $catalog_code" >&2
+            cat /tmp/cmsa-catalog-response.json >&2
+            exit 1
+          fi
 
-          bridge="$(php -r '$d=json_decode(file_get_contents("/tmp/cmsa-catalog-response.json"),true); foreach (($d["result"]["structuredContent"]["items"]??[]) as $item) { if (($item["contract"]??"")==="rest" && ($item["method"]??"")==="POST" && ($item["route"]??"")==="/wp/v2/posts") { echo $item["bridge"]; exit(0); } } exit(1);')"
+          bridge="$(php -r '$d=json_decode(file_get_contents("/tmp/cmsa-catalog-response.json"),true); foreach (($d["result"]["structuredContent"]["items"]??[]) as $item) { if (($item["contract"]??"")==="rest" && ($item["method"]??"")==="POST" && ($item["route"]??"")==="/wp/v2/posts") { echo $item["bridge"]; exit(0); } } exit(1);')" || {
+            echo "Catalog did not expose the POST /wp/v2/posts REST bridge." >&2
+            cat /tmp/cmsa-catalog-response.json >&2
+            exit 1
+          }
           test -n "$bridge"
 
           BRIDGE="$bridge" php -r '$b=getenv("BRIDGE"); echo json_encode(["jsonrpc"=>"2.0","id"=>403,"method"=>"tools/call","params"=>["name"=>"cmsa.write-bridge","arguments"=>["bridge"=>$b,"input"=>["path"=>"/wp/v2/posts","params"=>["title"=>"CMSA MCP HTTP Write Probe","status"=>"draft","content"=>"Disposable native MCP CI write-authority probe."]]],"_meta"=>["io.modelcontextprotocol/protocolVersion"=>"2026-07-28","io.modelcontextprotocol/clientInfo"=>["name"=>"cmsa-http-ci","version"=>"1.0.0"]]]]);' > /tmp/cmsa-write.json
@@ -166,9 +182,17 @@ jobs:
             -H 'Mcp-Name: cmsa.write-bridge' \
             --data-binary @/tmp/cmsa-write.json \
             "$endpoint")"
-          test "$write_code" = '200'
+          if [ "$write_code" != '200' ]; then
+            echo "Authenticated MCP write call returned HTTP $write_code" >&2
+            cat /tmp/cmsa-write-response.json >&2
+            exit 1
+          fi
 
-          post_id="$(php -r '$d=json_decode(file_get_contents("/tmp/cmsa-write-response.json"),true); $result=$d["result"]??[]; $rest=$result["structuredContent"]["result"]??[]; if (($result["isError"]??true)!==false || ($rest["status"]??0)!==201 || ($rest["data"]["status"]??"")!=="draft" || empty($rest["data"]["id"])) exit(1); echo (int)$rest["data"]["id"];')"
+          post_id="$(php -r '$d=json_decode(file_get_contents("/tmp/cmsa-write-response.json"),true); $result=$d["result"]??[]; $rest=$result["structuredContent"]["result"]??[]; if (($result["isError"]??true)!==false || ($rest["status"]??0)!==201 || ($rest["data"]["status"]??"")!=="draft" || empty($rest["data"]["id"])) exit(1); echo (int)$rest["data"]["id"];')" || {
+            echo "Authenticated MCP write response did not contain a created draft post." >&2
+            cat /tmp/cmsa-write-response.json >&2
+            exit 1
+          }
           test -n "$post_id"
           test "$(php /tmp/wp-cli.phar post get "$post_id" --field=post_status --path=/tmp/wordpress)" = 'draft'
           php /tmp/wp-cli.phar post delete "$post_id" --force --path=/tmp/wordpress >/dev/null
