@@ -30,6 +30,7 @@ function cmsa_mcp_redteam_call( $method, array $params, $tool_name = '' ) {
 
 	$params['_meta'] = array(
 		'io.modelcontextprotocol/protocolVersion' => '2026-07-28',
+			'io.modelcontextprotocol/clientCapabilities' => array(),
 		'io.modelcontextprotocol/clientInfo'      => array(
 			'name'    => 'cmsa-functional-redteam',
 			'version' => '1.0.0',
@@ -140,7 +141,7 @@ function cmsa_mcp_redteam_extract_id( $value ) {
 
 wp_set_current_user( 1 );
 
-cmsa_mcp_redteam_assert( defined( 'CUA_VERSION' ) && '1.2.2' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.2 is not active.' );
+cmsa_mcp_redteam_assert( defined( 'CUA_VERSION' ) && '1.2.3' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.3 is not active.' );
 cmsa_mcp_redteam_assert( defined( 'EM_VERSION' ) && '7.4.3' === (string) EM_VERSION, 'Events Manager 7.4.3 is not active.' );
 cmsa_mcp_redteam_assert( defined( 'CMS_CORE_VERSION' ) && '0.2.1' === CMS_CORE_VERSION, 'Weekend Feature 0.2.1 is not active.' );
 cmsa_mcp_redteam_assert( class_exists( 'CMS_Weekend_Posts' ), 'Weekend Feature generator is unavailable.' );
@@ -278,6 +279,7 @@ $anonymous_request->set_body(
 			'params'  => array(
 				'_meta' => array(
 					'io.modelcontextprotocol/protocolVersion' => '2026-07-28',
+			'io.modelcontextprotocol/clientCapabilities' => array(),
 					'io.modelcontextprotocol/clientInfo'      => array(
 						'name'    => 'cmsa-functional-redteam-anonymous',
 						'version' => '1.0.0',
