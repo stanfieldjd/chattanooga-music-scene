@@ -87,7 +87,7 @@ function cmsa_native_mcp_all_tools() {
 	$cursor = '';
 	for ( $page = 0; $page < 20; $page++ ) {
 		$params = '' === $cursor ? array() : array( 'cursor' => $cursor );
-		$response = cmsa_native_mcp_modern( 'tools/list', $params, 110 + $page, array( 'Mcp-Session-Id' => $cmsa_native_mcp_session_id ) );
+		$response = cmsa_native_mcp_modern( 'tools/list', $params, 110 + $page );
 		cmsa_native_mcp_assert( 200 === $response->get_status(), 'Paginated tools/list did not return HTTP 200: ' . $response->get_status() . ' ' . wp_json_encode( $response->get_data() ) );
 		$data = $response->get_data();
 		$page_tools = $data['result']['tools'] ?? null;
@@ -102,7 +102,7 @@ function cmsa_native_mcp_all_tools() {
 }
 
 wp_set_current_user( 1 );
-cmsa_native_mcp_assert( defined( 'CUA_VERSION' ) && '1.2.2' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.2 did not load.' );
+cmsa_native_mcp_assert( defined( 'CUA_VERSION' ) && '1.2.3' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.3 did not load.' );
 cmsa_native_mcp_assert( class_exists( 'CUA_MCP_Server' ), 'Chattanooga MCP server class did not load.' );
 
 $server = rest_get_server();
@@ -160,39 +160,24 @@ cmsa_native_mcp_assert(
 );
 cmsa_native_mcp_assert( false === ( $discover_data['result']['capabilities']['resources']['subscribe'] ?? true ), 'Discovery returned the wrong resources capability.' );
 
-$initialize = cmsa_native_mcp_modern(
-	'initialize',
-	array(
-		'protocolVersion' => '2026-07-28',
-		'capabilities'    => array(),
-		'clientInfo'      => array( 'name' => 'cmsa-native-mcp-probe', 'version' => '1.0.0' ),
-	),
-	108
-);
-cmsa_native_mcp_assert( 200 === $initialize->get_status(), 'MCP initialize did not return HTTP 200.' );
-$initialize_headers = array_change_key_case( $initialize->get_headers(), CASE_LOWER );
-$cmsa_native_mcp_session_id = trim( (string) ( $initialize_headers['mcp-session-id'] ?? '' ) );
-cmsa_native_mcp_assert( '' !== $cmsa_native_mcp_session_id, 'MCP initialize did not establish a session.' );
+$stateless_list = cmsa_native_mcp_modern( 'tools/list', array(), 108, array( 'Mcp-Session-Id' => 'ignored-modern-session' ) );
+cmsa_native_mcp_assert( 200 === $stateless_list->get_status(), 'Modern tools/list did not run without initialization.' );
+$stateless_headers = array_change_key_case( $stateless_list->get_headers(), CASE_LOWER );
+cmsa_native_mcp_assert( ! isset( $stateless_headers['mcp-session-id'] ), 'Modern tools/list echoed a session header.' );
 
-$initialized = cmsa_native_mcp_modern( 'notifications/initialized', array(), null, array( 'Mcp-Session-Id' => $cmsa_native_mcp_session_id ) );
-cmsa_native_mcp_assert( 202 === $initialized->get_status(), 'MCP initialized notification did not return HTTP 202: ' . $initialized->get_status() . ' ' . wp_json_encode( $initialized->get_data() ) );
-
-$wrong_session_version = cmsa_native_mcp_post( 'resources/list', array(), array( 'MCP-Protocol-Version' => '2025-11-25', 'Mcp-Method' => 'resources/list', 'Mcp-Session-Id' => $cmsa_native_mcp_session_id ), 112 );
-cmsa_native_mcp_assert( 400 === $wrong_session_version->get_status() && -32022 === ( $wrong_session_version->get_data()['error']['code'] ?? null ), 'A request using the wrong negotiated MCP session version was accepted.' );
-
-$resources = cmsa_native_mcp_modern( 'resources/list', array(), 109, array( 'Mcp-Session-Id' => $cmsa_native_mcp_session_id ) );
+$resources = cmsa_native_mcp_modern( 'resources/list', array(), 109 );
 cmsa_native_mcp_assert( 200 === $resources->get_status(), 'resources/list did not return HTTP 200: ' . $resources->get_status() . ' ' . wp_json_encode( $resources->get_data() ) );
 $resources_data = $resources->get_data();
 cmsa_native_mcp_assert( is_array( $resources_data['result']['resources'] ?? null ), 'resources/list did not return resources.' );
 cmsa_native_mcp_assert( CUA_MCP_Server::RESOURCE_CATALOG_URI === ( $resources_data['result']['resources'][0]['uri'] ?? '' ), 'Site-operation catalog resource was not listed.' );
 
-$resource_read = cmsa_native_mcp_modern( 'resources/read', array( 'uri' => CUA_MCP_Server::RESOURCE_CATALOG_URI ), 110, array( 'Mcp-Session-Id' => $cmsa_native_mcp_session_id ) );
+$resource_read = cmsa_native_mcp_modern( 'resources/read', array( 'uri' => CUA_MCP_Server::RESOURCE_CATALOG_URI ), 110 );
 cmsa_native_mcp_assert( 200 === $resource_read->get_status(), 'resources/read did not return HTTP 200: ' . $resource_read->get_status() . ' ' . wp_json_encode( $resource_read->get_data() ) );
 $resource_read_data = $resource_read->get_data();
 cmsa_native_mcp_assert( 'application/json' === ( $resource_read_data['result']['contents'][0]['mimeType'] ?? '' ), 'Site-operation resource returned the wrong MIME type.' );
 cmsa_native_mcp_assert( false !== strpos( (string) ( $resource_read_data['result']['contents'][0]['text'] ?? '' ), 'items' ), 'Site-operation resource did not return catalog content.' );
 
-$prompts = cmsa_native_mcp_modern( 'prompts/list', array(), 111, array( 'Mcp-Session-Id' => $cmsa_native_mcp_session_id ) );
+$prompts = cmsa_native_mcp_modern( 'prompts/list', array(), 111 );
 cmsa_native_mcp_assert( 200 === $prompts->get_status(), 'prompts/list did not return HTTP 200.' );
 $prompts_data = $prompts->get_data();
 cmsa_native_mcp_assert( CUA_MCP_Server::PROMPT_SITE_OPERATION === ( $prompts_data['result']['prompts'][0]['name'] ?? '' ), 'Site-operation prompt was not listed.' );
@@ -212,7 +197,7 @@ cmsa_native_mcp_assert( 'user' === ( $prompt_get_data['result']['messages'][0]['
 cmsa_native_mcp_assert( false !== strpos( (string) ( $prompt_get_data['result']['messages'][0]['content']['text'] ?? '' ), 'site-operation catalog' ), 'Site-operation prompt returned incomplete guidance.' );
 
 // tools/list: deterministic names, bounded public ability surface, and correct read/write annotations.
-$list = cmsa_native_mcp_modern( 'tools/list', array(), 102, array( 'Mcp-Session-Id' => $cmsa_native_mcp_session_id ) );
+$list = cmsa_native_mcp_modern( 'tools/list', array(), 102 );
 cmsa_native_mcp_assert( 200 === $list->get_status(), 'tools/list did not return HTTP 200.' );
 $list_data = $list->get_data();
 $tools = cmsa_native_mcp_all_tools();
@@ -251,6 +236,10 @@ $write_tool  = cmsa_native_mcp_tool( $tools, 'cmsa.write-bridge' );
 cmsa_native_mcp_assert( true === ( $catalog_tool['annotations']['readOnlyHint'] ?? null ), 'catalog is not annotated read-only.' );
 cmsa_native_mcp_assert( false === ( $write_tool['annotations']['readOnlyHint'] ?? null ), 'write-bridge is incorrectly annotated read-only.' );
 cmsa_native_mcp_assert( true === ( $write_tool['annotations']['destructiveHint'] ?? null ), 'write-bridge is not annotated as mutating/destructive.' );
+cmsa_native_mcp_assert( ( $catalog_tool['securitySchemes'] ?? null ) === ( $catalog_tool['_meta']['securitySchemes'] ?? null ), 'Tool security schemes are not mirrored into _meta.' );
+cmsa_native_mcp_assert( 30000 === ( $resources_data['result']['ttlMs'] ?? null ) && 'private' === ( $resources_data['result']['cacheScope'] ?? '' ), 'resources/list cache hints are incomplete.' );
+cmsa_native_mcp_assert( 30000 === ( $resource_read_data['result']['ttlMs'] ?? null ) && 'private' === ( $resource_read_data['result']['cacheScope'] ?? '' ), 'resources/read cache hints are incomplete.' );
+cmsa_native_mcp_assert( 30000 === ( $prompts_data['result']['ttlMs'] ?? null ) && 'private' === ( $prompts_data['result']['cacheScope'] ?? '' ), 'prompts/list cache hints are incomplete.' );
 
 // Execute one real site-operation catalog call through MCP.
 $catalog = cmsa_native_mcp_modern(
@@ -283,7 +272,7 @@ foreach ( $audit_result['entries'] as $entry ) {
 }
 cmsa_native_mcp_assert( is_array( $mcp_audit ), 'Successful MCP tools/call was not recorded at the MCP boundary.' );
 cmsa_native_mcp_assert( 200 === (int) ( $mcp_audit['http_status'] ?? 0 ), 'MCP audit entry did not record the completed HTTP status.' );
-cmsa_native_mcp_assert( preg_match( '/^[a-f0-9]{64}$/', (string) ( $mcp_audit['session_sha256'] ?? '' ) ), 'MCP audit entry did not hash the session identifier.' );
+cmsa_native_mcp_assert( ! array_key_exists( 'session_sha256', $mcp_audit ), 'Modern MCP audit retained a session identifier.' );
 foreach ( array( 'authorization', 'token', 'arguments', 'input', 'output', 'response', 'session_id' ) as $forbidden_key ) {
 	cmsa_native_mcp_assert( ! array_key_exists( $forbidden_key, $mcp_audit ), 'MCP audit entry retained a sensitive raw field: ' . $forbidden_key );
 }
@@ -328,6 +317,7 @@ $origin_request->set_body(
 			'params'  => array(
 				'_meta' => array(
 					'io.modelcontextprotocol/protocolVersion' => '2026-07-28',
+			'io.modelcontextprotocol/clientCapabilities' => array(),
 				),
 			),
 		)
@@ -343,10 +333,33 @@ cmsa_native_mcp_assert( 401 === $anonymous->get_status(), 'Anonymous MCP access 
 
 wp_set_current_user( 1 );
 
-$close_session = new WP_REST_Request( 'DELETE', '/chattanooga-cms-admin/v1/mcp' );
-$close_session->set_header( 'Mcp-Session-Id', $cmsa_native_mcp_session_id );
-$close_session_response = rest_do_request( $close_session );
-cmsa_native_mcp_assert( 204 === $close_session_response->get_status(), 'MCP DELETE did not close the session.' );
+$legacy_initialize = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
+$legacy_initialize->set_header( 'content-type', 'application/json' );
+$legacy_initialize->set_header( 'MCP-Protocol-Version', '2025-11-25' );
+$legacy_initialize->set_header( 'Mcp-Method', 'initialize' );
+$legacy_initialize->set_body(
+	wp_json_encode(
+		array(
+			'jsonrpc' => '2.0',
+			'id'      => 120,
+			'method'  => 'initialize',
+			'params'  => array(
+				'protocolVersion' => '2025-11-25',
+				'capabilities'    => array(),
+				'clientInfo'      => array( 'name' => 'cmsa-native-mcp-legacy-probe', 'version' => '1.0.0' ),
+			),
+		)
+	)
+);
+$legacy_initialize_response = rest_do_request( $legacy_initialize );
+$legacy_initialize_headers = array_change_key_case( $legacy_initialize_response->get_headers(), CASE_LOWER );
+$legacy_session_id = trim( (string) ( $legacy_initialize_headers['mcp-session-id'] ?? '' ) );
+cmsa_native_mcp_assert( 200 === $legacy_initialize_response->get_status() && '' !== $legacy_session_id, 'Legacy MCP initialization/session compatibility failed.' );
 
-echo "cmsa-native-mcp: PASS version=1.2.2 protocol=2026-07-28 route=verified administrator_surface=exposed origin_guard=verified tools_list=complete-deterministic read_call=verified header_validation=verified\n";
+$close_session = new WP_REST_Request( 'DELETE', '/chattanooga-cms-admin/v1/mcp' );
+$close_session->set_header( 'Mcp-Session-Id', $legacy_session_id );
+$close_session_response = rest_do_request( $close_session );
+cmsa_native_mcp_assert( 204 === $close_session_response->get_status(), 'Legacy MCP DELETE did not close the session.' );
+
+echo "cmsa-native-mcp: PASS version=1.2.3 protocol=2026-07-28 route=verified administrator_surface=exposed origin_guard=verified tools_list=complete-deterministic read_call=verified header_validation=verified\n";
 exit( 0 );
