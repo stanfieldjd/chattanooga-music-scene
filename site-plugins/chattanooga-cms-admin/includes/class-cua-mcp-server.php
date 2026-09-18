@@ -8,6 +8,8 @@ final class CUA_MCP_Server {
 	private static $active_sessions = array();
 	const REST_NAMESPACE = 'chattanooga-cms-admin/v1';
 	const REST_ROUTE     = '/mcp';
+	const LEGACY_SSE_ROUTE = '/mcp/sse';
+	const LEGACY_MESSAGE_ROUTE = '/mcp/messages';
 	const ABILITY_PREFIX = 'chattanooga-cms-admin/';
 	const TOOL_PREFIX    = 'cmsa.';
 	const RESOURCE_CATALOG_URI = 'chattanooga://site-operation-catalog';
@@ -17,6 +19,7 @@ final class CUA_MCP_Server {
 	const TOOL_PAGE_SIZE = 50;
 	const SESSION_TTL = HOUR_IN_SECONDS;
 	const SESSION_HEADER = 'Mcp-Session-Id';
+	const RATE_WINDOW = MINUTE_IN_SECONDS;
 
 	public static function register_route() {
 		if ( ! CUA_MCP_Settings_Page::is_enabled() ) {
@@ -37,6 +40,66 @@ final class CUA_MCP_Server {
 				'permission_callback' => '__return_true',
 			)
 		);
+		register_rest_route(
+			self::REST_NAMESPACE,
+			self::LEGACY_SSE_ROUTE,
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( __CLASS__, 'handle_legacy_sse' ),
+				'permission_callback' => '__return_true',
+			)
+		);
+		register_rest_route(
+			self::REST_NAMESPACE,
+			self::LEGACY_MESSAGE_ROUTE,
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( __CLASS__, 'handle_legacy_message' ),
+				'permission_callback' => '__return_true',
+			)
+		);
+	}
+
+	public static function handle_legacy_sse( WP_REST_Request $request ) {
+		$authorization = self::authorize_request( $request );
+		if ( is_wp_error( $authorization ) ) {
+			return self::authentication_error_response( $authorization );
+		}
+		$session_id = self::create_session( self::LEGACY_PROTOCOL_VERSION );
+		$endpoint = add_query_arg( 'session_id', rawurlencode( $session_id ), rest_url( self::REST_NAMESPACE . self::LEGACY_MESSAGE_ROUTE ) );
+		$response = new WP_REST_Response( "event: endpoint\ndata: {$endpoint}\n\n", 200 );
+		$response->header( 'Content-Type', 'text/event-stream' );
+		$response->header( 'Cache-Control', 'no-cache, no-store' );
+		$response->header( 'X-Accel-Buffering', 'no' );
+		return $response;
+	}
+
+	public static function handle_legacy_message( WP_REST_Request $request ) {
+		$session_id = trim( (string) $request->get_param( 'session_id' ) );
+		if ( '' === $session_id ) {
+			return self::protocol_error_response( null, -32001, 'A legacy SSE session_id is required.', 400 );
+		}
+		$payload = self::decode_request( $request );
+		if ( is_wp_error( $payload ) || ! is_array( $payload ) ) {
+			return self::protocol_error_response( null, -32700, 'The legacy SSE message is not valid JSON.', 400 );
+		}
+		$forward = new WP_REST_Request( 'POST', self::REST_ROUTE );
+		$forward->set_header( 'Content-Type', 'application/json' );
+		$forward->set_header( 'Accept', 'application/json' );
+		$forward->set_header( 'MCP-Protocol-Version', self::LEGACY_PROTOCOL_VERSION );
+		$forward->set_header( 'Mcp-Method', (string) ( $payload['method'] ?? '' ) );
+		$forward->set_header( self::SESSION_HEADER, $session_id );
+		$forward->set_header( 'Authorization', (string) $request->get_header( 'authorization' ) );
+		$forward->set_body( wp_json_encode( $payload ) );
+		$result = self::handle_request( $forward );
+		if ( ! $result instanceof WP_REST_Response || null === $result->get_data() ) {
+			return new WP_REST_Response( null, 202 );
+		}
+		$data = wp_json_encode( $result->get_data(), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+		$response = new WP_REST_Response( "event: message\ndata: {$data}\n\n", 200 );
+		$response->header( 'Content-Type', 'text/event-stream' );
+		$response->header( 'Cache-Control', 'no-cache, no-store' );
+		return $response;
 	}
 
 	public static function authorize_request( WP_REST_Request $request ) {
@@ -90,6 +153,13 @@ final class CUA_MCP_Server {
 			self::audit_request( $request, '', '', 'authentication_failed', self::error_status( $authorization ), $authorization->get_error_code(), $started );
 			return self::authentication_error_response( $authorization );
 		}
+		$rate_limit = self::check_rate_limit( $request );
+		if ( is_wp_error( $rate_limit ) ) {
+			self::audit_request( $request, '', '', 'rate_limited', 429, $rate_limit->get_error_code(), $started );
+			$response = self::protocol_error_response( null, -32029, $rate_limit->get_error_message(), 429 );
+			$response->header( 'Retry-After', (string) max( 1, (int) ( $rate_limit->get_error_data()['retry_after'] ?? self::RATE_WINDOW ) ) );
+			return $response;
+		}
 
 		$http_method = strtoupper( $request->get_method() );
 		$session_id  = self::request_session_id( $request );
@@ -103,6 +173,7 @@ final class CUA_MCP_Server {
 			delete_transient( self::session_key( $session_id ) );
 			$response = new WP_REST_Response( null, 204 );
 			$response->header( self::SESSION_HEADER, $session_id );
+			self::secure_response( $response );
 			self::audit_request( $request, 'DELETE', '', 'success', 204, '', $started );
 			return $response;
 		}
@@ -110,6 +181,7 @@ final class CUA_MCP_Server {
 		if ( 'GET' === $http_method ) {
 			$response = new WP_REST_Response( null, 405 );
 			$response->header( 'Allow', 'POST, DELETE' );
+			self::secure_response( $response );
 			self::audit_request( $request, 'GET', '', 'method_not_allowed', 405, 'cmsa_mcp_method_not_allowed', $started );
 			return $response;
 		}
@@ -135,6 +207,12 @@ final class CUA_MCP_Server {
 		$params = isset( $payload['params'] ) && is_array( $payload['params'] ) ? $payload['params'] : array();
 		$tool = 'tools/call' === $method && isset( $params['name'] ) ? (string) $params['name'] : '';
 		self::audit_request( $request, $method, $tool, 'received', 0, '', $started, $id, $params );
+
+		$transport_error = self::validate_transport_headers( $request );
+		if ( is_wp_error( $transport_error ) ) {
+			$status = 'cmsa_mcp_accept_not_supported' === $transport_error->get_error_code() ? 406 : 415;
+			return self::protocol_error_response( $id, -32020, $transport_error->get_error_message(), $status );
+		}
 
 		$transport_error = self::validate_transport_headers( $request );
 		if ( is_wp_error( $transport_error ) ) {
@@ -404,6 +482,8 @@ final class CUA_MCP_Server {
 	private static function discover_result() {
 		return array(
 			'supportedVersions' => self::supported_protocol_versions(),
+			'capabilityRevision' => self::capability_revision(),
+			'changeDetection'   => array( 'mode' => 'poll', 'intervalMs' => 30000 ),
 			'capabilities'      => array(
 				'tools' => array(
 					'listChanged' => false,
@@ -425,6 +505,8 @@ final class CUA_MCP_Server {
 	private static function initialize_result( $protocol_version = self::PROTOCOL_VERSION ) {
 		return array(
 			'protocolVersion' => $protocol_version,
+			'capabilityRevision' => self::capability_revision(),
+			'changeDetection' => array( 'mode' => 'poll', 'intervalMs' => 30000 ),
 			'capabilities'    => array(
 				'tools' => array(
 					'listChanged' => false,
@@ -460,6 +542,7 @@ final class CUA_MCP_Server {
 
 		$result = array(
 			'tools'      => array_slice( $all_tools, $offset, self::TOOL_PAGE_SIZE ),
+			'capabilityRevision' => self::capability_revision(),
 			'ttlMs'      => 30000,
 			'cacheScope' => 'private',
 		);
@@ -481,6 +564,7 @@ final class CUA_MCP_Server {
 					'mimeType'    => 'application/json',
 				),
 			),
+			'capabilityRevision' => self::capability_revision(),
 			'ttlMs'      => 30000,
 			'cacheScope' => 'private',
 		);
@@ -524,6 +608,7 @@ final class CUA_MCP_Server {
 					),
 				),
 			),
+			'capabilityRevision' => self::capability_revision(),
 			'cacheScope' => 'private',
 		);
 	}
@@ -571,7 +656,7 @@ final class CUA_MCP_Server {
 			}
 
 			$tool_name = self::tool_name( $ability_name );
-			if ( ! self::is_site_surface_tool( $tool_name ) ) {
+			if ( ! self::is_site_surface_tool( $tool_name ) || ! CUA_MCP_Settings_Page::is_tool_allowed( $tool_name ) ) {
 				continue;
 			}
 			$schema = $ability->get_input_schema();
@@ -604,6 +689,19 @@ final class CUA_MCP_Server {
 		return $tools;
 	}
 
+	private static function capability_revision() {
+		$revision_input = array(
+			'protocol'  => self::supported_protocol_versions(),
+			'auth_mode' => CUA_MCP_Settings_Page::auth_mode(),
+			'read_only' => CUA_MCP_Settings_Page::is_read_only(),
+			'environment' => CUA_MCP_Settings_Page::environment_id(),
+			'allowed_tools' => CUA_MCP_Settings_Page::allowed_tools(),
+			'tools'     => self::tools(),
+		);
+		$encoded = wp_json_encode( $revision_input, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+		return hash( 'sha256', false === $encoded ? serialize( $revision_input ) : $encoded );
+	}
+
 	private static function call_tool( array $params ) {
 		$name = isset( $params['name'] ) ? trim( (string) $params['name'] ) : '';
 		if ( '' === $name ) {
@@ -617,6 +715,14 @@ final class CUA_MCP_Server {
 
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return new WP_Error( 'cmsa_mcp_tool_forbidden', 'Administrator authority is required to call this tool.' );
+		}
+
+		if ( CUA_MCP_Settings_Page::is_read_only() ) {
+			$meta = $ability->get_meta();
+			$annotations = isset( $meta['annotations'] ) && is_array( $meta['annotations'] ) ? $meta['annotations'] : array();
+			if ( true !== ( $annotations['readonly'] ?? false ) ) {
+				return new WP_Error( 'cmsa_mcp_read_only_mode', 'Read-only MCP mode rejects mutating tools.' );
+			}
 		}
 
 		$arguments = isset( $params['arguments'] ) ? $params['arguments'] : array();
@@ -687,6 +793,9 @@ final class CUA_MCP_Server {
 		// exposed through MCP. Chattanooga's administrator/control-plane abilities
 		// remain WordPress-internal capabilities.
 		if ( ! self::is_site_surface_tool( $tool_name ) ) {
+			return null;
+		}
+		if ( ! CUA_MCP_Settings_Page::is_tool_allowed( $tool_name ) ) {
 			return null;
 		}
 
@@ -764,6 +873,7 @@ final class CUA_MCP_Server {
 		if ( '' !== (string) $session_id ) {
 			$response->header( self::SESSION_HEADER, $session_id );
 		}
+		self::secure_response( $response );
 		return $response;
 	}
 
@@ -772,6 +882,7 @@ final class CUA_MCP_Server {
 		if ( '' !== (string) $session_id ) {
 			$response->header( self::SESSION_HEADER, $session_id );
 		}
+		self::secure_response( $response );
 		return $response;
 	}
 
@@ -796,6 +907,15 @@ final class CUA_MCP_Server {
 			(int) $status
 		);
 		$response->header( 'MCP-Protocol-Version', self::PROTOCOL_VERSION );
+		self::secure_response( $response );
+		return $response;
+	}
+
+	private static function secure_response( WP_REST_Response $response ) {
+		$response->header( 'Cache-Control', 'no-store' );
+		$response->header( 'Pragma', 'no-cache' );
+		$response->header( 'X-Content-Type-Options', 'nosniff' );
+		$response->header( 'Referrer-Policy', 'no-referrer' );
 		return $response;
 	}
 
@@ -827,6 +947,29 @@ final class CUA_MCP_Server {
 		$response->set_data( $body );
 		$response->header( 'WWW-Authenticate', $challenge );
 		return $response;
+	}
+
+	private static function check_rate_limit( WP_REST_Request $request ) {
+		$limit = CUA_MCP_Settings_Page::rate_limit();
+		$source = isset( $_SERVER['REMOTE_ADDR'] ) ? trim( (string) wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : 'unknown';
+		$identity = get_current_user_id() . '|' . $source;
+		$key = 'cmsa_mcp_rate_' . hash( 'sha256', $identity );
+		$state = get_transient( $key );
+		$now = time();
+		if ( ! is_array( $state ) || (int) ( $state['window'] ?? 0 ) < ( $now - self::RATE_WINDOW ) ) {
+			$state = array( 'window' => $now, 'count' => 0 );
+		}
+		if ( (int) $state['count'] >= $limit ) {
+			$retry_after = max( 1, self::RATE_WINDOW - ( $now - (int) $state['window'] ) );
+			return new WP_Error(
+				'cmsa_mcp_rate_limited',
+				'MCP request rate limit exceeded. Retry after the current one-minute window.',
+				array( 'retry_after' => $retry_after )
+			);
+		}
+		++$state['count'];
+		set_transient( $key, $state, self::RATE_WINDOW );
+		return true;
 	}
 
 	private static function error_status( WP_Error $error ) {
@@ -885,6 +1028,7 @@ final class CUA_MCP_Server {
 			'title'      => 'Chattanooga CMS Admin',
 			'version'    => defined( 'CUA_VERSION' ) ? CUA_VERSION : 'unknown',
 			'websiteUrl' => home_url( '/' ),
+			'environmentId' => CUA_MCP_Settings_Page::environment_id(),
 		);
 	}
 

@@ -1,9 +1,11 @@
+# Disposable red-team pass for the current MCP simulation checkpoint.
 name: Chattanooga CMS Admin Functional Red Team
 
 on:
   push:
     branches:
       - work/cmsa-functional-redteam
+      - work/mcp-comparable-oauth
     paths:
       - "site-plugins/chattanooga-cms-admin/**"
       - "site-plugins/chattanooga-music-scene-core/**"
@@ -83,7 +85,7 @@ jobs:
           test "$(php /tmp/wp-cli.phar plugin get events-manager --field=version --path=/tmp/wordpress)" = "7.4.3"
           test "$(php /tmp/wp-cli.phar plugin get seo-by-rank-math --field=version --path=/tmp/wordpress)" = "1.0.278"
           test "$(php /tmp/wp-cli.phar plugin get chattanooga-music-scene-core --field=version --path=/tmp/wordpress)" = "0.2.1"
-          test "$(php /tmp/wp-cli.phar plugin get chattanooga-cms-admin --field=version --path=/tmp/wordpress)" = "1.1.0"
+          test "$(php /tmp/wp-cli.phar plugin get chattanooga-cms-admin --field=version --path=/tmp/wordpress)" = "1.2.1"
 
       - name: Run native MCP functional red team
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-functional-redteam-cli.php" --path=/tmp/wordpress
