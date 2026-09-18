@@ -3,6 +3,7 @@ name: Chattanooga CMS Admin Native MCP
 on:
   push:
     branches:
+      - main
       - work/chattanooga-native-mcp
     paths:
       - "site-plugins/chattanooga-cms-admin/**"
@@ -88,7 +89,7 @@ jobs:
       - name: Verify single MCP protocol boundary
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php" --path=/tmp/wordpress
 
-      - name: Verify MCP site-operation surface and administrator exclusion
+      - name: Verify complete MCP administrator ability exposure
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php" --path=/tmp/wordpress
 
       - name: Verify MCP settings page and configuration sanitization
