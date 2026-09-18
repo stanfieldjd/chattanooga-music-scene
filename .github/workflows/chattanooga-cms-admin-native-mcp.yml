@@ -137,7 +137,7 @@ jobs:
             --data-binary @/tmp/cmsa-discover.json \
             "$endpoint")"
           test "$authenticated_code" = '200'
-          php -r '$d=json_decode(file_get_contents("/tmp/cmsa-discover-response.json"),true); if (($d["result"]["resultType"]??"")!=="complete" || ($d["result"]["supportedVersions"]??[])!==["2026-07-28"]) exit(1);'
+          php -r '$d=json_decode(file_get_contents("/tmp/cmsa-discover-response.json"),true); if (($d["result"]["resultType"]??"")!=="complete" || ($d["result"]["supportedVersions"]??[])!==["2026-07-28","2025-11-25"]) exit(1);'
 
           cat > /tmp/cmsa-catalog.json <<'JSON'
           {"jsonrpc":"2.0","id":402,"method":"tools/call","params":{"name":"cmsa.catalog","arguments":{},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"cmsa-http-ci","version":"1.0.0"}}}}
