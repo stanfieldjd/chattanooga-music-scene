@@ -228,7 +228,7 @@ cmsa_native_mcp_assert( false !== strpos( (string) ( $prompt_get_data['result'][
 $list = cmsa_native_mcp_modern( 'tools/list', array(), 102, array( 'Mcp-Session-Id' => $cmsa_native_mcp_session_id ) );
 cmsa_native_mcp_assert( 200 === $list->get_status(), 'tools/list did not return HTTP 200.' );
 $list_data = $list->get_data();
-$tools = $list_data['result']['tools'] ?? array();
+$tools = cmsa_native_mcp_all_tools();
 cmsa_native_mcp_assert( is_array( $tools ) && ! empty( $tools ), 'tools/list returned no tools.' );
 cmsa_native_mcp_assert( (string) ( $discover_data['result']['capabilityRevision'] ?? '' ) === (string) ( $list_data['result']['capabilityRevision'] ?? '' ), 'tools/list returned a capability revision different from discovery.' );
 
