@@ -63,8 +63,10 @@ function cmsa_native_mcp_modern( $method, array $params = array(), $id = 1, arra
 		$extra_headers
 	);
 
-	if ( 'tools/call' === $method && isset( $params['name'] ) ) {
+	if ( ( 'tools/call' === $method || 'prompts/get' === $method ) && isset( $params['name'] ) ) {
 		$headers['Mcp-Name'] = (string) $params['name'];
+	} elseif ( 'resources/read' === $method && isset( $params['uri'] ) ) {
+		$headers['Mcp-Name'] = (string) $params['uri'];
 	}
 	if ( '' !== (string) $cmsa_native_mcp_session_id ) {
 		$headers['Mcp-Session-Id'] = $cmsa_native_mcp_session_id;
