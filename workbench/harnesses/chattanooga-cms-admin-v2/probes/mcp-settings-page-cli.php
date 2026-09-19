@@ -66,7 +66,8 @@ cmsa_mcp_settings_assert( false !== strpos( $scope_challenge, 'error="insufficie
 
 $rewrite_rules = CUA_OAuth_Server::inject_well_known_rewrite_rules( "ORIGINAL-WORDPRESS-RULES\n" );
 cmsa_mcp_settings_assert( false !== strpos( $rewrite_rules, '^\\.well-known/oauth-protected-resource/?$' ), 'Root protected-resource rewrite rule is missing.' );
-cmsa_mcp_settings_assert( false !== strpos( $rewrite_rules, 'oauth-protected-resource/wp-json/chattanooga-cms-admin/v1/mcp' ), 'Path-aware protected-resource rewrite rule is missing.' );
+$expected_resource_rewrite_path = preg_quote( ltrim( (string) wp_parse_url( rest_url( CUA_MCP_Server::REST_NAMESPACE . CUA_MCP_Server::REST_ROUTE ), PHP_URL_PATH ), '/' ), '#' );
+cmsa_mcp_settings_assert( false !== strpos( $rewrite_rules, 'oauth-protected-resource/' . $expected_resource_rewrite_path ), 'Path-aware protected-resource rewrite rule is missing.' );
 cmsa_mcp_settings_assert( false !== strpos( $rewrite_rules, '^\\.well-known/oauth-authorization-server/?$' ), 'Authorization-server rewrite rule is missing.' );
 cmsa_mcp_settings_assert( strpos( $rewrite_rules, 'oauth-protected-resource' ) < strpos( $rewrite_rules, 'ORIGINAL-WORDPRESS-RULES' ), 'OAuth discovery rewrites are not ahead of WordPress file/directory bypass rules.' );
 
