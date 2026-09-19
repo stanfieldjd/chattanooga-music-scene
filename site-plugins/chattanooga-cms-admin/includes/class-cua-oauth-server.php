@@ -95,10 +95,12 @@ final class CUA_OAuth_Server {
 	}
 
 	public static function rest_protected_resource_metadata( WP_REST_Request $request ) {
+		self::trace( 'protected_resource_metadata', 'served', 200 );
 		return self::no_store_response( self::protected_resource_metadata() );
 	}
 
 	public static function rest_authorization_server_metadata( WP_REST_Request $request ) {
+		self::trace( 'authorization_server_metadata', 'served', 200 );
 		return self::no_store_response( self::authorization_server_metadata() );
 	}
 
@@ -166,9 +168,11 @@ final class CUA_OAuth_Server {
 		);
 		$server_path = untrailingslashit( (string) wp_parse_url( self::authorization_server_well_known_url(), PHP_URL_PATH ) );
 		if ( in_array( $path, $resource_paths, true ) ) {
+			self::trace( 'protected_resource_metadata', 'served', 200 );
 			self::send_json( self::protected_resource_metadata() );
 		}
 		if ( $server_path === $path ) {
+			self::trace( 'authorization_server_metadata', 'served', 200 );
 			self::send_json( self::authorization_server_metadata() );
 		}
 	}
@@ -220,22 +224,28 @@ final class CUA_OAuth_Server {
 	}
 
 	public static function register_client( WP_REST_Request $request ) {
+		self::trace( 'client_registration', 'received', 0, '', array( 'client_mode' => 'dcr' ) );
 		if ( ! self::is_oauth_enabled() ) {
+			self::trace( 'client_registration', 'failed', 404, 'authorization_mode_disabled', array( 'client_mode' => 'dcr' ) );
 			return self::oauth_error( 'authorization_mode_disabled', 'Automatic OAuth authorization is disabled.', 404 );
 		}
 		if ( ! self::request_has_json_content_type( $request ) ) {
+			self::trace( 'client_registration', 'failed', 415, 'invalid_client_metadata', array( 'client_mode' => 'dcr' ) );
 			return self::oauth_error( 'invalid_client_metadata', 'Client registration requires Content-Type: application/json.', 415 );
 		}
 		$body = $request->get_json_params();
 		if ( ! is_array( $body ) ) {
+			self::trace( 'client_registration', 'failed', 400, 'invalid_client_metadata', array( 'client_mode' => 'dcr' ) );
 			return self::oauth_error( 'invalid_client_metadata', 'A JSON client metadata object is required.', 400 );
 		}
 
 		$redirect_uris = self::validated_redirect_uris( isset( $body['redirect_uris'] ) ? $body['redirect_uris'] : null );
 		if ( is_wp_error( $redirect_uris ) ) {
+			self::trace( 'client_registration', 'failed', 400, 'invalid_redirect_uri', array( 'client_mode' => 'dcr' ) );
 			return self::oauth_error( 'invalid_redirect_uri', $redirect_uris->get_error_message(), 400 );
 		}
 		if ( isset( $body['token_endpoint_auth_method'] ) && 'none' !== $body['token_endpoint_auth_method'] ) {
+			self::trace( 'client_registration', 'failed', 400, 'invalid_client_metadata', array( 'client_mode' => 'dcr' ) );
 			return self::oauth_error( 'invalid_client_metadata', 'Only public clients using token_endpoint_auth_method none are supported.', 400 );
 		}
 
@@ -249,6 +259,7 @@ final class CUA_OAuth_Server {
 			'created_at'    => time(),
 		);
 		update_option( self::CLIENT_OPTION, $clients, false );
+		self::trace( 'client_registration', 'accepted', 201, '', array( 'client_mode' => 'dcr', 'redirect_scheme' => self::redirect_scheme( $redirect_uris[0] ?? '' ) ) );
 
 		return self::no_store_response(
 			array(
@@ -264,14 +275,18 @@ final class CUA_OAuth_Server {
 	}
 
 	public static function authorize() {
+		self::trace( 'authorization_request', 'received', 0 );
 		if ( ! self::is_oauth_enabled() ) {
+			self::trace( 'authorization_request', 'failed', 404, 'authorization_mode_disabled' );
 			wp_die( esc_html__( 'The Chattanooga MCP endpoint is disabled.', 'chattanooga-cms-admin' ), '', array( 'response' => 404 ) );
 		}
 		if ( ! is_user_logged_in() ) {
+			self::trace( 'authorization_login', 'required', 302 );
 			auth_redirect();
 			exit;
 		}
 		if ( ! current_user_can( 'manage_options' ) ) {
+			self::trace( 'authorization_request', 'failed', 403, 'administrator_required' );
 			wp_die( esc_html__( 'Administrator authority is required.', 'chattanooga-cms-admin' ), '', array( 'response' => 403 ) );
 		}
 
@@ -285,14 +300,27 @@ final class CUA_OAuth_Server {
 		$resource = isset( $params['resource'] ) ? esc_url_raw( (string) $params['resource'] ) : '';
 		$challenge = isset( $params['code_challenge'] ) ? (string) $params['code_challenge'] : '';
 		$challenge_method = isset( $params['code_challenge_method'] ) ? (string) $params['code_challenge_method'] : '';
+		self::trace(
+			'authorization_parameters',
+			'received',
+			0,
+			'',
+			array(
+				'client_mode'     => self::is_client_metadata_url( $client_id ) ? 'cimd' : 'registered_or_dcr',
+				'client_host'     => self::client_host( $client_id ),
+				'redirect_scheme' => self::redirect_scheme( $redirect_uri ),
+			)
+		);
 		if ( strlen( $state ) > 2048 || preg_match( '/[\r\n]/', $state ) ) {
 			wp_die( esc_html__( 'The OAuth state value is invalid.', 'chattanooga-cms-admin' ), '', array( 'response' => 400 ) );
 		}
 
 		$client = self::resolve_client( $client_id, $redirect_uri );
 		if ( is_wp_error( $client ) ) {
+			self::trace( 'client_resolution', 'failed', 400, $client->get_error_code(), array( 'client_mode' => self::is_client_metadata_url( $client_id ) ? 'cimd' : 'registered_or_dcr', 'client_host' => self::client_host( $client_id ) ) );
 			wp_die( esc_html( $client->get_error_message() ), '', array( 'response' => 400 ) );
 		}
+		self::trace( 'client_resolution', 'accepted', 200, '', array( 'client_mode' => self::is_client_metadata_url( $client_id ) ? 'cimd' : 'registered_or_dcr', 'client_host' => self::client_host( $client_id ) ) );
 		if ( 'code' !== $response_type || 'S256' !== $challenge_method || ! preg_match( '/^[A-Za-z0-9_-]{43,128}$/', $challenge ) ) {
 			self::authorization_redirect_error( $redirect_uri, 'invalid_request', 'Authorization code flow with PKCE S256 is required.', $state );
 		}
@@ -305,6 +333,7 @@ final class CUA_OAuth_Server {
 		}
 
 		if ( 'POST' !== strtoupper( isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : 'GET' ) ) {
+			self::trace( 'authorization_consent', 'rendered', 200 );
 			self::render_consent( $client, $params );
 		}
 
@@ -314,6 +343,7 @@ final class CUA_OAuth_Server {
 		}
 
 		$code = self::random_token( 32 );
+		self::trace( 'authorization_code', 'issued', 302 );
 		set_transient(
 			self::transient_key( 'code', $code ),
 			array(
@@ -332,22 +362,25 @@ final class CUA_OAuth_Server {
 	}
 
 	public static function token( WP_REST_Request $request ) {
+		$grant_type = trim( (string) $request->get_param( 'grant_type' ) );
+		self::trace( 'token_request', 'received', 0, '', array( 'grant_type' => $grant_type ) );
 		if ( ! self::is_oauth_enabled() ) {
 			return self::oauth_error( 'authorization_mode_disabled', 'Automatic OAuth authorization is disabled.', 404 );
 		}
-		$grant_type = trim( (string) $request->get_param( 'grant_type' ) );
 		if ( 'authorization_code' === $grant_type ) {
 			return self::exchange_authorization_code( $request );
 		}
 		if ( 'refresh_token' === $grant_type ) {
 			return self::exchange_refresh_token( $request );
 		}
+		self::trace( 'token_request', 'failed', 400, 'unsupported_grant_type', array( 'grant_type' => $grant_type ) );
 		return self::oauth_error( 'unsupported_grant_type', 'Supported grant types are authorization_code and refresh_token.', 400 );
 	}
 
 	public static function authenticate_bearer( WP_REST_Request $request ) {
 		$authorization = trim( (string) $request->get_header( 'authorization' ) );
 		if ( ! preg_match( '/^Bearer\s+([^\s]+)$/i', $authorization, $matches ) ) {
+			self::trace( 'bearer_validation', 'missing', 401, 'cmsa_oauth_token_missing' );
 			return new WP_Error( 'cmsa_oauth_token_missing', 'A Bearer access token is required.', array( 'status' => 401 ) );
 		}
 		if ( class_exists( 'CUA_MCP_Settings_Page' ) && CUA_MCP_Settings_Page::is_manual_auth() ) {
@@ -355,9 +388,11 @@ final class CUA_OAuth_Server {
 			if ( $user_id ) {
 				$user = get_user_by( 'id', (int) $user_id );
 				if ( ! $user || ! user_can( $user, 'manage_options' ) ) {
+					self::trace( 'bearer_validation', 'failed', 403, 'cmsa_oauth_user_forbidden', array( 'auth_mode' => 'manual' ) );
 					return new WP_Error( 'cmsa_oauth_user_forbidden', 'The authorizing administrator no longer has the required authority.', array( 'status' => 403 ) );
 				}
 				wp_set_current_user( $user->ID );
+				self::trace( 'bearer_validation', 'accepted', 200, '', array( 'auth_mode' => 'manual' ) );
 				return true;
 			}
 			// A non-matching manual token may still be a valid OAuth access token.
@@ -366,16 +401,20 @@ final class CUA_OAuth_Server {
 
 		$record = get_transient( self::transient_key( 'access', $matches[1] ) );
 		if ( ! is_array( $record ) || empty( $record['user_id'] ) || self::canonical_resource() !== ( $record['resource'] ?? '' ) ) {
+			self::trace( 'bearer_validation', 'failed', 401, 'cmsa_oauth_token_invalid', array( 'auth_mode' => 'oauth' ) );
 			return new WP_Error( 'cmsa_oauth_token_invalid', 'The Bearer access token is invalid or expired.', array( 'status' => 401 ) );
 		}
 		if ( ! self::scope_contains( $record['scope'] ?? '', self::SCOPE ) ) {
+			self::trace( 'bearer_validation', 'failed', 403, 'cmsa_oauth_insufficient_scope', array( 'auth_mode' => 'oauth' ) );
 			return new WP_Error( 'cmsa_oauth_insufficient_scope', 'The Bearer access token does not grant the required administrator scope.', array( 'status' => 403 ) );
 		}
 		$user = get_user_by( 'id', (int) $record['user_id'] );
 		if ( ! $user || ! user_can( $user, 'manage_options' ) ) {
+			self::trace( 'bearer_validation', 'failed', 403, 'cmsa_oauth_user_forbidden', array( 'auth_mode' => 'oauth' ) );
 			return new WP_Error( 'cmsa_oauth_user_forbidden', 'The authorizing administrator no longer has the required authority.', array( 'status' => 403 ) );
 		}
 		wp_set_current_user( $user->ID );
+		self::trace( 'bearer_validation', 'accepted', 200, '', array( 'auth_mode' => 'oauth' ) );
 		return true;
 	}
 
@@ -394,6 +433,7 @@ final class CUA_OAuth_Server {
 		$record = get_transient( self::transient_key( 'code', $code ) );
 		delete_transient( self::transient_key( 'code', $code ) );
 		if ( ! is_array( $record ) ) {
+			self::trace( 'authorization_code_exchange', 'failed', 400, 'invalid_grant', array( 'grant_type' => 'authorization_code' ) );
 			return self::oauth_error( 'invalid_grant', 'The authorization code is invalid, expired, or already used.', 400 );
 		}
 
@@ -402,14 +442,18 @@ final class CUA_OAuth_Server {
 		$verifier = trim( (string) $request->get_param( 'code_verifier' ) );
 		$resource = esc_url_raw( (string) $request->get_param( 'resource' ) );
 		if ( ! hash_equals( (string) $record['client_id'], $client_id ) || ! hash_equals( (string) $record['redirect_uri'], $redirect_uri ) ) {
+			self::trace( 'authorization_code_exchange', 'failed', 400, 'client_binding_mismatch', array( 'grant_type' => 'authorization_code' ) );
 			return self::oauth_error( 'invalid_grant', 'The authorization code does not belong to this client or redirect URI.', 400 );
 		}
 		if ( ! preg_match( '/^[A-Za-z0-9._~-]{43,128}$/', $verifier ) || ! hash_equals( (string) $record['code_challenge'], self::pkce_challenge( $verifier ) ) ) {
+			self::trace( 'authorization_code_exchange', 'failed', 400, 'pkce_verification_failed', array( 'grant_type' => 'authorization_code' ) );
 			return self::oauth_error( 'invalid_grant', 'PKCE verification failed.', 400 );
 		}
 		if ( ! isset( $record['resource'] ) || ! hash_equals( (string) $record['resource'], $resource ) || ! hash_equals( self::canonical_resource(), $resource ) ) {
+			self::trace( 'authorization_code_exchange', 'failed', 400, 'invalid_target', array( 'grant_type' => 'authorization_code' ) );
 			return self::oauth_error( 'invalid_target', 'The resource does not match the authorization request.', 400 );
 		}
+		self::trace( 'authorization_code_exchange', 'accepted', 200, '', array( 'grant_type' => 'authorization_code' ) );
 		return self::issue_tokens( $record );
 	}
 
@@ -418,17 +462,21 @@ final class CUA_OAuth_Server {
 		$key = self::transient_key( 'refresh', $refresh );
 		$record = get_transient( $key );
 		if ( ! is_array( $record ) ) {
+			self::trace( 'refresh_token_exchange', 'failed', 400, 'invalid_grant', array( 'grant_type' => 'refresh_token' ) );
 			return self::oauth_error( 'invalid_grant', 'The refresh token is invalid, expired, or already used.', 400 );
 		}
 		$client_id = trim( (string) $request->get_param( 'client_id' ) );
 		$resource = esc_url_raw( (string) $request->get_param( 'resource' ) );
 		if ( ! hash_equals( (string) $record['client_id'], $client_id ) ) {
+			self::trace( 'refresh_token_exchange', 'failed', 400, 'client_binding_mismatch', array( 'grant_type' => 'refresh_token' ) );
 			return self::oauth_error( 'invalid_grant', 'The refresh token does not belong to this client.', 400 );
 		}
 		if ( ! isset( $record['resource'] ) || ! hash_equals( (string) $record['resource'], $resource ) || ! hash_equals( self::canonical_resource(), $resource ) ) {
+			self::trace( 'refresh_token_exchange', 'failed', 400, 'invalid_target', array( 'grant_type' => 'refresh_token' ) );
 			return self::oauth_error( 'invalid_target', 'The resource does not match the refresh token.', 400 );
 		}
 
+		self::trace( 'refresh_token_exchange', 'accepted', 200, '', array( 'grant_type' => 'refresh_token' ) );
 		$response = self::issue_tokens( $record );
 		if ( self::scope_contains( $record['scope'] ?? '', self::OFFLINE_SCOPE ) ) {
 			// Modern offline-access grants rotate refresh tokens. A pre-1.2.3
@@ -458,10 +506,13 @@ final class CUA_OAuth_Server {
 			'scope'        => $granted_scope,
 			'resource'     => (string) $record['resource'],
 		);
+		$refresh_issued = false;
 		if ( self::scope_contains( $granted_scope, self::OFFLINE_SCOPE ) ) {
 			$body['refresh_token'] = $refresh;
 			set_transient( self::transient_key( 'refresh', $refresh ), $stored, self::REFRESH_TTL );
+			$refresh_issued = true;
 		}
+		self::trace( 'token_issue', 'accepted', 200, '', array( 'refresh_issued' => $refresh_issued ) );
 		return self::no_store_response( $body );
 	}
 
@@ -571,6 +622,7 @@ final class CUA_OAuth_Server {
 	}
 
 	private static function authorization_redirect_error( $redirect_uri, $error, $description, $state ) {
+		self::trace( 'authorization_redirect', 'failed', 302, (string) $error, array( 'redirect_scheme' => self::redirect_scheme( $redirect_uri ) ) );
 		$url = add_query_arg( array_filter( array( 'error' => $error, 'error_description' => $description, 'state' => $state, 'iss' => self::canonical_issuer() ), 'strlen' ), $redirect_uri );
 		wp_redirect( $url );
 		exit;
@@ -603,6 +655,7 @@ final class CUA_OAuth_Server {
 	}
 
 	private static function record_client_metadata_check( $outcome, $http_status ) {
+		self::trace( 'client_metadata', (string) $outcome, (int) $http_status, '', array( 'client_mode' => 'cimd' ) );
 		update_option(
 			self::DIAGNOSTIC_OPTION,
 			array(
@@ -612,6 +665,38 @@ final class CUA_OAuth_Server {
 			),
 			false
 		);
+	}
+
+	private static function trace( $stage, $outcome, $http_status = 0, $error_code = '', array $extra = array() ) {
+		if ( ! class_exists( 'CUA_Audit' ) ) {
+			return;
+		}
+		$method = strtoupper( isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : '' );
+		$path = (string) wp_parse_url( isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '', PHP_URL_PATH );
+		CUA_Audit::log_oauth_trace(
+			array_merge(
+				array(
+					'time'        => gmdate( 'c' ),
+					'stage'       => (string) $stage,
+					'outcome'     => (string) $outcome,
+					'http_status' => (int) $http_status,
+					'error_code'  => (string) $error_code,
+					'method'      => $method,
+					'path'        => $path,
+				),
+				$extra
+			)
+		);
+	}
+
+	private static function client_host( $client_id ) {
+		$parts = wp_parse_url( (string) $client_id );
+		return is_array( $parts ) && ! empty( $parts['host'] ) ? strtolower( (string) $parts['host'] ) : '';
+	}
+
+	private static function redirect_scheme( $redirect_uri ) {
+		$parts = wp_parse_url( (string) $redirect_uri );
+		return is_array( $parts ) && ! empty( $parts['scheme'] ) ? strtolower( (string) $parts['scheme'] ) : '';
 	}
 
 	private static function request_has_json_content_type( WP_REST_Request $request ) {
