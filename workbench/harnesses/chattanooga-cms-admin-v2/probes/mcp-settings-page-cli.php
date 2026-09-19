@@ -79,6 +79,21 @@ cmsa_mcp_settings_assert( false !== strpos( $trace_panel, 'probe_stage' ) && fal
 $trace_clear = CUA_Audit::clear_oauth_trace();
 cmsa_mcp_settings_assert( true === $trace_clear && empty( ( CUA_Audit::read_oauth_trace( 10 )['entries'] ?? array() ) ), 'Authorization trace clear operation did not remove trace entries.' );
 
+for ( $trace_index = 0; $trace_index < CUA_Audit::MAX_OAUTH_TRACE_READ + 5; ++$trace_index ) {
+	CUA_Audit::log_oauth_trace( array( 'stage' => 'bounded_probe', 'outcome' => 'accepted', 'http_status' => 200 ) );
+}
+$trace_path = CUA_Local_Storage::path( 'audit.jsonl', 'audit' );
+cmsa_mcp_settings_assert( ! is_wp_error( $trace_path ) && is_file( $trace_path ), 'Authorization trace storage file is unavailable for bound verification.' );
+$stored_oauth_trace_count = 0;
+foreach ( file( $trace_path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES ) as $trace_line ) {
+	$trace_row = json_decode( (string) $trace_line, true );
+	if ( is_array( $trace_row ) && 'oauth_trace' === ( $trace_row['surface'] ?? '' ) ) {
+		++$stored_oauth_trace_count;
+	}
+}
+cmsa_mcp_settings_assert( CUA_Audit::MAX_OAUTH_TRACE_READ === $stored_oauth_trace_count, 'Stored authorization trace exceeded its rolling history bound.' );
+cmsa_mcp_settings_assert( true === CUA_Audit::clear_oauth_trace(), 'Bounded authorization trace cleanup failed.' );
+
 $oauth_metadata = CUA_OAuth_Server::authorization_server_metadata();
 $resource_metadata = CUA_OAuth_Server::protected_resource_metadata();
 cmsa_mcp_settings_assert( in_array( CUA_OAuth_Server::OFFLINE_SCOPE, $oauth_metadata['scopes_supported'] ?? array(), true ), 'OAuth discovery does not advertise offline_access.' );
@@ -232,5 +247,5 @@ if ( ! empty( $modern_data['access_token'] ) ) {
 }
 delete_transient( $new_modern_key );
 
-echo "cmsa-mcp-settings-page: PASS enabled=default origin_sanitization=verified endpoint=visible protocol=visible oauth_metadata=chatgpt-compatible authorization_trace=secret-free-panel-and-clear discovery_rewrite=verified rest_metadata_fallback=verified native_loopback=verified scope_semantics=verified manual_fallback=nonexclusive refresh_rotation=verified\n";
+echo "cmsa-mcp-settings-page: PASS enabled=default origin_sanitization=verified endpoint=visible protocol=visible oauth_metadata=chatgpt-compatible authorization_trace=secret-free-bounded-panel-and-clear discovery_rewrite=verified rest_metadata_fallback=verified native_loopback=verified scope_semantics=verified manual_fallback=nonexclusive refresh_rotation=verified\n";
 exit( 0 );
