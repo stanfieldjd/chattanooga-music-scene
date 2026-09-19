@@ -318,34 +318,68 @@ cmsa_native_mcp_assert( 400 === $mismatch->get_status(), 'MCP header/body mismat
 $mismatch_data = $mismatch->get_data();
 cmsa_native_mcp_assert( -32020 === ( $mismatch_data['error']['code'] ?? null ), 'MCP header/body mismatch did not return -32020.' );
 
-// Origin validation blocks browser-origin requests from unrelated sites.
+// Origin validation still blocks protected browser-origin requests from unrelated sites.
 $origin_request = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
 $origin_request->set_header( 'content-type', 'application/json' );
 $origin_request->set_header( 'origin', 'https://attacker.invalid' );
 $origin_request->set_header( 'MCP-Protocol-Version', '2026-07-28' );
-$origin_request->set_header( 'Mcp-Method', 'server/discover' );
+$origin_request->set_header( 'Mcp-Method', 'resources/list' );
 $origin_request->set_body(
 	wp_json_encode(
 		array(
 			'jsonrpc' => '2.0',
 			'id'      => 106,
-			'method'  => 'server/discover',
+			'method'  => 'resources/list',
 			'params'  => array(
 				'_meta' => array(
 					'io.modelcontextprotocol/protocolVersion' => '2026-07-28',
-			'io.modelcontextprotocol/clientCapabilities' => array(),
+					'io.modelcontextprotocol/clientCapabilities' => array(),
 				),
 			),
 		)
 	)
 );
 $origin = rest_do_request( $origin_request );
-cmsa_native_mcp_assert( 403 === $origin->get_status(), 'Untrusted Origin was not rejected.' );
+cmsa_native_mcp_assert( 403 === $origin->get_status(), 'Untrusted Origin was not rejected for a protected MCP method.' );
 
-// REST permission callback rejects an unauthenticated caller before MCP method handling.
+// Modern discovery is intentionally public so ChatGPT can learn tool OAuth policy
+// before it has an access token. Tool execution remains protected.
 wp_set_current_user( 0 );
-$anonymous = cmsa_native_mcp_modern( 'server/discover', array(), 107 );
-cmsa_native_mcp_assert( 401 === $anonymous->get_status(), 'Anonymous MCP access was not rejected with HTTP 401.' );
+
+$anonymous_discover = cmsa_native_mcp_modern( 'server/discover', array(), 107 );
+cmsa_native_mcp_assert( 200 === $anonymous_discover->get_status(), 'Anonymous modern server/discover was not available for OAuth discovery.' );
+
+$anonymous_list = cmsa_native_mcp_modern( 'tools/list', array(), 108 );
+cmsa_native_mcp_assert( 200 === $anonymous_list->get_status(), 'Anonymous modern tools/list was not available for OAuth tool discovery.' );
+$anonymous_list_data = $anonymous_list->get_data();
+$anonymous_tools = $anonymous_list_data['result']['tools'] ?? array();
+cmsa_native_mcp_assert( is_array( $anonymous_tools ) && ! empty( $anonymous_tools ), 'Anonymous tools/list returned no tool metadata.' );
+$anonymous_catalog_tool = cmsa_native_mcp_tool( $anonymous_tools, 'cmsa.catalog' );
+cmsa_native_mcp_assert( is_array( $anonymous_catalog_tool ), 'Anonymous tools/list did not expose the catalog tool descriptor.' );
+cmsa_native_mcp_assert( 'oauth2' === ( $anonymous_catalog_tool['securitySchemes'][0]['type'] ?? '' ), 'Anonymous tools/list did not advertise OAuth 2.0.' );
+cmsa_native_mcp_assert( array( CUA_OAuth_Server::SCOPE ) === ( $anonymous_catalog_tool['securitySchemes'][0]['scopes'] ?? null ), 'Anonymous tools/list advertised the wrong OAuth scope.' );
+
+$anonymous_call = cmsa_native_mcp_modern(
+	'tools/call',
+	array(
+		'name'      => 'cmsa.catalog',
+		'arguments' => array(),
+	),
+	109
+);
+cmsa_native_mcp_assert( 200 === $anonymous_call->get_status(), 'Anonymous protected tools/call did not return a CallToolResult OAuth challenge.' );
+$anonymous_call_data = $anonymous_call->get_data();
+cmsa_native_mcp_assert( true === ( $anonymous_call_data['result']['isError'] ?? false ), 'Anonymous protected tools/call was not marked as an MCP tool error.' );
+cmsa_native_mcp_assert( empty( $anonymous_call_data['result']['structuredContent'] ?? null ), 'Anonymous protected tools/call executed the underlying tool.' );
+$anonymous_challenges = $anonymous_call_data['result']['_meta']['mcp/www_authenticate'] ?? array();
+cmsa_native_mcp_assert( is_array( $anonymous_challenges ) && 1 === count( $anonymous_challenges ), 'Anonymous tools/call omitted mcp/www_authenticate.' );
+$anonymous_challenge = (string) $anonymous_challenges[0];
+cmsa_native_mcp_assert( false !== strpos( $anonymous_challenge, 'resource_metadata=' ), 'Tool OAuth challenge omitted resource metadata.' );
+cmsa_native_mcp_assert( false !== strpos( $anonymous_challenge, 'error=' ), 'Tool OAuth challenge omitted OAuth error.' );
+cmsa_native_mcp_assert( false !== strpos( $anonymous_challenge, 'error_description=' ), 'Tool OAuth challenge omitted OAuth error_description.' );
+
+$anonymous_protected = cmsa_native_mcp_modern( 'resources/list', array(), 110 );
+cmsa_native_mcp_assert( 401 === $anonymous_protected->get_status(), 'Anonymous non-discovery MCP access was not rejected with HTTP 401.' );
 
 wp_set_current_user( 1 );
 
