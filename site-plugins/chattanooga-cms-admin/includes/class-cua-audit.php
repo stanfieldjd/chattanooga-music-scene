@@ -8,6 +8,7 @@ final class CUA_Audit {
 	const CATEGORY = 'chattanooga-cms-admin';
 	const PREFIX = 'chattanooga-cms-admin/';
 	const MAX_READ = 500;
+	const MAX_OAUTH_TRACE_READ = 100;
 
 	private static $pending = array();
 
@@ -209,6 +210,104 @@ final class CUA_Audit {
 		}
 
 		return self::append( $sanitized );
+	}
+
+	/**
+	 * Record a bounded, secret-free OAuth/MCP authorization handshake event.
+	 *
+	 * Callers may only supply the fixed metadata fields below. Tokens, codes,
+	 * PKCE values, state, request bodies, redirect URIs, and credentials are
+	 * never retained.
+	 *
+	 * @param array $entry Sanitized authorization trace metadata.
+	 * @return bool Whether the entry was written.
+	 */
+	public static function log_oauth_trace( array $entry ) {
+		$allowed = array(
+			'time',
+			'stage',
+			'outcome',
+			'http_status',
+			'error_code',
+			'method',
+			'path',
+			'grant_type',
+			'client_mode',
+			'client_host',
+			'redirect_scheme',
+			'auth_mode',
+			'protocol_version',
+			'mcp_method',
+			'refresh_issued',
+		);
+		$sanitized = array( 'surface' => 'oauth_trace' );
+		foreach ( $allowed as $key ) {
+			if ( array_key_exists( $key, $entry ) ) {
+				$sanitized[ $key ] = $entry[ $key ];
+			}
+		}
+
+		$sanitized['time'] = isset( $sanitized['time'] ) ? sanitize_text_field( (string) $sanitized['time'] ) : gmdate( 'c' );
+		foreach ( array( 'stage', 'outcome', 'error_code', 'method', 'path', 'grant_type', 'client_mode', 'client_host', 'redirect_scheme', 'auth_mode', 'protocol_version', 'mcp_method' ) as $key ) {
+			if ( isset( $sanitized[ $key ] ) ) {
+				$sanitized[ $key ] = substr( sanitize_text_field( (string) $sanitized[ $key ] ), 0, 191 );
+			}
+		}
+		if ( isset( $sanitized['http_status'] ) ) {
+			$sanitized['http_status'] = max( 0, (int) $sanitized['http_status'] );
+		}
+		if ( isset( $sanitized['refresh_issued'] ) ) {
+			$sanitized['refresh_issued'] = (bool) $sanitized['refresh_issued'];
+		}
+
+		return self::append( $sanitized );
+	}
+
+	public static function read_oauth_trace( $limit = 50 ) {
+		$limit = max( 1, min( self::MAX_OAUTH_TRACE_READ, (int) $limit ) );
+		$all = self::read( array( 'limit' => self::MAX_READ ) );
+		if ( is_wp_error( $all ) ) {
+			return $all;
+		}
+		$entries = array();
+		foreach ( $all['entries'] ?? array() as $entry ) {
+			if ( ! is_array( $entry ) || 'oauth_trace' !== ( $entry['surface'] ?? '' ) ) {
+				continue;
+			}
+			$entries[] = $entry;
+			if ( count( $entries ) >= $limit ) {
+				break;
+			}
+		}
+		return array( 'entries' => $entries );
+	}
+
+	public static function clear_oauth_trace() {
+		$path = CUA_Local_Storage::path( 'audit.jsonl', 'audit' );
+		if ( is_wp_error( $path ) ) {
+			return $path;
+		}
+		if ( ! is_file( $path ) ) {
+			return true;
+		}
+		$lines = @file( $path, FILE_IGNORE_NEW_LINES );
+		if ( false === $lines ) {
+			return new WP_Error( 'cmsa_oauth_trace_read_failed', 'The authorization trace could not be read.' );
+		}
+		$kept = array();
+		foreach ( $lines as $line ) {
+			$entry = json_decode( trim( (string) $line ), true );
+			if ( is_array( $entry ) && 'oauth_trace' === ( $entry['surface'] ?? '' ) ) {
+				continue;
+			}
+			if ( '' !== trim( (string) $line ) ) {
+				$kept[] = (string) $line;
+			}
+		}
+		$encoded = empty( $kept ) ? '' : implode( "\n", $kept ) . "\n";
+		return false !== @file_put_contents( $path, $encoded, LOCK_EX )
+			? true
+			: new WP_Error( 'cmsa_oauth_trace_write_failed', 'The authorization trace could not be cleared.' );
 	}
 
 	private static function finish( $ability_name, $status, $error_code ) {
