@@ -88,7 +88,32 @@ final class CUA_MCP_Server {
 		$authorization = self::authorize_request( $request );
 		if ( is_wp_error( $authorization ) ) {
 			self::audit_request( $request, '', '', 'authentication_failed', self::error_status( $authorization ), $authorization->get_error_code(), $started );
+			if ( class_exists( 'CUA_Audit' ) ) {
+				CUA_Audit::log_oauth_trace(
+					array(
+						'stage'       => 'mcp_authentication',
+						'outcome'     => 'failed',
+						'http_status' => self::error_status( $authorization ),
+						'error_code'  => $authorization->get_error_code(),
+						'method'      => strtoupper( $request->get_method() ),
+						'path'        => (string) wp_parse_url( $request->get_route(), PHP_URL_PATH ),
+					)
+				);
+			}
 			return self::authentication_error_response( $authorization );
+		}
+		if ( class_exists( 'CUA_Audit' ) ) {
+			$authorization_header = trim( (string) $request->get_header( 'authorization' ) );
+			CUA_Audit::log_oauth_trace(
+				array(
+					'stage'       => 'mcp_authentication',
+					'outcome'     => 'accepted',
+					'http_status' => 200,
+					'method'      => strtoupper( $request->get_method() ),
+					'path'        => (string) wp_parse_url( $request->get_route(), PHP_URL_PATH ),
+					'auth_mode'   => preg_match( '/^Bearer\s/i', $authorization_header ) ? 'bearer' : 'wordpress',
+				)
+			);
 		}
 
 		$http_method = strtoupper( $request->get_method() );
@@ -135,6 +160,19 @@ final class CUA_MCP_Server {
 		$params = isset( $payload['params'] ) && is_array( $payload['params'] ) ? $payload['params'] : array();
 		$tool = 'tools/call' === $method && isset( $params['name'] ) ? (string) $params['name'] : '';
 		self::audit_request( $request, $method, $tool, 'received', 0, '', $started, $id, $params );
+		if ( class_exists( 'CUA_Audit' ) ) {
+			CUA_Audit::log_oauth_trace(
+				array(
+					'stage'            => 'mcp_request',
+					'outcome'          => 'received',
+					'http_status'      => 0,
+					'method'           => strtoupper( $request->get_method() ),
+					'path'             => (string) wp_parse_url( $request->get_route(), PHP_URL_PATH ),
+					'protocol_version' => trim( (string) $request->get_header( 'mcp-protocol-version' ) ),
+					'mcp_method'       => $method,
+				)
+			);
+		}
 
 		$transport_error = self::validate_transport_headers( $request );
 		if ( is_wp_error( $transport_error ) ) {
@@ -210,7 +248,13 @@ final class CUA_MCP_Server {
 			case 'tools/list':
 				$tools = self::list_tools_result( $params );
 				if ( is_wp_error( $tools ) ) {
+					if ( class_exists( 'CUA_Audit' ) ) {
+						CUA_Audit::log_oauth_trace( array( 'stage' => 'mcp_tools_list', 'outcome' => 'failed', 'http_status' => 400, 'error_code' => $tools->get_error_code(), 'mcp_method' => 'tools/list', 'protocol_version' => $protocol_version ) );
+					}
 					return self::protocol_error_response( $id, -32602, $tools->get_error_message(), 400 );
+				}
+				if ( class_exists( 'CUA_Audit' ) ) {
+					CUA_Audit::log_oauth_trace( array( 'stage' => 'mcp_tools_list', 'outcome' => 'accepted', 'http_status' => 200, 'mcp_method' => 'tools/list', 'protocol_version' => $protocol_version ) );
 				}
 				return self::success_response( $id, $tools, $protocol_version, $session_id );
 
