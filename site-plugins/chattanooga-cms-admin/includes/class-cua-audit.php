@@ -260,7 +260,11 @@ final class CUA_Audit {
 			$sanitized['refresh_issued'] = (bool) $sanitized['refresh_issued'];
 		}
 
-		return self::append( $sanitized );
+		$written = self::append( $sanitized );
+		if ( $written ) {
+			self::trim_oauth_trace_storage( self::MAX_OAUTH_TRACE_READ );
+		}
+		return $written;
 	}
 
 	public static function read_oauth_trace( $limit = 50 ) {
@@ -308,6 +312,37 @@ final class CUA_Audit {
 		return false !== @file_put_contents( $path, $encoded, LOCK_EX )
 			? true
 			: new WP_Error( 'cmsa_oauth_trace_write_failed', 'The authorization trace could not be cleared.' );
+	}
+
+	private static function trim_oauth_trace_storage( $limit ) {
+		$limit = max( 1, (int) $limit );
+		$path = CUA_Local_Storage::path( 'audit.jsonl', 'audit' );
+		if ( is_wp_error( $path ) || ! is_file( $path ) ) {
+			return;
+		}
+		$lines = @file( $path, FILE_IGNORE_NEW_LINES );
+		if ( false === $lines ) {
+			return;
+		}
+		$oauth_seen = 0;
+		$kept_reversed = array();
+		for ( $index = count( $lines ) - 1; $index >= 0; --$index ) {
+			$line = trim( (string) $lines[ $index ] );
+			if ( '' === $line ) {
+				continue;
+			}
+			$entry = json_decode( $line, true );
+			if ( is_array( $entry ) && 'oauth_trace' === ( $entry['surface'] ?? '' ) ) {
+				++$oauth_seen;
+				if ( $oauth_seen > $limit ) {
+					continue;
+				}
+			}
+			$kept_reversed[] = $line;
+		}
+		$kept = array_reverse( $kept_reversed );
+		$encoded = empty( $kept ) ? '' : implode( "\n", $kept ) . "\n";
+		@file_put_contents( $path, $encoded, LOCK_EX );
 	}
 
 	private static function finish( $ability_name, $status, $error_code ) {
