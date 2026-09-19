@@ -115,6 +115,11 @@ $invalid_challenge = CUA_OAuth_Server::resource_challenge( 'cmsa_oauth_token_inv
 cmsa_mcp_settings_assert( false !== strpos( $invalid_challenge, 'error="invalid_token"' ), 'Invalid-token challenge omits invalid_token.' );
 $scope_challenge = CUA_OAuth_Server::resource_challenge( 'cmsa_oauth_insufficient_scope' );
 cmsa_mcp_settings_assert( false !== strpos( $scope_challenge, 'error="insufficient_scope"' ), 'Insufficient-scope challenge omits insufficient_scope.' );
+$tool_missing_challenge = CUA_OAuth_Server::tool_resource_challenge( 'cmsa_oauth_token_missing' );
+cmsa_mcp_settings_assert( false !== strpos( $tool_missing_challenge, 'resource_metadata=' ), 'Tool OAuth challenge omits protected-resource metadata.' );
+cmsa_mcp_settings_assert( false !== strpos( $tool_missing_challenge, 'error=' ), 'Tool OAuth challenge omits OAuth error.' );
+cmsa_mcp_settings_assert( false !== strpos( $tool_missing_challenge, 'error_description=' ), 'Tool OAuth challenge omits OAuth error_description.' );
+cmsa_mcp_settings_assert( false !== strpos( $tool_missing_challenge, 'scope="' . CUA_OAuth_Server::SCOPE . '"' ), 'Tool OAuth challenge omits the administrator scope.' );
 
 $rewrite_rules = CUA_OAuth_Server::inject_well_known_rewrite_rules( "ORIGINAL-WORDPRESS-RULES\n" );
 cmsa_mcp_settings_assert( false !== strpos( $rewrite_rules, '^\\.well-known/oauth-protected-resource/?$' ), 'Root protected-resource rewrite rule is missing.' );
