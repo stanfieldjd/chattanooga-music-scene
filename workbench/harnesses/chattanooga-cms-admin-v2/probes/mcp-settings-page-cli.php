@@ -252,19 +252,37 @@ cmsa_mcp_settings_assert( isset( $routes['/chattanooga-cms-admin/v1/oauth/diagno
 $original_clients = get_option( CUA_OAuth_Server::CLIENT_OPTION, array() );
 $loopback_registration = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/oauth/register' );
 $loopback_registration->set_header( 'Content-Type', 'application/json' );
-$loopback_registration->set_body( wp_json_encode( array( 'redirect_uris' => array( 'http://127.0.0.1:49152/callback' ), 'client_name' => 'Native MCP test', 'token_endpoint_auth_method' => 'none' ) ) );
+$loopback_registration->set_body(
+	wp_json_encode(
+		array(
+			'redirect_uris'              => array( 'http://127.0.0.1:49152/callback' ),
+			'client_name'                => 'Native MCP test',
+			'token_endpoint_auth_method' => 'none',
+		)
+	)
+);
 $loopback_response = CUA_OAuth_Server::register_client( $loopback_registration );
 cmsa_mcp_settings_assert( 201 === $loopback_response->get_status(), 'Standards-compliant native loopback redirect was rejected.' );
 update_option( CUA_OAuth_Server::CLIENT_OPTION, is_array( $original_clients ) ? $original_clients : array(), false );
 
 $scope_token = 'cmsa-scope-test-' . wp_generate_password( 40, false, false );
 $scope_key = 'cua_oauth_access_' . hash_hmac( 'sha256', $scope_token, wp_salt( 'auth' ) );
-set_transient( $scope_key, array( 'client_id' => 'cmsa-scope-test', 'user_id' => get_current_user_id(), 'scope' => CUA_OAuth_Server::OFFLINE_SCOPE, 'resource' => rest_url( CUA_MCP_Server::REST_NAMESPACE . CUA_MCP_Server::REST_ROUTE ) ), 300 );
+set_transient(
+	$scope_key,
+	array(
+		'client_id' => 'cmsa-scope-test',
+		'user_id'   => get_current_user_id(),
+		'scope'     => CUA_OAuth_Server::OFFLINE_SCOPE,
+		'resource'  => rest_url( CUA_MCP_Server::REST_NAMESPACE . CUA_MCP_Server::REST_ROUTE ),
+	),
+	300
+);
 $scope_request = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
 $scope_request->set_header( 'Authorization', 'Bearer ' . $scope_token );
 $scope_result = CUA_OAuth_Server::authenticate_bearer( $scope_request );
 cmsa_mcp_settings_assert( is_wp_error( $scope_result ) && 'cmsa_oauth_insufficient_scope' === $scope_result->get_error_code(), 'Underscoped OAuth token was not distinguished from an invalid token.' );
 delete_transient( $scope_key );
+
 
 $oauth_fallback_token = 'cmsa-oauth-fallback-' . wp_generate_password( 40, false, false );
 $oauth_fallback_key = 'cua_oauth_access_' . hash_hmac( 'sha256', $oauth_fallback_token, wp_salt( 'auth' ) );
