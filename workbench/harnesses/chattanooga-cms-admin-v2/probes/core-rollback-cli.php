@@ -94,7 +94,7 @@ if ( ! is_wp_error( $invalid ) || 'cmsa_core_version_invalid' !== $invalid->get_
 	exit( 1 );
 }
 
-$inventory = $list->execute();
+$inventory = $list->execute( array() );
 if ( is_wp_error( $inventory ) || empty( $inventory['backups'] ) ) {
 	fwrite( STDERR, "Backup inventory was unavailable after core rollback.\n" );
 	exit( 1 );
