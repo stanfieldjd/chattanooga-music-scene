@@ -339,7 +339,7 @@ final class CUA_Platform_Component_Lifecycle {
 			'public'       => true,
 			'show_in_rest' => false,
 			'mcp'          => array( 'public' => true ),
-			'annotations'  => array( 'readonly' => false, 'destructive' => true, 'idempotent' => false ),
+			'annotations'  => array( 'readonly' => false, 'destructive' => true, 'idempotent' => false, 'open_world' => false ),
 		);
 	}
 }
