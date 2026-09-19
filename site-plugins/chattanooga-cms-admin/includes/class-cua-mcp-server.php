@@ -831,13 +831,14 @@ final class CUA_MCP_Server {
 		$meta = $ability->get_meta();
 		$annotations = isset( $meta['annotations'] ) && is_array( $meta['annotations'] ) ? $meta['annotations'] : array();
 
-		$result = array();
-		if ( array_key_exists( 'readonly', $annotations ) && null !== $annotations['readonly'] ) {
-			$result['readOnlyHint'] = (bool) $annotations['readonly'];
-		}
-		if ( array_key_exists( 'destructive', $annotations ) && null !== $annotations['destructive'] ) {
-			$result['destructiveHint'] = (bool) $annotations['destructive'];
-		}
+		// ChatGPT requires these three annotation booleans on every tool
+		// descriptor. Unknown future public abilities fail conservatively open
+		// rather than understating their possible external reach.
+		$result = array(
+			'readOnlyHint'    => array_key_exists( 'readonly', $annotations ) && null !== $annotations['readonly'] ? (bool) $annotations['readonly'] : false,
+			'destructiveHint' => array_key_exists( 'destructive', $annotations ) && null !== $annotations['destructive'] ? (bool) $annotations['destructive'] : false,
+			'openWorldHint'   => array_key_exists( 'open_world', $annotations ) && null !== $annotations['open_world'] ? (bool) $annotations['open_world'] : true,
+		);
 		if ( array_key_exists( 'idempotent', $annotations ) && null !== $annotations['idempotent'] ) {
 			$result['idempotentHint'] = (bool) $annotations['idempotent'];
 		}
