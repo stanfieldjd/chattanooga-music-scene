@@ -314,7 +314,7 @@ final class CUA_Platform_Settings {
 			'public'       => true,
 			'show_in_rest' => false,
 			'mcp'          => array( 'public' => true ),
-			'annotations'  => array( 'readonly' => (bool) $readonly, 'destructive' => false, 'idempotent' => (bool) $idempotent ),
+			'annotations'  => array( 'readonly' => (bool) $readonly, 'destructive' => false, 'idempotent' => (bool) $idempotent, 'open_world' => false ),
 		);
 	}
 }
