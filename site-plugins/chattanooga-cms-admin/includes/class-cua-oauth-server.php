@@ -490,13 +490,12 @@ final class CUA_OAuth_Server {
 
 		self::trace( 'refresh_token_exchange', 'accepted', 200, '', array( 'grant_type' => 'refresh_token' ) );
 		$response = self::issue_tokens( $record );
-		if ( self::scope_contains( $record['scope'] ?? '', self::OFFLINE_SCOPE ) ) {
-			// Modern offline-access grants rotate refresh tokens. A pre-1.2.3
-			// refresh token has no offline_access scope; preserve that existing
-			// token until its original TTL expires instead of consuming it
-			// without returning a replacement.
-			delete_transient( $key );
-		}
+		// Public MCP clients must be able to maintain a connection after the
+		// one-hour access token expires. OAuth 2.1 allows the authorization
+		// server to issue refresh tokens at its discretion; offline_access is
+		// not a protected-resource requirement. Always rotate a successfully
+		// used refresh token so replay of the old token fails.
+		delete_transient( $key );
 		return $response;
 	}
 
@@ -518,13 +517,14 @@ final class CUA_OAuth_Server {
 			'scope'        => $granted_scope,
 			'resource'     => (string) $record['resource'],
 		);
-		$refresh_issued = false;
-		if ( self::scope_contains( $granted_scope, self::OFFLINE_SCOPE ) ) {
-			$body['refresh_token'] = $refresh;
-			set_transient( self::transient_key( 'refresh', $refresh ), $stored, self::REFRESH_TTL );
-			$refresh_issued = true;
-		}
-		self::trace( 'token_issue', 'accepted', 200, '', array( 'refresh_issued' => $refresh_issued ) );
+		// Issue a rotating refresh token for every successful MCP grant. Clients
+		// may request offline_access, but MCP 2026-07-28 explicitly treats that
+		// scope as optional and does not require it before an authorization
+		// server returns a refresh token. This keeps ChatGPT connections alive
+		// after ACCESS_TTL without expanding the granted resource scope.
+		$body['refresh_token'] = $refresh;
+		set_transient( self::transient_key( 'refresh', $refresh ), $stored, self::REFRESH_TTL );
+		self::trace( 'token_issue', 'accepted', 200, '', array( 'refresh_issued' => true ) );
 		return self::no_store_response( $body );
 	}
 

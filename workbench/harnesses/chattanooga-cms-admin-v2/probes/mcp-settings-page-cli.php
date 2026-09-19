@@ -200,28 +200,66 @@ function cmsa_oauth_refresh_request( $refresh_token, $client_id, $resource ) {
 }
 
 $oauth_resource = rest_url( CUA_MCP_Server::REST_NAMESPACE . CUA_MCP_Server::REST_ROUTE );
-$legacy_refresh = 'cmsa-legacy-refresh-' . wp_generate_password( 40, false, false );
-$legacy_key = cmsa_oauth_test_key( 'refresh', $legacy_refresh );
+$base_scope_refresh = 'cmsa-base-scope-refresh-' . wp_generate_password( 40, false, false );
+$base_scope_key = cmsa_oauth_test_key( 'refresh', $base_scope_refresh );
 set_transient(
-	$legacy_key,
+	$base_scope_key,
 	array(
-		'client_id' => 'cmsa-legacy-client',
+		'client_id' => 'cmsa-base-scope-client',
 		'user_id'   => get_current_user_id(),
 		'scope'     => CUA_OAuth_Server::SCOPE,
 		'resource'  => $oauth_resource,
 	),
 	300
 );
-$legacy_response = cmsa_oauth_refresh_request( $legacy_refresh, 'cmsa-legacy-client', $oauth_resource );
-$legacy_data = $legacy_response->get_data();
-cmsa_mcp_settings_assert( 200 === $legacy_response->get_status(), 'Legacy refresh-token migration failed.' );
-cmsa_mcp_settings_assert( ! empty( $legacy_data['access_token'] ), 'Legacy refresh-token migration returned no access token.' );
-cmsa_mcp_settings_assert( empty( $legacy_data['refresh_token'] ), 'Legacy refresh-token migration silently expanded offline access.' );
-cmsa_mcp_settings_assert( is_array( get_transient( $legacy_key ) ), 'Legacy refresh token was consumed without a replacement.' );
-if ( ! empty( $legacy_data['access_token'] ) ) {
-	delete_transient( cmsa_oauth_test_key( 'access', $legacy_data['access_token'] ) );
+$base_scope_response = cmsa_oauth_refresh_request( $base_scope_refresh, 'cmsa-base-scope-client', $oauth_resource );
+$base_scope_data = $base_scope_response->get_data();
+cmsa_mcp_settings_assert( 200 === $base_scope_response->get_status(), 'Base-scope refresh-token rotation failed.' );
+cmsa_mcp_settings_assert( ! empty( $base_scope_data['access_token'] ), 'Base-scope refresh-token rotation returned no access token.' );
+cmsa_mcp_settings_assert( ! empty( $base_scope_data['refresh_token'] ) && $base_scope_refresh !== $base_scope_data['refresh_token'], 'Base-scope refresh token was not rotated.' );
+cmsa_mcp_settings_assert( false === get_transient( $base_scope_key ), 'Rotated base-scope refresh token left the old token active.' );
+$new_base_scope_key = cmsa_oauth_test_key( 'refresh', $base_scope_data['refresh_token'] ?? '' );
+cmsa_mcp_settings_assert( is_array( get_transient( $new_base_scope_key ) ), 'Rotated base-scope refresh token was not persisted.' );
+if ( ! empty( $base_scope_data['access_token'] ) ) {
+	delete_transient( cmsa_oauth_test_key( 'access', $base_scope_data['access_token'] ) );
 }
-delete_transient( $legacy_key );
+delete_transient( $new_base_scope_key );
+
+$authorization_code = 'cmsa-code-' . wp_generate_password( 40, false, false );
+$authorization_verifier = str_repeat( 'A', 43 );
+$authorization_challenge = rtrim( strtr( base64_encode( hash( 'sha256', $authorization_verifier, true ) ), '+/', '-_' ), '=' );
+$authorization_redirect = 'https://chatgpt.com/connector_platform_oauth_redirect';
+set_transient(
+	cmsa_oauth_test_key( 'code', $authorization_code ),
+	array(
+		'client_id'      => 'https://chatgpt.com/oauth/client.json',
+		'redirect_uri'   => $authorization_redirect,
+		'user_id'        => get_current_user_id(),
+		'scope'          => CUA_OAuth_Server::SCOPE,
+		'resource'       => $oauth_resource,
+		'code_challenge' => $authorization_challenge,
+	),
+	300
+);
+$authorization_exchange = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/oauth/token' );
+$authorization_exchange->set_param( 'grant_type', 'authorization_code' );
+$authorization_exchange->set_param( 'code', $authorization_code );
+$authorization_exchange->set_param( 'client_id', 'https://chatgpt.com/oauth/client.json' );
+$authorization_exchange->set_param( 'redirect_uri', $authorization_redirect );
+$authorization_exchange->set_param( 'code_verifier', $authorization_verifier );
+$authorization_exchange->set_param( 'resource', $oauth_resource );
+$authorization_response = CUA_OAuth_Server::token( $authorization_exchange );
+$authorization_data = $authorization_response->get_data();
+cmsa_mcp_settings_assert( 200 === $authorization_response->get_status(), 'Base mcp:admin authorization-code exchange failed.' );
+cmsa_mcp_settings_assert( ! empty( $authorization_data['access_token'] ), 'Authorization-code exchange returned no access token.' );
+cmsa_mcp_settings_assert( ! empty( $authorization_data['refresh_token'] ), 'Authorization-code exchange did not issue a refresh token for mcp:admin.' );
+cmsa_mcp_settings_assert( CUA_OAuth_Server::SCOPE === ( $authorization_data['scope'] ?? '' ), 'Refresh-token issuance changed the granted resource scope.' );
+if ( ! empty( $authorization_data['access_token'] ) ) {
+	delete_transient( cmsa_oauth_test_key( 'access', $authorization_data['access_token'] ) );
+}
+if ( ! empty( $authorization_data['refresh_token'] ) ) {
+	delete_transient( cmsa_oauth_test_key( 'refresh', $authorization_data['refresh_token'] ) );
+}
 
 $modern_refresh = 'cmsa-modern-refresh-' . wp_generate_password( 40, false, false );
 $modern_key = cmsa_oauth_test_key( 'refresh', $modern_refresh );
@@ -252,5 +290,5 @@ if ( ! empty( $modern_data['access_token'] ) ) {
 }
 delete_transient( $new_modern_key );
 
-echo "cmsa-mcp-settings-page: PASS enabled=default origin_sanitization=verified endpoint=visible protocol=visible oauth_metadata=chatgpt-compatible authorization_trace=secret-free-bounded-panel-and-clear discovery_rewrite=verified rest_metadata_fallback=verified native_loopback=verified scope_semantics=verified manual_fallback=nonexclusive refresh_rotation=verified\n";
+echo "cmsa-mcp-settings-page: PASS enabled=default origin_sanitization=verified endpoint=visible protocol=visible oauth_metadata=chatgpt-compatible authorization_trace=secret-free-bounded-panel-and-clear discovery_rewrite=verified rest_metadata_fallback=verified native_loopback=verified scope_semantics=verified manual_fallback=nonexclusive refresh_rotation=base-and-offline-scopes authorization_code_refresh=verified\n";
 exit( 0 );
