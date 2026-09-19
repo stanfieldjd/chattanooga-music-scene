@@ -49,6 +49,7 @@ final class CUA_Platform_Theme_Updater {
 						'readonly'    => false,
 						'destructive' => true,
 						'idempotent'  => false,
+						'open_world'  => true,
 					),
 				),
 			)

@@ -51,6 +51,7 @@ final class CUA_Ability_Bridge {
 						'readonly'    => true,
 						'destructive' => false,
 						'idempotent'  => true,
+						'open_world'  => false,
 					),
 				),
 			)
@@ -145,6 +146,8 @@ final class CUA_Ability_Bridge {
 					'readonly'    => array_key_exists( 'readonly', $annotations ) && null !== $annotations['readonly'] ? (bool) $annotations['readonly'] : null,
 					'destructive' => array_key_exists( 'destructive', $annotations ) && null !== $annotations['destructive'] ? (bool) $annotations['destructive'] : null,
 					'idempotent'  => array_key_exists( 'idempotent', $annotations ) && null !== $annotations['idempotent'] ? (bool) $annotations['idempotent'] : null,
+				'open_world'  => array_key_exists( 'open_world', $annotations ) && null !== $annotations['open_world'] ? (bool) $annotations['open_world'] : null,
+					'open_world'  => array_key_exists( 'open_world', $annotations ) && null !== $annotations['open_world'] ? (bool) $annotations['open_world'] : null,
 				),
 			);
 		}

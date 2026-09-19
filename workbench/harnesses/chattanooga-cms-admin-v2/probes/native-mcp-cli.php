@@ -105,7 +105,7 @@ function cmsa_native_mcp_all_tools() {
 }
 
 wp_set_current_user( 1 );
-cmsa_native_mcp_assert( defined( 'CUA_VERSION' ) && '1.2.9' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.9 did not load.' );
+cmsa_native_mcp_assert( defined( 'CUA_VERSION' ) && '1.2.10' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.10 did not load.' );
 cmsa_native_mcp_assert( class_exists( 'CUA_MCP_Server' ), 'Chattanooga MCP server class did not load.' );
 
 $server = rest_get_server();
@@ -209,6 +209,17 @@ cmsa_native_mcp_assert( is_array( $tools ) && ! empty( $tools ), 'tools/list ret
 $names = array();
 foreach ( $tools as $tool ) {
 	cmsa_native_mcp_assert( is_array( $tool ) && isset( $tool['name'] ), 'A listed MCP tool is malformed.' );
+	cmsa_native_mcp_assert( '' !== trim( (string) ( $tool['title'] ?? '' ) ), 'A listed MCP tool is missing its title.' );
+	cmsa_native_mcp_assert( '' !== trim( (string) ( $tool['description'] ?? '' ) ), 'A listed MCP tool is missing its description.' );
+	cmsa_native_mcp_assert( is_array( $tool['inputSchema'] ?? null ) && 'object' === ( $tool['inputSchema']['type'] ?? null ), 'A listed MCP tool is missing an object inputSchema: ' . (string) ( $tool['name'] ?? '' ) . ' ' . wp_json_encode( $tool['inputSchema'] ?? null ) );
+	cmsa_native_mcp_assert( is_array( $tool['outputSchema'] ?? null ), 'A listed MCP tool is missing outputSchema: ' . (string) ( $tool['name'] ?? '' ) );
+	$annotations = $tool['annotations'] ?? null;
+	cmsa_native_mcp_assert( is_array( $annotations ), 'A listed MCP tool is missing annotations.' );
+	foreach ( array( 'readOnlyHint', 'destructiveHint', 'openWorldHint' ) as $required_annotation ) {
+		cmsa_native_mcp_assert( array_key_exists( $required_annotation, $annotations ) && is_bool( $annotations[ $required_annotation ] ), 'A listed MCP tool is missing required ChatGPT annotation: ' . $required_annotation );
+	}
+	cmsa_native_mcp_assert( is_array( $tool['securitySchemes'] ?? null ) && ! empty( $tool['securitySchemes'] ), 'A listed MCP tool is missing securitySchemes.' );
+	cmsa_native_mcp_assert( ( $tool['securitySchemes'] ?? null ) === ( $tool['_meta']['securitySchemes'] ?? null ), 'A listed MCP tool does not mirror securitySchemes into _meta.' );
 	$names[] = (string) $tool['name'];
 }
 $sorted_names = $names;
@@ -235,6 +246,8 @@ foreach ( wp_get_abilities() as $ability ) {
 	if ( ! $mcp_public ) {
 		continue;
 	}
+	$annotations = isset( $meta['annotations'] ) && is_array( $meta['annotations'] ) ? $meta['annotations'] : array();
+	cmsa_native_mcp_assert( array_key_exists( 'open_world', $annotations ) && is_bool( $annotations['open_world'] ), 'MCP-public ability is missing explicit open_world classification: ' . $ability_name );
 	$short = substr( $ability_name, strlen( CUA_MCP_Server::ABILITY_PREFIX ) );
 	$expected_names[] = CUA_MCP_Server::TOOL_PREFIX . preg_replace( '/[^A-Za-z0-9_.-]/', '-', $short );
 }
@@ -249,6 +262,27 @@ $write_tool  = cmsa_native_mcp_tool( $tools, 'cmsa.write-bridge' );
 cmsa_native_mcp_assert( true === ( $catalog_tool['annotations']['readOnlyHint'] ?? null ), 'catalog is not annotated read-only.' );
 cmsa_native_mcp_assert( false === ( $write_tool['annotations']['readOnlyHint'] ?? null ), 'write-bridge is incorrectly annotated read-only.' );
 cmsa_native_mcp_assert( true === ( $write_tool['annotations']['destructiveHint'] ?? null ), 'write-bridge is not annotated as mutating/destructive.' );
+cmsa_native_mcp_assert( false === ( $catalog_tool['annotations']['openWorldHint'] ?? null ), 'catalog is incorrectly annotated open-world.' );
+cmsa_native_mcp_assert( true === ( $write_tool['annotations']['openWorldHint'] ?? null ), 'write-bridge is not conservatively annotated open-world.' );
+$read_bridge_tool = cmsa_native_mcp_tool( $tools, 'cmsa.read-bridge' );
+cmsa_native_mcp_assert( true === ( $read_bridge_tool['annotations']['openWorldHint'] ?? null ), 'read-bridge is not conservatively annotated open-world.' );
+foreach (
+	array(
+		'cmsa.get-health'              => false,
+		'cmsa.list-updates'            => true,
+		'cmsa.update-plugin'           => true,
+		'cmsa.install-plugin'          => true,
+		'cmsa.install-plugin-package'  => false,
+		'cmsa.install-theme'           => true,
+		'cmsa.update-theme'            => true,
+		'cmsa.restore-core-backup'     => false,
+		'cmsa.update-core'             => true,
+	) as $tool_name => $expected_open_world
+) {
+	$classified_tool = cmsa_native_mcp_tool( $tools, $tool_name );
+	cmsa_native_mcp_assert( is_array( $classified_tool ), 'Expected classified MCP tool is missing: ' . $tool_name );
+	cmsa_native_mcp_assert( $expected_open_world === ( $classified_tool['annotations']['openWorldHint'] ?? null ), 'MCP openWorldHint classification is incorrect for ' . $tool_name );
+}
 cmsa_native_mcp_assert( ( $catalog_tool['securitySchemes'] ?? null ) === ( $catalog_tool['_meta']['securitySchemes'] ?? null ), 'Tool security schemes are not mirrored into _meta.' );
 $catalog_security = $catalog_tool['securitySchemes'][0] ?? null;
 cmsa_native_mcp_assert( is_array( $catalog_security ) && 'oauth2' === ( $catalog_security['type'] ?? '' ), 'MCP tools do not advertise OAuth 2.0 to ChatGPT.' );
@@ -411,5 +445,5 @@ $close_session->set_header( 'Mcp-Session-Id', $legacy_session_id );
 $close_session_response = rest_do_request( $close_session );
 cmsa_native_mcp_assert( 204 === $close_session_response->get_status(), 'Legacy MCP DELETE did not close the session.' );
 
-echo "cmsa-native-mcp: PASS version=1.2.9 protocol=2026-07-28 route=verified administrator_surface=bounded-public origin_guard=verified tools_list=bounded-deterministic oauth_scheme=verified read_call=verified header_validation=verified\n";
+echo "cmsa-native-mcp: PASS version=1.2.10 protocol=2026-07-28 route=verified administrator_surface=bounded-public origin_guard=verified tools_list=bounded-deterministic oauth_scheme=verified read_call=verified header_validation=verified\n";
 exit( 0 );

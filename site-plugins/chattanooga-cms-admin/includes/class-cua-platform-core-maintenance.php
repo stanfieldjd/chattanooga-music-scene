@@ -24,7 +24,7 @@ final class CUA_Platform_Core_Maintenance {
 				'output_schema'       => array( 'type' => 'object' ),
 				'execute_callback'    => array( __CLASS__, 'restore_core_backup' ),
 				'permission_callback' => static function () { return current_user_can( 'update_core' ); },
-				'meta'                => self::destructive_meta(),
+				'meta'                => self::destructive_meta( false ),
 			)
 		);
 
@@ -45,7 +45,7 @@ final class CUA_Platform_Core_Maintenance {
 				'output_schema'       => array( 'type' => 'object' ),
 				'execute_callback'    => array( __CLASS__, 'update_core' ),
 				'permission_callback' => static function () { return current_user_can( 'update_core' ); },
-				'meta'                => self::destructive_meta(),
+				'meta'                => self::destructive_meta( true ),
 			)
 		);
 	}
@@ -616,12 +616,12 @@ final class CUA_Platform_Core_Maintenance {
 		);
 	}
 
-	private static function destructive_meta() {
+	private static function destructive_meta( $open_world ) {
 		return array(
 			'public'       => true,
 			'show_in_rest' => false,
 			'mcp'          => array( 'public' => true ),
-			'annotations'  => array( 'readonly' => false, 'destructive' => true, 'idempotent' => false ),
+			'annotations'  => array( 'readonly' => false, 'destructive' => true, 'idempotent' => false, 'open_world' => (bool) $open_world ),
 		);
 	}
 }

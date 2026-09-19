@@ -47,7 +47,7 @@ final class CUA_Audit {
 					'public'       => true,
 					'show_in_rest' => false,
 					'mcp'          => array( 'public' => true ),
-					'annotations'  => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true ),
+					'annotations'  => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world' => false ),
 				),
 			)
 		);

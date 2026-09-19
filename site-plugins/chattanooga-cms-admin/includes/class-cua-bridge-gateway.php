@@ -216,6 +216,7 @@ final class CUA_Bridge_Gateway {
 				'readonly'    => (bool) $readonly,
 				'destructive' => ! $readonly,
 				'idempotent'  => false,
+				'open_world'  => true,
 			),
 		);
 	}

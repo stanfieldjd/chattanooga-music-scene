@@ -22,6 +22,11 @@ final class CUA_Backups {
 				'label'               => __( 'List local backups', 'chattanooga-cms-admin' ),
 				'description'         => __( 'Lists local Chattanooga CMS Admin backup manifests without exposing storage paths or backup contents.', 'chattanooga-cms-admin' ),
 				'category'            => self::CATEGORY,
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'properties'           => array(),
+					'additionalProperties' => false,
+				),
 				'output_schema'       => array( 'type' => 'object' ),
 				'execute_callback'    => array( __CLASS__, 'list_backups' ),
 				'permission_callback' => static function () { return current_user_can( 'manage_options' ); },
@@ -870,7 +875,7 @@ final class CUA_Backups {
 			'public'       => true,
 			'show_in_rest' => false,
 			'mcp'          => array( 'public' => true ),
-			'annotations'  => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true ),
+			'annotations'  => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world' => false ),
 		);
 	}
 
@@ -879,7 +884,7 @@ final class CUA_Backups {
 			'public'       => true,
 			'show_in_rest' => false,
 			'mcp'          => array( 'public' => true ),
-			'annotations'  => array( 'readonly' => false, 'destructive' => (bool) $destructive, 'idempotent' => false ),
+			'annotations'  => array( 'readonly' => false, 'destructive' => (bool) $destructive, 'idempotent' => false, 'open_world' => false ),
 		);
 	}
 }

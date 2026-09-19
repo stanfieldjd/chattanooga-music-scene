@@ -201,7 +201,7 @@ if ( $extra_exists ) {
 	exit( 1 );
 }
 
-$list_result = $list->execute();
+$list_result = $list->execute( array() );
 if ( is_wp_error( $list_result ) || empty( $list_result['backups'] ) ) {
 	fwrite( STDERR, "Backup inventory could not be read.\n" );
 	exit( 1 );
@@ -225,7 +225,7 @@ wp_set_current_user( 0 );
 if ( false !== $create->check_permissions( array( 'scope' => 'database' ) )
 	|| false !== $verify->check_permissions( array( 'id' => $good['id'] ) )
 	|| false !== $restore->check_permissions( array( 'id' => $good['id'] ) )
-	|| false !== $list->check_permissions() ) {
+	|| false !== $list->check_permissions( array() ) ) {
 	fwrite( STDERR, "Anonymous backup administration was not blocked.\n" );
 	exit( 1 );
 }

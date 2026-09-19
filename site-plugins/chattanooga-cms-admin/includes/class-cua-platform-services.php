@@ -25,7 +25,7 @@ final class CUA_Platform_Services {
 				'permission_callback' => static function () {
 					return current_user_can( 'manage_options' );
 				},
-				'meta'                => self::meta( true, false, true ),
+				'meta'                => self::meta( true, false, true, false ),
 			)
 		);
 
@@ -41,7 +41,7 @@ final class CUA_Platform_Services {
 				'permission_callback' => static function () {
 					return current_user_can( 'update_core' ) || current_user_can( 'update_plugins' ) || current_user_can( 'update_themes' );
 				},
-				'meta'                => self::meta( true, false, true ),
+				'meta'                => self::meta( true, false, true, true ),
 			)
 		);
 
@@ -73,7 +73,7 @@ final class CUA_Platform_Services {
 				'permission_callback' => static function () {
 					return current_user_can( 'update_plugins' );
 				},
-				'meta'                => self::meta( false, true, false ),
+				'meta'                => self::meta( false, true, false, true ),
 			)
 		);
 	}
@@ -369,7 +369,7 @@ final class CUA_Platform_Services {
 		);
 	}
 
-	private static function meta( $readonly, $destructive, $idempotent ) {
+	private static function meta( $readonly, $destructive, $idempotent, $open_world ) {
 		return array(
 			'public'       => true,
 			'show_in_rest' => false,
@@ -378,6 +378,7 @@ final class CUA_Platform_Services {
 				'readonly'    => (bool) $readonly,
 				'destructive' => (bool) $destructive,
 				'idempotent'  => (bool) $idempotent,
+				'open_world'  => (bool) $open_world,
 			),
 		);
 	}

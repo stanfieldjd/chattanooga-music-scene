@@ -25,7 +25,7 @@ final class CUA_Platform_Package_Lifecycle {
 				'permission_callback' => static function () {
 					return current_user_can( 'install_plugins' ) && current_user_can( 'delete_plugins' );
 				},
-				'meta'                => self::mutation_meta(),
+				'meta'                => self::mutation_meta( true ),
 			)
 		);
 
@@ -41,7 +41,7 @@ final class CUA_Platform_Package_Lifecycle {
 				'permission_callback' => static function () {
 					return current_user_can( 'install_plugins' ) && current_user_can( 'delete_plugins' );
 				},
-				'meta'                => self::mutation_meta(),
+				'meta'                => self::mutation_meta( false ),
 			)
 		);
 
@@ -57,7 +57,7 @@ final class CUA_Platform_Package_Lifecycle {
 				'permission_callback' => static function () {
 					return current_user_can( 'install_themes' ) && current_user_can( 'delete_themes' );
 				},
-				'meta'                => self::mutation_meta(),
+				'meta'                => self::mutation_meta( true ),
 			)
 		);
 
@@ -71,7 +71,7 @@ final class CUA_Platform_Package_Lifecycle {
 				'output_schema'       => array( 'type' => 'object' ),
 				'execute_callback'    => array( __CLASS__, 'activate_plugin' ),
 				'permission_callback' => static function () { return current_user_can( 'activate_plugins' ); },
-				'meta'                => self::mutation_meta(),
+				'meta'                => self::mutation_meta( false ),
 			)
 		);
 
@@ -85,7 +85,7 @@ final class CUA_Platform_Package_Lifecycle {
 				'output_schema'       => array( 'type' => 'object' ),
 				'execute_callback'    => array( __CLASS__, 'deactivate_plugin' ),
 				'permission_callback' => static function () { return current_user_can( 'activate_plugins' ); },
-				'meta'                => self::mutation_meta(),
+				'meta'                => self::mutation_meta( false ),
 			)
 		);
 	}
@@ -509,12 +509,12 @@ final class CUA_Platform_Package_Lifecycle {
 		);
 	}
 
-	private static function mutation_meta() {
+	private static function mutation_meta( $open_world ) {
 		return array(
 			'public'       => true,
 			'show_in_rest' => false,
 			'mcp'          => array( 'public' => true ),
-			'annotations'  => array( 'readonly' => false, 'destructive' => false, 'idempotent' => false ),
+			'annotations'  => array( 'readonly' => false, 'destructive' => false, 'idempotent' => false, 'open_world' => (bool) $open_world ),
 		);
 	}
 }

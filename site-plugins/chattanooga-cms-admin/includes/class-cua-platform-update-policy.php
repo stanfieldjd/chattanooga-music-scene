@@ -50,7 +50,7 @@ final class CUA_Platform_Update_Policy {
 					'public'       => true,
 					'show_in_rest' => false,
 					'mcp'          => array( 'public' => true ),
-					'annotations'  => array( 'readonly' => false, 'destructive' => false, 'idempotent' => true ),
+					'annotations'  => array( 'readonly' => false, 'destructive' => false, 'idempotent' => true, 'open_world' => false ),
 				),
 			)
 		);
