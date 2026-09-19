@@ -16,6 +16,7 @@ final class CUA_MCP_Settings_Page {
 	public static function register_admin_hooks() {
 		add_action( 'admin_menu', array( __CLASS__, 'register_menu' ) );
 		add_action( 'admin_init', array( __CLASS__, 'register_settings' ) );
+		add_action( 'admin_post_cua_clear_oauth_trace', array( __CLASS__, 'clear_oauth_trace' ) );
 	}
 
 	public static function register_menu() {
@@ -204,8 +205,76 @@ final class CUA_MCP_Settings_Page {
 				submit_button();
 				?>
 			</form>
+			<?php self::render_oauth_trace_panel(); ?>
 		</div>
 		<?php
+	}
+
+	public static function clear_oauth_trace() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You do not have permission to clear the authorization trace.', 'chattanooga-cms-admin' ), '', array( 'response' => 403 ) );
+		}
+		check_admin_referer( 'cua_clear_oauth_trace' );
+		$result = class_exists( 'CUA_Audit' ) ? CUA_Audit::clear_oauth_trace() : new WP_Error( 'cmsa_oauth_trace_unavailable', 'Authorization tracing is unavailable.' );
+		$query = array(
+			'page' => self::PAGE_SLUG,
+			'oauth_trace' => is_wp_error( $result ) ? 'error' : 'cleared',
+		);
+		wp_safe_redirect( add_query_arg( $query, admin_url( 'options-general.php' ) ) );
+		exit;
+	}
+
+	public static function render_oauth_trace_panel() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		$trace = class_exists( 'CUA_Audit' ) ? CUA_Audit::read_oauth_trace( 50 ) : array( 'entries' => array() );
+		$entries = is_wp_error( $trace ) ? array() : ( $trace['entries'] ?? array() );
+		$status = isset( $_GET['oauth_trace'] ) ? sanitize_key( wp_unslash( $_GET['oauth_trace'] ) ) : '';
+		if ( 'cleared' === $status ) {
+			echo '<div class="notice notice-success inline"><p>' . esc_html__( 'Authorization trace cleared.', 'chattanooga-cms-admin' ) . '</p></div>';
+		} elseif ( 'error' === $status || is_wp_error( $trace ) ) {
+			echo '<div class="notice notice-error inline"><p>' . esc_html__( 'Authorization trace could not be read or cleared.', 'chattanooga-cms-admin' ) . '</p></div>';
+		}
+		echo '<hr><h2>' . esc_html__( 'Authorization trace', 'chattanooga-cms-admin' ) . '</h2>';
+		echo '<p>' . esc_html__( 'Shows the most recent OAuth and MCP handshake stages without storing bearer tokens, authorization codes, PKCE values, state, passwords, request bodies, or redirect URLs.', 'chattanooga-cms-admin' ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Diagnostics:', 'chattanooga-cms-admin' ) . '</strong> <code>' . esc_html( rest_url( CUA_OAuth_Server::REST_NAMESPACE . '/oauth/diagnostics' ) ) . '</code></p>';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin:12px 0">';
+		echo '<input type="hidden" name="action" value="cua_clear_oauth_trace">';
+		wp_nonce_field( 'cua_clear_oauth_trace' );
+		submit_button( __( 'Clear authorization trace', 'chattanooga-cms-admin' ), 'secondary', 'submit', false );
+		echo '</form>';
+		if ( empty( $entries ) ) {
+			echo '<p><em>' . esc_html__( 'No authorization activity has been recorded yet.', 'chattanooga-cms-admin' ) . '</em></p>';
+			return;
+		}
+		echo '<div style="overflow:auto;max-height:520px"><table class="widefat striped"><thead><tr>';
+		foreach ( array( 'Time', 'Stage', 'Outcome', 'HTTP', 'Error', 'Grant', 'Client', 'MCP method', 'Protocol' ) as $heading ) {
+			echo '<th>' . esc_html( $heading ) . '</th>';
+		}
+		echo '</tr></thead><tbody>';
+		foreach ( $entries as $entry ) {
+			$client = trim( (string) ( $entry['client_mode'] ?? '' ) );
+			if ( ! empty( $entry['client_host'] ) ) {
+				$client .= ( '' !== $client ? ' / ' : '' ) . (string) $entry['client_host'];
+			}
+			echo '<tr>';
+			foreach ( array(
+				$entry['time'] ?? '',
+				$entry['stage'] ?? '',
+				$entry['outcome'] ?? '',
+				$entry['http_status'] ?? '',
+				$entry['error_code'] ?? '',
+				$entry['grant_type'] ?? '',
+				$client,
+				$entry['mcp_method'] ?? '',
+				$entry['protocol_version'] ?? '',
+			) as $value ) {
+				echo '<td><code>' . esc_html( (string) $value ) . '</code></td>';
+			}
+			echo '</tr>';
+		}
+		echo '</tbody></table></div>';
 	}
 
 	public static function render_connection_section() {
