@@ -849,10 +849,13 @@ final class CUA_MCP_Server {
 	private static function authentication_error_response( WP_Error $error ) {
 		$data = $error->get_error_data();
 		$status = is_array( $data ) && isset( $data['status'] ) ? (int) $data['status'] : 401;
-		$challenge = CUA_OAuth_Server::resource_challenge();
+		$error_code = (string) $error->get_error_code();
+		$challenge = CUA_OAuth_Server::resource_challenge( $error_code );
 		$response = self::protocol_error_response( null, -32001, $error->get_error_message(), $status );
 		$body = $response->get_data();
 		$body['_meta']['mcp/www_authenticate'] = array( $challenge );
+		$body['error']['data'] = isset( $body['error']['data'] ) && is_array( $body['error']['data'] ) ? $body['error']['data'] : array();
+		$body['error']['data']['_meta'] = array( 'mcp/www_authenticate' => array( $challenge ) );
 		$response->set_data( $body );
 		$response->header( 'WWW-Authenticate', $challenge );
 		return $response;
