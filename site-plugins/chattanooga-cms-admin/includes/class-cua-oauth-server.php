@@ -428,6 +428,18 @@ final class CUA_OAuth_Server {
 		return $challenge;
 	}
 
+	public static function tool_resource_challenge( $error_code = '' ) {
+		$challenge = 'Bearer resource_metadata="' . esc_url_raw( self::protected_resource_metadata_url() ) . '", scope="' . self::SCOPE . '"';
+		if ( 'cmsa_oauth_token_invalid' === $error_code || 'cmsa_mcp_authentication_required' === $error_code ) {
+			$challenge .= ', error="invalid_token", error_description="A valid access token is required to call this tool."';
+		} elseif ( 'cmsa_oauth_insufficient_scope' === $error_code || 'cmsa_mcp_forbidden' === $error_code ) {
+			$challenge .= ', error="insufficient_scope", error_description="The access token does not grant the required administrator scope."';
+		} else {
+			$challenge .= ', error="insufficient_scope", error_description="Authentication is required to call this tool."';
+		}
+		return $challenge;
+	}
+
 	private static function exchange_authorization_code( WP_REST_Request $request ) {
 		$code = trim( (string) $request->get_param( 'code' ) );
 		$record = get_transient( self::transient_key( 'code', $code ) );
