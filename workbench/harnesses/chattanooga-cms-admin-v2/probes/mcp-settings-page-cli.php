@@ -42,6 +42,43 @@ cmsa_mcp_settings_assert( false !== strpos( $page, esc_url( rest_url( CUA_MCP_Se
 cmsa_mcp_settings_assert( false !== strpos( $page, CUA_MCP_Server::PROTOCOL_VERSION ), 'MCP protocol version is missing from the settings page.' );
 cmsa_mcp_settings_assert( false !== strpos( $page, 'Allowed browser origins' ), 'MCP origin setting is missing from the settings page.' );
 
+cmsa_mcp_settings_assert( false !== strpos( $page, 'Authorization trace' ), 'Authorization trace panel is missing from the settings page.' );
+cmsa_mcp_settings_assert( false !== strpos( $page, 'Clear authorization trace' ), 'Authorization trace clear control is missing from the settings page.' );
+cmsa_mcp_settings_assert( false !== strpos( $page, esc_html( rest_url( CUA_OAuth_Server::REST_NAMESPACE . '/oauth/diagnostics' ) ) ), 'OAuth diagnostics URL is missing from the trace panel.' );
+
+cmsa_mcp_settings_assert( class_exists( 'CUA_Audit' ), 'Audit service required for authorization tracing is unavailable.' );
+$trace_clear = CUA_Audit::clear_oauth_trace();
+cmsa_mcp_settings_assert( true === $trace_clear, 'Authorization trace could not be cleared before probe.' );
+CUA_Audit::log_oauth_trace(
+	array(
+		'stage'            => 'probe_stage',
+		'outcome'          => 'accepted',
+		'http_status'      => 200,
+		'grant_type'       => 'authorization_code',
+		'client_mode'      => 'cimd',
+		'client_host'      => 'chatgpt.com',
+		'protocol_version' => '2026-07-28',
+		'mcp_method'       => 'tools/list',
+		'token'            => 'must-not-be-retained',
+		'code'             => 'must-not-be-retained',
+		'state'            => 'must-not-be-retained',
+		'redirect_uri'     => 'https://must-not-be-retained.invalid/callback',
+	)
+);
+$trace = CUA_Audit::read_oauth_trace( 10 );
+cmsa_mcp_settings_assert( is_array( $trace['entries'] ?? null ) && 1 === count( $trace['entries'] ), 'Authorization trace did not return the recorded probe entry.' );
+$trace_entry = $trace['entries'][0];
+cmsa_mcp_settings_assert( 'probe_stage' === ( $trace_entry['stage'] ?? '' ) && 'chatgpt.com' === ( $trace_entry['client_host'] ?? '' ), 'Authorization trace omitted safe handshake metadata.' );
+foreach ( array( 'token', 'code', 'state', 'redirect_uri' ) as $forbidden_trace_key ) {
+	cmsa_mcp_settings_assert( ! array_key_exists( $forbidden_trace_key, $trace_entry ), 'Authorization trace retained forbidden sensitive field: ' . $forbidden_trace_key );
+}
+ob_start();
+CUA_MCP_Settings_Page::render_oauth_trace_panel();
+$trace_panel = ob_get_clean();
+cmsa_mcp_settings_assert( false !== strpos( $trace_panel, 'probe_stage' ) && false !== strpos( $trace_panel, 'chatgpt.com' ), 'Authorization trace panel did not display recorded handshake metadata.' );
+$trace_clear = CUA_Audit::clear_oauth_trace();
+cmsa_mcp_settings_assert( true === $trace_clear && empty( ( CUA_Audit::read_oauth_trace( 10 )['entries'] ?? array() ) ), 'Authorization trace clear operation did not remove trace entries.' );
+
 $oauth_metadata = CUA_OAuth_Server::authorization_server_metadata();
 $resource_metadata = CUA_OAuth_Server::protected_resource_metadata();
 cmsa_mcp_settings_assert( in_array( CUA_OAuth_Server::OFFLINE_SCOPE, $oauth_metadata['scopes_supported'] ?? array(), true ), 'OAuth discovery does not advertise offline_access.' );
@@ -195,5 +232,5 @@ if ( ! empty( $modern_data['access_token'] ) ) {
 }
 delete_transient( $new_modern_key );
 
-echo "cmsa-mcp-settings-page: PASS enabled=default origin_sanitization=verified endpoint=visible protocol=visible oauth_metadata=chatgpt-compatible discovery_rewrite=verified rest_metadata_fallback=verified native_loopback=verified scope_semantics=verified manual_fallback=nonexclusive refresh_rotation=verified\n";
+echo "cmsa-mcp-settings-page: PASS enabled=default origin_sanitization=verified endpoint=visible protocol=visible oauth_metadata=chatgpt-compatible authorization_trace=secret-free-panel-and-clear discovery_rewrite=verified rest_metadata_fallback=verified native_loopback=verified scope_semantics=verified manual_fallback=nonexclusive refresh_rotation=verified\n";
 exit( 0 );
