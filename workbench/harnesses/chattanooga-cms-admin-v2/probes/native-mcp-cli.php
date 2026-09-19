@@ -211,8 +211,8 @@ foreach ( $tools as $tool ) {
 	cmsa_native_mcp_assert( is_array( $tool ) && isset( $tool['name'] ), 'A listed MCP tool is malformed.' );
 	cmsa_native_mcp_assert( '' !== trim( (string) ( $tool['title'] ?? '' ) ), 'A listed MCP tool is missing its title.' );
 	cmsa_native_mcp_assert( '' !== trim( (string) ( $tool['description'] ?? '' ) ), 'A listed MCP tool is missing its description.' );
-	cmsa_native_mcp_assert( is_array( $tool['inputSchema'] ?? null ) && 'object' === ( $tool['inputSchema']['type'] ?? null ), 'A listed MCP tool is missing an object inputSchema.' );
-	cmsa_native_mcp_assert( is_array( $tool['outputSchema'] ?? null ), 'A listed MCP tool is missing outputSchema.' );
+	cmsa_native_mcp_assert( is_array( $tool['inputSchema'] ?? null ) && 'object' === ( $tool['inputSchema']['type'] ?? null ), 'A listed MCP tool is missing an object inputSchema: ' . (string) ( $tool['name'] ?? '' ) . ' ' . wp_json_encode( $tool['inputSchema'] ?? null ) );
+	cmsa_native_mcp_assert( is_array( $tool['outputSchema'] ?? null ), 'A listed MCP tool is missing outputSchema: ' . (string) ( $tool['name'] ?? '' ) );
 	$annotations = $tool['annotations'] ?? null;
 	cmsa_native_mcp_assert( is_array( $annotations ), 'A listed MCP tool is missing annotations.' );
 	foreach ( array( 'readOnlyHint', 'destructiveHint', 'openWorldHint' ) as $required_annotation ) {
