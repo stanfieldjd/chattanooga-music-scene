@@ -624,7 +624,7 @@ final class CUA_MCP_Server {
 			}
 
 			$ability_name = $ability->get_name();
-			if ( 0 !== strpos( $ability_name, self::ABILITY_PREFIX ) ) {
+			if ( 0 !== strpos( $ability_name, self::ABILITY_PREFIX ) || ! self::ability_is_mcp_public( $ability ) ) {
 				continue;
 			}
 
@@ -746,10 +746,18 @@ final class CUA_MCP_Server {
 		}
 
 		$ability = wp_get_ability( self::ABILITY_PREFIX . $short );
-		if ( ! $ability instanceof WP_Ability ) {
+		if ( ! $ability instanceof WP_Ability || ! self::ability_is_mcp_public( $ability ) ) {
 			return null;
 		}
 		return $ability;
+	}
+
+	private static function ability_is_mcp_public( WP_Ability $ability ) {
+		$meta = $ability->get_meta();
+		if ( isset( $meta['mcp'] ) && is_array( $meta['mcp'] ) && array_key_exists( 'public', $meta['mcp'] ) && null !== $meta['mcp']['public'] ) {
+			return true === $meta['mcp']['public'];
+		}
+		return true === ( $meta['public'] ?? false );
 	}
 
 	private static function tool_name( $ability_name ) {
@@ -827,15 +835,9 @@ final class CUA_MCP_Server {
 	}
 
 	private static function auth_security_schemes() {
-		if ( CUA_MCP_Settings_Page::is_manual_auth() ) {
-			return array(
-				array(
-					'type'         => 'http',
-					'scheme'       => 'bearer',
-					'bearerFormat' => 'manual-mcp-token',
-				),
-			);
-		}
+		// ChatGPT currently understands tool-level noauth/oauth2 declarations.
+		// A configured manual bearer token remains a server-side compatibility
+		// fallback, but the MCP tool contract always advertises the OAuth path.
 		return array(
 			array(
 				'type'   => 'oauth2',

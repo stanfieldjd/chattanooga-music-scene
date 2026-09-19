@@ -31,7 +31,11 @@ final class CUA_OAuth_Server {
 	}
 
 	public static function is_oauth_enabled() {
-		return self::is_enabled() && ( ! class_exists( 'CUA_MCP_Settings_Page' ) || ! CUA_MCP_Settings_Page::is_manual_auth() );
+		// OAuth discovery and token issuance stay available whenever the MCP endpoint
+		// is enabled. Manual bearer authorization is an optional compatibility
+		// fallback for clients that can supply a static Authorization header; it
+		// must not disable the OAuth path required by ChatGPT.
+		return self::is_enabled();
 	}
 
 	public static function register_routes() {
@@ -79,7 +83,7 @@ final class CUA_OAuth_Server {
 		return array(
 			'resource'              => self::canonical_resource(),
 			'authorization_servers' => array( self::canonical_issuer() ),
-			'scopes_supported'      => array( self::SCOPE, self::OFFLINE_SCOPE ),
+			'scopes_supported'      => array( self::SCOPE ),
 			'bearer_methods_supported' => array( 'header' ),
 		);
 	}
@@ -87,6 +91,7 @@ final class CUA_OAuth_Server {
 	public static function authorization_server_metadata() {
 		return array(
 			'issuer'                                => self::canonical_issuer(),
+			'authorization_response_iss_parameter_supported' => true,
 			'authorization_endpoint'                => admin_url( 'admin-post.php?action=cua_oauth_authorize' ),
 			'token_endpoint'                        => rest_url( self::REST_NAMESPACE . '/oauth/token' ),
 			'registration_endpoint'                 => rest_url( self::REST_NAMESPACE . '/oauth/register' ),
@@ -128,15 +133,6 @@ final class CUA_OAuth_Server {
 			'client_name'   => isset( $body['client_name'] ) ? sanitize_text_field( (string) $body['client_name'] ) : 'ChatGPT',
 			'created_at'    => time(),
 		);
-		if ( count( $clients ) > 100 ) {
-			uasort(
-				$clients,
-				static function ( $left, $right ) {
-					return (int) ( $right['created_at'] ?? 0 ) <=> (int) ( $left['created_at'] ?? 0 );
-				}
-			);
-			$clients = array_slice( $clients, 0, 100, true );
-		}
 		update_option( self::CLIENT_OPTION, $clients, false );
 
 		return self::no_store_response(
@@ -241,15 +237,16 @@ final class CUA_OAuth_Server {
 		}
 		if ( class_exists( 'CUA_MCP_Settings_Page' ) && CUA_MCP_Settings_Page::is_manual_auth() ) {
 			$user_id = CUA_MCP_Settings_Page::authenticate_manual_token( $matches[1] );
-			if ( ! $user_id ) {
-				return new WP_Error( 'cmsa_manual_token_invalid', 'The manual MCP authorization token is invalid.', array( 'status' => 401 ) );
+			if ( $user_id ) {
+				$user = get_user_by( 'id', (int) $user_id );
+				if ( ! $user || ! user_can( $user, 'manage_options' ) ) {
+					return new WP_Error( 'cmsa_oauth_user_forbidden', 'The authorizing administrator no longer has the required authority.', array( 'status' => 403 ) );
+				}
+				wp_set_current_user( $user->ID );
+				return true;
 			}
-			$user = get_user_by( 'id', (int) $user_id );
-			if ( ! $user || ! user_can( $user, 'manage_options' ) ) {
-				return new WP_Error( 'cmsa_oauth_user_forbidden', 'The authorizing administrator no longer has the required authority.', array( 'status' => 403 ) );
-			}
-			wp_set_current_user( $user->ID );
-			return true;
+			// A non-matching manual token may still be a valid OAuth access token.
+			// Continue into OAuth validation instead of making manual mode exclusive.
 		}
 
 		$record = get_transient( self::transient_key( 'access', $matches[1] ) );
@@ -265,9 +262,6 @@ final class CUA_OAuth_Server {
 	}
 
 	public static function resource_challenge() {
-		if ( class_exists( 'CUA_MCP_Settings_Page' ) && CUA_MCP_Settings_Page::is_manual_auth() ) {
-			return 'Bearer error="invalid_token", error_description="A manual MCP authorization token is required."';
-		}
 		return 'Bearer resource_metadata="' . esc_url_raw( home_url( '/.well-known/oauth-protected-resource' ) ) . '", error="invalid_token", error_description="The access token is missing, expired, revoked, or bound to an obsolete resource.", scope="' . self::SCOPE . '"';
 	}
 

@@ -45,8 +45,36 @@ cmsa_mcp_settings_assert( false !== strpos( $page, 'Allowed browser origins' ), 
 $oauth_metadata = CUA_OAuth_Server::authorization_server_metadata();
 $resource_metadata = CUA_OAuth_Server::protected_resource_metadata();
 cmsa_mcp_settings_assert( in_array( CUA_OAuth_Server::OFFLINE_SCOPE, $oauth_metadata['scopes_supported'] ?? array(), true ), 'OAuth discovery does not advertise offline_access.' );
-cmsa_mcp_settings_assert( in_array( CUA_OAuth_Server::OFFLINE_SCOPE, $resource_metadata['scopes_supported'] ?? array(), true ), 'Protected-resource metadata does not advertise offline_access.' );
+cmsa_mcp_settings_assert( ! in_array( CUA_OAuth_Server::OFFLINE_SCOPE, $resource_metadata['scopes_supported'] ?? array(), true ), 'Protected-resource metadata incorrectly advertises offline_access as a resource requirement.' );
+cmsa_mcp_settings_assert( in_array( CUA_OAuth_Server::SCOPE, $resource_metadata['scopes_supported'] ?? array(), true ), 'Protected-resource metadata does not advertise the administrator scope.' );
+cmsa_mcp_settings_assert( true === ( $oauth_metadata['authorization_response_iss_parameter_supported'] ?? false ), 'OAuth discovery does not advertise authorization response issuer identification.' );
+cmsa_mcp_settings_assert( true === ( $oauth_metadata['client_id_metadata_document_supported'] ?? false ), 'OAuth discovery does not advertise CIMD support.' );
 cmsa_mcp_settings_assert( in_array( 'refresh_token', $oauth_metadata['grant_types_supported'] ?? array(), true ), 'OAuth discovery does not advertise refresh_token.' );
+
+$original_auth_mode = get_option( CUA_MCP_Settings_Page::OPTION_AUTH_MODE, CUA_MCP_Settings_Page::AUTH_MODE_OAUTH );
+update_option( CUA_MCP_Settings_Page::OPTION_AUTH_MODE, CUA_MCP_Settings_Page::AUTH_MODE_MANUAL, false );
+cmsa_mcp_settings_assert( true === CUA_OAuth_Server::is_oauth_enabled(), 'Manual bearer fallback mode disabled the OAuth authorization server.' );
+$challenge = CUA_OAuth_Server::resource_challenge();
+cmsa_mcp_settings_assert( false !== strpos( $challenge, 'resource_metadata=' ), 'Authorization challenge does not advertise protected-resource metadata.' );
+cmsa_mcp_settings_assert( false !== strpos( $challenge, 'scope="' . CUA_OAuth_Server::SCOPE . '"' ), 'Authorization challenge does not advertise the administrator scope.' );
+
+$oauth_fallback_token = 'cmsa-oauth-fallback-' . wp_generate_password( 40, false, false );
+$oauth_fallback_key = 'cua_oauth_access_' . hash_hmac( 'sha256', $oauth_fallback_token, wp_salt( 'auth' ) );
+set_transient(
+	$oauth_fallback_key,
+	array(
+		'client_id' => 'cmsa-oauth-fallback-client',
+		'user_id'   => get_current_user_id(),
+		'scope'     => CUA_OAuth_Server::SCOPE,
+		'resource'  => rest_url( CUA_MCP_Server::REST_NAMESPACE . CUA_MCP_Server::REST_ROUTE ),
+	),
+	300
+);
+$oauth_fallback_request = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
+$oauth_fallback_request->set_header( 'Authorization', 'Bearer ' . $oauth_fallback_token );
+cmsa_mcp_settings_assert( true === CUA_OAuth_Server::authenticate_bearer( $oauth_fallback_request ), 'Manual bearer fallback mode rejected a valid OAuth access token.' );
+delete_transient( $oauth_fallback_key );
+update_option( CUA_MCP_Settings_Page::OPTION_AUTH_MODE, $original_auth_mode, false );
 
 function cmsa_oauth_test_key( $type, $token ) {
 	return 'cua_oauth_' . $type . '_' . hash_hmac( 'sha256', (string) $token, wp_salt( 'auth' ) );
@@ -114,5 +142,5 @@ if ( ! empty( $modern_data['access_token'] ) ) {
 }
 delete_transient( $new_modern_key );
 
-echo "cmsa-mcp-settings-page: PASS enabled=default origin_sanitization=verified endpoint=visible protocol=visible\n";
+echo "cmsa-mcp-settings-page: PASS enabled=default origin_sanitization=verified endpoint=visible protocol=visible oauth_metadata=chatgpt-compatible manual_fallback=nonexclusive refresh_rotation=verified\n";
 exit( 0 );

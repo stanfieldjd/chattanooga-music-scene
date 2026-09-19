@@ -230,7 +230,7 @@ final class CUA_MCP_Settings_Page {
 
 	public static function render_auth_mode_field() {
 		$mode = self::auth_mode();
-		foreach ( array( self::AUTH_MODE_OAUTH => __( 'Automatic OAuth authorization', 'chattanooga-cms-admin' ), self::AUTH_MODE_MANUAL => __( 'Manual authorization token', 'chattanooga-cms-admin' ) ) as $value => $label ) {
+		foreach ( array( self::AUTH_MODE_OAUTH => __( 'Automatic OAuth authorization', 'chattanooga-cms-admin' ), self::AUTH_MODE_MANUAL => __( 'OAuth plus manual bearer fallback', 'chattanooga-cms-admin' ) ) as $value => $label ) {
 			printf(
 				'<label style="display:block;margin-bottom:6px"><input type="radio" name="%1$s" value="%2$s" %3$s /> %4$s</label>',
 				esc_attr( self::OPTION_AUTH_MODE ),
@@ -239,7 +239,7 @@ final class CUA_MCP_Settings_Page {
 				esc_html( $label )
 			);
 		}
-		printf( '<p class="description">%s</p>', esc_html__( 'Manual mode disables OAuth registration and token issuance. The MCP endpoint then expects Authorization: Bearer with the configured manual token.', 'chattanooga-cms-admin' ) );
+		printf( '<p class="description">%s</p>', esc_html__( 'OAuth remains available in both modes for ChatGPT compatibility. The fallback mode additionally accepts the configured manual Bearer token from MCP clients that can supply a static Authorization header.', 'chattanooga-cms-admin' ) );
 	}
 
 	public static function render_manual_token_field() {
@@ -250,7 +250,7 @@ final class CUA_MCP_Settings_Page {
 		printf(
 			'<p id="%1$s-description" class="description">%2$s</p>',
 			esc_attr( self::OPTION_MANUAL_TOKEN . '-description' ),
-			esc_html__( 'Enter a new high-entropy token of at least 32 characters and save. The token is stored only as a digest and is never displayed again. Leave blank to keep the existing token.', 'chattanooga-cms-admin' )
+			esc_html__( 'Optional compatibility fallback for MCP clients that can send a static Bearer token. Enter a new high-entropy token of at least 32 characters and save. The token is stored only as a digest and is never displayed again. Leave blank to keep the existing token.', 'chattanooga-cms-admin' )
 		);
 	}
 
