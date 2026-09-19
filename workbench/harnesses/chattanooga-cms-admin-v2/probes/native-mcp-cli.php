@@ -228,11 +228,21 @@ foreach ( wp_get_abilities() as $ability ) {
 	if ( 0 !== strpos( $ability_name, CUA_MCP_Server::ABILITY_PREFIX ) ) {
 		continue;
 	}
+	$meta = $ability->get_meta();
+	$mcp_public = isset( $meta['mcp'] ) && is_array( $meta['mcp'] ) && array_key_exists( 'public', $meta['mcp'] ) && null !== $meta['mcp']['public']
+		? true === $meta['mcp']['public']
+		: true === ( $meta['public'] ?? false );
+	if ( ! $mcp_public ) {
+		continue;
+	}
 	$short = substr( $ability_name, strlen( CUA_MCP_Server::ABILITY_PREFIX ) );
 	$expected_names[] = CUA_MCP_Server::TOOL_PREFIX . preg_replace( '/[^A-Za-z0-9_.-]/', '-', $short );
 }
 sort( $expected_names, SORT_STRING );
-cmsa_native_mcp_assert( $names === $expected_names, 'MCP tools/list does not expose the complete registered Chattanooga administrator ability set.' );
+cmsa_native_mcp_assert( $names === $expected_names, 'MCP tools/list does not match the MCP-public Chattanooga administrator ability set.' );
+foreach ( $names as $name ) {
+	cmsa_native_mcp_assert( ! preg_match( '/^cmsa\\.(?:bridge|rest)-[a-f0-9]{24}$/', $name ), 'Generated universal facade leaked into MCP tools/list: ' . $name );
+}
 
 $catalog_tool = cmsa_native_mcp_tool( $tools, 'cmsa.catalog' );
 $write_tool  = cmsa_native_mcp_tool( $tools, 'cmsa.write-bridge' );
@@ -240,6 +250,9 @@ cmsa_native_mcp_assert( true === ( $catalog_tool['annotations']['readOnlyHint'] 
 cmsa_native_mcp_assert( false === ( $write_tool['annotations']['readOnlyHint'] ?? null ), 'write-bridge is incorrectly annotated read-only.' );
 cmsa_native_mcp_assert( true === ( $write_tool['annotations']['destructiveHint'] ?? null ), 'write-bridge is not annotated as mutating/destructive.' );
 cmsa_native_mcp_assert( ( $catalog_tool['securitySchemes'] ?? null ) === ( $catalog_tool['_meta']['securitySchemes'] ?? null ), 'Tool security schemes are not mirrored into _meta.' );
+$catalog_security = $catalog_tool['securitySchemes'][0] ?? null;
+cmsa_native_mcp_assert( is_array( $catalog_security ) && 'oauth2' === ( $catalog_security['type'] ?? '' ), 'MCP tools do not advertise OAuth 2.0 to ChatGPT.' );
+cmsa_native_mcp_assert( array( CUA_OAuth_Server::SCOPE ) === ( $catalog_security['scopes'] ?? null ), 'MCP OAuth tool scope is not the administrator scope.' );
 cmsa_native_mcp_assert( 30000 === ( $resources_data['result']['ttlMs'] ?? null ) && 'private' === ( $resources_data['result']['cacheScope'] ?? '' ), 'resources/list cache hints are incomplete.' );
 cmsa_native_mcp_assert( 30000 === ( $resource_read_data['result']['ttlMs'] ?? null ) && 'private' === ( $resource_read_data['result']['cacheScope'] ?? '' ), 'resources/read cache hints are incomplete.' );
 cmsa_native_mcp_assert( 30000 === ( $prompts_data['result']['ttlMs'] ?? null ) && 'private' === ( $prompts_data['result']['cacheScope'] ?? '' ), 'prompts/list cache hints are incomplete.' );
@@ -364,5 +377,5 @@ $close_session->set_header( 'Mcp-Session-Id', $legacy_session_id );
 $close_session_response = rest_do_request( $close_session );
 cmsa_native_mcp_assert( 204 === $close_session_response->get_status(), 'Legacy MCP DELETE did not close the session.' );
 
-echo "cmsa-native-mcp: PASS version=1.2.4 protocol=2026-07-28 route=verified administrator_surface=exposed origin_guard=verified tools_list=complete-deterministic read_call=verified header_validation=verified\n";
+echo "cmsa-native-mcp: PASS version=1.2.4 protocol=2026-07-28 route=verified administrator_surface=bounded-public origin_guard=verified tools_list=bounded-deterministic oauth_scheme=verified read_call=verified header_validation=verified\n";
 exit( 0 );
