@@ -61,7 +61,7 @@ jobs:
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-settings-page-cli.php >/dev/null
           grep -q '^ \* Plugin Name: Chattanooga CMS Admin$' "$source/chattanooga-cms-admin.php"
-          grep -q '^ \* Version: 1.2.8$' "$source/chattanooga-cms-admin.php"
+          grep -q '^ \* Version: 1.2.9$' "$source/chattanooga-cms-admin.php"
           grep -Fq "add_action( 'rest_api_init', array( 'CUA_MCP_Server', 'register_route' ) );" "$source/chattanooga-cms-admin.php"
           test -f "$source/includes/class-cua-mcp-server.php"
           if grep -REiq 'WooCommerce|WC_Product|wc_get_product|Events_Manager|events-manager|EM_Event|EM_Location|BuddyBoss|Marketplace|Weekend_Feature|Rank_Math|rank-math|seo-by-rank-math|awpcp|another-wordpress-classifieds-plugin|miniOrange|miniorange' "$source"; then
@@ -127,11 +127,45 @@ jobs:
             -H 'Mcp-Method: server/discover' \
             --data-binary @/tmp/cmsa-discover.json \
             "$endpoint")"
-          if [ "$anonymous_code" != '401' ]; then
-            echo "Anonymous MCP request returned HTTP $anonymous_code" >&2
+          if [ "$anonymous_code" != '200' ]; then
+            echo "Anonymous modern MCP discovery returned HTTP $anonymous_code" >&2
             cat /tmp/cmsa-anonymous.json >&2
             exit 1
           fi
+          php -r '$d=json_decode(file_get_contents("/tmp/cmsa-anonymous.json"),true); if (($d["result"]["resultType"]??"")!=="complete") exit(1);'
+
+          cat > /tmp/cmsa-tools-list.json <<'JSON'
+          {"jsonrpc":"2.0","id":410,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{},"io.modelcontextprotocol/clientInfo":{"name":"cmsa-http-ci","version":"1.0.0"}}}}
+          JSON
+          anonymous_list_code="$(curl -sS -o /tmp/cmsa-tools-list-response.json -w '%{http_code}' \
+            -H 'Content-Type: application/json' \
+            -H 'MCP-Protocol-Version: 2026-07-28' \
+            -H 'Mcp-Method: tools/list' \
+            --data-binary @/tmp/cmsa-tools-list.json \
+            "$endpoint")"
+          if [ "$anonymous_list_code" != '200' ]; then
+            echo "Anonymous tools/list returned HTTP $anonymous_list_code" >&2
+            cat /tmp/cmsa-tools-list-response.json >&2
+            exit 1
+          fi
+          php -r '$d=json_decode(file_get_contents("/tmp/cmsa-tools-list-response.json"),true); $tools=$d["result"]["tools"]??[]; if (!$tools) exit(1); $ok=false; foreach($tools as $tool){ if(($tool["name"]??"")==="cmsa.catalog" && (($tool["securitySchemes"][0]["type"]??"")==="oauth2")) $ok=true; } if(!$ok) exit(1);'
+
+          cat > /tmp/cmsa-anonymous-call.json <<'JSON'
+          {"jsonrpc":"2.0","id":411,"method":"tools/call","params":{"name":"cmsa.catalog","arguments":{},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{},"io.modelcontextprotocol/clientInfo":{"name":"cmsa-http-ci","version":"1.0.0"}}}}
+          JSON
+          anonymous_call_code="$(curl -sS -o /tmp/cmsa-anonymous-call-response.json -w '%{http_code}' \
+            -H 'Content-Type: application/json' \
+            -H 'MCP-Protocol-Version: 2026-07-28' \
+            -H 'Mcp-Method: tools/call' \
+            -H 'Mcp-Name: cmsa.catalog' \
+            --data-binary @/tmp/cmsa-anonymous-call.json \
+            "$endpoint")"
+          if [ "$anonymous_call_code" != '200' ]; then
+            echo "Anonymous tools/call OAuth trigger returned HTTP $anonymous_call_code" >&2
+            cat /tmp/cmsa-anonymous-call-response.json >&2
+            exit 1
+          fi
+          php -r '$d=json_decode(file_get_contents("/tmp/cmsa-anonymous-call-response.json"),true); $r=$d["result"]??[]; $c=$r["_meta"]["mcp/www_authenticate"][0]??""; if (($r["isError"]??false)!==true || strpos($c,"resource_metadata=")===false || strpos($c,"error=")===false || strpos($c,"error_description=")===false || isset($r["structuredContent"])) exit(1);'
 
           authenticated_code="$(curl -sS -D /tmp/cmsa-discover-headers.txt -o /tmp/cmsa-discover-response.json -w '%{http_code}' \
             --user "admin:${app_password}" \
