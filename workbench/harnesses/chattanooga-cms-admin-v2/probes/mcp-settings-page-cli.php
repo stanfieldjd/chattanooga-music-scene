@@ -57,6 +57,59 @@ cmsa_mcp_settings_assert( true === CUA_OAuth_Server::is_oauth_enabled(), 'Manual
 $challenge = CUA_OAuth_Server::resource_challenge();
 cmsa_mcp_settings_assert( false !== strpos( $challenge, 'resource_metadata=' ), 'Authorization challenge does not advertise protected-resource metadata.' );
 cmsa_mcp_settings_assert( false !== strpos( $challenge, 'scope="' . CUA_OAuth_Server::SCOPE . '"' ), 'Authorization challenge does not advertise the administrator scope.' );
+cmsa_mcp_settings_assert( false !== strpos( $challenge, esc_url_raw( CUA_OAuth_Server::protected_resource_metadata_url() ) ), 'Authorization challenge does not use the REST metadata fallback.' );
+cmsa_mcp_settings_assert( false === strpos( $challenge, 'error="invalid_token"' ), 'Missing-token challenge is incorrectly labeled invalid_token.' );
+$invalid_challenge = CUA_OAuth_Server::resource_challenge( 'cmsa_oauth_token_invalid' );
+cmsa_mcp_settings_assert( false !== strpos( $invalid_challenge, 'error="invalid_token"' ), 'Invalid-token challenge omits invalid_token.' );
+$scope_challenge = CUA_OAuth_Server::resource_challenge( 'cmsa_oauth_insufficient_scope' );
+cmsa_mcp_settings_assert( false !== strpos( $scope_challenge, 'error="insufficient_scope"' ), 'Insufficient-scope challenge omits insufficient_scope.' );
+
+$rewrite_rules = CUA_OAuth_Server::inject_well_known_rewrite_rules( "ORIGINAL-WORDPRESS-RULES\n" );
+cmsa_mcp_settings_assert( false !== strpos( $rewrite_rules, '^\\.well-known/oauth-protected-resource/?$' ), 'Root protected-resource rewrite rule is missing.' );
+$expected_resource_rewrite_path = preg_quote( ltrim( (string) wp_parse_url( rest_url( CUA_MCP_Server::REST_NAMESPACE . CUA_MCP_Server::REST_ROUTE ), PHP_URL_PATH ), '/' ), '#' );
+cmsa_mcp_settings_assert( false !== strpos( $rewrite_rules, 'oauth-protected-resource/' . $expected_resource_rewrite_path ), 'Path-aware protected-resource rewrite rule is missing.' );
+cmsa_mcp_settings_assert( false !== strpos( $rewrite_rules, '^\\.well-known/oauth-authorization-server/?$' ), 'Authorization-server rewrite rule is missing.' );
+cmsa_mcp_settings_assert( strpos( $rewrite_rules, 'oauth-protected-resource' ) < strpos( $rewrite_rules, 'ORIGINAL-WORDPRESS-RULES' ), 'OAuth discovery rewrites are not ahead of WordPress file/directory bypass rules.' );
+
+$routes = rest_get_server()->get_routes();
+cmsa_mcp_settings_assert( isset( $routes['/chattanooga-cms-admin/v1/oauth/protected-resource'] ), 'REST protected-resource metadata route is missing.' );
+cmsa_mcp_settings_assert( isset( $routes['/chattanooga-cms-admin/v1/oauth/authorization-server'] ), 'REST authorization-server metadata route is missing.' );
+cmsa_mcp_settings_assert( isset( $routes['/chattanooga-cms-admin/v1/oauth/diagnostics'] ), 'OAuth diagnostics route is missing.' );
+
+$original_clients = get_option( CUA_OAuth_Server::CLIENT_OPTION, array() );
+$loopback_registration = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/oauth/register' );
+$loopback_registration->set_header( 'Content-Type', 'application/json' );
+$loopback_registration->set_body(
+	wp_json_encode(
+		array(
+			'redirect_uris'              => array( 'http://127.0.0.1:49152/callback' ),
+			'client_name'                => 'Native MCP test',
+			'token_endpoint_auth_method' => 'none',
+		)
+	)
+);
+$loopback_response = CUA_OAuth_Server::register_client( $loopback_registration );
+cmsa_mcp_settings_assert( 201 === $loopback_response->get_status(), 'Standards-compliant native loopback redirect was rejected.' );
+update_option( CUA_OAuth_Server::CLIENT_OPTION, is_array( $original_clients ) ? $original_clients : array(), false );
+
+$scope_token = 'cmsa-scope-test-' . wp_generate_password( 40, false, false );
+$scope_key = 'cua_oauth_access_' . hash_hmac( 'sha256', $scope_token, wp_salt( 'auth' ) );
+set_transient(
+	$scope_key,
+	array(
+		'client_id' => 'cmsa-scope-test',
+		'user_id'   => get_current_user_id(),
+		'scope'     => CUA_OAuth_Server::OFFLINE_SCOPE,
+		'resource'  => rest_url( CUA_MCP_Server::REST_NAMESPACE . CUA_MCP_Server::REST_ROUTE ),
+	),
+	300
+);
+$scope_request = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
+$scope_request->set_header( 'Authorization', 'Bearer ' . $scope_token );
+$scope_result = CUA_OAuth_Server::authenticate_bearer( $scope_request );
+cmsa_mcp_settings_assert( is_wp_error( $scope_result ) && 'cmsa_oauth_insufficient_scope' === $scope_result->get_error_code(), 'Underscoped OAuth token was not distinguished from an invalid token.' );
+delete_transient( $scope_key );
+
 
 $oauth_fallback_token = 'cmsa-oauth-fallback-' . wp_generate_password( 40, false, false );
 $oauth_fallback_key = 'cua_oauth_access_' . hash_hmac( 'sha256', $oauth_fallback_token, wp_salt( 'auth' ) );
@@ -142,5 +195,5 @@ if ( ! empty( $modern_data['access_token'] ) ) {
 }
 delete_transient( $new_modern_key );
 
-echo "cmsa-mcp-settings-page: PASS enabled=default origin_sanitization=verified endpoint=visible protocol=visible oauth_metadata=chatgpt-compatible manual_fallback=nonexclusive refresh_rotation=verified\n";
+echo "cmsa-mcp-settings-page: PASS enabled=default origin_sanitization=verified endpoint=visible protocol=visible oauth_metadata=chatgpt-compatible discovery_rewrite=verified rest_metadata_fallback=verified native_loopback=verified scope_semantics=verified manual_fallback=nonexclusive refresh_rotation=verified\n";
 exit( 0 );
