@@ -15,6 +15,8 @@ final class CUA_OAuth_Server {
 	const SCOPE          = 'mcp:admin';
 	const OFFLINE_SCOPE  = 'offline_access';
 	const CLIENT_OPTION  = 'cua_oauth_clients';
+	const DIAGNOSTIC_OPTION = 'cua_oauth_last_client_metadata_check';
+	const REWRITE_VERSION_OPTION = 'cua_oauth_rewrite_version';
 	const CODE_TTL       = 300;
 	const ACCESS_TTL     = 3600;
 	const REFRESH_TTL    = 2592000;
@@ -22,6 +24,8 @@ final class CUA_OAuth_Server {
 	public static function bootstrap() {
 		add_action( 'parse_request', array( __CLASS__, 'serve_well_known_metadata' ), 0 );
 		add_action( 'rest_api_init', array( __CLASS__, 'register_routes' ) );
+		add_filter( 'mod_rewrite_rules', array( __CLASS__, 'inject_well_known_rewrite_rules' ) );
+		add_action( 'init', array( __CLASS__, 'maybe_refresh_rewrite_rules' ), 99 );
 		add_action( 'admin_post_cua_oauth_authorize', array( __CLASS__, 'authorize' ) );
 		add_action( 'admin_post_nopriv_cua_oauth_authorize', array( __CLASS__, 'authorize' ) );
 	}
@@ -61,6 +65,93 @@ final class CUA_OAuth_Server {
 				'permission_callback' => '__return_true',
 			)
 		);
+		register_rest_route(
+			self::REST_NAMESPACE,
+			'/oauth/protected-resource',
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( __CLASS__, 'rest_protected_resource_metadata' ),
+				'permission_callback' => '__return_true',
+			)
+		);
+		register_rest_route(
+			self::REST_NAMESPACE,
+			'/oauth/authorization-server',
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( __CLASS__, 'rest_authorization_server_metadata' ),
+				'permission_callback' => '__return_true',
+			)
+		);
+		register_rest_route(
+			self::REST_NAMESPACE,
+			'/oauth/diagnostics',
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( __CLASS__, 'diagnostics' ),
+				'permission_callback' => '__return_true',
+			)
+		);
+	}
+
+	public static function rest_protected_resource_metadata( WP_REST_Request $request ) {
+		return self::no_store_response( self::protected_resource_metadata() );
+	}
+
+	public static function rest_authorization_server_metadata( WP_REST_Request $request ) {
+		return self::no_store_response( self::authorization_server_metadata() );
+	}
+
+	public static function diagnostics( WP_REST_Request $request ) {
+		$targets = array(
+			'protected_resource_rest'       => self::protected_resource_metadata_url(),
+			'protected_resource_well_known' => self::root_protected_resource_metadata_url(),
+			'protected_resource_path'       => self::path_protected_resource_metadata_url(),
+			'authorization_server_rest'     => self::authorization_server_metadata_url(),
+			'authorization_server_well_known' => self::authorization_server_well_known_url(),
+		);
+		$probes = array();
+		foreach ( $targets as $name => $url ) {
+			$probes[ $name ] = self::probe_url( $url );
+		}
+		$last_client_check = get_option( self::DIAGNOSTIC_OPTION, array() );
+		if ( ! is_array( $last_client_check ) ) {
+			$last_client_check = array();
+		}
+		return self::no_store_response(
+			array(
+				'pluginVersion'           => defined( 'CUA_VERSION' ) ? CUA_VERSION : 'unknown',
+				'oauthEnabled'            => self::is_oauth_enabled(),
+				'resource'                => self::canonical_resource(),
+				'issuer'                  => self::canonical_issuer(),
+				'challengeMetadataUrl'    => self::protected_resource_metadata_url(),
+				'probes'                  => $probes,
+				'lastClientMetadataCheck' => array_intersect_key( $last_client_check, array_flip( array( 'outcome', 'http_status', 'checked_at' ) ) ),
+			)
+		);
+	}
+
+	public static function inject_well_known_rewrite_rules( $rules ) {
+		if ( ! self::is_oauth_enabled() ) {
+			return $rules;
+		}
+		$resource_path = ltrim( (string) wp_parse_url( self::canonical_resource(), PHP_URL_PATH ), '/' );
+		$resource_pattern = preg_quote( $resource_path, '#' );
+		$prefix = "<IfModule mod_rewrite.c>\nRewriteEngine On\n";
+		$prefix .= "RewriteRule ^\\.well-known/oauth-protected-resource/?$ index.php [QSA,L]\n";
+		if ( '' !== $resource_pattern ) {
+			$prefix .= 'RewriteRule ^\\.well-known/oauth-protected-resource/' . $resource_pattern . "/?$ index.php [QSA,L]\n";
+		}
+		$prefix .= "RewriteRule ^\\.well-known/oauth-authorization-server/?$ index.php [QSA,L]\n</IfModule>\n";
+		return $prefix . $rules;
+	}
+
+	public static function maybe_refresh_rewrite_rules() {
+		if ( ! defined( 'CUA_VERSION' ) || CUA_VERSION === get_option( self::REWRITE_VERSION_OPTION, '' ) ) {
+			return;
+		}
+		flush_rewrite_rules( true );
+		update_option( self::REWRITE_VERSION_OPTION, CUA_VERSION, false );
 	}
 
 	public static function serve_well_known_metadata() {
@@ -68,15 +159,39 @@ final class CUA_OAuth_Server {
 			return;
 		}
 
-		$path = wp_parse_url( isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '', PHP_URL_PATH );
-		$resource_path = wp_parse_url( home_url( '/.well-known/oauth-protected-resource' ), PHP_URL_PATH );
-		$server_path = wp_parse_url( home_url( '/.well-known/oauth-authorization-server' ), PHP_URL_PATH );
-		if ( untrailingslashit( (string) $resource_path ) === untrailingslashit( (string) $path ) ) {
+		$path = untrailingslashit( (string) wp_parse_url( isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '', PHP_URL_PATH ) );
+		$resource_paths = array(
+			untrailingslashit( (string) wp_parse_url( self::root_protected_resource_metadata_url(), PHP_URL_PATH ) ),
+			untrailingslashit( (string) wp_parse_url( self::path_protected_resource_metadata_url(), PHP_URL_PATH ) ),
+		);
+		$server_path = untrailingslashit( (string) wp_parse_url( self::authorization_server_well_known_url(), PHP_URL_PATH ) );
+		if ( in_array( $path, $resource_paths, true ) ) {
 			self::send_json( self::protected_resource_metadata() );
 		}
-		if ( untrailingslashit( (string) $server_path ) === untrailingslashit( (string) $path ) ) {
+		if ( $server_path === $path ) {
 			self::send_json( self::authorization_server_metadata() );
 		}
+	}
+
+	public static function protected_resource_metadata_url() {
+		return rest_url( self::REST_NAMESPACE . '/oauth/protected-resource' );
+	}
+
+	public static function authorization_server_metadata_url() {
+		return rest_url( self::REST_NAMESPACE . '/oauth/authorization-server' );
+	}
+
+	public static function root_protected_resource_metadata_url() {
+		return home_url( '/.well-known/oauth-protected-resource' );
+	}
+
+	public static function path_protected_resource_metadata_url() {
+		$resource_path = (string) wp_parse_url( self::canonical_resource(), PHP_URL_PATH );
+		return home_url( '/.well-known/oauth-protected-resource' . $resource_path );
+	}
+
+	public static function authorization_server_well_known_url() {
+		return home_url( '/.well-known/oauth-authorization-server' );
 	}
 
 	public static function protected_resource_metadata() {
@@ -250,8 +365,11 @@ final class CUA_OAuth_Server {
 		}
 
 		$record = get_transient( self::transient_key( 'access', $matches[1] ) );
-		if ( ! is_array( $record ) || empty( $record['user_id'] ) || ! self::scope_contains( $record['scope'] ?? '', self::SCOPE ) || self::canonical_resource() !== ( $record['resource'] ?? '' ) ) {
+		if ( ! is_array( $record ) || empty( $record['user_id'] ) || self::canonical_resource() !== ( $record['resource'] ?? '' ) ) {
 			return new WP_Error( 'cmsa_oauth_token_invalid', 'The Bearer access token is invalid or expired.', array( 'status' => 401 ) );
+		}
+		if ( ! self::scope_contains( $record['scope'] ?? '', self::SCOPE ) ) {
+			return new WP_Error( 'cmsa_oauth_insufficient_scope', 'The Bearer access token does not grant the required administrator scope.', array( 'status' => 403 ) );
 		}
 		$user = get_user_by( 'id', (int) $record['user_id'] );
 		if ( ! $user || ! user_can( $user, 'manage_options' ) ) {
@@ -261,8 +379,14 @@ final class CUA_OAuth_Server {
 		return true;
 	}
 
-	public static function resource_challenge() {
-		return 'Bearer resource_metadata="' . esc_url_raw( home_url( '/.well-known/oauth-protected-resource' ) ) . '", error="invalid_token", error_description="The access token is missing, expired, revoked, or bound to an obsolete resource.", scope="' . self::SCOPE . '"';
+	public static function resource_challenge( $error_code = '' ) {
+		$challenge = 'Bearer resource_metadata="' . esc_url_raw( self::protected_resource_metadata_url() ) . '", scope="' . self::SCOPE . '"';
+		if ( 'cmsa_oauth_token_invalid' === $error_code ) {
+			$challenge .= ', error="invalid_token", error_description="The access token is expired, revoked, or bound to an obsolete resource."';
+		} elseif ( 'cmsa_oauth_insufficient_scope' === $error_code ) {
+			$challenge .= ', error="insufficient_scope", error_description="The access token does not grant the required administrator scope."';
+		}
+		return $challenge;
 	}
 
 	private static function exchange_authorization_code( WP_REST_Request $request ) {
@@ -348,10 +472,12 @@ final class CUA_OAuth_Server {
 		$clients = get_option( self::CLIENT_OPTION, array() );
 		$key = self::digest( $client_id );
 		if ( is_array( $clients ) && isset( $clients[ $key ] ) && in_array( $redirect_uri, $clients[ $key ]['redirect_uris'], true ) ) {
+			self::record_client_metadata_check( 'registered_client', 0 );
 			return $clients[ $key ];
 		}
 
 		if ( ! self::is_client_metadata_url( $client_id ) ) {
+			self::record_client_metadata_check( 'invalid_client_id', 0 );
 			return new WP_Error( 'cmsa_oauth_client_invalid', 'The OAuth client is not registered and its client metadata URL is invalid.' );
 		}
 		$response = wp_safe_remote_get(
@@ -363,20 +489,30 @@ final class CUA_OAuth_Server {
 				'headers'            => array( 'Accept' => 'application/json' ),
 			)
 		);
-		if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
+		if ( is_wp_error( $response ) ) {
+			self::record_client_metadata_check( 'transport_error', 0 );
+			return new WP_Error( 'cmsa_oauth_client_unavailable', 'The OAuth client metadata document could not be verified.' );
+		}
+		$status = (int) wp_remote_retrieve_response_code( $response );
+		if ( 200 !== $status ) {
+			self::record_client_metadata_check( 'http_error', $status );
 			return new WP_Error( 'cmsa_oauth_client_unavailable', 'The OAuth client metadata document could not be verified.' );
 		}
 		$metadata = json_decode( wp_remote_retrieve_body( $response ), true );
 		if ( ! is_array( $metadata ) ) {
+			self::record_client_metadata_check( 'invalid_json', $status );
 			return new WP_Error( 'cmsa_oauth_client_metadata_invalid', 'The OAuth client metadata document is not valid JSON.' );
 		}
 		if ( isset( $metadata['client_id'] ) && ! hash_equals( $client_id, esc_url_raw( (string) $metadata['client_id'] ) ) ) {
+			self::record_client_metadata_check( 'client_id_mismatch', $status );
 			return new WP_Error( 'cmsa_oauth_client_metadata_invalid', 'The OAuth client metadata document identifies a different client.' );
 		}
 		$uris = self::validated_redirect_uris( isset( $metadata['redirect_uris'] ) ? $metadata['redirect_uris'] : null );
 		if ( is_wp_error( $uris ) || ! in_array( $redirect_uri, $uris, true ) ) {
+			self::record_client_metadata_check( 'redirect_mismatch', $status );
 			return new WP_Error( 'cmsa_oauth_redirect_invalid', 'The redirect URI is not registered by the OAuth client.' );
 		}
+		self::record_client_metadata_check( 'ok', $status );
 		return array(
 			'client_id'     => $client_id,
 			'redirect_uris' => $uris,
@@ -405,8 +541,12 @@ final class CUA_OAuth_Server {
 		foreach ( $uris as $uri ) {
 			$uri = esc_url_raw( (string) $uri );
 			$parts = wp_parse_url( $uri );
-			if ( ! is_array( $parts ) || 'https' !== ( $parts['scheme'] ?? '' ) || empty( $parts['host'] ) || isset( $parts['fragment'] ) ) {
-				return new WP_Error( 'cmsa_oauth_redirect_invalid', 'Every redirect URI must be an absolute HTTPS URL without a fragment.' );
+			$scheme = is_array( $parts ) ? strtolower( (string) ( $parts['scheme'] ?? '' ) ) : '';
+			$host = is_array( $parts ) ? strtolower( (string) ( $parts['host'] ?? '' ) ) : '';
+			$is_https = 'https' === $scheme && '' !== $host;
+			$is_loopback = 'http' === $scheme && in_array( $host, array( '127.0.0.1', '::1', '[::1]' ), true );
+			if ( ! is_array( $parts ) || ( ! $is_https && ! $is_loopback ) || isset( $parts['fragment'] ) || isset( $parts['user'] ) || isset( $parts['pass'] ) ) {
+				return new WP_Error( 'cmsa_oauth_redirect_invalid', 'Redirect URIs must use HTTPS, except native-client HTTP loopback redirects on 127.0.0.1 or ::1, and must not contain a fragment or user info.' );
 			}
 			$valid[] = $uri;
 		}
@@ -434,6 +574,44 @@ final class CUA_OAuth_Server {
 		$url = add_query_arg( array_filter( array( 'error' => $error, 'error_description' => $description, 'state' => $state, 'iss' => self::canonical_issuer() ), 'strlen' ), $redirect_uri );
 		wp_redirect( $url );
 		exit;
+	}
+
+	private static function probe_url( $url ) {
+		$response = wp_safe_remote_get(
+			$url,
+			array(
+				'timeout'            => 5,
+				'redirection'        => 2,
+				'reject_unsafe_urls' => true,
+				'headers'            => array( 'Accept' => 'application/json' ),
+			)
+		);
+		if ( is_wp_error( $response ) ) {
+			return array(
+				'ok'    => false,
+				'status' => 0,
+				'error' => sanitize_key( $response->get_error_code() ),
+			);
+		}
+		$status = (int) wp_remote_retrieve_response_code( $response );
+		$content_type = strtolower( trim( (string) wp_remote_retrieve_header( $response, 'content-type' ) ) );
+		return array(
+			'ok'           => 200 === $status && false !== strpos( $content_type, 'application/json' ),
+			'status'       => $status,
+			'content_type' => $content_type,
+		);
+	}
+
+	private static function record_client_metadata_check( $outcome, $http_status ) {
+		update_option(
+			self::DIAGNOSTIC_OPTION,
+			array(
+				'outcome'     => sanitize_key( (string) $outcome ),
+				'http_status' => (int) $http_status,
+				'checked_at'  => gmdate( 'c' ),
+			),
+			false
+		);
 	}
 
 	private static function request_has_json_content_type( WP_REST_Request $request ) {
