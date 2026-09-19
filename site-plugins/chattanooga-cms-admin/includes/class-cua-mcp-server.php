@@ -85,39 +85,16 @@ final class CUA_MCP_Server {
 
 	public static function handle_request( WP_REST_Request $request ) {
 		$started = microtime( true );
-		$authorization = self::authorize_request( $request );
-		if ( is_wp_error( $authorization ) ) {
-			self::audit_request( $request, '', '', 'authentication_failed', self::error_status( $authorization ), $authorization->get_error_code(), $started );
-			if ( class_exists( 'CUA_Audit' ) ) {
-				CUA_Audit::log_oauth_trace(
-					array(
-						'stage'       => 'mcp_authentication',
-						'outcome'     => 'failed',
-						'http_status' => self::error_status( $authorization ),
-						'error_code'  => $authorization->get_error_code(),
-						'method'      => strtoupper( $request->get_method() ),
-						'path'        => (string) wp_parse_url( $request->get_route(), PHP_URL_PATH ),
-					)
-				);
-			}
-			return self::authentication_error_response( $authorization );
-		}
-		if ( class_exists( 'CUA_Audit' ) ) {
-			$authorization_header = trim( (string) $request->get_header( 'authorization' ) );
-			CUA_Audit::log_oauth_trace(
-				array(
-					'stage'       => 'mcp_authentication',
-					'outcome'     => 'accepted',
-					'http_status' => 200,
-					'method'      => strtoupper( $request->get_method() ),
-					'path'        => (string) wp_parse_url( $request->get_route(), PHP_URL_PATH ),
-					'auth_mode'   => preg_match( '/^Bearer\s/i', $authorization_header ) ? 'bearer' : 'wordpress',
-				)
-			);
-		}
-
 		$http_method = strtoupper( $request->get_method() );
 		$session_id  = self::request_session_id( $request );
+
+		if ( 'DELETE' === $http_method || 'GET' === $http_method ) {
+			$authorization = self::authorize_with_trace( $request, '' );
+			if ( is_wp_error( $authorization ) ) {
+				self::audit_request( $request, '', '', 'authentication_failed', self::error_status( $authorization ), $authorization->get_error_code(), $started );
+				return self::authentication_error_response( $authorization );
+			}
+		}
 
 		if ( 'DELETE' === $http_method ) {
 			if ( ! self::session_is_valid( $session_id ) ) {
@@ -210,6 +187,47 @@ final class CUA_MCP_Server {
 		$meta_error = self::validate_request_meta( $params, $protocol_version );
 		if ( is_wp_error( $meta_error ) ) {
 			return self::protocol_error_response( $id, -32020, $meta_error->get_error_message(), 400 );
+		}
+
+		$is_modern_public_discovery = self::PROTOCOL_VERSION === $protocol_version
+			&& in_array( $method, array( 'server/discover', 'tools/list' ), true );
+
+		if ( $is_modern_public_discovery ) {
+			if ( class_exists( 'CUA_Audit' ) ) {
+				CUA_Audit::log_oauth_trace(
+					array(
+						'stage'            => 'mcp_authentication',
+						'outcome'          => 'public_discovery',
+						'http_status'      => 200,
+						'method'           => strtoupper( $request->get_method() ),
+						'path'             => (string) wp_parse_url( $request->get_route(), PHP_URL_PATH ),
+						'protocol_version' => $protocol_version,
+						'mcp_method'       => $method,
+					)
+				);
+			}
+		} else {
+			$authorization = self::authorize_with_trace( $request, $method );
+			if ( is_wp_error( $authorization ) ) {
+				if ( self::PROTOCOL_VERSION === $protocol_version && 'tools/call' === $method && array_key_exists( 'id', $payload ) ) {
+					self::audit_request( $request, $method, $tool, 'authentication_required', 200, $authorization->get_error_code(), $started, $id, $params );
+					if ( class_exists( 'CUA_Audit' ) ) {
+						CUA_Audit::log_oauth_trace(
+							array(
+								'stage'            => 'mcp_tool_auth_challenge',
+								'outcome'          => 'served',
+								'http_status'      => 200,
+								'error_code'       => $authorization->get_error_code(),
+								'protocol_version' => $protocol_version,
+								'mcp_method'       => $method,
+							)
+						);
+					}
+					return self::tool_authentication_response( $id, $authorization, $protocol_version, $session_id );
+				}
+				self::audit_request( $request, $method, $tool, 'authentication_failed', self::error_status( $authorization ), $authorization->get_error_code(), $started, $id, $params );
+				return self::authentication_error_response( $authorization );
+			}
 		}
 
 		$declared_protocol_version = self::declared_protocol_version( $request, $params );
@@ -887,6 +905,53 @@ final class CUA_MCP_Server {
 				'type'   => 'oauth2',
 				'scopes' => array( CUA_OAuth_Server::SCOPE ),
 			),
+		);
+	}
+
+	private static function authorize_with_trace( WP_REST_Request $request, $mcp_method = '' ) {
+		$authorization = self::authorize_request( $request );
+		if ( class_exists( 'CUA_Audit' ) ) {
+			$authorization_header = trim( (string) $request->get_header( 'authorization' ) );
+			CUA_Audit::log_oauth_trace(
+				array(
+					'stage'            => 'mcp_authentication',
+					'outcome'          => is_wp_error( $authorization ) ? 'failed' : 'accepted',
+					'http_status'      => is_wp_error( $authorization ) ? self::error_status( $authorization ) : 200,
+					'error_code'       => is_wp_error( $authorization ) ? $authorization->get_error_code() : '',
+					'method'           => strtoupper( $request->get_method() ),
+					'path'             => (string) wp_parse_url( $request->get_route(), PHP_URL_PATH ),
+					'auth_mode'        => preg_match( '/^Bearer\s/i', $authorization_header ) ? 'bearer' : ( is_user_logged_in() ? 'wordpress' : 'missing' ),
+					'mcp_method'       => (string) $mcp_method,
+				)
+			);
+		}
+		return $authorization;
+	}
+
+	private static function tool_authentication_response( $id, WP_Error $error, $protocol_version, $session_id = '' ) {
+		$challenge = CUA_OAuth_Server::tool_resource_challenge( (string) $error->get_error_code() );
+		$message = $error->get_error_message();
+		if ( '' === (string) $message ) {
+			$message = 'Authentication is required to call this tool.';
+		}
+
+		return self::success_response(
+			$id,
+			array(
+				'content' => array(
+					array(
+						'type' => 'text',
+						'text' => $message,
+					),
+				),
+				'isError' => true,
+				'_meta'   => array(
+					'mcp/www_authenticate'             => array( $challenge ),
+					'chattanooga-cms-admin/errorCode' => (string) $error->get_error_code(),
+				),
+			),
+			$protocol_version,
+			$session_id
 		);
 	}
 
