@@ -29,6 +29,9 @@ if ( ! function_exists( 'wp_get_abilities' ) ) {
 	cmsa_native_mcp_surface_fail( 'WordPress Abilities API is unavailable.' );
 }
 
+$registered_count = 0;
+$hidden_facades   = array();
+
 foreach ( wp_get_abilities() as $ability ) {
 	if ( ! $ability instanceof WP_Ability ) {
 		continue;
@@ -37,11 +40,27 @@ foreach ( wp_get_abilities() as $ability ) {
 	if ( 0 !== strpos( $ability_name, 'chattanooga-cms-admin/' ) ) {
 		continue;
 	}
-	$expected[] = cmsa_native_mcp_expected_tool_name( $ability_name );
+
+	++$registered_count;
+	$meta = $ability->get_meta();
+	$mcp_public = isset( $meta['mcp'] ) && is_array( $meta['mcp'] ) && array_key_exists( 'public', $meta['mcp'] ) && null !== $meta['mcp']['public']
+		? true === $meta['mcp']['public']
+		: true === ( $meta['public'] ?? false );
+
+	if ( $mcp_public ) {
+		$expected[] = cmsa_native_mcp_expected_tool_name( $ability_name );
+		continue;
+	}
+
+	if ( preg_match( '/^chattanooga-cms-admin\/(?:bridge|rest)-[a-f0-9]{24}$/', $ability_name ) ) {
+		$hidden_facades[] = cmsa_native_mcp_expected_tool_name( $ability_name );
+	}
 }
 
 sort( $expected, SORT_STRING );
-cmsa_native_mcp_surface_assert( ! empty( $expected ), 'No Chattanooga administrator abilities were registered.' );
+sort( $hidden_facades, SORT_STRING );
+cmsa_native_mcp_surface_assert( ! empty( $expected ), 'No MCP-public Chattanooga administrator abilities were registered.' );
+cmsa_native_mcp_surface_assert( ! empty( $hidden_facades ), 'No generated internal facade abilities were registered for bounded-surface verification.' );
 
 $names  = array();
 $cursor = '';
@@ -98,19 +117,32 @@ sort( $names, SORT_STRING );
 
 $missing    = array_values( array_diff( $expected, $names ) );
 $unexpected = array_values( array_diff( $names, $expected ) );
+$leaked_facades = array_values( array_intersect( $names, $hidden_facades ) );
 
 cmsa_native_mcp_surface_assert(
 	empty( $missing ),
-	'MCP surface is incomplete. Missing abilities: ' . implode( ', ', $missing )
+	'MCP surface is incomplete. Missing MCP-public abilities: ' . implode( ', ', $missing )
 );
 cmsa_native_mcp_surface_assert(
 	empty( $unexpected ),
-	'MCP surface contains tools outside the Chattanooga ability namespace: ' . implode( ', ', $unexpected )
+	'MCP surface contains tools outside the MCP-public Chattanooga ability set: ' . implode( ', ', $unexpected )
+);
+cmsa_native_mcp_surface_assert(
+	empty( $leaked_facades ),
+	'MCP surface leaked generated internal facade tools: ' . implode( ', ', $leaked_facades )
 );
 cmsa_native_mcp_surface_assert(
 	$names === $expected,
-	'MCP tool list does not exactly match the registered Chattanooga administrator abilities.'
+	'MCP tool list does not exactly match the MCP-public Chattanooga administrator abilities.'
 );
 
-echo 'cmsa-native-mcp-admin-surface: PASS registered=' . count( $expected ) . ' exposed=' . count( $names ) . " administrator_surface=exposed\n";
+$catalog = wp_get_ability( 'chattanooga-cms-admin/catalog' );
+cmsa_native_mcp_surface_assert( $catalog instanceof WP_Ability, 'Universal capability catalog is unavailable.' );
+$catalog_result = $catalog->execute( array() );
+cmsa_native_mcp_surface_assert(
+	! is_wp_error( $catalog_result ) && is_array( $catalog_result['items'] ?? null ) && ! empty( $catalog_result['items'] ),
+	'Universal capability catalog did not preserve access to hidden provider contracts.'
+);
+
+echo 'cmsa-native-mcp-admin-surface: PASS registered=' . $registered_count . ' public_exposed=' . count( $names ) . ' hidden_facades=' . count( $hidden_facades ) . " administrator_surface=bounded catalog=available\n";
 exit( 0 );
