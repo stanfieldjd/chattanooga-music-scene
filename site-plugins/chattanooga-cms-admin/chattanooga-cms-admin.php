@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Chattanooga CMS Admin
  * Description: Universal Chattanooga CMS Admin replacement using plugin-agnostic public WordPress contracts and verified intrinsic platform services.
- * Version: 1.2.11
+ * Version: 1.2.12
  * Author: Chattanooga Music Scene
  * Requires at least: 7.1
  * Requires PHP: 8.0
@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CUA_VERSION', '1.2.11' );
+define( 'CUA_VERSION', '1.2.12' );
 define( 'CUA_DIR', plugin_dir_path( __FILE__ ) );
 
 require_once CUA_DIR . 'includes/class-cua-local-storage.php';
@@ -35,6 +35,7 @@ require_once CUA_DIR . 'includes/class-cua-ability-bridge.php';
 require_once CUA_DIR . 'includes/class-cua-bridge-gateway.php';
 require_once CUA_DIR . 'includes/class-cua-oauth-server.php';
 require_once CUA_DIR . 'includes/class-cua-mcp-server.php';
+require_once CUA_DIR . 'includes/class-cua-mcp-diagnostics.php';
 
 CUA_Audit::bootstrap();
 CUA_MCP_Settings_Page::register_admin_hooks();
@@ -57,3 +58,4 @@ add_action( 'wp_abilities_api_init', array( 'CUA_Platform_Settings', 'register_a
 add_action( 'wp_abilities_api_init', array( 'CUA_REST_Bridge', 'register_external_bridges' ), 9998 );
 add_action( 'wp_abilities_api_init', array( 'CUA_Ability_Bridge', 'register_external_bridges' ), 9999 );
 add_action( 'rest_api_init', array( 'CUA_MCP_Server', 'register_route' ) );
+add_action( 'rest_api_init', array( 'CUA_MCP_Diagnostics', 'register_routes' ), 20 );
