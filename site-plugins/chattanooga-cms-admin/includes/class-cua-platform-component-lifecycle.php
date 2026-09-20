@@ -38,6 +38,29 @@ final class CUA_Platform_Component_Lifecycle {
 		);
 
 		wp_register_ability(
+			self::PREFIX . 'uninstall-plugin',
+			array(
+				'label'               => __( 'Uninstall installed plugin', 'chattanooga-cms-admin' ),
+				'description'         => __( 'Uninstalls one installed plugin using the same exact-version validation, explicit confirmation, deactivation safety, and temporary-backup rollback used by plugin deletion.', 'chattanooga-cms-admin' ),
+				'category'            => self::CATEGORY,
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'properties'           => array(
+						'plugin' => array( 'type' => 'string', 'minLength' => 1, 'maxLength' => 255 ),
+						'expected_version' => array( 'type' => 'string', 'minLength' => 1, 'maxLength' => 64 ),
+						'confirm_delete' => array( 'type' => 'boolean' ),
+					),
+					'required'             => array( 'plugin', 'expected_version', 'confirm_delete' ),
+					'additionalProperties' => false,
+				),
+				'output_schema'       => array( 'type' => 'object' ),
+				'execute_callback'    => array( __CLASS__, 'delete_plugin' ),
+				'permission_callback' => static function () { return current_user_can( 'delete_plugins' ); },
+				'meta'                => self::destructive_meta(),
+			)
+		);
+
+		wp_register_ability(
 			self::PREFIX . 'delete-theme',
 			array(
 				'label'               => __( 'Delete installed theme', 'chattanooga-cms-admin' ),
