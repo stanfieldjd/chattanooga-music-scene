@@ -129,6 +129,7 @@ final class CUA_OAuth_Server {
 				'challengeMetadataUrl'    => self::protected_resource_metadata_url(),
 				'probes'                  => $probes,
 				'lastClientMetadataCheck' => array_intersect_key( $last_client_check, array_flip( array( 'outcome', 'http_status', 'checked_at' ) ) ),
+				'mcpIngestion'            => class_exists( 'CUA_MCP_Diagnostics' ) ? CUA_MCP_Diagnostics::public_summary() : array(),
 			)
 		);
 	}
