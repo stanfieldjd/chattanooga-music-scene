@@ -61,6 +61,7 @@ final class CUA_MCP_Diagnostics {
 			'endpoint'             => rest_url( CUA_MCP_Server::REST_NAMESPACE . CUA_MCP_Server::REST_ROUTE ),
 			'canaryEndpoint'       => rest_url( CUA_MCP_Server::REST_NAMESPACE . self::CANARY_ROUTE ),
 			'toolCount'            => (int) ( $catalog['toolCount'] ?? 0 ),
+			'toolFingerprint'      => (string) ( $catalog['toolFingerprint'] ?? '' ),
 			'pageSize'             => (int) ( $catalog['pageSize'] ?? CUA_MCP_Server::TOOL_PAGE_SIZE ),
 			'pageCount'            => (int) ( $catalog['pageCount'] ?? 0 ),
 			'catalogJsonBytes'     => (int) ( $catalog['catalogJsonBytes'] ?? 0 ),
@@ -124,6 +125,7 @@ final class CUA_MCP_Diagnostics {
 
 		$report = array(
 			'toolCount'        => count( $tools ),
+			'toolFingerprint'  => class_exists( 'CUA_MCP_Server' ) ? CUA_MCP_Server::tool_fingerprint() : '',
 			'pageSize'         => CUA_MCP_Server::TOOL_PAGE_SIZE,
 			'pageCount'        => empty( $tools ) ? 0 : (int) ceil( count( $tools ) / CUA_MCP_Server::TOOL_PAGE_SIZE ),
 			'catalogJsonBytes' => strlen( $encoded ),
@@ -263,6 +265,7 @@ final class CUA_MCP_Diagnostics {
 				'response_sha256'     => $response_sha,
 				'correlation_sha256'  => hash( 'sha256', $request_sha . '|' . $response_sha . '|' . $method ),
 				'tool_count'          => count( $tools ),
+				'tool_fingerprint'    => isset( $result['toolFingerprint'] ) ? (string) $result['toolFingerprint'] : ( class_exists( 'CUA_MCP_Server' ) ? CUA_MCP_Server::tool_fingerprint() : '' ),
 				'next_cursor_present' => isset( $result['nextCursor'] ) && '' !== trim( (string) $result['nextCursor'] ),
 				'descriptor_pass'     => $descriptor_pass,
 				'descriptor_fail'     => $descriptor_fail,
