@@ -388,7 +388,7 @@ final class CUA_MCP_Diagnostics {
 			'description' => 'Returns a fixed, read-only protocol health result. It reads no site content and changes no site state.',
 			'inputSchema' => array(
 				'type'                 => 'object',
-				'properties'           => array(),
+				'properties'           => new stdClass(),
 				'additionalProperties' => false,
 			),
 			'outputSchema' => array(
