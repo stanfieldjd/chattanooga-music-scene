@@ -742,6 +742,16 @@ final class CUA_MCP_Server {
 		return array_values( self::tools() );
 	}
 
+	/**
+	 * Return a deterministic SHA-256 fingerprint of the exact advertised core tool descriptors.
+	 *
+	 * @return string Lowercase 64-character SHA-256, or an empty string if encoding fails.
+	 */
+	public static function tool_fingerprint() {
+		$encoded = wp_json_encode( self::diagnostic_tools(), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+		return false === $encoded ? '' : hash( 'sha256', (string) $encoded );
+	}
+
 	private static function tools() {
 		$tools = array();
 		if ( ! function_exists( 'wp_get_abilities' ) ) {
