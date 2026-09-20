@@ -744,7 +744,28 @@ final class CUA_MCP_Server {
 		}
 
 		ksort( $tools, SORT_STRING );
-		return $tools;
+
+		// Keep the initial MCP discovery surface small and deterministic. The
+		// catalog remains the escape hatch for the broader public ability set,
+		// exposed through its own paginated contract and bridge abilities.
+		$core_names = array_fill_keys(
+			array(
+				'cmsa.activate-plugin',
+				'cmsa.catalog',
+				'cmsa.deactivate-plugin',
+				'cmsa.get-health',
+				'cmsa.install-plugin',
+				'cmsa.install-plugin-package',
+				'cmsa.install-theme',
+				'cmsa.list-plugins',
+				'cmsa.list-themes',
+				'cmsa.uninstall-plugin',
+				'cmsa.delete-plugin',
+			),
+			true
+		);
+
+		return array_intersect_key( $tools, $core_names );
 	}
 
 	private static function call_tool( array $params ) {
