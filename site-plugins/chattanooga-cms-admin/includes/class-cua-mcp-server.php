@@ -261,7 +261,11 @@ final class CUA_MCP_Server {
 				return self::success_response( $id, self::initialize_result( self::LEGACY_PROTOCOL_VERSION ), self::LEGACY_PROTOCOL_VERSION, $session_id );
 
 			case 'server/discover':
-				return self::success_response( $id, self::discover_result(), $protocol_version, $session_id );
+				$response = self::success_response( $id, self::discover_result(), $protocol_version, $session_id );
+				if ( class_exists( 'CUA_MCP_Diagnostics' ) ) {
+					CUA_MCP_Diagnostics::record_exchange( $request, $payload, $response, 'main' );
+				}
+				return $response;
 
 			case 'tools/list':
 				$tools = self::list_tools_result( $params );
@@ -269,12 +273,20 @@ final class CUA_MCP_Server {
 					if ( class_exists( 'CUA_Audit' ) ) {
 						CUA_Audit::log_oauth_trace( array( 'stage' => 'mcp_tools_list', 'outcome' => 'failed', 'http_status' => 400, 'error_code' => $tools->get_error_code(), 'mcp_method' => 'tools/list', 'protocol_version' => $protocol_version ) );
 					}
-					return self::protocol_error_response( $id, -32602, $tools->get_error_message(), 400 );
+					$response = self::protocol_error_response( $id, -32602, $tools->get_error_message(), 400 );
+					if ( class_exists( 'CUA_MCP_Diagnostics' ) ) {
+						CUA_MCP_Diagnostics::record_exchange( $request, $payload, $response, 'main' );
+					}
+					return $response;
 				}
 				if ( class_exists( 'CUA_Audit' ) ) {
 					CUA_Audit::log_oauth_trace( array( 'stage' => 'mcp_tools_list', 'outcome' => 'accepted', 'http_status' => 200, 'mcp_method' => 'tools/list', 'protocol_version' => $protocol_version ) );
 				}
-				return self::success_response( $id, $tools, $protocol_version, $session_id );
+				$response = self::success_response( $id, $tools, $protocol_version, $session_id );
+				if ( class_exists( 'CUA_MCP_Diagnostics' ) ) {
+					CUA_MCP_Diagnostics::record_exchange( $request, $payload, $response, 'main' );
+				}
+				return $response;
 
 			case 'tools/call':
 				$call = self::call_tool( $params );
@@ -672,6 +684,17 @@ final class CUA_MCP_Server {
 				),
 			),
 		);
+	}
+
+	/**
+	 * Return the exact deterministic MCP tool descriptors for diagnostics and CI.
+	 *
+	 * This does not execute any ability and does not bypass tool permissions.
+	 *
+	 * @return array MCP tool descriptors.
+	 */
+	public static function diagnostic_tools() {
+		return array_values( self::tools() );
 	}
 
 	private static function tools() {
