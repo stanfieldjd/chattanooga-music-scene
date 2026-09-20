@@ -240,6 +240,7 @@ final class CUA_Audit {
 			'protocol_version',
 			'mcp_method',
 			'refresh_issued',
+			'tool_fingerprint',
 		);
 		$sanitized = array( 'surface' => 'oauth_trace' );
 		foreach ( $allowed as $key ) {
@@ -259,6 +260,9 @@ final class CUA_Audit {
 		}
 		if ( isset( $sanitized['refresh_issued'] ) ) {
 			$sanitized['refresh_issued'] = (bool) $sanitized['refresh_issued'];
+		}
+		if ( isset( $sanitized['tool_fingerprint'] ) && ! preg_match( '/^[a-f0-9]{64}$/', (string) $sanitized['tool_fingerprint'] ) ) {
+			$sanitized['tool_fingerprint'] = '';
 		}
 
 		$written = self::append( $sanitized );
