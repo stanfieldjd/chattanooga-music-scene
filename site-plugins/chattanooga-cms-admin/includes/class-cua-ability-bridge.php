@@ -35,7 +35,18 @@ final class CUA_Ability_Bridge {
 				'category'            => self::CATEGORY,
 				'input_schema'        => array(
 					'type'                 => 'object',
-					'properties'           => array(),
+					'properties'           => array(
+						'cursor' => array(
+							'type'    => 'integer',
+							'minimum' => 0,
+						),
+						'limit' => array(
+							'type'    => 'integer',
+							'minimum' => 1,
+							'maximum' => 100,
+							'default' => 100,
+						),
+					),
 					'additionalProperties' => false,
 				),
 				'output_schema'       => array( 'type' => 'object' ),
@@ -101,7 +112,7 @@ final class CUA_Ability_Bridge {
 		}
 	}
 
-	public static function catalog() {
+	public static function catalog( $input = array() ) {
 		$items = self::catalog_items();
 
 		if ( class_exists( 'CUA_REST_Bridge' ) ) {
@@ -122,9 +133,18 @@ final class CUA_Ability_Bridge {
 			}
 		);
 
+		$total  = count( $items );
+		$cursor = is_array( $input ) && isset( $input['cursor'] ) ? max( 0, (int) $input['cursor'] ) : 0;
+		$limit  = is_array( $input ) && isset( $input['limit'] ) ? min( 100, max( 1, (int) $input['limit'] ) ) : 100;
+		$page   = array_slice( $items, $cursor, $limit );
+		$next   = $cursor + count( $page ) < $total ? $cursor + count( $page ) : null;
+
 		return array(
-			'count' => count( $items ),
-			'items' => $items,
+			'count'      => $total,
+			'cursor'     => $cursor,
+			'pageSize'   => $limit,
+			'items'      => $page,
+			'nextCursor' => $next,
 		);
 	}
 
