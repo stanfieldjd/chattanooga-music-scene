@@ -261,7 +261,11 @@ final class CUA_MCP_Server {
 				return self::success_response( $id, self::initialize_result( self::LEGACY_PROTOCOL_VERSION ), self::LEGACY_PROTOCOL_VERSION, $session_id );
 
 			case 'server/discover':
-				return self::success_response( $id, self::discover_result(), $protocol_version, $session_id );
+				$response = self::success_response( $id, self::discover_result(), $protocol_version, $session_id );
+				if ( class_exists( 'CUA_MCP_Diagnostics' ) ) {
+					CUA_MCP_Diagnostics::record_exchange( $request, $payload, $response, 'main' );
+				}
+				return $response;
 
 			case 'tools/list':
 				$tools = self::list_tools_result( $params );
@@ -269,12 +273,20 @@ final class CUA_MCP_Server {
 					if ( class_exists( 'CUA_Audit' ) ) {
 						CUA_Audit::log_oauth_trace( array( 'stage' => 'mcp_tools_list', 'outcome' => 'failed', 'http_status' => 400, 'error_code' => $tools->get_error_code(), 'mcp_method' => 'tools/list', 'protocol_version' => $protocol_version ) );
 					}
-					return self::protocol_error_response( $id, -32602, $tools->get_error_message(), 400 );
+					$response = self::protocol_error_response( $id, -32602, $tools->get_error_message(), 400 );
+					if ( class_exists( 'CUA_MCP_Diagnostics' ) ) {
+						CUA_MCP_Diagnostics::record_exchange( $request, $payload, $response, 'main' );
+					}
+					return $response;
 				}
 				if ( class_exists( 'CUA_Audit' ) ) {
 					CUA_Audit::log_oauth_trace( array( 'stage' => 'mcp_tools_list', 'outcome' => 'accepted', 'http_status' => 200, 'mcp_method' => 'tools/list', 'protocol_version' => $protocol_version ) );
 				}
-				return self::success_response( $id, $tools, $protocol_version, $session_id );
+				$response = self::success_response( $id, $tools, $protocol_version, $session_id );
+				if ( class_exists( 'CUA_MCP_Diagnostics' ) ) {
+					CUA_MCP_Diagnostics::record_exchange( $request, $payload, $response, 'main' );
+				}
+				return $response;
 
 			case 'tools/call':
 				$call = self::call_tool( $params );
@@ -674,6 +686,17 @@ final class CUA_MCP_Server {
 		);
 	}
 
+	/**
+	 * Return the exact deterministic MCP tool descriptors for diagnostics and CI.
+	 *
+	 * This does not execute any ability and does not bypass tool permissions.
+	 *
+	 * @return array MCP tool descriptors.
+	 */
+	public static function diagnostic_tools() {
+		return array_values( self::tools() );
+	}
+
 	private static function tools() {
 		$tools = array();
 		if ( ! function_exists( 'wp_get_abilities' ) ) {
@@ -699,6 +722,7 @@ final class CUA_MCP_Server {
 					'additionalProperties' => false,
 				);
 			}
+			$schema = self::normalize_json_schema_for_transport( $schema );
 
 			$security_schemes = self::auth_security_schemes();
 			$tool = array(
@@ -713,7 +737,7 @@ final class CUA_MCP_Server {
 
 			$output_schema = $ability->get_output_schema();
 			if ( is_array( $output_schema ) ) {
-				$tool['outputSchema'] = $output_schema;
+				$tool['outputSchema'] = self::normalize_json_schema_for_transport( $output_schema );
 			}
 
 			$tools[ $tool_name ] = $tool;
@@ -825,6 +849,41 @@ final class CUA_MCP_Server {
 	private static function tool_name( $ability_name ) {
 		$short = substr( $ability_name, strlen( self::ABILITY_PREFIX ) );
 		return self::TOOL_PREFIX . preg_replace( '/[^A-Za-z0-9_.-]/', '-', $short );
+	}
+
+	/**
+	 * Preserve JSON Schema object-valued keywords when PHP represents an empty
+	 * map as array(). Without this normalization wp_json_encode() emits [] for
+	 * empty properties/$defs maps, which is invalid JSON Schema 2020-12.
+	 *
+	 * @param mixed  $value Current schema value.
+	 * @param string $parent_key Parent schema keyword.
+	 * @return mixed Transport-safe schema value.
+	 */
+	private static function normalize_json_schema_for_transport( $value, $parent_key = '' ) {
+		$object_keywords = array(
+			'$defs',
+			'$vocabulary',
+			'definitions',
+			'dependentRequired',
+			'dependentSchemas',
+			'patternProperties',
+			'properties',
+		);
+
+		if ( is_array( $value ) ) {
+			if ( empty( $value ) && in_array( (string) $parent_key, $object_keywords, true ) ) {
+				return new stdClass();
+			}
+
+			$normalized = array();
+			foreach ( $value as $key => $item ) {
+				$normalized[ $key ] = self::normalize_json_schema_for_transport( $item, is_string( $key ) ? $key : '' );
+			}
+			return $normalized;
+		}
+
+		return $value;
 	}
 
 	private static function tool_annotations( WP_Ability $ability ) {

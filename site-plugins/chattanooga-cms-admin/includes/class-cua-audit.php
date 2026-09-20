@@ -9,6 +9,7 @@ final class CUA_Audit {
 	const PREFIX = 'chattanooga-cms-admin/';
 	const MAX_READ = 500;
 	const MAX_OAUTH_TRACE_READ = 100;
+	const MAX_MCP_DIAGNOSTIC_READ = 100;
 
 	private static $pending = array();
 
@@ -267,6 +268,91 @@ final class CUA_Audit {
 		return $written;
 	}
 
+	/**
+	 * Record secret-free MCP ingestion diagnostics.
+	 *
+	 * Raw request/response bodies, credentials, bearer tokens, authorization
+	 * codes, PKCE values, and state are never retained.
+	 *
+	 * @param array $entry Sanitized ingestion metadata.
+	 * @return bool Whether the entry was written.
+	 */
+	public static function log_mcp_diagnostic( array $entry ) {
+		$allowed = array(
+			'time',
+			'mcp_surface',
+			'mcp_method',
+			'protocol_version',
+			'http_status',
+			'client_class',
+			'authorization_present',
+			'request_bytes',
+			'request_sha256',
+			'response_bytes',
+			'response_sha256',
+			'correlation_sha256',
+			'tool_count',
+			'next_cursor_present',
+			'descriptor_pass',
+			'descriptor_fail',
+			'result_type',
+			'error_code',
+		);
+		$sanitized = array( 'surface' => 'mcp_diagnostic' );
+		foreach ( $allowed as $key ) {
+			if ( array_key_exists( $key, $entry ) ) {
+				$sanitized[ $key ] = $entry[ $key ];
+			}
+		}
+
+		$sanitized['time'] = isset( $sanitized['time'] ) ? sanitize_text_field( (string) $sanitized['time'] ) : gmdate( 'c' );
+		foreach ( array( 'mcp_surface', 'mcp_method', 'protocol_version', 'client_class', 'result_type', 'error_code' ) as $key ) {
+			if ( isset( $sanitized[ $key ] ) ) {
+				$sanitized[ $key ] = substr( sanitize_text_field( (string) $sanitized[ $key ] ), 0, 191 );
+			}
+		}
+		foreach ( array( 'http_status', 'request_bytes', 'response_bytes', 'tool_count', 'descriptor_pass', 'descriptor_fail' ) as $key ) {
+			if ( isset( $sanitized[ $key ] ) ) {
+				$sanitized[ $key ] = max( 0, (int) $sanitized[ $key ] );
+			}
+		}
+		foreach ( array( 'authorization_present', 'next_cursor_present' ) as $key ) {
+			if ( isset( $sanitized[ $key ] ) ) {
+				$sanitized[ $key ] = (bool) $sanitized[ $key ];
+			}
+		}
+		foreach ( array( 'request_sha256', 'response_sha256', 'correlation_sha256' ) as $key ) {
+			if ( isset( $sanitized[ $key ] ) ) {
+				$sanitized[ $key ] = preg_match( '/^[a-f0-9]{64}$/', (string) $sanitized[ $key ] ) ? (string) $sanitized[ $key ] : '';
+			}
+		}
+
+		$written = self::append( $sanitized );
+		if ( $written ) {
+			self::trim_mcp_diagnostic_storage( self::MAX_MCP_DIAGNOSTIC_READ );
+		}
+		return $written;
+	}
+
+	public static function read_mcp_diagnostics( $limit = 50 ) {
+		$limit = max( 1, min( self::MAX_MCP_DIAGNOSTIC_READ, (int) $limit ) );
+		$all = self::read( array( 'limit' => self::MAX_READ ) );
+		if ( is_wp_error( $all ) ) {
+			return $all;
+		}
+		$entries = array();
+		foreach ( $all['entries'] ?? array() as $entry ) {
+			if ( ! is_array( $entry ) || 'mcp_diagnostic' !== ( $entry['surface'] ?? '' ) ) {
+				continue;
+			}
+			$entries[] = $entry;
+			if ( count( $entries ) >= $limit ) {
+				break;
+			}
+		}
+		return array( 'entries' => $entries );
+	}
+
 	public static function read_oauth_trace( $limit = 50 ) {
 		$limit = max( 1, min( self::MAX_OAUTH_TRACE_READ, (int) $limit ) );
 		$all = self::read( array( 'limit' => self::MAX_READ ) );
@@ -312,6 +398,37 @@ final class CUA_Audit {
 		return false !== @file_put_contents( $path, $encoded, LOCK_EX )
 			? true
 			: new WP_Error( 'cmsa_oauth_trace_write_failed', 'The authorization trace could not be cleared.' );
+	}
+
+	private static function trim_mcp_diagnostic_storage( $limit ) {
+		$limit = max( 1, (int) $limit );
+		$path = CUA_Local_Storage::path( 'audit.jsonl', 'audit' );
+		if ( is_wp_error( $path ) || ! is_file( $path ) ) {
+			return;
+		}
+		$lines = @file( $path, FILE_IGNORE_NEW_LINES );
+		if ( false === $lines ) {
+			return;
+		}
+		$diagnostics_seen = 0;
+		$kept_reversed = array();
+		for ( $index = count( $lines ) - 1; $index >= 0; --$index ) {
+			$line = trim( (string) $lines[ $index ] );
+			if ( '' === $line ) {
+				continue;
+			}
+			$entry = json_decode( $line, true );
+			if ( is_array( $entry ) && 'mcp_diagnostic' === ( $entry['surface'] ?? '' ) ) {
+				++$diagnostics_seen;
+				if ( $diagnostics_seen > $limit ) {
+					continue;
+				}
+			}
+			$kept_reversed[] = $line;
+		}
+		$kept = array_reverse( $kept_reversed );
+		$encoded = empty( $kept ) ? '' : implode( "\n", $kept ) . "\n";
+		@file_put_contents( $path, $encoded, LOCK_EX );
 	}
 
 	private static function trim_oauth_trace_storage( $limit ) {

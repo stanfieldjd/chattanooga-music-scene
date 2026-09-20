@@ -11,6 +11,8 @@ on:
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-settings-page-cli.php"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-ingestion-diagnostics-cli.php"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-jsonschema-2020-report.py"
       - ".github/workflows/chattanooga-cms-admin-native-mcp.yml"
   pull_request:
     paths:
@@ -19,6 +21,8 @@ on:
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-settings-page-cli.php"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-ingestion-diagnostics-cli.php"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-jsonschema-2020-report.py"
       - ".github/workflows/chattanooga-cms-admin-native-mcp.yml"
 
 permissions:
@@ -60,10 +64,13 @@ jobs:
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-settings-page-cli.php >/dev/null
+          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-ingestion-diagnostics-cli.php >/dev/null
+          python3 -m py_compile workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-jsonschema-2020-report.py
           grep -q '^ \* Plugin Name: Chattanooga CMS Admin$' "$source/chattanooga-cms-admin.php"
-          grep -q '^ \* Version: 1.2.11$' "$source/chattanooga-cms-admin.php"
+          grep -q '^ \* Version: 1.2.12$' "$source/chattanooga-cms-admin.php"
           grep -Fq "add_action( 'rest_api_init', array( 'CUA_MCP_Server', 'register_route' ) );" "$source/chattanooga-cms-admin.php"
           test -f "$source/includes/class-cua-mcp-server.php"
+          test -f "$source/includes/class-cua-mcp-diagnostics.php"
           if grep -REiq 'WooCommerce|WC_Product|wc_get_product|Events_Manager|events-manager|EM_Event|EM_Location|BuddyBoss|Marketplace|Weekend_Feature|Rank_Math|rank-math|seo-by-rank-math|awpcp|another-wordpress-classifieds-plugin|miniOrange|miniorange' "$source"; then
             echo "Native MCP source contains provider-specific implementation logic." >&2
             exit 1
@@ -94,6 +101,27 @@ jobs:
 
       - name: Verify MCP settings page and configuration sanitization
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-settings-page-cli.php" --path=/tmp/wordpress
+
+      - name: Install JSON Schema 2020-12 diagnostic validator
+        run: python3 -m pip install --disable-pip-version-check 'jsonschema==4.25.1'
+
+      - name: Generate MCP ingestion diagnostic report
+        shell: bash
+        env:
+          CMSA_DIAGNOSTIC_REPORT: /tmp/cmsa-mcp-ingestion-diagnostics-report.json
+        run: |
+          set -euo pipefail
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-ingestion-diagnostics-cli.php" --path=/tmp/wordpress
+          python3 "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-jsonschema-2020-report.py" "$CMSA_DIAGNOSTIC_REPORT"
+          php -r '$d=json_decode(file_get_contents(getenv("CMSA_DIAGNOSTIC_REPORT")),true); if (($d["jsonSchema202012"]["fail"]??-1)!==0 || ($d["catalog"]["descriptorSummary"]["fail"]??-1)!==0) exit(1);'
+
+      - name: Upload MCP ingestion diagnostic report
+        uses: actions/upload-artifact@v4
+        with:
+          name: chattanooga-cms-admin-mcp-ingestion-report-1.2.12
+          path: /tmp/cmsa-mcp-ingestion-diagnostics-report.json
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Verify external administrator authentication and write authority
         shell: bash

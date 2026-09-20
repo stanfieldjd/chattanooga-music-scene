@@ -206,6 +206,7 @@ final class CUA_MCP_Settings_Page {
 				?>
 			</form>
 			<?php self::render_oauth_trace_panel(); ?>
+			<?php self::render_ingestion_diagnostics_panel(); ?>
 		</div>
 		<?php
 	}
@@ -270,6 +271,93 @@ final class CUA_MCP_Settings_Page {
 				$entry['mcp_method'] ?? '',
 				$entry['protocol_version'] ?? '',
 			) as $value ) {
+				echo '<td><code>' . esc_html( (string) $value ) . '</code></td>';
+			}
+			echo '</tr>';
+		}
+		echo '</tbody></table></div>';
+	}
+
+	public static function render_ingestion_diagnostics_panel() {
+		if ( ! current_user_can( 'manage_options' ) || ! class_exists( 'CUA_MCP_Diagnostics' ) ) {
+			return;
+		}
+
+		$report = CUA_MCP_Diagnostics::admin_report();
+		$catalog = is_array( $report['catalog'] ?? null ) ? $report['catalog'] : array();
+		$summary = is_array( $catalog['descriptorSummary'] ?? null ) ? $catalog['descriptorSummary'] : array();
+		$descriptors = is_array( $catalog['descriptors'] ?? null ) ? $catalog['descriptors'] : array();
+		$recent = is_array( $report['recentExchanges'] ?? null ) ? $report['recentExchanges'] : array();
+
+		echo '<hr><h2>' . esc_html__( 'MCP ingestion diagnostics', 'chattanooga-cms-admin' ) . '</h2>';
+		echo '<p>' . esc_html__( 'Verifies the exact MCP tool catalog and records secret-free request/response fingerprints so a successful HTTP tools/list can be distinguished from ChatGPT action ingestion.', 'chattanooga-cms-admin' ) . '</p>';
+		echo '<p><strong>' . esc_html__( 'Full diagnostics JSON:', 'chattanooga-cms-admin' ) . '</strong> <code>' . esc_html( (string) ( $report['diagnosticsEndpoint'] ?? '' ) ) . '</code><br>';
+		echo '<strong>' . esc_html__( 'Read-only canary endpoint:', 'chattanooga-cms-admin' ) . '</strong> <code>' . esc_html( (string) ( $report['canaryEndpoint'] ?? '' ) ) . '</code></p>';
+
+		echo '<table class="widefat striped" style="max-width:1000px"><tbody>';
+		$rows = array(
+			__( 'Plugin version', 'chattanooga-cms-admin' ) => $report['pluginVersion'] ?? '',
+			__( 'Protocol', 'chattanooga-cms-admin' ) => $report['protocolVersion'] ?? '',
+			__( 'Tools', 'chattanooga-cms-admin' ) => $catalog['toolCount'] ?? 0,
+			__( 'Tool pages', 'chattanooga-cms-admin' ) => $catalog['pageCount'] ?? 0,
+			__( 'Catalog JSON bytes', 'chattanooga-cms-admin' ) => $catalog['catalogJsonBytes'] ?? 0,
+			__( 'Catalog SHA-256', 'chattanooga-cms-admin' ) => $catalog['catalogSha256'] ?? '',
+			__( 'Descriptor PASS', 'chattanooga-cms-admin' ) => $summary['pass'] ?? 0,
+			__( 'Descriptor FAIL', 'chattanooga-cms-admin' ) => $summary['fail'] ?? 0,
+		);
+		foreach ( $rows as $label => $value ) {
+			echo '<tr><th style="width:220px">' . esc_html( (string) $label ) . '</th><td><code>' . esc_html( (string) $value ) . '</code></td></tr>';
+		}
+		echo '</tbody></table>';
+
+		$failures = array();
+		foreach ( $descriptors as $descriptor ) {
+			if ( is_array( $descriptor ) && empty( $descriptor['pass'] ) ) {
+				$failures[] = $descriptor;
+			}
+		}
+		if ( empty( $failures ) ) {
+			echo '<p><strong>' . esc_html__( 'Descriptor conformance:', 'chattanooga-cms-admin' ) . '</strong> ' . esc_html__( 'PASS — every exposed tool passed the built-in descriptor checks.', 'chattanooga-cms-admin' ) . '</p>';
+		} else {
+			echo '<p><strong>' . esc_html__( 'Descriptor conformance failures', 'chattanooga-cms-admin' ) . '</strong></p><ul>';
+			foreach ( $failures as $failure ) {
+				echo '<li><code>' . esc_html( (string) ( $failure['name'] ?? '' ) ) . '</code>: ' . esc_html( implode( ', ', array_map( 'strval', $failure['issues'] ?? array() ) ) ) . '</li>';
+			}
+			echo '</ul>';
+		}
+
+		echo '<h3>' . esc_html__( 'Recent MCP ingestion exchanges', 'chattanooga-cms-admin' ) . '</h3>';
+		echo '<p>' . esc_html__( 'Hashes and byte counts are recorded instead of raw request or response bodies. Authorization presence is a boolean only; credentials are never retained.', 'chattanooga-cms-admin' ) . '</p>';
+		if ( empty( $recent ) ) {
+			echo '<p><em>' . esc_html__( 'No MCP ingestion exchanges have been recorded yet.', 'chattanooga-cms-admin' ) . '</em></p>';
+			return;
+		}
+
+		echo '<div style="overflow:auto;max-height:520px"><table class="widefat striped"><thead><tr>';
+		foreach ( array( 'Time', 'Surface', 'MCP method', 'HTTP', 'Client', 'Auth', 'Req bytes', 'Resp bytes', 'Tools', 'Desc P/F', 'Correlation', 'Response SHA' ) as $heading ) {
+			echo '<th>' . esc_html( $heading ) . '</th>';
+		}
+		echo '</tr></thead><tbody>';
+		foreach ( $recent as $entry ) {
+			$descriptor_counts = (string) ( $entry['descriptor_pass'] ?? 0 ) . '/' . (string) ( $entry['descriptor_fail'] ?? 0 );
+			$correlation = (string) ( $entry['correlation_sha256'] ?? '' );
+			$response_sha = (string) ( $entry['response_sha256'] ?? '' );
+			$values = array(
+				$entry['time'] ?? '',
+				$entry['mcp_surface'] ?? '',
+				$entry['mcp_method'] ?? '',
+				$entry['http_status'] ?? '',
+				$entry['client_class'] ?? '',
+				! empty( $entry['authorization_present'] ) ? 'yes' : 'no',
+				$entry['request_bytes'] ?? '',
+				$entry['response_bytes'] ?? '',
+				$entry['tool_count'] ?? '',
+				$descriptor_counts,
+				'' !== $correlation ? substr( $correlation, 0, 16 ) : '',
+				'' !== $response_sha ? substr( $response_sha, 0, 16 ) : '',
+			);
+			echo '<tr>';
+			foreach ( $values as $value ) {
 				echo '<td><code>' . esc_html( (string) $value ) . '</code></td>';
 			}
 			echo '</tr>';
