@@ -10,6 +10,7 @@ final class CUA_MCP_Server {
 	const REST_ROUTE     = '/mcp';
 	const ABILITY_PREFIX = 'chattanooga-cms-admin/';
 	const TOOL_PREFIX    = 'cmsa.';
+	const RESOURCE_DISCOVERY_URI = 'chattanooga://mcp-discovery';
 	const RESOURCE_CATALOG_URI = 'chattanooga://site-operation-catalog';
 	const PROMPT_SITE_OPERATION = 'site-operation-guide';
 	const PROTOCOL_VERSION = '2026-07-28';
@@ -533,6 +534,7 @@ final class CUA_MCP_Server {
 	private static function discover_result() {
 		return array(
 			'supportedVersions' => self::supported_protocol_versions(),
+			'serverInfo'        => self::server_info(),
 			'capabilities'      => array(
 				'tools' => array(
 					'listChanged' => false,
@@ -545,6 +547,7 @@ final class CUA_MCP_Server {
 					'listChanged' => false,
 				),
 			),
+			'discovery'         => self::discovery_manifest(),
 			'instructions'      => 'Authenticated WordPress site-operation tools. Use read-only tools for inspection and mutating tools only for explicitly authorized site changes.',
 			'ttlMs'             => 30000,
 			'cacheScope'        => 'private',
@@ -603,6 +606,13 @@ final class CUA_MCP_Server {
 		return array(
 			'resources' => array(
 				array(
+					'uri'         => self::RESOURCE_DISCOVERY_URI,
+					'name'        => 'mcp-discovery-manifest',
+					'title'       => 'MCP discovery manifest',
+					'description' => 'Small stable manifest describing the initial tool set and the paginated site-operation catalog.',
+					'mimeType'    => 'application/json',
+				),
+				array(
 					'uri'         => self::RESOURCE_CATALOG_URI,
 					'name'        => 'site-operation-catalog',
 					'title'       => 'Site operation catalog',
@@ -617,6 +627,19 @@ final class CUA_MCP_Server {
 
 	private static function read_resource_result( array $params ) {
 		$uri = isset( $params['uri'] ) ? trim( (string) $params['uri'] ) : '';
+		if ( self::RESOURCE_DISCOVERY_URI === $uri ) {
+			return array(
+				'contents' => array(
+					array(
+						'uri'      => self::RESOURCE_DISCOVERY_URI,
+						'mimeType' => 'application/json',
+						'text'     => self::json_text( self::discovery_manifest() ),
+					),
+				),
+				'ttlMs'      => 30000,
+				'cacheScope' => 'private',
+			);
+		}
 		if ( self::RESOURCE_CATALOG_URI !== $uri ) {
 			return new WP_Error( 'cmsa_mcp_resource_not_found', 'The requested MCP resource is not available.' );
 		}
@@ -636,6 +659,28 @@ final class CUA_MCP_Server {
 			),
 			'ttlMs'      => 30000,
 			'cacheScope' => 'private',
+		);
+	}
+
+	private static function discovery_manifest() {
+		return array(
+			'schemaVersion' => '1',
+			'initialToolSet' => array(
+				'count'    => count( self::tools() ),
+				'method'   => 'tools/list',
+				'pageSize' => self::TOOL_PAGE_SIZE,
+			),
+			'catalog' => array(
+				'resourceUri' => self::RESOURCE_CATALOG_URI,
+				'method'      => 'resources/read',
+				'pageSize'    => 100,
+				'description' => 'Read the catalog pages to discover additional public site-operation contracts. Use the returned bridge identity and permissions when selecting an operation.',
+			),
+			'nextSteps' => array(
+				'Read this manifest first.',
+				'Use tools/list for the stable core tools.',
+				'Read the paginated site-operation catalog for additional capabilities.',
+			),
 		);
 	}
 
