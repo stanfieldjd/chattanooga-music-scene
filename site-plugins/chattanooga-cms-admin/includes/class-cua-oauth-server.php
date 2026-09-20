@@ -15,6 +15,7 @@ final class CUA_OAuth_Server {
 	const SCOPE          = 'mcp:admin';
 	const OFFLINE_SCOPE  = 'offline_access';
 	const CLIENT_OPTION  = 'cua_oauth_clients';
+	const REFRESH_OPTION = 'cua_oauth_refresh_tokens';
 	const DIAGNOSTIC_OPTION = 'cua_oauth_last_client_metadata_check';
 	const REWRITE_VERSION_OPTION = 'cua_oauth_rewrite_version';
 	const CODE_TTL       = 300;
@@ -472,8 +473,15 @@ final class CUA_OAuth_Server {
 
 	private static function exchange_refresh_token( WP_REST_Request $request ) {
 		$refresh = trim( (string) $request->get_param( 'refresh_token' ) );
-		$key = self::transient_key( 'refresh', $refresh );
-		$record = get_transient( $key );
+		$legacy_key = self::transient_key( 'refresh', $refresh );
+		$record = self::consume_refresh_record( $refresh );
+		if ( ! is_array( $record ) ) {
+			// Migrate a still-valid pre-1.2.18 token on first use.
+			$record = get_transient( $legacy_key );
+			if ( is_array( $record ) ) {
+				delete_transient( $legacy_key );
+			}
+		}
 		if ( ! is_array( $record ) ) {
 			self::trace( 'refresh_token_exchange', 'failed', 400, 'invalid_grant', array( 'grant_type' => 'refresh_token' ) );
 			return self::oauth_error( 'invalid_grant', 'The refresh token is invalid, expired, or already used.', 400 );
@@ -496,7 +504,6 @@ final class CUA_OAuth_Server {
 		// server to issue refresh tokens at its discretion; offline_access is
 		// not a protected-resource requirement. Always rotate a successfully
 		// used refresh token so replay of the old token fails.
-		delete_transient( $key );
 		return $response;
 	}
 
@@ -524,9 +531,43 @@ final class CUA_OAuth_Server {
 		// server returns a refresh token. This keeps ChatGPT connections alive
 		// after ACCESS_TTL without expanding the granted resource scope.
 		$body['refresh_token'] = $refresh;
-		set_transient( self::transient_key( 'refresh', $refresh ), $stored, self::REFRESH_TTL );
+		self::store_refresh_record( $refresh, $stored );
 		self::trace( 'token_issue', 'accepted', 200, '', array( 'refresh_issued' => true ) );
 		return self::no_store_response( $body );
+	}
+
+	private static function store_refresh_record( $token, array $record ) {
+		$records = get_option( self::REFRESH_OPTION, array() );
+		$records = is_array( $records ) ? $records : array();
+		$now = time();
+		foreach ( $records as $key => $candidate ) {
+			if ( ! is_array( $candidate ) || (int) ( $candidate['expires_at'] ?? 0 ) <= $now ) {
+				unset( $records[ $key ] );
+			}
+		}
+		$record['issued_at'] = $now;
+		$record['expires_at'] = $now + self::REFRESH_TTL;
+		$records[ self::digest( $token ) ] = $record;
+		update_option( self::REFRESH_OPTION, $records, false );
+	}
+
+	private static function consume_refresh_record( $token ) {
+		$records = get_option( self::REFRESH_OPTION, array() );
+		if ( ! is_array( $records ) ) {
+			return null;
+		}
+		$key = self::digest( $token );
+		$record = isset( $records[ $key ] ) && is_array( $records[ $key ] ) ? $records[ $key ] : null;
+		if ( null === $record || (int) ( $record['expires_at'] ?? 0 ) <= time() ) {
+			if ( isset( $records[ $key ] ) ) {
+				unset( $records[ $key ] );
+				update_option( self::REFRESH_OPTION, $records, false );
+			}
+			return null;
+		}
+		unset( $records[ $key ] );
+		update_option( self::REFRESH_OPTION, $records, false );
+		return $record;
 	}
 
 	private static function resolve_client( $client_id, $redirect_uri ) {
