@@ -40,7 +40,7 @@ foreach ( $required_plugins as $plugin_file ) {
 
 cms_site_plugins_assert( defined( 'CUA_VERSION' ) && '1.2.12' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.12 did not load.' );
 cms_site_plugins_assert( defined( 'CMS_MARKETPLACE_VERSION' ) && '0.1.1' === CMS_MARKETPLACE_VERSION, 'Marketplace 0.1.1 did not load.' );
-cms_site_plugins_assert( defined( 'CMS_CORE_VERSION' ) && '0.2.1' === CMS_CORE_VERSION, 'Weekend Feature 0.2.1 did not load.' );
+cms_site_plugins_assert( defined( 'CMS_CORE_VERSION' ) && '0.2.2' === CMS_CORE_VERSION, 'Weekend Feature 0.2.2 did not load.' );
 cms_site_plugins_assert( class_exists( 'WC_Product_Simple' ), 'WooCommerce product API is unavailable.' );
 cms_site_plugins_assert( class_exists( 'EM_Events' ), 'Events Manager API is unavailable.' );
 
@@ -85,6 +85,26 @@ cms_site_plugins_assert( ! is_wp_error( $events ) && is_array( $events ), 'Weeke
 $next_run = cms_site_plugins_private( $weekend, 'next_thursday_timestamp', array( '08:00' ) );
 cms_site_plugins_assert( $next_run > time(), 'Weekend Feature next Thursday schedule is not in the future.' );
 cms_site_plugins_assert( '4 08:00' === wp_date( 'N H:i', $next_run, wp_timezone() ), 'Weekend Feature schedule is not Thursday at 08:00 site time.' );
+
+// A missing recurring Weekend Feature event must repair itself during normal WordPress initialization.
+$original_weekend_settings = get_option( CMS_Weekend_Posts::OPTION_SETTINGS, array() );
+update_option(
+	CMS_Weekend_Posts::OPTION_SETTINGS,
+	array(
+		'enabled'      => 1,
+		'publish_time' => '08:00',
+		'post_author'  => 1,
+	),
+	false
+);
+wp_clear_scheduled_hook( CMS_Weekend_Posts::CRON_HOOK );
+cms_site_plugins_assert( false === wp_next_scheduled( CMS_Weekend_Posts::CRON_HOOK ), 'Weekend Feature cron hook was not cleared for self-heal verification.' );
+$weekend->ensure_schedule();
+$healed_weekend_run = wp_next_scheduled( CMS_Weekend_Posts::CRON_HOOK );
+cms_site_plugins_assert( false !== $healed_weekend_run, 'Weekend Feature did not self-heal a missing weekly cron event.' );
+cms_site_plugins_assert( '4 08:00' === wp_date( 'N H:i', $healed_weekend_run, wp_timezone() ), 'Weekend Feature self-heal restored the wrong schedule.' );
+wp_clear_scheduled_hook( CMS_Weekend_Posts::CRON_HOOK );
+update_option( CMS_Weekend_Posts::OPTION_SETTINGS, $original_weekend_settings, false );
 
 // Build a real Marketplace request and a real WooCommerce product.
 $existing_12 = get_post( CMS_Unified_Marketplace::MARKETPLACE_PAGE_ID );
@@ -180,5 +200,5 @@ wp_set_current_user( 0 );
 cms_site_plugins_assert( false === $health->check_permissions( array() ), 'Anonymous CMS Admin access was not denied.' );
 wp_set_current_user( 1 );
 
-echo "cms-site-plugins-integration: PASS cms_admin=1.2.12 marketplace=0.1.1 weekend_feature=0.2.1 wordpress_native_install=verified coexistence=verified marketplace_awp=verified marketplace_woocommerce=verified marketplace_search=verified marketplace_truncation=verified woocommerce_label=absent location_filter=preserved weekend_events_manager=verified weekend_schedule=verified cms_admin_health=verified database=verified admin_boundary=verified\n";
+echo "cms-site-plugins-integration: PASS cms_admin=1.2.12 marketplace=0.1.1 weekend_feature=0.2.2 wordpress_native_install=verified coexistence=verified marketplace_awp=verified marketplace_woocommerce=verified marketplace_search=verified marketplace_truncation=verified woocommerce_label=absent location_filter=preserved weekend_events_manager=verified weekend_schedule=verified cms_admin_health=verified database=verified admin_boundary=verified\n";
 exit( 0 );

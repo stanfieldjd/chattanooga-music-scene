@@ -25,6 +25,7 @@ final class CMS_Weekend_Posts {
 
 	private function __construct() {
 		add_action( 'init', array( $this, 'register_post_type' ) );
+		add_action( 'init', array( $this, 'ensure_schedule' ), 20 );
 		add_filter( 'cron_schedules', array( $this, 'add_weekly_schedule' ) );
 		add_filter( 'publicize_post_types', array( $this, 'enable_jetpack_social' ) );
 		add_action( self::CRON_HOOK, array( $this, 'run_scheduled_publish' ) );
@@ -150,6 +151,17 @@ final class CMS_Weekend_Posts {
 
 	public function settings_updated() {
 		$this->synchronize_schedule();
+	}
+
+	public function ensure_schedule() {
+		$settings = $this->get_settings();
+		if ( empty( $settings['enabled'] ) || empty( $settings['publish_time'] ) || empty( $settings['post_author'] ) ) {
+			return;
+		}
+
+		if ( ! wp_next_scheduled( self::CRON_HOOK ) ) {
+			$this->synchronize_schedule();
+		}
 	}
 
 	private function synchronize_schedule() {
@@ -536,9 +548,7 @@ final class CMS_Weekend_Posts {
 		$settings = $this->get_settings();
 		$window   = $this->weekend_window();
 		$events   = $this->get_events( $window );
-		if ( ! empty( $settings['enabled'] ) && ! empty( $settings['publish_time'] ) && ! empty( $settings['post_author'] ) && ! wp_next_scheduled( self::CRON_HOOK ) ) {
-			$this->synchronize_schedule();
-		}
+		$this->ensure_schedule();
 		$next_run = wp_next_scheduled( self::CRON_HOOK );
 		$last_run = get_option( 'cms_weekend_last_run', array() );
 		?>
