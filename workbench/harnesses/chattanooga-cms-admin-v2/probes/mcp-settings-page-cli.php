@@ -46,6 +46,15 @@ cmsa_mcp_settings_assert( false !== strpos( $page, 'Authorization trace' ), 'Aut
 cmsa_mcp_settings_assert( false !== strpos( $page, 'Clear authorization trace' ), 'Authorization trace clear control is missing from the settings page.' );
 cmsa_mcp_settings_assert( false !== strpos( $page, esc_html( rest_url( CUA_OAuth_Server::REST_NAMESPACE . '/oauth/diagnostics' ) ) ), 'OAuth diagnostics URL is missing from the trace panel.' );
 
+cmsa_mcp_settings_assert( class_exists( 'CUA_MCP_Diagnostics' ), 'MCP ingestion diagnostics service is unavailable.' );
+cmsa_mcp_settings_assert( false !== strpos( $page, 'MCP ingestion diagnostics' ), 'MCP ingestion diagnostics panel is missing from the settings page.' );
+cmsa_mcp_settings_assert( false !== strpos( $page, esc_html( rest_url( CUA_MCP_Server::REST_NAMESPACE . CUA_MCP_Diagnostics::REPORT_ROUTE ) ) ), 'MCP diagnostics JSON URL is missing from the settings page.' );
+cmsa_mcp_settings_assert( false !== strpos( $page, esc_html( rest_url( CUA_MCP_Server::REST_NAMESPACE . CUA_MCP_Diagnostics::CANARY_ROUTE ) ) ), 'MCP canary endpoint is missing from the settings page.' );
+$ingestion_summary = CUA_MCP_Diagnostics::public_summary();
+cmsa_mcp_settings_assert( (int) ( $ingestion_summary['toolCount'] ?? 0 ) > 0, 'MCP ingestion summary reports no tools.' );
+cmsa_mcp_settings_assert( 0 === (int) ( $ingestion_summary['descriptorFail'] ?? -1 ), 'MCP ingestion summary reports descriptor failures.' );
+cmsa_mcp_settings_assert( preg_match( '/^[a-f0-9]{64}$/', (string) ( $ingestion_summary['catalogSha256'] ?? '' ) ), 'MCP ingestion summary catalog fingerprint is invalid.' );
+
 cmsa_mcp_settings_assert( class_exists( 'CUA_Audit' ), 'Audit service required for authorization tracing is unavailable.' );
 $trace_clear = CUA_Audit::clear_oauth_trace();
 cmsa_mcp_settings_assert( true === $trace_clear, 'Authorization trace could not be cleared before probe.' );
@@ -290,5 +299,5 @@ if ( ! empty( $modern_data['access_token'] ) ) {
 }
 delete_transient( $new_modern_key );
 
-echo "cmsa-mcp-settings-page: PASS enabled=default origin_sanitization=verified endpoint=visible protocol=visible oauth_metadata=chatgpt-compatible authorization_trace=secret-free-bounded-panel-and-clear discovery_rewrite=verified rest_metadata_fallback=verified native_loopback=verified scope_semantics=verified manual_fallback=nonexclusive refresh_rotation=base-and-offline-scopes authorization_code_refresh=verified\n";
+echo "cmsa-mcp-settings-page: PASS enabled=default origin_sanitization=verified endpoint=visible protocol=visible oauth_metadata=chatgpt-compatible authorization_trace=secret-free-bounded-panel-and-clear discovery_rewrite=verified rest_metadata_fallback=verified native_loopback=verified scope_semantics=verified manual_fallback=nonexclusive refresh_rotation=base-and-offline-scopes authorization_code_refresh=verified ingestion_diagnostics=panel-summary-canary\n";
 exit( 0 );
