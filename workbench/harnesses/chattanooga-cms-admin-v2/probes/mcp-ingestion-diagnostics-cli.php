@@ -48,7 +48,7 @@ function cmsa_ingestion_modern_request( $route, $method, array $params = array()
 
 wp_set_current_user( 1 );
 
-cmsa_ingestion_assert( defined( 'CUA_VERSION' ) && '1.2.12' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.12 did not load.' );
+cmsa_ingestion_assert( defined( 'CUA_VERSION' ) && '1.2.17' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.17 did not load.' );
 cmsa_ingestion_assert( class_exists( 'CUA_MCP_Diagnostics' ), 'MCP diagnostics class did not load.' );
 cmsa_ingestion_assert( class_exists( 'CUA_MCP_Server' ), 'MCP server class did not load.' );
 cmsa_ingestion_assert( class_exists( 'CUA_Audit' ), 'Audit class did not load.' );
