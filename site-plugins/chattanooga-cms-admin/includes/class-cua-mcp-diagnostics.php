@@ -12,10 +12,43 @@ if ( ! defined( 'ABSPATH' ) ) {
  * authorization codes, PKCE values, state, and credentials are never stored.
  */
 final class CUA_MCP_Diagnostics {
-	const CANARY_ROUTE = '/mcp-canary';
-	const REPORT_ROUTE = '/mcp/diagnostics';
-	const CANARY_TOOL  = 'cmsa.diagnostic-canary';
-	const MAX_RECENT   = 50;
+	const CANARY_ROUTE       = '/mcp-canary';
+	const REPORT_ROUTE       = '/mcp/diagnostics';
+	const CANARY_TOOL        = 'cmsa.diagnostic-canary';
+	const STABILITY_ABILITY  = 'chattanooga-cms-admin/stability-check';
+	const STABILITY_TOOL     = 'cmsa.stability-check';
+	const MAX_RECENT         = 50;
+
+	public static function register_ability() {
+		if ( ! function_exists( 'wp_register_ability' ) ) {
+			return;
+		}
+
+		wp_register_ability(
+			self::STABILITY_ABILITY,
+			array(
+				'label'               => __( 'Check MCP stability', 'chattanooga-cms-admin' ),
+				'description'         => __( 'Returns read-only server-side MCP stability evidence: plugin/protocol identity, deterministic core-tool catalog fingerprint and descriptor health, plus recent secret-free discovery diagnostics. It cannot inspect ChatGPT private runtime registry state.', 'chattanooga-cms-admin' ),
+				'category'            => 'chattanooga-cms-admin',
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'properties'           => array(
+						'limit' => array( 'type' => 'integer', 'minimum' => 1, 'maximum' => self::MAX_RECENT, 'default' => 20 ),
+					),
+					'additionalProperties' => false,
+				),
+				'output_schema'       => array( 'type' => 'object' ),
+				'execute_callback'    => array( __CLASS__, 'stability_report' ),
+				'permission_callback' => static function () { return current_user_can( 'manage_options' ); },
+				'meta'                => array(
+					'public'       => true,
+					'show_in_rest' => false,
+					'mcp'          => array( 'public' => true ),
+					'annotations'  => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world' => false ),
+				),
+			)
+		);
+	}
 
 	public static function register_routes() {
 		if ( ! CUA_MCP_Settings_Page::is_enabled() ) {
@@ -40,6 +73,62 @@ final class CUA_MCP_Diagnostics {
 				'callback'            => array( __CLASS__, 'rest_report' ),
 				'permission_callback' => '__return_true',
 			)
+		);
+	}
+
+	public static function stability_report( $input = array() ) {
+		$limit = is_array( $input ) && isset( $input['limit'] ) ? (int) $input['limit'] : 20;
+		$limit = max( 1, min( self::MAX_RECENT, $limit ) );
+		$catalog = self::catalog_report( false );
+		$recent = class_exists( 'CUA_Audit' ) ? CUA_Audit::read_mcp_diagnostics( $limit ) : new WP_Error( 'cmsa_stability_audit_unavailable', 'MCP diagnostic audit storage is unavailable.' );
+		$audit_readable = ! is_wp_error( $recent );
+		$entries = $audit_readable && is_array( $recent['entries'] ?? null ) ? $recent['entries'] : array();
+		$latest_main_list = null;
+		$latest_canary_list = null;
+		$counts = array( 'mainToolsList' => 0, 'canaryToolsList' => 0, 'mainDiscover' => 0, 'canaryDiscover' => 0 );
+		foreach ( $entries as $entry ) {
+			if ( ! is_array( $entry ) ) { continue; }
+			$surface = (string) ( $entry['mcp_surface'] ?? '' );
+			$method = (string) ( $entry['mcp_method'] ?? '' );
+			if ( 'main' === $surface && 'tools/list' === $method ) { ++$counts['mainToolsList']; if ( null === $latest_main_list ) { $latest_main_list = $entry; } }
+			elseif ( 'canary' === $surface && 'tools/list' === $method ) { ++$counts['canaryToolsList']; if ( null === $latest_canary_list ) { $latest_canary_list = $entry; } }
+			if ( 'server/discover' === $method ) { if ( 'main' === $surface ) { ++$counts['mainDiscover']; } elseif ( 'canary' === $surface ) { ++$counts['canaryDiscover']; } }
+		}
+		$tool_count = (int) ( $catalog['toolCount'] ?? 0 );
+		$descriptor_pass = (int) ( $catalog['descriptorSummary']['pass'] ?? 0 );
+		$descriptor_fail = (int) ( $catalog['descriptorSummary']['fail'] ?? 0 );
+		$tool_fingerprint = (string) ( $catalog['toolFingerprint'] ?? '' );
+		$catalog_healthy = 0 < $tool_count && 0 === $descriptor_fail && $tool_count === $descriptor_pass && 1 === preg_match( '/^[a-f0-9]{64}$/', $tool_fingerprint );
+		$latest_main_matches = null;
+		if ( is_array( $latest_main_list ) ) {
+			$latest_main_matches = 200 === (int) ( $latest_main_list['http_status'] ?? 0 ) && $tool_count === (int) ( $latest_main_list['tool_count'] ?? -1 ) && $tool_fingerprint === (string) ( $latest_main_list['tool_fingerprint'] ?? '' ) && 0 === (int) ( $latest_main_list['descriptor_fail'] ?? -1 );
+		}
+		$latest_canary_healthy = null;
+		if ( is_array( $latest_canary_list ) ) {
+			$latest_canary_healthy = 200 === (int) ( $latest_canary_list['http_status'] ?? 0 ) && 1 === (int) ( $latest_canary_list['tool_count'] ?? -1 ) && 0 === (int) ( $latest_canary_list['descriptor_fail'] ?? -1 );
+		}
+		if ( ! $catalog_healthy || false === $latest_main_matches || false === $latest_canary_healthy ) { $state = 'degraded'; }
+		elseif ( true === $latest_main_matches && true === $latest_canary_healthy ) { $state = 'healthy'; }
+		else { $state = 'insufficient_history'; }
+		return array(
+			'state' => $state,
+			'pluginVersion' => defined( 'CUA_VERSION' ) ? CUA_VERSION : 'unknown',
+			'protocolVersion' => CUA_MCP_Server::PROTOCOL_VERSION,
+			'generatedAt' => gmdate( 'c' ),
+			'serverCatalogHealthy' => $catalog_healthy,
+			'serverToolCount' => $tool_count,
+			'serverToolFingerprint' => $tool_fingerprint,
+			'catalogSha256' => (string) ( $catalog['catalogSha256'] ?? '' ),
+			'descriptorPass' => $descriptor_pass,
+			'descriptorFail' => $descriptor_fail,
+			'auditReadable' => $audit_readable,
+			'latestMainDiscoveryMatches' => $latest_main_matches,
+			'latestCanaryDiscoveryHealthy' => $latest_canary_healthy,
+			'observationCounts' => $counts,
+			'latestMainToolsList' => $latest_main_list,
+			'latestCanaryToolsList' => $latest_canary_list,
+			'recentDiagnostics' => $entries,
+			'scope' => 'Server-side only. A successful result proves the WordPress MCP endpoint and advertised catalog at call time; it cannot prove that ChatGPT will keep this tool namespace loaded after the call.',
 		);
 	}
 

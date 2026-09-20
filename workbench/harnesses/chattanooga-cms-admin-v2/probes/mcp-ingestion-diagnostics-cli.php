@@ -48,7 +48,7 @@ function cmsa_ingestion_modern_request( $route, $method, array $params = array()
 
 wp_set_current_user( 1 );
 
-cmsa_ingestion_assert( defined( 'CUA_VERSION' ) && '1.2.17' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.17 did not load.' );
+cmsa_ingestion_assert( defined( 'CUA_VERSION' ) && '1.2.19' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.19 did not load.' );
 cmsa_ingestion_assert( class_exists( 'CUA_MCP_Diagnostics' ), 'MCP diagnostics class did not load.' );
 cmsa_ingestion_assert( class_exists( 'CUA_MCP_Server' ), 'MCP server class did not load.' );
 cmsa_ingestion_assert( class_exists( 'CUA_Audit' ), 'Audit class did not load.' );
@@ -66,6 +66,20 @@ cmsa_ingestion_assert( 200 === $main->get_status(), 'Main MCP tools/list failed.
 $main_data = $main->get_data();
 $main_tools = $main_data['result']['tools'] ?? null;
 cmsa_ingestion_assert( is_array( $main_tools ) && ! empty( $main_tools ), 'Main MCP tools/list returned no tools.' );
+$stability_descriptor = null;
+foreach ( $main_tools as $tool ) { if ( is_array( $tool ) && CUA_MCP_Diagnostics::STABILITY_TOOL === ( $tool['name'] ?? '' ) ) { $stability_descriptor = $tool; break; } }
+cmsa_ingestion_assert( is_array( $stability_descriptor ), 'Main MCP tools/list omitted the stability tool.' );
+cmsa_ingestion_assert( true === ( $stability_descriptor['annotations']['readOnlyHint'] ?? null ), 'Stability tool is not read-only.' );
+cmsa_ingestion_assert( false === ( $stability_descriptor['annotations']['destructiveHint'] ?? null ), 'Stability tool is incorrectly destructive.' );
+cmsa_ingestion_assert( false === ( $stability_descriptor['annotations']['openWorldHint'] ?? null ), 'Stability tool is incorrectly open-world.' );
+$stability_call = cmsa_ingestion_modern_request( '/chattanooga-cms-admin/v1/mcp', 'tools/call', array( 'name' => CUA_MCP_Diagnostics::STABILITY_TOOL, 'arguments' => array( 'limit' => 20 ) ), 706 );
+cmsa_ingestion_assert( 200 === $stability_call->get_status(), 'Stability tools/call failed.' );
+$stability = $stability_call->get_data()['result']['structuredContent'] ?? null;
+cmsa_ingestion_assert( is_array( $stability ) && true === ( $stability['serverCatalogHealthy'] ?? false ), 'Stability tool reported an unhealthy server catalog.' );
+cmsa_ingestion_assert( (int) $catalog['toolCount'] === (int) ( $stability['serverToolCount'] ?? -1 ), 'Stability tool reported the wrong core tool count.' );
+cmsa_ingestion_assert( (string) $catalog['toolFingerprint'] === (string) ( $stability['serverToolFingerprint'] ?? '' ), 'Stability tool reported the wrong core tool fingerprint.' );
+cmsa_ingestion_assert( true === ( $stability['latestMainDiscoveryMatches'] ?? false ), 'Stability tool did not match the latest main tools/list observation.' );
+cmsa_ingestion_assert( false !== strpos( (string) ( $stability['scope'] ?? '' ), 'cannot prove that ChatGPT' ), 'Stability tool did not state its client-registry limitation.' );
 
 $canary_discover = cmsa_ingestion_modern_request( '/chattanooga-cms-admin/v1' . CUA_MCP_Diagnostics::CANARY_ROUTE, 'server/discover', array(), 703 );
 cmsa_ingestion_assert( 200 === $canary_discover->get_status(), 'Canary server/discover failed.' );

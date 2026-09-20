@@ -804,6 +804,7 @@ final class CUA_MCP_Server {
 				'cmsa.install-theme',
 				'cmsa.list-plugins',
 				'cmsa.list-themes',
+				'cmsa.stability-check',
 				'cmsa.uninstall-plugin',
 				'cmsa.delete-plugin',
 			),

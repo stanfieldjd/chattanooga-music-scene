@@ -158,7 +158,7 @@ function cmsa_mcp_redteam_extract_id( $value ) {
 
 wp_set_current_user( 1 );
 
-cmsa_mcp_redteam_assert( defined( 'CUA_VERSION' ) && '1.2.17' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.17 is not active.' );
+cmsa_mcp_redteam_assert( defined( 'CUA_VERSION' ) && '1.2.19' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.19 is not active.' );
 cmsa_mcp_redteam_assert( defined( 'EM_VERSION' ) && '7.4.3' === (string) EM_VERSION, 'Events Manager 7.4.3 is not active.' );
 cmsa_mcp_redteam_assert( defined( 'CMS_CORE_VERSION' ) && '0.2.2' === CMS_CORE_VERSION, 'Weekend Feature 0.2.2 is not active.' );
 cmsa_mcp_redteam_assert( class_exists( 'CMS_Weekend_Posts' ), 'Weekend Feature generator is unavailable.' );
@@ -170,8 +170,11 @@ foreach ( $tools as $tool ) {
 		$tool_names[] = (string) $tool['name'];
 	}
 }
-foreach ( array( 'cmsa.catalog', 'cmsa.read-bridge', 'cmsa.write-bridge' ) as $required_tool ) {
-	cmsa_mcp_redteam_assert( in_array( $required_tool, $tool_names, true ), 'Required MCP tool is missing: ' . $required_tool );
+foreach ( array( 'cmsa.catalog', 'cmsa.stability-check' ) as $required_tool ) {
+	cmsa_mcp_redteam_assert( in_array( $required_tool, $tool_names, true ), 'Required bounded MCP tool is missing: ' . $required_tool );
+}
+foreach ( array( 'cmsa.read-bridge', 'cmsa.write-bridge' ) as $direct_only_tool ) {
+	cmsa_mcp_redteam_assert( ! in_array( $direct_only_tool, $tool_names, true ), 'Direct-only bridge gateway leaked into bounded tools/list: ' . $direct_only_tool );
 }
 
 $catalog = cmsa_mcp_redteam_catalog();
