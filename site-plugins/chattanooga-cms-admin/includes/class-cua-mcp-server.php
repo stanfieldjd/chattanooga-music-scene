@@ -722,6 +722,7 @@ final class CUA_MCP_Server {
 					'additionalProperties' => false,
 				);
 			}
+			$schema = self::normalize_json_schema_for_transport( $schema );
 
 			$security_schemes = self::auth_security_schemes();
 			$tool = array(
@@ -736,7 +737,7 @@ final class CUA_MCP_Server {
 
 			$output_schema = $ability->get_output_schema();
 			if ( is_array( $output_schema ) ) {
-				$tool['outputSchema'] = $output_schema;
+				$tool['outputSchema'] = self::normalize_json_schema_for_transport( $output_schema );
 			}
 
 			$tools[ $tool_name ] = $tool;
@@ -848,6 +849,41 @@ final class CUA_MCP_Server {
 	private static function tool_name( $ability_name ) {
 		$short = substr( $ability_name, strlen( self::ABILITY_PREFIX ) );
 		return self::TOOL_PREFIX . preg_replace( '/[^A-Za-z0-9_.-]/', '-', $short );
+	}
+
+	/**
+	 * Preserve JSON Schema object-valued keywords when PHP represents an empty
+	 * map as array(). Without this normalization wp_json_encode() emits [] for
+	 * empty properties/$defs maps, which is invalid JSON Schema 2020-12.
+	 *
+	 * @param mixed  $value Current schema value.
+	 * @param string $parent_key Parent schema keyword.
+	 * @return mixed Transport-safe schema value.
+	 */
+	private static function normalize_json_schema_for_transport( $value, $parent_key = '' ) {
+		$object_keywords = array(
+			'$defs',
+			'$vocabulary',
+			'definitions',
+			'dependentRequired',
+			'dependentSchemas',
+			'patternProperties',
+			'properties',
+		);
+
+		if ( is_array( $value ) ) {
+			if ( empty( $value ) && in_array( (string) $parent_key, $object_keywords, true ) ) {
+				return new stdClass();
+			}
+
+			$normalized = array();
+			foreach ( $value as $key => $item ) {
+				$normalized[ $key ] = self::normalize_json_schema_for_transport( $item, is_string( $key ) ? $key : '' );
+			}
+			return $normalized;
+		}
+
+		return $value;
 	}
 
 	private static function tool_annotations( WP_Ability $ability ) {
