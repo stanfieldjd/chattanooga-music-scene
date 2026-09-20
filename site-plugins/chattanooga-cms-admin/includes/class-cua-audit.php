@@ -291,6 +291,7 @@ final class CUA_Audit {
 			'response_bytes',
 			'response_sha256',
 			'correlation_sha256',
+			'tool_fingerprint',
 			'tool_count',
 			'next_cursor_present',
 			'descriptor_pass',
@@ -325,6 +326,9 @@ final class CUA_Audit {
 			if ( isset( $sanitized[ $key ] ) ) {
 				$sanitized[ $key ] = preg_match( '/^[a-f0-9]{64}$/', (string) $sanitized[ $key ] ) ? (string) $sanitized[ $key ] : '';
 			}
+		}
+		if ( isset( $sanitized['tool_fingerprint'] ) && ! preg_match( '/^[a-f0-9]{64}$/', (string) $sanitized['tool_fingerprint'] ) ) {
+			$sanitized['tool_fingerprint'] = '';
 		}
 
 		$written = self::append( $sanitized );
