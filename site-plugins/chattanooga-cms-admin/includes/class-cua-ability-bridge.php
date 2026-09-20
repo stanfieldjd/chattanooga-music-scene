@@ -105,7 +105,14 @@ final class CUA_Ability_Bridge {
 		$items = self::catalog_items();
 
 		if ( class_exists( 'CUA_REST_Bridge' ) ) {
-			$items = array_merge( $items, CUA_REST_Bridge::catalog_items() );
+			try {
+				$rest_items = CUA_REST_Bridge::catalog_items();
+				if ( is_array( $rest_items ) ) {
+					$items = array_merge( $items, $rest_items );
+				}
+			} catch ( Throwable $error ) {
+				// A malformed third-party REST route must not abort the ability catalog.
+			}
 		}
 
 		usort(
@@ -132,26 +139,28 @@ final class CUA_Ability_Bridge {
 				continue;
 			}
 
-			$target_name = $target->get_name();
-			$meta = $target->get_meta();
-			$annotations = isset( $meta['annotations'] ) && is_array( $meta['annotations'] ) ? $meta['annotations'] : array();
-			$items[] = array(
-				'contract'    => 'ability',
-				'bridge'      => self::bridge_name( $target_name ),
-				'target'      => $target_name,
-				'label'       => $target->get_label(),
-				'description' => $target->get_description(),
-				'category'    => $target->get_category(),
-				'annotations' => array(
-					'readonly'    => array_key_exists( 'readonly', $annotations ) && null !== $annotations['readonly'] ? (bool) $annotations['readonly'] : null,
-					'destructive' => array_key_exists( 'destructive', $annotations ) && null !== $annotations['destructive'] ? (bool) $annotations['destructive'] : null,
-					'idempotent'  => array_key_exists( 'idempotent', $annotations ) && null !== $annotations['idempotent'] ? (bool) $annotations['idempotent'] : null,
-				'open_world'  => array_key_exists( 'open_world', $annotations ) && null !== $annotations['open_world'] ? (bool) $annotations['open_world'] : null,
-					'open_world'  => array_key_exists( 'open_world', $annotations ) && null !== $annotations['open_world'] ? (bool) $annotations['open_world'] : null,
-				),
-			);
+			try {
+				$target_name = $target->get_name();
+				$meta = $target->get_meta();
+				$annotations = isset( $meta['annotations'] ) && is_array( $meta['annotations'] ) ? $meta['annotations'] : array();
+				$items[] = array(
+					'contract'    => 'ability',
+					'bridge'      => self::bridge_name( $target_name ),
+					'target'      => $target_name,
+					'label'       => $target->get_label(),
+					'description' => $target->get_description(),
+					'category'    => $target->get_category(),
+					'annotations' => array(
+						'readonly'    => array_key_exists( 'readonly', $annotations ) && null !== $annotations['readonly'] ? (bool) $annotations['readonly'] : null,
+						'destructive' => array_key_exists( 'destructive', $annotations ) && null !== $annotations['destructive'] ? (bool) $annotations['destructive'] : null,
+						'idempotent'  => array_key_exists( 'idempotent', $annotations ) && null !== $annotations['idempotent'] ? (bool) $annotations['idempotent'] : null,
+						'open_world'  => array_key_exists( 'open_world', $annotations ) && null !== $annotations['open_world'] ? (bool) $annotations['open_world'] : null,
+					),
+				);
+			} catch ( Throwable $error ) {
+				// A malformed third-party ability must not abort the ability catalog.
+			}
 		}
-
 		usort(
 			$items,
 			static function ( $left, $right ) {
