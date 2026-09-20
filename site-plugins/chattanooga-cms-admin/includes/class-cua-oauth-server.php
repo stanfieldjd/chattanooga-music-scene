@@ -737,6 +737,7 @@ final class CUA_OAuth_Server {
 					'error_code'  => (string) $error_code,
 					'method'      => $method,
 					'path'        => $path,
+					'tool_fingerprint' => class_exists( 'CUA_MCP_Server' ) ? CUA_MCP_Server::tool_fingerprint() : '',
 				),
 				$extra
 			)
