@@ -22,6 +22,9 @@ final class CUA_OAuth_Server {
 	const ACCESS_TTL     = 3600;
 	const REFRESH_TTL    = 2592000;
 	const REFRESH_LOCK_TTL = 30;
+	const PUBLIC_RATE_WINDOW = 60;
+	const REGISTRATION_RATE_LIMIT = 20;
+	const TOKEN_RATE_LIMIT = 120;
 
 	public static function bootstrap() {
 		add_action( 'parse_request', array( __CLASS__, 'serve_well_known_metadata' ), 0 );
@@ -227,6 +230,9 @@ final class CUA_OAuth_Server {
 	}
 
 	public static function register_client( WP_REST_Request $request ) {
+		if ( ! self::allow_public_request( 'registration', self::REGISTRATION_RATE_LIMIT ) ) {
+			return self::oauth_error( 'temporarily_unavailable', 'Public client registration is temporarily rate limited.', 429 );
+		}
 		self::trace( 'client_registration', 'received', 0, '', array( 'client_mode' => 'dcr' ) );
 		if ( ! self::is_oauth_enabled() ) {
 			self::trace( 'client_registration', 'failed', 404, 'authorization_mode_disabled', array( 'client_mode' => 'dcr' ) );
@@ -365,6 +371,9 @@ final class CUA_OAuth_Server {
 	}
 
 	public static function token( WP_REST_Request $request ) {
+		if ( ! self::allow_public_request( 'token', self::TOKEN_RATE_LIMIT ) ) {
+			return self::oauth_error( 'temporarily_unavailable', 'The token endpoint is temporarily rate limited.', 429 );
+		}
 		$grant_type = trim( (string) $request->get_param( 'grant_type' ) );
 		self::trace( 'token_request', 'received', 0, '', array( 'grant_type' => $grant_type ) );
 		if ( ! self::is_oauth_enabled() ) {
@@ -786,6 +795,19 @@ final class CUA_OAuth_Server {
 			),
 			false
 		);
+	}
+
+	private static function allow_public_request( $bucket, $limit ) {
+		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : 'unknown';
+		$key = 'cua_oauth_rate_' . substr( hash( 'sha256', (string) $bucket . '|' . $ip ), 0, 40 );
+		$record = get_transient( $key );
+		$record = is_array( $record ) ? $record : array( 'count' => 0 );
+		if ( (int) ( $record['count'] ?? 0 ) >= (int) $limit ) {
+			return false;
+		}
+		$record['count'] = (int) ( $record['count'] ?? 0 ) + 1;
+		set_transient( $key, $record, self::PUBLIC_RATE_WINDOW );
+		return true;
 	}
 
 	private static function trace( $stage, $outcome, $http_status = 0, $error_code = '', array $extra = array() ) {
