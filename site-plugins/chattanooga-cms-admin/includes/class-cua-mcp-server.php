@@ -820,18 +820,24 @@ final class CUA_MCP_Server {
 			}
 		}
 
-		$direct_names = array_fill_keys( self::direct_tool_names(), true );
-		return array_intersect_key( $tools, $direct_names );
+		$ordered_tools = array();
+		foreach ( self::direct_tool_names() as $tool_name ) {
+			if ( isset( $tools[ $tool_name ] ) ) {
+				$ordered_tools[ $tool_name ] = $tools[ $tool_name ];
+			}
+		}
+		return $ordered_tools;
 	}
 
 	private static function direct_tool_names() {
 		return array(
+			'cmsa.discovery',
+			'cmsa.stability-check',
 			'cmsa.activate-plugin',
 			'cmsa.catalog',
 			'cmsa.clear-cache',
 			'cmsa.create-backup',
 			'cmsa.deactivate-plugin',
-			'cmsa.discovery',
 			'cmsa.delete-plugin',
 			'cmsa.delete-theme',
 			'cmsa.get-audit-log',
