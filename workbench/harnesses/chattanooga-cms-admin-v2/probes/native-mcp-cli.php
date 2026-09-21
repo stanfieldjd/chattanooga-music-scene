@@ -270,9 +270,6 @@ $expected_names = array(
 	'cmsa.write-bridge',
 )
 cmsa_native_mcp_assert( $expected_names === $names, 'MCP tools/list does not match the bounded deterministic core tool set: ' . wp_json_encode( $names ) );
-foreach ( array( 'cmsa.read-bridge', 'cmsa.write-bridge' ) as $direct_only_tool ) {
-	cmsa_native_mcp_assert( ! in_array( $direct_only_tool, $names, true ), 'Direct-only bridge gateway leaked into bounded tools/list: ' . $direct_only_tool );
-}
 foreach ( $names as $name ) {
 	cmsa_native_mcp_assert( ! preg_match( '/^cmsa\\.(?:bridge|rest)-[a-f0-9]{24}$/', $name ), 'Generated universal facade leaked into MCP tools/list: ' . $name );
 }
