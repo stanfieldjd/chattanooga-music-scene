@@ -277,7 +277,15 @@ final class CUA_MCP_Server {
 				return self::success_response( $id, self::initialize_result( self::LEGACY_PROTOCOL_VERSION ), self::LEGACY_PROTOCOL_VERSION, $session_id );
 
 			case 'server/discover':
-				$response = self::success_response( $id, self::discover_result( $params ), $protocol_version, $session_id );
+				$discovery = self::discover_result( $params );
+				if ( is_wp_error( $discovery ) ) {
+					$response = self::protocol_error_response( $id, -32603, $discovery->get_error_message(), 500 );
+					if ( class_exists( 'CUA_MCP_Diagnostics' ) ) {
+						CUA_MCP_Diagnostics::record_exchange( $request, $payload, $response, 'main' );
+					}
+					return $response;
+				}
+				$response = self::success_response( $id, $discovery, $protocol_version, $session_id );
 				if ( class_exists( 'CUA_MCP_Diagnostics' ) ) {
 					CUA_MCP_Diagnostics::record_exchange( $request, $payload, $response, 'main' );
 				}
@@ -547,6 +555,10 @@ final class CUA_MCP_Server {
 	}
 
 	private static function discover_result( array $params = array() ) {
+		$manifest = self::discovery_manifest( $params );
+		if ( is_wp_error( $manifest ) ) {
+			return $manifest;
+		}
 		return array(
 			'supportedVersions' => self::supported_protocol_versions(),
 			'serverInfo'        => self::server_info(),
@@ -562,7 +574,7 @@ final class CUA_MCP_Server {
 					'listChanged' => false,
 				),
 			),
-			'discovery'         => self::discovery_manifest( $params ),
+			'discovery'         => $manifest,
 			'instructions'      => 'Authenticated WordPress site-operation tools. Use read-only tools for inspection and mutating tools only for explicitly authorized site changes.',
 			'ttlMs'             => 30000,
 			'cacheScope'        => 'private',
