@@ -648,7 +648,7 @@ final class CUA_MCP_Server {
 					array(
 						'uri'      => self::RESOURCE_DISCOVERY_URI,
 						'mimeType' => 'application/json',
-						'text'     => self::json_text( self::discovery_manifest() ),
+						'text'     => self::json_text( self::discovery_manifest( $params ) ),
 					),
 				),
 				'ttlMs'      => 30000,
