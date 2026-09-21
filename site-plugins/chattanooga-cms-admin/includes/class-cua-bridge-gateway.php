@@ -121,7 +121,11 @@ final class CUA_Bridge_Gateway {
 			return $item;
 		}
 
-		$item_readonly = true === ( $item['annotations']['readonly'] ?? null );
+		$annotations = isset( $item['annotations'] ) && is_array( $item['annotations'] ) ? $item['annotations'] : array();
+		if ( ! array_key_exists( 'readonly', $annotations ) || null === $annotations['readonly'] ) {
+			return new WP_Error( 'cua_bridge_gateway_classification_required', 'The selected bridge lacks an explicit read-only or mutating classification.' );
+		}
+		$item_readonly = (bool) $annotations['readonly'];
 		if ( (bool) $readonly !== $item_readonly ) {
 			return new WP_Error(
 				'cua_bridge_gateway_class_mismatch',
