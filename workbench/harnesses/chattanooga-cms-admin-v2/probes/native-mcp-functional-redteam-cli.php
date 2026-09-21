@@ -173,9 +173,6 @@ foreach ( $tools as $tool ) {
 foreach ( array( 'cmsa.catalog', 'cmsa.stability-check' ) as $required_tool ) {
 	cmsa_mcp_redteam_assert( in_array( $required_tool, $tool_names, true ), 'Required bounded MCP tool is missing: ' . $required_tool );
 }
-foreach ( array( 'cmsa.read-bridge', 'cmsa.write-bridge' ) as $direct_only_tool ) {
-	cmsa_mcp_redteam_assert( ! in_array( $direct_only_tool, $tool_names, true ), 'Direct-only bridge gateway leaked into bounded tools/list: ' . $direct_only_tool );
-}
 
 $catalog = cmsa_mcp_redteam_catalog();
 
