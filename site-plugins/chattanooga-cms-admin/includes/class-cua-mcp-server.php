@@ -16,6 +16,17 @@ final class CUA_MCP_Server {
 	const PROTOCOL_VERSION = '2026-07-28';
 	const LEGACY_PROTOCOL_VERSION = '2025-11-25';
 	const TOOL_PAGE_SIZE = 50;
+	/**
+	 * Immutable MCP-facing gateway ABI. The complete admin operation catalog is
+	 * discovered through these gateways and remains executable by name for
+	 * backward compatibility, but it is not expanded into tools/list.
+	 */
+	const STABLE_GATEWAY_TOOL_NAMES = array(
+		'cmsa.discovery',
+		'cmsa.stability-check',
+		'cmsa.read-bridge',
+		'cmsa.write-bridge',
+	);
 	const SESSION_TTL = HOUR_IN_SECONDS;
 	const SESSION_HEADER = 'Mcp-Session-Id';
 
@@ -667,7 +678,11 @@ final class CUA_MCP_Server {
 	}
 
 	public static function discovery_manifest() {
-		return array(
+		$catalog = class_exists( 'CUA_Ability_Bridge' ) ? CUA_Ability_Bridge::catalog() : array( 'count' => 0, 'items' => array() );
+		if ( is_wp_error( $catalog ) ) {
+			$catalog = array( 'count' => 0, 'items' => array(), 'error' => $catalog->get_error_code() );
+		}
+		$manifest = array(
 			'schemaVersion' => '1',
 			'initialToolSet' => array(
 				'count'    => count( self::adapter_tools() ),
@@ -680,12 +695,18 @@ final class CUA_MCP_Server {
 				'pageSize'    => 100,
 				'description' => 'Read the catalog pages to discover additional public site-operation contracts. Use the returned bridge identity and permissions when selecting an operation.',
 			),
+			'catalogGateway' => array(
+				'count' => (int) ( $catalog['count'] ?? count( (array) ( $catalog['items'] ?? array() ) ) ),
+				'items' => array_values( (array) ( $catalog['items'] ?? array() ) ),
+				'authority' => 'WordPress public abilities and registered REST contracts at call time.',
+			),
 			'nextSteps' => array(
 				'Read this manifest first.',
 				'Use tools/list for the stable core tools.',
-				'Read the paginated site-operation catalog for additional capabilities.',
+				'Use the catalog gateway data to select a bridge, then call cmsa.read-bridge or cmsa.write-bridge.',
 			),
 		);
+		return $manifest;
 	}
 
 	private static function list_prompts_result() {
@@ -775,18 +796,26 @@ final class CUA_MCP_Server {
 
 	private static function adapter_tools() {
 		$tools = array();
-		// Preserve the complete stable MCP ABI. Every descriptor is derived from
-		// the corresponding public WordPress Ability's metadata; dynamic provider
-		// abilities remain behind the adapter catalog and execution path.
-		foreach ( self::direct_tool_names() as $tool_name ) {
+		// Keep tools/list deliberately small and immutable, following the same
+		// gateway architecture used by the WordPress MCP Adapter and Cowboy MCP.
+		// The full WordPress/admin catalog remains available through discovery,
+		// catalog, and bridge execution; it must not become the host's cached tool
+		// snapshot. Resolve each stable name directly so a partial wp_get_abilities()
+		// enumeration cannot silently remove it from the advertised surface.
+		foreach ( self::STABLE_GATEWAY_TOOL_NAMES as $tool_name ) {
 			$short   = substr( $tool_name, strlen( self::TOOL_PREFIX ) );
 			$ability = function_exists( 'wp_get_ability' ) ? wp_get_ability( self::ABILITY_PREFIX . $short ) : null;
 			if ( $ability instanceof WP_Ability && self::ability_is_mcp_public( $ability ) ) {
 				$tools[ $tool_name ] = self::tool_descriptor( $ability, $tool_name );
 			}
 		}
-		ksort( $tools, SORT_STRING );
-		return $tools;
+		$ordered_tools = array();
+		foreach ( self::STABLE_GATEWAY_TOOL_NAMES as $tool_name ) {
+			if ( isset( $tools[ $tool_name ] ) ) {
+				$ordered_tools[ $tool_name ] = $tools[ $tool_name ];
+			}
+		}
+		return $ordered_tools;
 	}
 
 	private static function call_adapter_tool( $name, array $arguments ) {
@@ -889,14 +918,9 @@ final class CUA_MCP_Server {
 
 		ksort( $tools, SORT_STRING );
 
-		// Keep every first-class CMSA operation and both universal bridge gateways
-		// in the stable MCP snapshot. The much larger runtime catalog remains
-		// paginated and is executed through these bridge gateways.
-		//
-		// Do not rely only on wp_get_abilities() for this list. WordPress can
-		// expose a transient registry snapshot while late ability registrations
-		// are still available through wp_get_ability(). Resolve the stable names
-		// explicitly so tools/list cannot silently become a partial surface.
+		// Legacy descriptor builder retained for diagnostics and backward
+		// compatibility. The MCP tools/list response uses adapter_tools(), which
+		// intentionally exposes only the immutable gateway ABI above.
 		foreach ( self::direct_tool_names() as $tool_name ) {
 			if ( isset( $tools[ $tool_name ] ) || ! function_exists( 'wp_get_ability' ) ) {
 				continue;
