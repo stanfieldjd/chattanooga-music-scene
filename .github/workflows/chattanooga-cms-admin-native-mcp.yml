@@ -232,35 +232,68 @@ jobs:
           fi
           php -r '$d=json_decode(file_get_contents("/tmp/cmsa-initialize-response.json"),true); if (($d["error"]["code"]??null)!==-32022) exit(1);'
 
-          cat > /tmp/cmsa-catalog.json <<'JSON'
-          {"jsonrpc":"2.0","id":402,"method":"tools/call","params":{"name":"cmsa.catalog","arguments":{},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{},"io.modelcontextprotocol/clientInfo":{"name":"cmsa-http-ci","version":"1.0.0"}}}}
-          JSON
+          catalog_cursor=0
+          catalog_id=402
+          bridge=''
+          for catalog_page in $(seq 1 50); do
+            CURSOR="$catalog_cursor" REQUEST_ID="$catalog_id" php -r '
+              echo json_encode([
+                "jsonrpc"=>"2.0",
+                "id"=>(int)getenv("REQUEST_ID"),
+                "method"=>"tools/call",
+                "params"=>[
+                  "name"=>"cmsa.catalog",
+                  "arguments"=>["cursor"=>(int)getenv("CURSOR"),"limit"=>100],
+                  "_meta"=>[
+                    "io.modelcontextprotocol/protocolVersion"=>"2026-07-28",
+                    "io.modelcontextprotocol/clientCapabilities"=>[],
+                    "io.modelcontextprotocol/clientInfo"=>["name"=>"cmsa-http-ci","version"=>"1.0.0"]
+                  ]
+                ]
+              ], JSON_UNESCAPED_SLASHES);
+            ' > /tmp/cmsa-catalog.json
 
-          catalog_code="$(curl -sS -D /tmp/cmsa-catalog-headers.txt -o /tmp/cmsa-catalog-response.json -w '%{http_code}' \
-            --user "admin:${app_password}" \
-            -H 'Content-Type: application/json' \
-            -H 'MCP-Protocol-Version: 2026-07-28' \
-            -H 'Mcp-Method: tools/call' \
-            -H 'Mcp-Name: cmsa.catalog' \
-            --data-binary @/tmp/cmsa-catalog.json \
-            "$endpoint")"
-          if [ "$catalog_code" != '200' ]; then
-            echo "Authenticated MCP catalog call returned HTTP $catalog_code" >&2
+            catalog_code="$(curl -sS -D /tmp/cmsa-catalog-headers.txt -o /tmp/cmsa-catalog-response.json -w '%{http_code}' \
+              --user "admin:${app_password}" \
+              -H 'Content-Type: application/json' \
+              -H 'MCP-Protocol-Version: 2026-07-28' \
+              -H 'Mcp-Method: tools/call' \
+              -H 'Mcp-Name: cmsa.catalog' \
+              --data-binary @/tmp/cmsa-catalog.json \
+              "$endpoint")"
+            if [ "$catalog_code" != '200' ]; then
+              echo "Authenticated MCP catalog call returned HTTP $catalog_code at cursor $catalog_cursor" >&2
+              cat /tmp/cmsa-catalog-response.json >&2
+              exit 1
+            fi
+            if grep -qi '^Mcp-Session-Id:' /tmp/cmsa-catalog-headers.txt; then
+              echo "Modern MCP tool call emitted a forbidden session header." >&2
+              cat /tmp/cmsa-catalog-headers.txt >&2
+              exit 1
+            fi
+
+            bridge="$(php -r '$d=json_decode(file_get_contents("/tmp/cmsa-catalog-response.json"),true); foreach (($d["result"]["structuredContent"]["items"]??[]) as $item) { if (($item["contract"]??"")==="rest" && ($item["method"]??"")==="POST" && ($item["route"]??"")==="/wp/v2/posts") { echo $item["bridge"]; exit(0); } }' || true)"
+            if [ -n "$bridge" ]; then
+              break
+            fi
+
+            next_cursor="$(php -r '$d=json_decode(file_get_contents("/tmp/cmsa-catalog-response.json"),true); $next=$d["result"]["structuredContent"]["nextCursor"]??null; if ($next===null || $next==="") exit(1); echo (int)$next;' || true)"
+            if [ -z "$next_cursor" ]; then
+              break
+            fi
+            if [ "$next_cursor" -le "$catalog_cursor" ]; then
+              echo "Catalog cursor did not advance: $catalog_cursor -> $next_cursor" >&2
+              exit 1
+            fi
+            catalog_cursor="$next_cursor"
+            catalog_id=$((catalog_id + 1))
+          done
+
+          if [ -z "$bridge" ]; then
+            echo "Catalog did not expose the POST /wp/v2/posts REST bridge after bounded pagination." >&2
             cat /tmp/cmsa-catalog-response.json >&2
             exit 1
           fi
-          if grep -qi '^Mcp-Session-Id:' /tmp/cmsa-catalog-headers.txt; then
-            echo "Modern MCP tool call emitted a forbidden session header." >&2
-            cat /tmp/cmsa-catalog-headers.txt >&2
-            exit 1
-          fi
-
-          bridge="$(php -r '$d=json_decode(file_get_contents("/tmp/cmsa-catalog-response.json"),true); foreach (($d["result"]["structuredContent"]["items"]??[]) as $item) { if (($item["contract"]??"")==="rest" && ($item["method"]??"")==="POST" && ($item["route"]??"")==="/wp/v2/posts") { echo $item["bridge"]; exit(0); } } exit(1);')" || {
-            echo "Catalog did not expose the POST /wp/v2/posts REST bridge." >&2
-            cat /tmp/cmsa-catalog-response.json >&2
-            exit 1
-          }
-          test -n "$bridge"
 
           BRIDGE="$bridge" php -r '$b=getenv("BRIDGE"); echo json_encode(["jsonrpc"=>"2.0","id"=>403,"method"=>"tools/call","params"=>["name"=>"cmsa.write-bridge","arguments"=>["bridge"=>$b,"input"=>["path"=>"/wp/v2/posts","params"=>["title"=>"CMSA MCP HTTP Write Probe","status"=>"draft","content"=>"Disposable native MCP CI write-authority probe."]]],"_meta"=>["io.modelcontextprotocol/protocolVersion"=>"2026-07-28","io.modelcontextprotocol/clientCapabilities"=>[],"io.modelcontextprotocol/clientInfo"=>["name"=>"cmsa-http-ci","version"=>"1.0.0"]]]]);' > /tmp/cmsa-write.json
 
