@@ -30,6 +30,7 @@ $expected = array(
 	'cmsa.clear-cache',
 	'cmsa.create-backup',
 	'cmsa.deactivate-plugin',
+	'cmsa.discovery',
 	'cmsa.delete-plugin',
 	'cmsa.delete-theme',
 	'cmsa.get-audit-log',
