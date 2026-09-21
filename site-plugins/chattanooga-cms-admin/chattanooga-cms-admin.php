@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Chattanooga CMS Admin
  * Description: Universal Chattanooga CMS Admin replacement using plugin-agnostic public WordPress contracts and verified intrinsic platform services.
- * Version: 1.2.21
+ * Version: 1.2.22
  * Author: Chattanooga Music Scene
  * Requires at least: 7.1
  * Requires PHP: 8.0
@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CUA_VERSION', '1.2.21' );
+define( 'CUA_VERSION', '1.2.22' );
 define( 'CUA_DIR', plugin_dir_path( __FILE__ ) );
 
 require_once CUA_DIR . 'includes/class-cua-local-storage.php';
@@ -43,6 +43,7 @@ CUA_OAuth_Server::bootstrap();
 
 add_action( 'wp_abilities_api_categories_init', array( 'CUA_Ability_Bridge', 'register_category' ) );
 add_action( 'wp_abilities_api_init', array( 'CUA_MCP_Diagnostics', 'register_ability' ), 4 );
+add_action( 'wp_abilities_api_init', array( 'CUA_MCP_Diagnostics', 'register_discovery_ability' ), 5 );
 add_action( 'wp_abilities_api_init', array( 'CUA_Ability_Bridge', 'register_catalog_ability' ), 5 );
 add_action( 'wp_abilities_api_init', array( 'CUA_Bridge_Gateway', 'register_abilities' ), 6 );
 add_action( 'wp_abilities_api_init', array( 'CUA_Platform_Services', 'register_abilities' ), 10 );
