@@ -146,13 +146,36 @@ $catalog_ability = wp_get_ability( 'chattanooga-cms-admin/catalog' );
 if ( ! $catalog_ability instanceof WP_Ability ) {
 	cmsa_v2_coverage_fail( 'Universal capability catalog is missing.' );
 }
-$catalog = $catalog_ability->execute( array() );
-if ( is_wp_error( $catalog ) || empty( $catalog['items'] ) || ! is_array( $catalog['items'] ) ) {
-	cmsa_v2_coverage_fail( 'Universal capability catalog could not be read.' );
+$catalog_items = array();
+$catalog_cursor = 0;
+$catalog_complete = false;
+for ( $catalog_page = 0; $catalog_page < 100; ++$catalog_page ) {
+	$catalog = $catalog_ability->execute(
+		array(
+			'cursor' => $catalog_cursor,
+			'limit'  => 100,
+		)
+	);
+	if ( is_wp_error( $catalog ) || empty( $catalog['items'] ) || ! is_array( $catalog['items'] ) ) {
+		cmsa_v2_coverage_fail( 'Universal capability catalog could not be read at cursor ' . $catalog_cursor . '.' );
+	}
+	$catalog_items = array_merge( $catalog_items, $catalog['items'] );
+	$next_cursor = $catalog['nextCursor'] ?? null;
+	if ( null === $next_cursor ) {
+		$catalog_complete = true;
+		break;
+	}
+	if ( ! is_numeric( $next_cursor ) || (int) $next_cursor <= $catalog_cursor ) {
+		cmsa_v2_coverage_fail( 'Universal capability catalog returned a non-advancing cursor.' );
+	}
+	$catalog_cursor = (int) $next_cursor;
+}
+if ( ! $catalog_complete || empty( $catalog_items ) ) {
+	cmsa_v2_coverage_fail( 'Universal capability catalog pagination did not complete within the safety bound.' );
 }
 
 $catalog_by_bridge = array();
-foreach ( $catalog['items'] as $item ) {
+foreach ( $catalog_items as $item ) {
 	if ( ! is_array( $item ) || empty( $item['bridge'] ) ) {
 		continue;
 	}
@@ -265,7 +288,7 @@ $required_rest = array(
 foreach ( $required_rest as $requirement ) {
 	list( $method, $route_pattern ) = $requirement;
 	$found = false;
-	foreach ( $catalog['items'] as $item ) {
+	foreach ( $catalog_items as $item ) {
 		if ( 'rest' !== ( $item['contract'] ?? '' ) || $method !== ( $item['method'] ?? '' ) ) {
 			continue;
 		}
