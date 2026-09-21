@@ -41,7 +41,7 @@ final class CUA_REST_Bridge {
 							'label'               => sprintf( __( 'REST %1$s %2$s', 'chattanooga-cms-admin' ), $method, $route_regex ),
 							'description'         => sprintf( __( 'Permission-preserving facade for the registered WordPress REST endpoint %1$s %2$s.', 'chattanooga-cms-admin' ), $method, $route_regex ),
 							'category'            => self::CATEGORY,
-							'input_schema'        => self::input_schema(),
+							'input_schema'        => self::input_schema( $handler ),
 							'output_schema'       => array( 'type' => 'object' ),
 							'execute_callback'    => static function ( $input ) use ( $route_regex, $method ) {
 								return CUA_REST_Bridge::execute_route( $route_regex, $method, is_array( $input ) ? $input : array() );
@@ -70,7 +70,7 @@ final class CUA_REST_Bridge {
 				'route'       => $route_regex,
 				'label'       => $method . ' ' . $route_regex,
 				'description' => 'Registered WordPress REST endpoint exposed through a route-locked universal facade.',
-				'inputSchema' => self::input_schema(),
+				'inputSchema' => self::input_schema( $route['handler'] ),
 				'outputSchema' => array( 'type' => 'object' ),
 				'category'    => self::CATEGORY,
 				'annotations' => self::annotations( $method ),
@@ -345,7 +345,35 @@ final class CUA_REST_Bridge {
 		return self::NAMESPACE_PREFIX . 'rest-' . substr( hash( 'sha256', $method . '|' . $route_regex ), 0, 24 );
 	}
 
-	private static function input_schema() {
+	private static function input_schema( array $handler = array() ) {
+		$param_properties = array();
+		$required_params = array();
+		$args = isset( $handler['args'] ) && is_array( $handler['args'] ) ? $handler['args'] : array();
+		foreach ( $args as $name => $options ) {
+			if ( ! is_string( $name ) || ! is_array( $options ) ) {
+				continue;
+			}
+			$property = array();
+			foreach ( array( 'type', 'format', 'enum', 'items', 'minimum', 'maximum', 'minItems', 'maxItems', 'minLength', 'maxLength', 'pattern', 'description', 'default' ) as $keyword ) {
+				if ( array_key_exists( $keyword, $options ) ) {
+					$property[ $keyword ] = $options[ $keyword ];
+				}
+			}
+			$param_properties[ $name ] = $property;
+			if ( ! empty( $options['required'] ) ) {
+				$required_params[] = $name;
+			}
+		}
+		$params_schema = array(
+			'type'                 => 'object',
+			'additionalProperties' => true,
+		);
+		if ( ! empty( $param_properties ) ) {
+			$params_schema['properties'] = $param_properties;
+		}
+		if ( ! empty( $required_params ) ) {
+			$params_schema['required'] = array_values( array_unique( $required_params ) );
+		}
 		return array(
 			'type'                 => 'object',
 			'properties'           => array(
@@ -354,9 +382,7 @@ final class CUA_REST_Bridge {
 					'minLength' => 1,
 					'maxLength' => 2048,
 				),
-				'params' => array(
-					'type' => 'object',
-				),
+				'params' => $params_schema,
 			),
 			'required'             => array( 'path' ),
 			'additionalProperties' => false,
