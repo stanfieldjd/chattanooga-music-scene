@@ -803,45 +803,90 @@ final class CUA_MCP_Server {
 		// Keep every first-class CMSA operation and both universal bridge gateways
 		// in the stable MCP snapshot. The much larger runtime catalog remains
 		// paginated and is executed through these bridge gateways.
-		$direct_names = array_fill_keys(
-			array(
-				'cmsa.activate-plugin',
-				'cmsa.catalog',
-				'cmsa.clear-cache',
-				'cmsa.create-backup',
-				'cmsa.deactivate-plugin',
-				'cmsa.delete-plugin',
-				'cmsa.delete-theme',
-				'cmsa.get-audit-log',
-				'cmsa.get-health',
-				'cmsa.get-registered-setting',
-				'cmsa.install-plugin',
-				'cmsa.install-plugin-package',
-				'cmsa.install-theme',
-				'cmsa.list-backups',
-				'cmsa.list-plugins',
-				'cmsa.list-registered-settings',
-				'cmsa.list-themes',
-				'cmsa.list-updates',
-				'cmsa.read-bridge',
-				'cmsa.restore-component-backup',
-				'cmsa.restore-core-backup',
-				'cmsa.restore-database-backup',
-				'cmsa.set-plugin-auto-update',
-				'cmsa.set-theme-auto-update',
-				'cmsa.stability-check',
-				'cmsa.switch-theme',
-				'cmsa.update-core',
-				'cmsa.update-plugin',
-				'cmsa.update-registered-setting',
-				'cmsa.update-theme',
-				'cmsa.verify-backup',
-				'cmsa.write-bridge',
-			),
-			true
-		);
+		//
+		// Do not rely only on wp_get_abilities() for this list. WordPress can
+		// expose a transient registry snapshot while late ability registrations
+		// are still available through wp_get_ability(). Resolve the stable names
+		// explicitly so tools/list cannot silently become a partial surface.
+		foreach ( self::direct_tool_names() as $tool_name ) {
+			if ( isset( $tools[ $tool_name ] ) || ! function_exists( 'wp_get_ability' ) ) {
+				continue;
+			}
 
+			$short = substr( $tool_name, strlen( self::TOOL_PREFIX ) );
+			$ability = wp_get_ability( self::ABILITY_PREFIX . $short );
+			if ( $ability instanceof WP_Ability && self::ability_is_mcp_public( $ability ) ) {
+				$tools[ $tool_name ] = self::tool_descriptor( $ability, $tool_name );
+			}
+		}
+
+		$direct_names = array_fill_keys( self::direct_tool_names(), true );
 		return array_intersect_key( $tools, $direct_names );
+	}
+
+	private static function direct_tool_names() {
+		return array(
+			'cmsa.activate-plugin',
+			'cmsa.catalog',
+			'cmsa.clear-cache',
+			'cmsa.create-backup',
+			'cmsa.deactivate-plugin',
+			'cmsa.delete-plugin',
+			'cmsa.delete-theme',
+			'cmsa.get-audit-log',
+			'cmsa.get-health',
+			'cmsa.get-registered-setting',
+			'cmsa.install-plugin',
+			'cmsa.install-plugin-package',
+			'cmsa.install-theme',
+			'cmsa.list-backups',
+			'cmsa.list-plugins',
+			'cmsa.list-registered-settings',
+			'cmsa.list-themes',
+			'cmsa.list-updates',
+			'cmsa.read-bridge',
+			'cmsa.restore-component-backup',
+			'cmsa.restore-core-backup',
+			'cmsa.restore-database-backup',
+			'cmsa.set-plugin-auto-update',
+			'cmsa.set-theme-auto-update',
+			'cmsa.stability-check',
+			'cmsa.switch-theme',
+			'cmsa.uninstall-plugin',
+			'cmsa.update-core',
+			'cmsa.update-plugin',
+			'cmsa.update-registered-setting',
+			'cmsa.update-theme',
+			'cmsa.verify-backup',
+			'cmsa.write-bridge',
+		);
+	}
+
+	private static function tool_descriptor( WP_Ability $ability, $tool_name ) {
+		$schema = $ability->get_input_schema();
+		if ( ! is_array( $schema ) ) {
+			$schema = array(
+				'type'                 => 'object',
+				'properties'           => array(),
+				'additionalProperties' => false,
+			);
+		}
+		$schema = self::normalize_json_schema_for_transport( $schema );
+		$security_schemes = self::auth_security_schemes();
+		$tool = array(
+			'name'            => $tool_name,
+			'title'           => $ability->get_label(),
+			'description'     => $ability->get_description(),
+			'inputSchema'     => $schema,
+			'annotations'     => self::tool_annotations( $ability ),
+			'securitySchemes' => $security_schemes,
+			'_meta'           => array( 'securitySchemes' => $security_schemes ),
+		);
+		$output_schema = $ability->get_output_schema();
+		if ( is_array( $output_schema ) ) {
+			$tool['outputSchema'] = self::normalize_json_schema_for_transport( $output_schema );
+		}
+		return $tool;
 	}
 
 	private static function call_tool( array $params ) {
