@@ -71,6 +71,7 @@ final class CUA_MCP_Diagnostics {
 					'properties'           => array(
 						'cursor' => array( 'type' => 'integer', 'minimum' => 0, 'default' => 0 ),
 						'limit'  => array( 'type' => 'integer', 'minimum' => 1, 'maximum' => 100, 'default' => 100 ),
+						'snapshot' => array( 'type' => 'string', 'minLength' => 64, 'maxLength' => 64 ),
 					),
 					'additionalProperties' => false,
 				),
