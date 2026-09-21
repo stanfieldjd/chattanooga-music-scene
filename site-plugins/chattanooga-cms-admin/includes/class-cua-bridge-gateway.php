@@ -176,18 +176,35 @@ final class CUA_Bridge_Gateway {
 			return new WP_Error( 'cua_bridge_gateway_catalog_unavailable', 'The universal bridge catalog is unavailable.' );
 		}
 
-		$catalog = CUA_Ability_Bridge::catalog();
-		if ( ! is_array( $catalog ) || empty( $catalog['items'] ) || ! is_array( $catalog['items'] ) ) {
-			return new WP_Error( 'cua_bridge_gateway_catalog_unavailable', 'The universal bridge catalog is unavailable.' );
-		}
-
-		foreach ( $catalog['items'] as $item ) {
-			if ( is_array( $item ) && $bridge === (string) ( $item['bridge'] ?? '' ) ) {
-				return $item;
+		$cursor = 0;
+		for ( $page = 0; $page < 100; ++$page ) {
+			$catalog = CUA_Ability_Bridge::catalog(
+				array(
+					'cursor' => $cursor,
+					'limit'  => 100,
+				)
+			);
+			if ( ! is_array( $catalog ) || empty( $catalog['items'] ) || ! is_array( $catalog['items'] ) ) {
+				return new WP_Error( 'cua_bridge_gateway_catalog_unavailable', 'The universal bridge catalog is unavailable.' );
 			}
+
+			foreach ( $catalog['items'] as $item ) {
+				if ( is_array( $item ) && $bridge === (string) ( $item['bridge'] ?? '' ) ) {
+					return $item;
+				}
+			}
+
+			$next = $catalog['nextCursor'] ?? null;
+			if ( null === $next ) {
+				return new WP_Error( 'cua_bridge_gateway_unknown_bridge', 'The selected bridge is not present in the current universal catalog.' );
+			}
+			if ( ! is_numeric( $next ) || (int) $next <= $cursor ) {
+				return new WP_Error( 'cua_bridge_gateway_catalog_invalid_cursor', 'The universal bridge catalog returned a non-advancing cursor.' );
+			}
+			$cursor = (int) $next;
 		}
 
-		return new WP_Error( 'cua_bridge_gateway_unknown_bridge', 'The selected bridge is not present in the current universal catalog.' );
+		return new WP_Error( 'cua_bridge_gateway_catalog_pagination_limit', 'The universal bridge catalog exceeded the internal pagination safety bound.' );
 	}
 
 	private static function input_schema() {
