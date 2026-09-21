@@ -700,8 +700,13 @@ final class CUA_MCP_Server {
 			if ( isset( $input['limit'] ) ) { $catalog_input['limit'] = min( 100, max( 1, (int) $input['limit'] ) ); }
 			if ( isset( $input['snapshot'] ) ) { $catalog_input['snapshot'] = trim( (string) $input['snapshot'] ); }
 		}
-		$catalog = class_exists( 'CUA_Ability_Bridge' ) ? CUA_Ability_Bridge::catalog( $catalog_input ) : array( 'count' => 0, 'items' => array(), 'nextCursor' => null );
-		if ( is_wp_error( $catalog ) ) { $catalog = array( 'count' => 0, 'items' => array(), 'nextCursor' => null, 'error' => $catalog->get_error_code() ); }
+		if ( ! class_exists( 'CUA_Ability_Bridge' ) ) {
+			return new WP_Error( 'cmsa_discovery_catalog_unavailable', 'The WordPress capability catalog is unavailable.' );
+		}
+		$catalog = CUA_Ability_Bridge::catalog( $catalog_input );
+		if ( is_wp_error( $catalog ) ) {
+			return $catalog;
+		}
 		$manifest = array(
 			'schemaVersion' => '1',
 			'initialToolSet' => array( 'count' => count( self::adapter_tools() ), 'method' => 'tools/list', 'pageSize' => self::TOOL_PAGE_SIZE ),
