@@ -114,6 +114,9 @@ final class CUA_Ability_Bridge {
 	}
 
 	public static function catalog( $input = array() ) {
+		if ( ! function_exists( 'wp_get_abilities' ) ) {
+			return new WP_Error( 'cua_catalog_registry_unavailable', 'The WordPress public ability registry is unavailable.' );
+		}
 		$items = self::catalog_items();
 
 		if ( class_exists( 'CUA_REST_Bridge' ) ) {
