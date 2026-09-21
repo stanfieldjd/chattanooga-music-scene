@@ -129,6 +129,9 @@ final class CUA_MCP_Diagnostics {
 	 * This endpoint deliberately lives outside tools/list and tools/call.
 	 */
 	public static function heartbeat_report( WP_REST_Request $request ) {
+		if ( ! self::allow_public_request( 'heartbeat', 120 ) ) {
+			return self::rate_limited_response();
+		}
 		$catalog = self::catalog_report( false );
 		$recent = class_exists( 'CUA_Audit' ) ? CUA_Audit::read_mcp_diagnostics( 25 ) : array( 'entries' => array() );
 		$entries = is_wp_error( $recent ) ? array() : (array) ( $recent['entries'] ?? array() );
@@ -471,6 +474,9 @@ final class CUA_MCP_Diagnostics {
 	}
 
 	public static function handle_canary_request( WP_REST_Request $request ) {
+		if ( ! self::allow_public_request( 'canary', 240 ) ) {
+			return self::rate_limited_response();
+		}
 		if ( 'GET' === strtoupper( $request->get_method() ) ) {
 			$response = new WP_REST_Response( null, 405 );
 			$response->header( 'Allow', 'POST' );
@@ -652,6 +658,32 @@ final class CUA_MCP_Diagnostics {
 			(int) $status
 		);
 		$response->header( 'MCP-Protocol-Version', CUA_MCP_Server::PROTOCOL_VERSION );
+		return $response;
+	}
+
+	private static function allow_public_request( $bucket, $limit ) {
+		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : 'unknown';
+		$key = 'cua_public_rate_' . substr( hash( 'sha256', (string) $bucket . '|' . $ip ), 0, 40 );
+		$record = get_transient( $key );
+		$record = is_array( $record ) ? $record : array( 'count' => 0 );
+		if ( (int) ( $record['count'] ?? 0 ) >= (int) $limit ) {
+			return false;
+		}
+		$record['count'] = (int) ( $record['count'] ?? 0 ) + 1;
+		set_transient( $key, $record, MINUTE_IN_SECONDS );
+		return true;
+	}
+
+	private static function rate_limited_response() {
+		$response = new WP_REST_Response(
+			array(
+				'code'    => 'cmsa_public_rate_limited',
+				'message' => 'The public diagnostic endpoint rate limit has been exceeded.',
+			),
+			429
+		);
+		$response->header( 'Retry-After', '60' );
+		$response->header( 'Cache-Control', 'no-store' );
 		return $response;
 	}
 
