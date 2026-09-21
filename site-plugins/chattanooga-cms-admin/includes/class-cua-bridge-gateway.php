@@ -181,15 +181,27 @@ final class CUA_Bridge_Gateway {
 		}
 
 		$cursor = 0;
+		$snapshot = '';
 		for ( $page = 0; $page < 100; ++$page ) {
-			$catalog = CUA_Ability_Bridge::catalog(
-				array(
-					'cursor' => $cursor,
-					'limit'  => 100,
-				)
+			$catalog_input = array(
+				'cursor' => $cursor,
+				'limit'  => 100,
 			);
-			if ( ! is_array( $catalog ) || empty( $catalog['items'] ) || ! is_array( $catalog['items'] ) ) {
+			if ( '' !== $snapshot ) {
+				$catalog_input['snapshot'] = $snapshot;
+			}
+			$catalog = CUA_Ability_Bridge::catalog( $catalog_input );
+			if ( is_wp_error( $catalog ) ) {
+				return $catalog;
+			}
+			if ( ! is_array( $catalog ) || ! isset( $catalog['items'] ) || ! is_array( $catalog['items'] ) ) {
 				return new WP_Error( 'cua_bridge_gateway_catalog_unavailable', 'The universal bridge catalog is unavailable.' );
+			}
+			if ( '' === $snapshot ) {
+				$snapshot = isset( $catalog['snapshot'] ) ? trim( (string) $catalog['snapshot'] ) : '';
+				if ( ! preg_match( '/^[a-f0-9]{64}$/', $snapshot ) ) {
+					return new WP_Error( 'cua_bridge_gateway_catalog_snapshot_missing', 'The universal bridge catalog did not return a valid snapshot.' );
+				}
 			}
 
 			foreach ( $catalog['items'] as $item ) {
