@@ -775,25 +775,12 @@ final class CUA_MCP_Server {
 
 	private static function adapter_tools() {
 		$tools = array();
-		// Preserve the established bounded MCP ABI. Each descriptor is still derived
-		// from the corresponding public WordPress Ability's metadata; the dynamic
-		// catalog and execution path remain available through the adapter abilities.
-		$map = array(
-			'cmsa.activate-plugin'          => 'chattanooga-cms-admin/activate-plugin',
-			'cmsa.catalog'                 => 'chattanooga-cms-admin/catalog',
-			'cmsa.deactivate-plugin'       => 'chattanooga-cms-admin/deactivate-plugin',
-			'cmsa.delete-plugin'           => 'chattanooga-cms-admin/delete-plugin',
-			'cmsa.get-health'              => 'chattanooga-cms-admin/get-health',
-			'cmsa.install-plugin'          => 'chattanooga-cms-admin/install-plugin',
-			'cmsa.install-plugin-package'  => 'chattanooga-cms-admin/install-plugin-package',
-			'cmsa.install-theme'           => 'chattanooga-cms-admin/install-theme',
-			'cmsa.list-plugins'            => 'chattanooga-cms-admin/list-plugins',
-			'cmsa.list-themes'             => 'chattanooga-cms-admin/list-themes',
-			'cmsa.stability-check'         => 'chattanooga-cms-admin/stability-check',
-			'cmsa.uninstall-plugin'        => 'chattanooga-cms-admin/uninstall-plugin',
-		);
-		foreach ( $map as $tool_name => $ability_name ) {
-			$ability = function_exists( 'wp_get_ability' ) ? wp_get_ability( $ability_name ) : null;
+		// Preserve the complete stable MCP ABI. Every descriptor is derived from
+		// the corresponding public WordPress Ability's metadata; dynamic provider
+		// abilities remain behind the adapter catalog and execution path.
+		foreach ( self::direct_tool_names() as $tool_name ) {
+			$short   = substr( $tool_name, strlen( self::TOOL_PREFIX ) );
+			$ability = function_exists( 'wp_get_ability' ) ? wp_get_ability( self::ABILITY_PREFIX . $short ) : null;
 			if ( $ability instanceof WP_Ability && self::ability_is_mcp_public( $ability ) ) {
 				$tools[ $tool_name ] = self::tool_descriptor( $ability, $tool_name );
 			}
