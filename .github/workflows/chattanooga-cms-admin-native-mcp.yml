@@ -13,6 +13,7 @@ on:
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-settings-page-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-ingestion-diagnostics-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-jsonschema-2020-report.py"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/replacement-coverage-cli.php"
       - ".github/workflows/chattanooga-cms-admin-native-mcp.yml"
   pull_request:
     paths:
@@ -23,6 +24,7 @@ on:
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-settings-page-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-ingestion-diagnostics-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-jsonschema-2020-report.py"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/replacement-coverage-cli.php"
       - ".github/workflows/chattanooga-cms-admin-native-mcp.yml"
 
 permissions:
