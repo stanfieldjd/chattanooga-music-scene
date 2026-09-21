@@ -199,6 +199,35 @@ function cmsa_oauth_test_key( $type, $token ) {
 	return 'cua_oauth_' . $type . '_' . hash_hmac( 'sha256', (string) $token, wp_salt( 'auth' ) );
 }
 
+function cmsa_oauth_refresh_digest( $token ) {
+	return hash_hmac( 'sha256', (string) $token, wp_salt( 'auth' ) );
+}
+
+function cmsa_oauth_refresh_record( $token ) {
+	$records = get_option( CUA_OAuth_Server::REFRESH_OPTION, array() );
+	$key = cmsa_oauth_refresh_digest( $token );
+	return is_array( $records ) && isset( $records[ $key ] ) && is_array( $records[ $key ] ) ? $records[ $key ] : null;
+}
+
+function cmsa_oauth_store_test_refresh( $token, array $record, $ttl = 300 ) {
+	$records = get_option( CUA_OAuth_Server::REFRESH_OPTION, array() );
+	$records = is_array( $records ) ? $records : array();
+	$now = time();
+	$record['issued_at'] = $now;
+	$record['expires_at'] = $now + (int) $ttl;
+	$records[ cmsa_oauth_refresh_digest( $token ) ] = $record;
+	update_option( CUA_OAuth_Server::REFRESH_OPTION, $records, false );
+}
+
+function cmsa_oauth_delete_test_refresh( $token ) {
+	$records = get_option( CUA_OAuth_Server::REFRESH_OPTION, array() );
+	if ( ! is_array( $records ) ) {
+		return;
+	}
+	unset( $records[ cmsa_oauth_refresh_digest( $token ) ] );
+	update_option( CUA_OAuth_Server::REFRESH_OPTION, $records, false );
+}
+
 function cmsa_oauth_refresh_request( $refresh_token, $client_id, $resource ) {
 	$request = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/oauth/token' );
 	$request->set_param( 'grant_type', 'refresh_token' );
@@ -227,12 +256,12 @@ cmsa_mcp_settings_assert( 200 === $base_scope_response->get_status(), 'Base-scop
 cmsa_mcp_settings_assert( ! empty( $base_scope_data['access_token'] ), 'Base-scope refresh-token rotation returned no access token.' );
 cmsa_mcp_settings_assert( ! empty( $base_scope_data['refresh_token'] ) && $base_scope_refresh !== $base_scope_data['refresh_token'], 'Base-scope refresh token was not rotated.' );
 cmsa_mcp_settings_assert( false === get_transient( $base_scope_key ), 'Rotated base-scope refresh token left the old token active.' );
-$new_base_scope_key = cmsa_oauth_test_key( 'refresh', $base_scope_data['refresh_token'] ?? '' );
-cmsa_mcp_settings_assert( is_array( get_transient( $new_base_scope_key ) ), 'Rotated base-scope refresh token was not persisted.' );
+$new_base_scope_token = (string) ( $base_scope_data['refresh_token'] ?? '' );
+cmsa_mcp_settings_assert( is_array( cmsa_oauth_refresh_record( $new_base_scope_token ) ), 'Rotated base-scope refresh token was not persisted.' );
 if ( ! empty( $base_scope_data['access_token'] ) ) {
 	delete_transient( cmsa_oauth_test_key( 'access', $base_scope_data['access_token'] ) );
 }
-delete_transient( $new_base_scope_key );
+cmsa_oauth_delete_test_refresh( $new_base_scope_token );
 
 $authorization_code = 'cmsa-code-' . wp_generate_password( 40, false, false );
 $authorization_verifier = str_repeat( 'A', 43 );
@@ -267,13 +296,12 @@ if ( ! empty( $authorization_data['access_token'] ) ) {
 	delete_transient( cmsa_oauth_test_key( 'access', $authorization_data['access_token'] ) );
 }
 if ( ! empty( $authorization_data['refresh_token'] ) ) {
-	delete_transient( cmsa_oauth_test_key( 'refresh', $authorization_data['refresh_token'] ) );
+	cmsa_oauth_delete_test_refresh( $authorization_data['refresh_token'] );
 }
 
 $modern_refresh = 'cmsa-modern-refresh-' . wp_generate_password( 40, false, false );
-$modern_key = cmsa_oauth_test_key( 'refresh', $modern_refresh );
-set_transient(
-	$modern_key,
+cmsa_oauth_store_test_refresh(
+	$modern_refresh,
 	array(
 		'client_id' => 'cmsa-modern-client',
 		'user_id'   => get_current_user_id(),
@@ -284,20 +312,20 @@ set_transient(
 );
 $invalid_response = cmsa_oauth_refresh_request( $modern_refresh, 'wrong-client', $oauth_resource );
 cmsa_mcp_settings_assert( 400 === $invalid_response->get_status(), 'Invalid refresh-token client binding was accepted.' );
-cmsa_mcp_settings_assert( is_array( get_transient( $modern_key ) ), 'Invalid refresh attempt consumed a valid refresh token.' );
+cmsa_mcp_settings_assert( is_array( cmsa_oauth_refresh_record( $modern_refresh ) ), 'Invalid refresh attempt consumed a valid refresh token.' );
 
 $modern_response = cmsa_oauth_refresh_request( $modern_refresh, 'cmsa-modern-client', $oauth_resource );
 $modern_data = $modern_response->get_data();
 cmsa_mcp_settings_assert( 200 === $modern_response->get_status(), 'Modern offline refresh-token rotation failed.' );
 cmsa_mcp_settings_assert( ! empty( $modern_data['access_token'] ), 'Modern refresh-token rotation returned no access token.' );
 cmsa_mcp_settings_assert( ! empty( $modern_data['refresh_token'] ) && $modern_refresh !== $modern_data['refresh_token'], 'Modern refresh token was not rotated.' );
-cmsa_mcp_settings_assert( false === get_transient( $modern_key ), 'Rotated modern refresh token left the old token active.' );
-$new_modern_key = cmsa_oauth_test_key( 'refresh', $modern_data['refresh_token'] ?? '' );
-cmsa_mcp_settings_assert( is_array( get_transient( $new_modern_key ) ), 'Rotated modern refresh token was not persisted.' );
+cmsa_mcp_settings_assert( null === cmsa_oauth_refresh_record( $modern_refresh ), 'Rotated modern refresh token left the old token active.' );
+$new_modern_token = (string) ( $modern_data['refresh_token'] ?? '' );
+cmsa_mcp_settings_assert( is_array( cmsa_oauth_refresh_record( $new_modern_token ) ), 'Rotated modern refresh token was not persisted.' );
 if ( ! empty( $modern_data['access_token'] ) ) {
 	delete_transient( cmsa_oauth_test_key( 'access', $modern_data['access_token'] ) );
 }
-delete_transient( $new_modern_key );
+cmsa_oauth_delete_test_refresh( $new_modern_token );
 
 echo "cmsa-mcp-settings-page: PASS enabled=default origin_sanitization=verified endpoint=visible protocol=visible oauth_metadata=chatgpt-compatible authorization_trace=secret-free-bounded-panel-and-clear discovery_rewrite=verified rest_metadata_fallback=verified native_loopback=verified scope_semantics=verified manual_fallback=nonexclusive refresh_rotation=base-and-offline-scopes authorization_code_refresh=verified ingestion_diagnostics=panel-summary-canary\n";
 exit( 0 );
