@@ -19,18 +19,34 @@ if ( ! $catalog instanceof WP_Ability || ! $audit instanceof WP_Ability ) {
 	exit( 1 );
 }
 
-$catalog_result = $catalog->execute( array() );
-if ( is_wp_error( $catalog_result ) || empty( $catalog_result['items'] ) ) {
-	fwrite( STDERR, "Catalog failed while locating the audit fixture bridge.\n" );
-	exit( 1 );
-}
-
 $bridge_name = '';
-foreach ( $catalog_result['items'] as $item ) {
-	if ( 'quasar-audit/process' === ( $item['target'] ?? '' ) ) {
-		$bridge_name = (string) ( $item['bridge'] ?? '' );
+$catalog_cursor = 0;
+for ( $catalog_page = 0; $catalog_page < 100; ++$catalog_page ) {
+	$catalog_result = $catalog->execute(
+		array(
+			'cursor' => $catalog_cursor,
+			'limit'  => 100,
+		)
+	);
+	if ( is_wp_error( $catalog_result ) || empty( $catalog_result['items'] ) || ! is_array( $catalog_result['items'] ) ) {
+		fwrite( STDERR, "Catalog failed while locating the audit fixture bridge at cursor {$catalog_cursor}.\n" );
+		exit( 1 );
+	}
+	foreach ( $catalog_result['items'] as $item ) {
+		if ( 'quasar-audit/process' === ( $item['target'] ?? '' ) ) {
+			$bridge_name = (string) ( $item['bridge'] ?? '' );
+			break 2;
+		}
+	}
+	$next_cursor = $catalog_result['nextCursor'] ?? null;
+	if ( null === $next_cursor ) {
 		break;
 	}
+	if ( ! is_numeric( $next_cursor ) || (int) $next_cursor <= $catalog_cursor ) {
+		fwrite( STDERR, "Catalog cursor did not advance while locating the audit fixture bridge.\n" );
+		exit( 1 );
+	}
+	$catalog_cursor = (int) $next_cursor;
 }
 if ( '' === $bridge_name ) {
 	fwrite( STDERR, "Audit fixture was not dynamically bridged.\n" );

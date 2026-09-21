@@ -19,11 +19,28 @@ function cmsa_v2_user_rest_catalog() {
 	if ( ! $catalog instanceof WP_Ability ) {
 		cmsa_v2_user_rest_fail( 'Universal catalog is unavailable.' );
 	}
-	$result = $catalog->execute( array() );
-	if ( is_wp_error( $result ) || empty( $result['items'] ) || ! is_array( $result['items'] ) ) {
-		cmsa_v2_user_rest_fail( 'Universal catalog could not enumerate REST facades.' );
+	$items = array();
+	$cursor = 0;
+	$complete = false;
+	for ( $page = 0; $page < 100; ++$page ) {
+		$result = $catalog->execute( array( 'cursor' => $cursor, 'limit' => 100 ) );
+		if ( is_wp_error( $result ) || empty( $result['items'] ) || ! is_array( $result['items'] ) ) {
+			cmsa_v2_user_rest_fail( 'Universal catalog could not enumerate REST facades.' );
+		}
+		$items = array_merge( $items, $result['items'] );
+		$next = $result['nextCursor'] ?? null;
+		if ( null === $next ) {
+			$complete = true;
+			break;
+		}
+		if ( ! is_numeric( $next ) || (int) $next <= $cursor ) {
+			cmsa_v2_user_rest_fail( 'Universal catalog cursor did not advance.' );
+		}
+		$cursor = (int) $next;
 	}
-	$items = $result['items'];
+	if ( ! $complete ) {
+		cmsa_v2_user_rest_fail( 'Universal catalog pagination exceeded the safety bound.' );
+	}
 	return $items;
 }
 

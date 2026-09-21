@@ -22,18 +22,41 @@ if ( ! $catalog instanceof WP_Ability ) {
 	fwrite( STDERR, "Universal catalog is unavailable during Settings proof.\n" );
 	exit( 1 );
 }
-$catalog_result = $catalog->execute( array() );
-if ( is_wp_error( $catalog_result ) ) {
-	fwrite( STDERR, "Universal catalog failed during Settings proof.\n" );
-	exit( 1 );
-}
-foreach ( (array) ( $catalog_result['items'] ?? array() ) as $item ) {
-	$target = (string) ( $item['target'] ?? '' );
-	$route = (string) ( $item['route'] ?? '' );
-	if ( 0 === strpos( $target, 'nova-settings/' ) || false !== strpos( $route, '/nova-settings/' ) ) {
-		fwrite( STDERR, "Nova fixture unexpectedly exposed a provider Ability or REST route.\n" );
+$catalog_cursor = 0;
+$catalog_complete = false;
+for ( $catalog_page = 0; $catalog_page < 100; ++$catalog_page ) {
+	$catalog_result = $catalog->execute(
+		array(
+			'cursor' => $catalog_cursor,
+			'limit'  => 100,
+		)
+	);
+	if ( is_wp_error( $catalog_result ) || ! is_array( $catalog_result['items'] ?? null ) ) {
+		fwrite( STDERR, "Universal catalog failed during Settings proof at cursor {$catalog_cursor}.\n" );
 		exit( 1 );
 	}
+	foreach ( $catalog_result['items'] as $item ) {
+		$target = (string) ( $item['target'] ?? '' );
+		$route = (string) ( $item['route'] ?? '' );
+		if ( 0 === strpos( $target, 'nova-settings/' ) || false !== strpos( $route, '/nova-settings/' ) ) {
+			fwrite( STDERR, "Nova fixture unexpectedly exposed a provider Ability or REST route.\n" );
+			exit( 1 );
+		}
+	}
+	$next_cursor = $catalog_result['nextCursor'] ?? null;
+	if ( null === $next_cursor ) {
+		$catalog_complete = true;
+		break;
+	}
+	if ( ! is_numeric( $next_cursor ) || (int) $next_cursor <= $catalog_cursor ) {
+		fwrite( STDERR, "Universal catalog cursor did not advance during Settings proof.\n" );
+		exit( 1 );
+	}
+	$catalog_cursor = (int) $next_cursor;
+}
+if ( ! $catalog_complete ) {
+	fwrite( STDERR, "Universal catalog pagination did not complete during Settings proof.\n" );
+	exit( 1 );
 }
 
 update_option( 'nova_private_setting', 'initial private value', false );
