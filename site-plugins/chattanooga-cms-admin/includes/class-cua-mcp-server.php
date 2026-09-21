@@ -759,10 +759,11 @@ final class CUA_MCP_Server {
 	private static function adapter_tools() {
 		$security_schemes = self::auth_security_schemes();
 		$empty_object = array( 'type' => 'object', 'properties' => array(), 'additionalProperties' => false );
+		$any_object = array( 'type' => 'object' );
 		return array(
 			'cmsa.discover-abilities' => array( 'name' => 'cmsa.discover-abilities', 'title' => 'Discover WordPress abilities', 'description' => 'Discover public WordPress abilities and Chattanooga site-operation bridges available to this authenticated MCP client. Use this before selecting an operation.', 'inputSchema' => $empty_object, 'annotations' => array( 'readOnlyHint' => true, 'destructiveHint' => false, 'openWorldHint' => false, 'idempotentHint' => true ), 'securitySchemes' => $security_schemes, '_meta' => array( 'securitySchemes' => $security_schemes ) ),
 			'cmsa.get-ability-info' => array( 'name' => 'cmsa.get-ability-info', 'title' => 'Get WordPress ability information', 'description' => 'Get the schema, permissions metadata, and execution identity for one discovered WordPress ability or site-operation bridge.', 'inputSchema' => array( 'type' => 'object', 'properties' => array( 'name' => array( 'type' => 'string' ) ), 'required' => array( 'name' ), 'additionalProperties' => false ), 'annotations' => array( 'readOnlyHint' => true, 'destructiveHint' => false, 'openWorldHint' => false, 'idempotentHint' => true ), 'securitySchemes' => $security_schemes, '_meta' => array( 'securitySchemes' => $security_schemes ) ),
-			'cmsa.execute-ability' => array( 'name' => 'cmsa.execute-ability', 'title' => 'Execute a WordPress ability', 'description' => 'Execute one previously discovered WordPress ability or site-operation bridge. The selected ability retains its own permission callback and Chattanooga control-plane guard.', 'inputSchema' => array( 'type' => 'object', 'properties' => array( 'name' => array( 'type' => 'string' ), 'input' => $empty_object ), 'required' => array( 'name' ), 'additionalProperties' => false ), 'annotations' => array( 'readOnlyHint' => false, 'destructiveHint' => true, 'openWorldHint' => true, 'idempotentHint' => false ), 'securitySchemes' => $security_schemes, '_meta' => array( 'securitySchemes' => $security_schemes ) ),
+			'cmsa.execute-ability' => array( 'name' => 'cmsa.execute-ability', 'title' => 'Execute a WordPress ability', 'description' => 'Execute one previously discovered WordPress ability or site-operation bridge. The selected ability retains its own permission callback and Chattanooga control-plane guard.', 'inputSchema' => array( 'type' => 'object', 'properties' => array( 'name' => array( 'type' => 'string' ), 'input' => $any_object ), 'required' => array( 'name' ), 'additionalProperties' => false ), 'annotations' => array( 'readOnlyHint' => false, 'destructiveHint' => true, 'openWorldHint' => true, 'idempotentHint' => false ), 'securitySchemes' => $security_schemes, '_meta' => array( 'securitySchemes' => $security_schemes ) ),
 		);
 	}
 
@@ -782,7 +783,7 @@ final class CUA_MCP_Server {
 				$name = isset( $arguments['name'] ) ? trim( (string) $arguments['name'] ) : '';
 				$input = isset( $arguments['input'] ) && is_array( $arguments['input'] ) ? $arguments['input'] : array();
 				$ability = function_exists( 'wp_get_ability' ) ? wp_get_ability( $name ) : null;
-				if ( $ability instanceof WP_Ability && self::ability_is_mcp_public( $ability ) ) { $result = CUA_Ability_Bridge::execute_target( $name, $input ); return is_wp_error( $result ) ? $result : self::tool_success_result( $result ); }
+				if ( $ability instanceof WP_Ability && self::ability_is_mcp_public( $ability ) ) { return self::call_tool( array( 'name' => self::tool_name( $name ), 'arguments' => $input ) ); }
 				$catalog = class_exists( 'CUA_Ability_Bridge' ) ? CUA_Ability_Bridge::catalog() : array();
 				foreach ( (array) ( $catalog['items'] ?? array() ) as $item ) { if ( is_array( $item ) && $name === (string) ( $item['bridge'] ?? '' ) ) { $readonly = true === ( $item['annotations']['readonly'] ?? null ); $result = CUA_Bridge_Gateway::execute( array( 'bridge' => $name, 'input' => $input ), $readonly ); return is_wp_error( $result ) ? $result : self::tool_success_result( $result ); } }
 				return new WP_Error( 'cmsa_adapter_ability_not_found', 'The requested discovered ability or bridge is not available.' );
