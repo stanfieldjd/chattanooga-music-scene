@@ -662,6 +662,7 @@ final class CUA_MCP_Server {
 		$catalog_input = array();
 		if ( isset( $params['cursor'] ) ) { $catalog_input['cursor'] = max( 0, (int) $params['cursor'] ); }
 		if ( isset( $params['limit'] ) ) { $catalog_input['limit'] = min( 100, max( 1, (int) $params['limit'] ) ); }
+		if ( isset( $params['snapshot'] ) ) { $catalog_input['snapshot'] = trim( (string) $params['snapshot'] ); }
 		$catalog = class_exists( 'CUA_Ability_Bridge' ) ? CUA_Ability_Bridge::catalog( $catalog_input ) : array( 'count' => 0, 'items' => array(), 'nextCursor' => null );
 		if ( is_wp_error( $catalog ) ) {
 			return $catalog;
