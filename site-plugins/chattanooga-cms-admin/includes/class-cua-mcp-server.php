@@ -685,6 +685,7 @@ final class CUA_MCP_Server {
 		if ( is_array( $input ) ) {
 			if ( isset( $input['cursor'] ) ) { $catalog_input['cursor'] = max( 0, (int) $input['cursor'] ); }
 			if ( isset( $input['limit'] ) ) { $catalog_input['limit'] = min( 100, max( 1, (int) $input['limit'] ) ); }
+			if ( isset( $input['snapshot'] ) ) { $catalog_input['snapshot'] = trim( (string) $input['snapshot'] ); }
 		}
 		$catalog = class_exists( 'CUA_Ability_Bridge' ) ? CUA_Ability_Bridge::catalog( $catalog_input ) : array( 'count' => 0, 'items' => array(), 'nextCursor' => null );
 		if ( is_wp_error( $catalog ) ) { $catalog = array( 'count' => 0, 'items' => array(), 'nextCursor' => null, 'error' => $catalog->get_error_code() ); }
@@ -692,7 +693,7 @@ final class CUA_MCP_Server {
 			'schemaVersion' => '1',
 			'initialToolSet' => array( 'count' => count( self::adapter_tools() ), 'method' => 'tools/list', 'pageSize' => self::TOOL_PAGE_SIZE ),
 			'catalog' => array( 'resourceUri' => self::RESOURCE_CATALOG_URI, 'method' => 'resources/read', 'pageSize' => 100, 'description' => 'Read catalog pages to discover public site-operation contracts.' ),
-			'catalogGateway' => array( 'count' => (int) ( $catalog['count'] ?? count( (array) ( $catalog['items'] ?? array() ) ) ), 'cursor' => (int) ( $catalog['cursor'] ?? 0 ), 'pageSize' => (int) ( $catalog['pageSize'] ?? 100 ), 'nextCursor' => isset( $catalog['nextCursor'] ) ? $catalog['nextCursor'] : null, 'items' => array_values( (array) ( $catalog['items'] ?? array() ) ), 'authority' => 'WordPress public abilities and registered REST contracts at call time.' ),
+			'catalogGateway' => array( 'count' => (int) ( $catalog['count'] ?? count( (array) ( $catalog['items'] ?? array() ) ) ), 'cursor' => (int) ( $catalog['cursor'] ?? 0 ), 'pageSize' => (int) ( $catalog['pageSize'] ?? 100 ), 'nextCursor' => isset( $catalog['nextCursor'] ) ? $catalog['nextCursor'] : null, 'snapshot' => (string) ( $catalog['snapshot'] ?? '' ), 'items' => array_values( (array) ( $catalog['items'] ?? array() ) ), 'authority' => 'WordPress public abilities and registered REST contracts at call time.' ),
 			'nextSteps' => array( 'Read this manifest first.', 'Use catalogGateway.nextCursor as cursor in the next discovery call until it is null.', 'Use the returned bridge identifier with cmsa.read-bridge or cmsa.write-bridge.' ),
 		);
 		return $manifest;
@@ -1366,7 +1367,7 @@ final class CUA_MCP_Server {
 		);
 		$security_schemes = self::auth_security_schemes();
 		$tools = array(
-			'cmsa.discovery' => self::stable_gateway_descriptor('cmsa.discovery', 'Discover Chattanooga capabilities', 'Return the current paginated catalog of public WordPress abilities and REST contracts. Use returned bridge identifiers with cmsa.read-bridge or cmsa.write-bridge.', array('type'=>'object','properties'=>array('cursor'=>array('type'=>'integer','minimum'=>0,'default'=>0),'limit'=>array('type'=>'integer','minimum'=>1,'maximum'=>100,'default'=>100)),'additionalProperties'=>false), array('readOnlyHint'=>true,'destructiveHint'=>false,'idempotentHint'=>true,'openWorldHint'=>false), $security_schemes),
+			'cmsa.discovery' => self::stable_gateway_descriptor('cmsa.discovery', 'Discover Chattanooga capabilities', 'Return the current paginated catalog of public WordPress abilities and REST contracts. Use returned bridge identifiers with cmsa.read-bridge or cmsa.write-bridge.', array('type'=>'object','properties'=>array('cursor'=>array('type'=>'integer','minimum'=>0,'default'=>0),'limit'=>array('type'=>'integer','minimum'=>1,'maximum'=>100,'default'=>100),'snapshot'=>array('type'=>'string','minLength'=>64,'maxLength'=>64)),'additionalProperties'=>false), array('readOnlyHint'=>true,'destructiveHint'=>false,'idempotentHint'=>true,'openWorldHint'=>false), $security_schemes),
 			'cmsa.stability-check' => self::stable_gateway_descriptor('cmsa.stability-check', 'Check MCP stability', 'Return server-side MCP stability evidence, the immutable startup-tool fingerprint, descriptor health, and recent secret-free diagnostics.', array('type'=>'object','properties'=>array('limit'=>array('type'=>'integer','minimum'=>1,'maximum'=>50,'default'=>20)),'additionalProperties'=>false), array('readOnlyHint'=>true,'destructiveHint'=>false,'idempotentHint'=>true,'openWorldHint'=>false), $security_schemes),
 			'cmsa.read-bridge' => self::stable_gateway_descriptor('cmsa.read-bridge', 'Execute read-only Chattanooga bridge', 'Execute one catalog-discovered read-only WordPress operation using its bridge identifier and arguments.', $bridge_schema, array('readOnlyHint'=>true,'destructiveHint'=>false,'idempotentHint'=>false,'openWorldHint'=>true), $security_schemes),
 			'cmsa.write-bridge' => self::stable_gateway_descriptor('cmsa.write-bridge', 'Execute authorized Chattanooga bridge', 'Execute one catalog-discovered mutating WordPress operation using its bridge identifier and arguments. Use only for explicitly authorized changes.', $bridge_schema, array('readOnlyHint'=>false,'destructiveHint'=>true,'idempotentHint'=>false,'openWorldHint'=>true), $security_schemes),
