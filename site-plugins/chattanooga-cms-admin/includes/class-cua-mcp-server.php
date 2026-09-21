@@ -8,6 +8,7 @@ final class CUA_MCP_Server {
 	private static $active_sessions = array();
 	const REST_NAMESPACE = 'chattanooga-cms-admin/v1';
 	const REST_ROUTE     = '/mcp';
+	const CORE_REST_ROUTE = '/mcp-core';
 	const ABILITY_PREFIX = 'chattanooga-cms-admin/';
 	const TOOL_PREFIX    = 'cmsa.';
 	const RESOURCE_DISCOVERY_URI = 'chattanooga://mcp-discovery';
@@ -24,9 +25,14 @@ final class CUA_MCP_Server {
 			return;
 		}
 
+		self::register_rest_endpoint( self::REST_ROUTE );
+		self::register_rest_endpoint( self::CORE_REST_ROUTE );
+	}
+
+	private static function register_rest_endpoint( $route ) {
 		register_rest_route(
 			self::REST_NAMESPACE,
-			self::REST_ROUTE,
+			$route,
 			array(
 				// Streamable HTTP permits a server to omit server-to-client SSE. In
 				// that mode GET remains a defined MCP endpoint and returns 405 with
@@ -38,6 +44,10 @@ final class CUA_MCP_Server {
 				'permission_callback' => '__return_true',
 			)
 		);
+	}
+
+	private static function is_core_request( WP_REST_Request $request ) {
+		return '/' . self::REST_NAMESPACE . self::CORE_REST_ROUTE === (string) $request->get_route();
 	}
 
 	public static function authorize_request( WP_REST_Request $request ) {
@@ -88,6 +98,7 @@ final class CUA_MCP_Server {
 		$started = microtime( true );
 		$http_method = strtoupper( $request->get_method() );
 		$session_id  = self::request_session_id( $request );
+		$core_profile = self::is_core_request( $request );
 
 		if ( 'DELETE' === $http_method || 'GET' === $http_method ) {
 			$authorization = self::authorize_with_trace( $request, '' );
@@ -262,14 +273,14 @@ final class CUA_MCP_Server {
 				return self::success_response( $id, self::initialize_result( self::LEGACY_PROTOCOL_VERSION ), self::LEGACY_PROTOCOL_VERSION, $session_id );
 
 			case 'server/discover':
-				$response = self::success_response( $id, self::discover_result(), $protocol_version, $session_id );
+				$response = self::success_response( $id, self::discover_result( $core_profile ), $protocol_version, $session_id );
 				if ( class_exists( 'CUA_MCP_Diagnostics' ) ) {
 					CUA_MCP_Diagnostics::record_exchange( $request, $payload, $response, 'main' );
 				}
 				return $response;
 
 			case 'tools/list':
-				$tools = self::list_tools_result( $params );
+				$tools = self::list_tools_result( $params, $core_profile );
 				if ( is_wp_error( $tools ) ) {
 					if ( class_exists( 'CUA_Audit' ) ) {
 						CUA_Audit::log_oauth_trace( array( 'stage' => 'mcp_tools_list', 'outcome' => 'failed', 'http_status' => 400, 'error_code' => $tools->get_error_code(), 'mcp_method' => 'tools/list', 'protocol_version' => $protocol_version ) );
@@ -531,7 +542,7 @@ final class CUA_MCP_Server {
 		return true;
 	}
 
-	private static function discover_result() {
+	private static function discover_result( $core_profile = false ) {
 		return array(
 			'supportedVersions' => self::supported_protocol_versions(),
 			'serverInfo'        => self::server_info(),
@@ -547,7 +558,7 @@ final class CUA_MCP_Server {
 					'listChanged' => false,
 				),
 			),
-			'discovery'         => self::discovery_manifest(),
+			'discovery'         => self::discovery_manifest( $core_profile ),
 			'instructions'      => 'Authenticated WordPress site-operation tools. Use read-only tools for inspection and mutating tools only for explicitly authorized site changes.',
 			'ttlMs'             => 30000,
 			'cacheScope'        => 'private',
@@ -574,8 +585,8 @@ final class CUA_MCP_Server {
 		);
 	}
 
-	private static function list_tools_result( array $params ) {
-		$all_tools = array_values( self::tools() );
+	private static function list_tools_result( array $params, $core_profile = false ) {
+		$all_tools = array_values( $core_profile ? self::core_tools() : self::tools() );
 		$offset    = 0;
 		$cursor    = isset( $params['cursor'] ) ? trim( (string) $params['cursor'] ) : '';
 
@@ -662,11 +673,11 @@ final class CUA_MCP_Server {
 		);
 	}
 
-	public static function discovery_manifest() {
+	public static function discovery_manifest( $core_profile = false ) {
 		return array(
 			'schemaVersion' => '1',
 			'initialToolSet' => array(
-				'count'    => count( self::tools() ),
+				'count'    => count( $core_profile ? self::core_tools() : self::tools() ),
 				'method'   => 'tools/list',
 				'pageSize' => self::TOOL_PAGE_SIZE,
 			),
@@ -827,6 +838,17 @@ final class CUA_MCP_Server {
 			}
 		}
 		return $ordered_tools;
+	}
+
+	private static function core_tools() {
+		$tools = array();
+		foreach ( array( 'cmsa.discovery', 'cmsa.stability-check', 'cmsa.catalog', 'cmsa.read-bridge', 'cmsa.write-bridge' ) as $tool_name ) {
+			$ability = self::ability_for_tool( $tool_name );
+			if ( $ability instanceof WP_Ability ) {
+				$tools[ $tool_name ] = self::tool_descriptor( $ability, $tool_name );
+			}
+		}
+		return $tools;
 	}
 
 	private static function direct_tool_names() {
