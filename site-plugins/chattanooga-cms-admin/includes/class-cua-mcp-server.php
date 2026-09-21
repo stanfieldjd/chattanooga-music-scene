@@ -857,7 +857,6 @@ final class CUA_MCP_Server {
 			'cmsa.restore-database-backup',
 			'cmsa.set-plugin-auto-update',
 			'cmsa.set-theme-auto-update',
-			'cmsa.stability-check',
 			'cmsa.switch-theme',
 			'cmsa.uninstall-plugin',
 			'cmsa.update-core',
