@@ -20,7 +20,7 @@ final class CUA_Platform_Core_Maintenance {
 				'label'               => __( 'Restore WordPress core rollback backup', 'chattanooga-cms-admin' ),
 				'description'         => __( 'Restores a verified Chattanooga CMS Admin WordPress core and database rollback snapshot after first creating and verifying a rollback snapshot of the current core and database state.', 'chattanooga-cms-admin' ),
 				'category'            => self::CATEGORY,
-				'input_schema'        => self::id_schema(),
+				'input_schema'        => self::confirmed_id_schema( 'confirm_restore' ),
 				'output_schema'       => array( 'type' => 'object' ),
 				'execute_callback'    => array( __CLASS__, 'restore_core_backup' ),
 				'permission_callback' => static function () { return current_user_can( 'update_core' ); },
@@ -38,8 +38,9 @@ final class CUA_Platform_Core_Maintenance {
 					'type'                 => 'object',
 					'properties'           => array(
 						'version' => array( 'type' => 'string', 'minLength' => 1, 'maxLength' => 64 ),
+						'confirm_update' => array( 'type' => 'boolean' ),
 					),
-					'required'             => array( 'version' ),
+					'required'             => array( 'version', 'confirm_update' ),
 					'additionalProperties' => false,
 				),
 				'output_schema'       => array( 'type' => 'object' ),
@@ -130,6 +131,9 @@ final class CUA_Platform_Core_Maintenance {
 	}
 
 	public static function restore_core_backup( $input ) {
+		if ( ! is_array( $input ) || empty( $input['confirm_restore'] ) ) {
+			return new WP_Error( 'cmsa_core_restore_not_confirmed', 'Explicit core restore confirmation is required.' );
+		}
 		$id = self::read_id( $input );
 		if ( is_wp_error( $id ) ) {
 			return $id;
@@ -169,6 +173,9 @@ final class CUA_Platform_Core_Maintenance {
 	}
 
 	public static function update_core( $input ) {
+		if ( ! is_array( $input ) || empty( $input['confirm_update'] ) ) {
+			return new WP_Error( 'cmsa_core_update_not_confirmed', 'Explicit core update confirmation is required.' );
+		}
 		$version = is_array( $input ) && isset( $input['version'] ) ? trim( (string) $input['version'] ) : '';
 		if ( '' === $version || ! preg_match( '/^[0-9A-Za-z][0-9A-Za-z.+-]{0,63}$/', $version ) ) {
 			return new WP_Error( 'cmsa_core_version_invalid', 'A valid exact WordPress version is required.' );
@@ -603,6 +610,13 @@ final class CUA_Platform_Core_Maintenance {
 			return new WP_Error( 'cmsa_core_backup_id', 'A valid core rollback backup identifier is required.' );
 		}
 		return $id;
+	}
+
+	private static function confirmed_id_schema( $field ) {
+		$schema = self::id_schema();
+		$schema['properties'][ $field ] = array( 'type' => 'boolean' );
+		$schema['required'][] = $field;
+		return $schema;
 	}
 
 	private static function id_schema() {
