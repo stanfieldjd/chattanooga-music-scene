@@ -163,7 +163,7 @@ final class CUA_Ability_Bridge {
 				$target_name = $target->get_name();
 				$meta = $target->get_meta();
 				$annotations = isset( $meta['annotations'] ) && is_array( $meta['annotations'] ) ? $meta['annotations'] : array();
-				$items[] = array(
+				$item = array(
 					'contract'    => 'ability',
 					'bridge'      => self::bridge_name( $target_name ),
 					'target'      => $target_name,
@@ -177,6 +177,11 @@ final class CUA_Ability_Bridge {
 						'open_world'  => array_key_exists( 'open_world', $annotations ) && null !== $annotations['open_world'] ? (bool) $annotations['open_world'] : null,
 					),
 				);
+				$input_schema = $target->get_input_schema();
+				$output_schema = $target->get_output_schema();
+				if ( is_array( $input_schema ) ) { $item['inputSchema'] = $input_schema; }
+				if ( is_array( $output_schema ) ) { $item['outputSchema'] = $output_schema; }
+				$items[] = $item;
 			} catch ( Throwable $error ) {
 				// A malformed third-party ability must not abort the ability catalog.
 			}
