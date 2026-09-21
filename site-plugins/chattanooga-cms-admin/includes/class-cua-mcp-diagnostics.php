@@ -66,7 +66,14 @@ final class CUA_MCP_Diagnostics {
 				'label'               => __( 'Discover Chattanooga MCP tools', 'chattanooga-cms-admin' ),
 				'description'         => __( 'Returns the stable Chattanooga MCP tool manifest, fingerprint, catalog entry point, and next discovery steps.', 'chattanooga-cms-admin' ),
 				'category'            => 'chattanooga-cms-admin',
-				'input_schema'        => array( 'type' => 'object', 'properties' => array(), 'additionalProperties' => false ),
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'properties'           => array(
+						'cursor' => array( 'type' => 'integer', 'minimum' => 0, 'default' => 0 ),
+						'limit'  => array( 'type' => 'integer', 'minimum' => 1, 'maximum' => 100, 'default' => 100 ),
+					),
+					'additionalProperties' => false,
+				),
 				'output_schema'       => array( 'type' => 'object' ),
 				'execute_callback'    => array( 'CUA_MCP_Server', 'discovery_manifest' ),
 				'permission_callback' => static function () { return current_user_can( 'manage_options' ); },
