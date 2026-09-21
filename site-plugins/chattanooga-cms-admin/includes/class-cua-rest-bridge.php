@@ -70,6 +70,8 @@ final class CUA_REST_Bridge {
 				'route'       => $route_regex,
 				'label'       => $method . ' ' . $route_regex,
 				'description' => 'Registered WordPress REST endpoint exposed through a route-locked universal facade.',
+				'inputSchema' => self::input_schema(),
+				'outputSchema' => array( 'type' => 'object' ),
 				'category'    => self::CATEGORY,
 				'annotations' => self::annotations( $method ),
 			);
