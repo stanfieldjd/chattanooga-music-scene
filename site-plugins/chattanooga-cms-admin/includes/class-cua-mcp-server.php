@@ -800,28 +800,48 @@ final class CUA_MCP_Server {
 
 		ksort( $tools, SORT_STRING );
 
-		// Keep the initial MCP discovery surface small and deterministic. The
-		// catalog remains the escape hatch for the broader public ability set,
-		// exposed through its own paginated contract and bridge abilities.
-		$core_names = array_fill_keys(
+		// Keep every first-class CMSA operation and both universal bridge gateways
+		// in the stable MCP snapshot. The much larger runtime catalog remains
+		// paginated and is executed through these bridge gateways.
+		$direct_names = array_fill_keys(
 			array(
 				'cmsa.activate-plugin',
 				'cmsa.catalog',
+				'cmsa.clear-cache',
+				'cmsa.create-backup',
 				'cmsa.deactivate-plugin',
+				'cmsa.delete-plugin',
+				'cmsa.delete-theme',
+				'cmsa.get-audit-log',
 				'cmsa.get-health',
+				'cmsa.get-registered-setting',
 				'cmsa.install-plugin',
 				'cmsa.install-plugin-package',
 				'cmsa.install-theme',
+				'cmsa.list-backups',
 				'cmsa.list-plugins',
+				'cmsa.list-registered-settings',
 				'cmsa.list-themes',
+				'cmsa.list-updates',
+				'cmsa.read-bridge',
+				'cmsa.restore-component-backup',
+				'cmsa.restore-core-backup',
+				'cmsa.restore-database-backup',
+				'cmsa.set-plugin-auto-update',
+				'cmsa.set-theme-auto-update',
 				'cmsa.stability-check',
-				'cmsa.uninstall-plugin',
-				'cmsa.delete-plugin',
+				'cmsa.switch-theme',
+				'cmsa.update-core',
+				'cmsa.update-plugin',
+				'cmsa.update-registered-setting',
+				'cmsa.update-theme',
+				'cmsa.verify-backup',
+				'cmsa.write-bridge',
 			),
 			true
 		);
 
-		return array_intersect_key( $tools, $core_names );
+		return array_intersect_key( $tools, $direct_names );
 	}
 
 	private static function call_tool( array $params ) {
