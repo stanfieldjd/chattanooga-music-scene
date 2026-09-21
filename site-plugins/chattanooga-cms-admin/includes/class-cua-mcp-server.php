@@ -8,7 +8,6 @@ final class CUA_MCP_Server {
 	private static $active_sessions = array();
 	const REST_NAMESPACE = 'chattanooga-cms-admin/v1';
 	const REST_ROUTE     = '/mcp';
-	const CORE_REST_ROUTE = '/mcp-core';
 	const ABILITY_PREFIX = 'chattanooga-cms-admin/';
 	const TOOL_PREFIX    = 'cmsa.';
 	const RESOURCE_DISCOVERY_URI = 'chattanooga://mcp-discovery';
@@ -26,7 +25,6 @@ final class CUA_MCP_Server {
 		}
 
 		self::register_rest_endpoint( self::REST_ROUTE );
-		self::register_rest_endpoint( self::CORE_REST_ROUTE );
 	}
 
 	private static function register_rest_endpoint( $route ) {
@@ -44,10 +42,6 @@ final class CUA_MCP_Server {
 				'permission_callback' => '__return_true',
 			)
 		);
-	}
-
-	private static function is_core_request( WP_REST_Request $request ) {
-		return '/' . self::REST_NAMESPACE . self::CORE_REST_ROUTE === (string) $request->get_route();
 	}
 
 	public static function authorize_request( WP_REST_Request $request ) {
@@ -98,7 +92,6 @@ final class CUA_MCP_Server {
 		$started = microtime( true );
 		$http_method = strtoupper( $request->get_method() );
 		$session_id  = self::request_session_id( $request );
-		$core_profile = self::is_core_request( $request );
 
 		if ( 'DELETE' === $http_method || 'GET' === $http_method ) {
 			$authorization = self::authorize_with_trace( $request, '' );
@@ -273,14 +266,14 @@ final class CUA_MCP_Server {
 				return self::success_response( $id, self::initialize_result( self::LEGACY_PROTOCOL_VERSION ), self::LEGACY_PROTOCOL_VERSION, $session_id );
 
 			case 'server/discover':
-				$response = self::success_response( $id, self::discover_result( $core_profile ), $protocol_version, $session_id );
+				$response = self::success_response( $id, self::discover_result(), $protocol_version, $session_id );
 				if ( class_exists( 'CUA_MCP_Diagnostics' ) ) {
 					CUA_MCP_Diagnostics::record_exchange( $request, $payload, $response, 'main' );
 				}
 				return $response;
 
 			case 'tools/list':
-				$tools = self::list_tools_result( $params, $core_profile );
+				$tools = self::list_tools_result( $params );
 				if ( is_wp_error( $tools ) ) {
 					if ( class_exists( 'CUA_Audit' ) ) {
 						CUA_Audit::log_oauth_trace( array( 'stage' => 'mcp_tools_list', 'outcome' => 'failed', 'http_status' => 400, 'error_code' => $tools->get_error_code(), 'mcp_method' => 'tools/list', 'protocol_version' => $protocol_version ) );
@@ -542,7 +535,7 @@ final class CUA_MCP_Server {
 		return true;
 	}
 
-	private static function discover_result( $core_profile = false ) {
+	private static function discover_result() {
 		return array(
 			'supportedVersions' => self::supported_protocol_versions(),
 			'serverInfo'        => self::server_info(),
@@ -558,7 +551,7 @@ final class CUA_MCP_Server {
 					'listChanged' => false,
 				),
 			),
-			'discovery'         => self::discovery_manifest( $core_profile ),
+			'discovery'         => self::discovery_manifest(),
 			'instructions'      => 'Authenticated WordPress site-operation tools. Use read-only tools for inspection and mutating tools only for explicitly authorized site changes.',
 			'ttlMs'             => 30000,
 			'cacheScope'        => 'private',
@@ -585,8 +578,8 @@ final class CUA_MCP_Server {
 		);
 	}
 
-	private static function list_tools_result( array $params, $core_profile = false ) {
-		$all_tools = array_values( $core_profile ? self::core_tools() : self::tools() );
+	private static function list_tools_result( array $params ) {
+		$all_tools = array_values( self::adapter_tools() );
 		$offset    = 0;
 		$cursor    = isset( $params['cursor'] ) ? trim( (string) $params['cursor'] ) : '';
 
@@ -673,11 +666,11 @@ final class CUA_MCP_Server {
 		);
 	}
 
-	public static function discovery_manifest( $core_profile = false ) {
+	public static function discovery_manifest() {
 		return array(
 			'schemaVersion' => '1',
 			'initialToolSet' => array(
-				'count'    => count( $core_profile ? self::core_tools() : self::tools() ),
+				'count'    => count( self::adapter_tools() ),
 				'method'   => 'tools/list',
 				'pageSize' => self::TOOL_PAGE_SIZE,
 			),
@@ -750,7 +743,7 @@ final class CUA_MCP_Server {
 	 * @return array MCP tool descriptors.
 	 */
 	public static function diagnostic_tools() {
-		return array_values( self::tools() );
+		return array_values( self::adapter_tools() );
 	}
 
 	/**
@@ -763,6 +756,59 @@ final class CUA_MCP_Server {
 		return false === $encoded ? '' : hash( 'sha256', (string) $encoded );
 	}
 
+	private static function adapter_tools() {
+		$security_schemes = self::auth_security_schemes();
+		$empty_object = array( 'type' => 'object', 'properties' => array(), 'additionalProperties' => false );
+		return array(
+			'cmsa.discover-abilities' => array( 'name' => 'cmsa.discover-abilities', 'title' => 'Discover WordPress abilities', 'description' => 'Discover public WordPress abilities and Chattanooga site-operation bridges available to this authenticated MCP client. Use this before selecting an operation.', 'inputSchema' => $empty_object, 'annotations' => array( 'readOnlyHint' => true, 'destructiveHint' => false, 'openWorldHint' => false, 'idempotentHint' => true ), 'securitySchemes' => $security_schemes, '_meta' => array( 'securitySchemes' => $security_schemes ) ),
+			'cmsa.get-ability-info' => array( 'name' => 'cmsa.get-ability-info', 'title' => 'Get WordPress ability information', 'description' => 'Get the schema, permissions metadata, and execution identity for one discovered WordPress ability or site-operation bridge.', 'inputSchema' => array( 'type' => 'object', 'properties' => array( 'name' => array( 'type' => 'string' ) ), 'required' => array( 'name' ), 'additionalProperties' => false ), 'annotations' => array( 'readOnlyHint' => true, 'destructiveHint' => false, 'openWorldHint' => false, 'idempotentHint' => true ), 'securitySchemes' => $security_schemes, '_meta' => array( 'securitySchemes' => $security_schemes ) ),
+			'cmsa.execute-ability' => array( 'name' => 'cmsa.execute-ability', 'title' => 'Execute a WordPress ability', 'description' => 'Execute one previously discovered WordPress ability or site-operation bridge. The selected ability retains its own permission callback and Chattanooga control-plane guard.', 'inputSchema' => array( 'type' => 'object', 'properties' => array( 'name' => array( 'type' => 'string' ), 'input' => $empty_object ), 'required' => array( 'name' ), 'additionalProperties' => false ), 'annotations' => array( 'readOnlyHint' => false, 'destructiveHint' => true, 'openWorldHint' => true, 'idempotentHint' => false ), 'securitySchemes' => $security_schemes, '_meta' => array( 'securitySchemes' => $security_schemes ) ),
+		);
+	}
+
+	private static function call_adapter_tool( $name, array $arguments ) {
+		switch ( $name ) {
+			case 'cmsa.discover-abilities':
+				$items = array();
+				if ( function_exists( 'wp_get_abilities' ) ) { foreach ( wp_get_abilities() as $ability ) { if ( $ability instanceof WP_Ability && self::ability_is_mcp_public( $ability ) ) { $items[] = self::ability_info( $ability ); } } }
+				usort( $items, static function ( $left, $right ) { return strcmp( (string) $left['name'], (string) $right['name'] ); } );
+				$catalog = class_exists( 'CUA_Ability_Bridge' ) ? CUA_Ability_Bridge::catalog() : array( 'count' => 0, 'items' => array() );
+				return self::tool_success_result( array( 'abilities' => $items, 'bridges' => $catalog ) );
+			case 'cmsa.get-ability-info':
+				$name = isset( $arguments['name'] ) ? trim( (string) $arguments['name'] ) : '';
+				$info = self::resolve_ability_info( $name );
+				return is_wp_error( $info ) ? $info : self::tool_success_result( $info );
+			case 'cmsa.execute-ability':
+				$name = isset( $arguments['name'] ) ? trim( (string) $arguments['name'] ) : '';
+				$input = isset( $arguments['input'] ) && is_array( $arguments['input'] ) ? $arguments['input'] : array();
+				$ability = function_exists( 'wp_get_ability' ) ? wp_get_ability( $name ) : null;
+				if ( $ability instanceof WP_Ability && self::ability_is_mcp_public( $ability ) ) { $result = CUA_Ability_Bridge::execute_target( $name, $input ); return is_wp_error( $result ) ? $result : self::tool_success_result( $result ); }
+				$catalog = class_exists( 'CUA_Ability_Bridge' ) ? CUA_Ability_Bridge::catalog() : array();
+				foreach ( (array) ( $catalog['items'] ?? array() ) as $item ) { if ( is_array( $item ) && $name === (string) ( $item['bridge'] ?? '' ) ) { $readonly = true === ( $item['annotations']['readonly'] ?? null ); $result = CUA_Bridge_Gateway::execute( array( 'bridge' => $name, 'input' => $input ), $readonly ); return is_wp_error( $result ) ? $result : self::tool_success_result( $result ); } }
+				return new WP_Error( 'cmsa_adapter_ability_not_found', 'The requested discovered ability or bridge is not available.' );
+		}
+		return new WP_Error( 'cmsa_adapter_tool_not_found', 'The requested adapter tool is not available.' );
+	}
+
+	private static function resolve_ability_info( $name ) {
+		$ability = function_exists( 'wp_get_ability' ) ? wp_get_ability( $name ) : null;
+		if ( $ability instanceof WP_Ability && self::ability_is_mcp_public( $ability ) ) { return self::ability_info( $ability ); }
+		$catalog = class_exists( 'CUA_Ability_Bridge' ) ? CUA_Ability_Bridge::catalog() : array();
+		foreach ( (array) ( $catalog['items'] ?? array() ) as $item ) { if ( is_array( $item ) && $name === (string) ( $item['bridge'] ?? '' ) ) { return $item; } }
+		return new WP_Error( 'cmsa_adapter_ability_not_found', 'The requested discovered ability or bridge is not available.' );
+	}
+
+	private static function ability_info( WP_Ability $ability ) {
+		$input = $ability->get_input_schema();
+		$output = $ability->get_output_schema();
+		return array( 'name' => $ability->get_name(), 'label' => $ability->get_label(), 'description' => $ability->get_description(), 'inputSchema' => is_array( $input ) ? self::normalize_json_schema_for_transport( $input ) : null, 'outputSchema' => is_array( $output ) ? self::normalize_json_schema_for_transport( $output ) : null, 'annotations' => self::tool_annotations( $ability ) );
+	}
+
+	private static function tool_success_result( $result ) {
+		$response = array( 'content' => array( array( 'type' => 'text', 'text' => self::json_text( $result ) ) ), 'isError' => false );
+		if ( is_array( $result ) || is_object( $result ) ) { $response['structuredContent'] = $result; }
+		return $response;
+	}
 	private static function tools() {
 		$tools = array();
 		if ( ! function_exists( 'wp_get_abilities' ) ) {
@@ -840,17 +886,6 @@ final class CUA_MCP_Server {
 		return $ordered_tools;
 	}
 
-	private static function core_tools() {
-		$tools = array();
-		foreach ( array( 'cmsa.discovery', 'cmsa.stability-check', 'cmsa.catalog', 'cmsa.read-bridge', 'cmsa.write-bridge' ) as $tool_name ) {
-			$ability = self::ability_for_tool( $tool_name );
-			if ( $ability instanceof WP_Ability ) {
-				$tools[ $tool_name ] = self::tool_descriptor( $ability, $tool_name );
-			}
-		}
-		return $tools;
-	}
-
 	private static function direct_tool_names() {
 		return array(
 			'cmsa.discovery',
@@ -921,6 +956,12 @@ final class CUA_MCP_Server {
 		$name = isset( $params['name'] ) ? trim( (string) $params['name'] ) : '';
 		if ( '' === $name ) {
 			return new WP_Error( 'cmsa_mcp_tool_name_required', 'A tool name is required.' );
+		}
+
+		if ( in_array( $name, array( 'cmsa.discover-abilities', 'cmsa.get-ability-info', 'cmsa.execute-ability' ), true ) ) {
+			$arguments = isset( $params['arguments'] ) && is_array( $params['arguments'] ) ? $params['arguments'] : array();
+			if ( ! current_user_can( 'manage_options' ) ) { return new WP_Error( 'cmsa_mcp_tool_forbidden', 'Administrator authority is required to call this tool.' ); }
+			return self::call_adapter_tool( $name, $arguments );
 		}
 
 		$ability = self::ability_for_tool( $name );
