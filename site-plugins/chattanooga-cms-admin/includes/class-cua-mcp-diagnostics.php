@@ -50,6 +50,35 @@ final class CUA_MCP_Diagnostics {
 		);
 	}
 
+	/**
+	 * Register a stable callable discovery ability in addition to the protocol
+	 * server/discover method, so clients that ingest tools only can bootstrap.
+	 */
+	public static function register_discovery_ability() {
+		if ( ! function_exists( 'wp_register_ability' ) ) {
+			return;
+		}
+
+		wp_register_ability(
+			'chattanooga-cms-admin/discovery',
+			array(
+				'label'               => __( 'Discover Chattanooga MCP tools', 'chattanooga-cms-admin' ),
+				'description'         => __( 'Returns the stable Chattanooga MCP tool manifest, fingerprint, catalog entry point, and next discovery steps.', 'chattanooga-cms-admin' ),
+				'category'            => 'chattanooga-cms-admin',
+				'input_schema'        => array( 'type' => 'object', 'properties' => array(), 'additionalProperties' => false ),
+				'output_schema'       => array( 'type' => 'object' ),
+				'execute_callback'    => array( 'CUA_MCP_Server', 'discovery_manifest' ),
+				'permission_callback' => static function () { return current_user_can( 'manage_options' ); },
+				'meta'                => array(
+					'public'       => true,
+					'show_in_rest' => false,
+					'mcp'          => array( 'public' => true ),
+					'annotations'  => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world' => false ),
+				),
+			)
+		);
+	}
+
 	public static function register_routes() {
 		if ( ! CUA_MCP_Settings_Page::is_enabled() ) {
 			return;
