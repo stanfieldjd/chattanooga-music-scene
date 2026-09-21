@@ -756,52 +756,74 @@ final class CUA_MCP_Server {
 		return false === $encoded ? '' : hash( 'sha256', (string) $encoded );
 	}
 
-	private static function adapter_tools() {
-		$security_schemes = self::auth_security_schemes();
-		$empty_object = array( 'type' => 'object', 'properties' => array(), 'additionalProperties' => false );
-		$any_object = array( 'type' => 'object' );
-		return array(
-			'cmsa.discover-abilities' => array( 'name' => 'cmsa.discover-abilities', 'title' => 'Discover WordPress abilities', 'description' => 'Discover public WordPress abilities and Chattanooga site-operation bridges available to this authenticated MCP client. Use this before selecting an operation.', 'inputSchema' => $empty_object, 'annotations' => array( 'readOnlyHint' => true, 'destructiveHint' => false, 'openWorldHint' => false, 'idempotentHint' => true ), 'securitySchemes' => $security_schemes, '_meta' => array( 'securitySchemes' => $security_schemes ) ),
-			'cmsa.get-ability-info' => array( 'name' => 'cmsa.get-ability-info', 'title' => 'Get WordPress ability information', 'description' => 'Get the schema, permissions metadata, and execution identity for one discovered WordPress ability or site-operation bridge.', 'inputSchema' => array( 'type' => 'object', 'properties' => array( 'name' => array( 'type' => 'string' ) ), 'required' => array( 'name' ), 'additionalProperties' => false ), 'annotations' => array( 'readOnlyHint' => true, 'destructiveHint' => false, 'openWorldHint' => false, 'idempotentHint' => true ), 'securitySchemes' => $security_schemes, '_meta' => array( 'securitySchemes' => $security_schemes ) ),
-			'cmsa.execute-ability' => array( 'name' => 'cmsa.execute-ability', 'title' => 'Execute a WordPress ability', 'description' => 'Execute one previously discovered WordPress ability or site-operation bridge. The selected ability retains its own permission callback and Chattanooga control-plane guard.', 'inputSchema' => array( 'type' => 'object', 'properties' => array( 'name' => array( 'type' => 'string' ), 'input' => $any_object ), 'required' => array( 'name' ), 'additionalProperties' => false ), 'annotations' => array( 'readOnlyHint' => false, 'destructiveHint' => true, 'openWorldHint' => true, 'idempotentHint' => false ), 'securitySchemes' => $security_schemes, '_meta' => array( 'securitySchemes' => $security_schemes ) ),
+	public static function register_adapter_abilities() {
+		if ( ! function_exists( 'wp_register_ability' ) ) { return; }
+		$abilities = array(
+			'chattanooga-cms-admin/mcp-discover-abilities' => array( 'label' => 'Discover WordPress abilities', 'description' => 'Discover public WordPress abilities and Chattanooga site-operation bridges available to this authenticated MCP client.', 'input_schema' => array( 'type' => 'object', 'properties' => array(), 'additionalProperties' => false ), 'execute_callback' => array( __CLASS__, 'discover_adapter_abilities' ), 'meta' => array( 'public' => true, 'mcp' => array( 'public' => true ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world' => false ) ) ),
+			'chattanooga-cms-admin/mcp-get-ability-info' => array( 'label' => 'Get WordPress ability information', 'description' => 'Get the schema, permissions metadata, and execution identity for one discovered WordPress ability or site-operation bridge.', 'input_schema' => array( 'type' => 'object', 'properties' => array( 'name' => array( 'type' => 'string' ) ), 'required' => array( 'name' ), 'additionalProperties' => false ), 'execute_callback' => array( __CLASS__, 'get_adapter_ability_info' ), 'meta' => array( 'public' => true, 'mcp' => array( 'public' => true ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world' => false ) ) ),
+			'chattanooga-cms-admin/mcp-execute-ability' => array( 'label' => 'Execute a WordPress ability', 'description' => 'Execute one previously discovered WordPress ability or site-operation bridge while retaining its own permission callback and Chattanooga control-plane guard.', 'input_schema' => array( 'type' => 'object', 'properties' => array( 'name' => array( 'type' => 'string' ), 'input' => array( 'type' => 'object' ) ), 'required' => array( 'name' ), 'additionalProperties' => false ), 'execute_callback' => array( __CLASS__, 'execute_adapter_ability' ), 'meta' => array( 'public' => true, 'mcp' => array( 'public' => true ), 'annotations' => array( 'readonly' => false, 'destructive' => true, 'idempotent' => false, 'open_world' => true ) ) ),
 		);
+		foreach ( $abilities as $name => $args ) { if ( ! function_exists( 'wp_get_ability' ) || ! wp_get_ability( $name ) instanceof WP_Ability ) { wp_register_ability( $name, $args ); } }
+	}
+
+	private static function adapter_ability_names() { return array( 'chattanooga-cms-admin/mcp-discover-abilities', 'chattanooga-cms-admin/mcp-get-ability-info', 'chattanooga-cms-admin/mcp-execute-ability' ); }
+
+	private static function adapter_ability_name( $tool_name ) {
+		$map = array( 'cmsa.discover-abilities' => 'chattanooga-cms-admin/mcp-discover-abilities', 'cmsa.get-ability-info' => 'chattanooga-cms-admin/mcp-get-ability-info', 'cmsa.execute-ability' => 'chattanooga-cms-admin/mcp-execute-ability' );
+		return $map[ $tool_name ] ?? '';
+	}
+
+	private static function adapter_tools() {
+		$tools = array();
+		$map = array( 'cmsa.discover-abilities' => 'chattanooga-cms-admin/mcp-discover-abilities', 'cmsa.get-ability-info' => 'chattanooga-cms-admin/mcp-get-ability-info', 'cmsa.execute-ability' => 'chattanooga-cms-admin/mcp-execute-ability' );
+		foreach ( $map as $tool_name => $ability_name ) { $ability = function_exists( 'wp_get_ability' ) ? wp_get_ability( $ability_name ) : null; if ( $ability instanceof WP_Ability && self::ability_is_mcp_public( $ability ) ) { $tools[ $tool_name ] = self::tool_descriptor( $ability, $tool_name ); } }
+		return $tools;
 	}
 
 	private static function call_adapter_tool( $name, array $arguments ) {
-		switch ( $name ) {
-			case 'cmsa.discover-abilities':
-				$items = array();
-				if ( function_exists( 'wp_get_abilities' ) ) { foreach ( wp_get_abilities() as $ability ) { if ( $ability instanceof WP_Ability && self::ability_is_mcp_public( $ability ) ) { $items[] = self::ability_info( $ability ); } } }
-				usort( $items, static function ( $left, $right ) { return strcmp( (string) $left['name'], (string) $right['name'] ); } );
-				$catalog = class_exists( 'CUA_Ability_Bridge' ) ? CUA_Ability_Bridge::catalog() : array( 'count' => 0, 'items' => array() );
-				return self::tool_success_result( array( 'abilities' => $items, 'bridges' => $catalog ) );
-			case 'cmsa.get-ability-info':
-				$name = isset( $arguments['name'] ) ? trim( (string) $arguments['name'] ) : '';
-				$info = self::resolve_ability_info( $name );
-				return is_wp_error( $info ) ? $info : self::tool_success_result( $info );
-			case 'cmsa.execute-ability':
-				$name = isset( $arguments['name'] ) ? trim( (string) $arguments['name'] ) : '';
-				$input = isset( $arguments['input'] ) && is_array( $arguments['input'] ) ? $arguments['input'] : array();
-				$ability = function_exists( 'wp_get_ability' ) ? wp_get_ability( $name ) : null;
-				if ( $ability instanceof WP_Ability && self::ability_is_mcp_public( $ability ) ) { return self::call_tool( array( 'name' => self::tool_name( $name ), 'arguments' => $input ) ); }
-				$catalog = class_exists( 'CUA_Ability_Bridge' ) ? CUA_Ability_Bridge::catalog() : array();
-				foreach ( (array) ( $catalog['items'] ?? array() ) as $item ) { if ( is_array( $item ) && $name === (string) ( $item['bridge'] ?? '' ) ) { $readonly = true === ( $item['annotations']['readonly'] ?? null ); $result = CUA_Bridge_Gateway::execute( array( 'bridge' => $name, 'input' => $input ), $readonly ); return is_wp_error( $result ) ? $result : self::tool_success_result( $result ); } }
-				return new WP_Error( 'cmsa_adapter_ability_not_found', 'The requested discovered ability or bridge is not available.' );
-		}
-		return new WP_Error( 'cmsa_adapter_tool_not_found', 'The requested adapter tool is not available.' );
+		$ability_name = self::adapter_ability_name( $name );
+		$ability = '' !== $ability_name && function_exists( 'wp_get_ability' ) ? wp_get_ability( $ability_name ) : null;
+		if ( ! $ability instanceof WP_Ability || ! self::ability_is_mcp_public( $ability ) ) { return new WP_Error( 'cmsa_adapter_tool_not_found', 'The requested adapter tool is not available.' ); }
+		$permission = $ability->check_permissions( $arguments );
+		if ( is_wp_error( $permission ) ) { return $permission; }
+		if ( ! $permission ) { return new WP_Error( 'cmsa_mcp_tool_forbidden', 'The selected adapter ability denied this request.' ); }
+		$result = $ability->execute( $arguments );
+		return is_wp_error( $result ) ? $result : self::tool_success_result( $result );
+	}
+
+	public static function discover_adapter_abilities( $input = array() ) {
+		$items = array();
+		if ( function_exists( 'wp_get_abilities' ) ) { foreach ( wp_get_abilities() as $ability ) { if ( $ability instanceof WP_Ability && self::ability_is_mcp_public( $ability ) && ! in_array( $ability->get_name(), self::adapter_ability_names(), true ) ) { $items[] = self::ability_info( $ability ); } } }
+		usort( $items, static function ( $left, $right ) { return strcmp( (string) $left['name'], (string) $right['name'] ); } );
+		$catalog = class_exists( 'CUA_Ability_Bridge' ) ? CUA_Ability_Bridge::catalog() : array( 'count' => 0, 'items' => array() );
+		return array( 'abilities' => $items, 'bridges' => $catalog );
+	}
+
+	public static function get_adapter_ability_info( $input = array() ) {
+		$name = is_array( $input ) && isset( $input['name'] ) ? trim( (string) $input['name'] ) : '';
+		return self::resolve_ability_info( $name );
+	}
+
+	public static function execute_adapter_ability( $input = array() ) {
+		$name = is_array( $input ) && isset( $input['name'] ) ? trim( (string) $input['name'] ) : '';
+		$arguments = is_array( $input ) && isset( $input['input'] ) && is_array( $input['input'] ) ? $input['input'] : array();
+		$ability = function_exists( 'wp_get_ability' ) ? wp_get_ability( $name ) : null;
+		if ( $ability instanceof WP_Ability && self::ability_is_mcp_public( $ability ) && ! in_array( $name, self::adapter_ability_names(), true ) ) { $permission = $ability->check_permissions( $arguments ); if ( is_wp_error( $permission ) ) { return $permission; } if ( ! $permission ) { return new WP_Error( 'cmsa_mcp_tool_forbidden', 'The selected WordPress ability denied this request.' ); } return $ability->execute( $arguments ); }
+		$catalog = class_exists( 'CUA_Ability_Bridge' ) ? CUA_Ability_Bridge::catalog() : array();
+		foreach ( (array) ( $catalog['items'] ?? array() ) as $item ) { if ( is_array( $item ) && $name === (string) ( $item['bridge'] ?? '' ) ) { $readonly = true === ( $item['annotations']['readonly'] ?? null ); return CUA_Bridge_Gateway::execute( array( 'bridge' => $name, 'input' => $arguments ), $readonly ); } }
+		return new WP_Error( 'cmsa_adapter_ability_not_found', 'The requested discovered ability or bridge is not available.' );
 	}
 
 	private static function resolve_ability_info( $name ) {
 		$ability = function_exists( 'wp_get_ability' ) ? wp_get_ability( $name ) : null;
-		if ( $ability instanceof WP_Ability && self::ability_is_mcp_public( $ability ) ) { return self::ability_info( $ability ); }
+		if ( $ability instanceof WP_Ability && self::ability_is_mcp_public( $ability ) && ! in_array( $name, self::adapter_ability_names(), true ) ) { return self::ability_info( $ability ); }
 		$catalog = class_exists( 'CUA_Ability_Bridge' ) ? CUA_Ability_Bridge::catalog() : array();
 		foreach ( (array) ( $catalog['items'] ?? array() ) as $item ) { if ( is_array( $item ) && $name === (string) ( $item['bridge'] ?? '' ) ) { return $item; } }
 		return new WP_Error( 'cmsa_adapter_ability_not_found', 'The requested discovered ability or bridge is not available.' );
 	}
 
 	private static function ability_info( WP_Ability $ability ) {
-		$input = $ability->get_input_schema();
-		$output = $ability->get_output_schema();
+		$input = $ability->get_input_schema(); $output = $ability->get_output_schema();
 		return array( 'name' => $ability->get_name(), 'label' => $ability->get_label(), 'description' => $ability->get_description(), 'inputSchema' => is_array( $input ) ? self::normalize_json_schema_for_transport( $input ) : null, 'outputSchema' => is_array( $output ) ? self::normalize_json_schema_for_transport( $output ) : null, 'annotations' => self::tool_annotations( $ability ) );
 	}
 
