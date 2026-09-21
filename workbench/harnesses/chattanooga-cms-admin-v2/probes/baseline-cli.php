@@ -22,9 +22,34 @@ foreach ( array( $catalog, $read_gateway, $write_gateway ) as $public_gateway ) 
 	}
 }
 
-$result = $catalog->execute( array() );
-if ( is_wp_error( $result ) || empty( $result['items'] ) || ! is_array( $result['items'] ) ) {
-	fwrite( STDERR, "Universal catalog returned no items.\n" );
+$catalog_items = array();
+$catalog_cursor = 0;
+$catalog_complete = false;
+for ( $catalog_page = 0; $catalog_page < 100; ++$catalog_page ) {
+	$result = $catalog->execute(
+		array(
+			'cursor' => $catalog_cursor,
+			'limit'  => 100,
+		)
+	);
+	if ( is_wp_error( $result ) || empty( $result['items'] ) || ! is_array( $result['items'] ) ) {
+		fwrite( STDERR, "Universal catalog returned no items at cursor {$catalog_cursor}.\n" );
+		exit( 1 );
+	}
+	$catalog_items = array_merge( $catalog_items, $result['items'] );
+	$next_cursor = $result['nextCursor'] ?? null;
+	if ( null === $next_cursor ) {
+		$catalog_complete = true;
+		break;
+	}
+	if ( ! is_numeric( $next_cursor ) || (int) $next_cursor <= $catalog_cursor ) {
+		fwrite( STDERR, "Universal catalog cursor did not advance.\n" );
+		exit( 1 );
+	}
+	$catalog_cursor = (int) $next_cursor;
+}
+if ( ! $catalog_complete || empty( $catalog_items ) ) {
+	fwrite( STDERR, "Universal catalog pagination did not complete within the safety bound.\n" );
 	exit( 1 );
 }
 
@@ -32,7 +57,7 @@ $ability_bridge = '';
 $write_provider_bridge = '';
 $mcp_only_bridge = '';
 $rest_bridge = '';
-foreach ( $result['items'] as $item ) {
+foreach ( $catalog_items as $item ) {
 	$target = (string) ( $item['target'] ?? '' );
 	if ( 'orbit-fixture/read-marker' === $target ) {
 		$ability_bridge = (string) ( $item['bridge'] ?? '' );
