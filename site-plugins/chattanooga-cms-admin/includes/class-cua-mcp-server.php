@@ -775,8 +775,24 @@ final class CUA_MCP_Server {
 
 	private static function adapter_tools() {
 		$tools = array();
-		$map = array( 'cmsa.discover-abilities' => 'chattanooga-cms-admin/mcp-discover-abilities', 'cmsa.get-ability-info' => 'chattanooga-cms-admin/mcp-get-ability-info', 'cmsa.execute-ability' => 'chattanooga-cms-admin/mcp-execute-ability' );
-		foreach ( $map as $tool_name => $ability_name ) { $ability = function_exists( 'wp_get_ability' ) ? wp_get_ability( $ability_name ) : null; if ( $ability instanceof WP_Ability && self::ability_is_mcp_public( $ability ) ) { $tools[ $tool_name ] = self::tool_descriptor( $ability, $tool_name ); } }
+		// Keep the two bootstrap diagnostics and the existing discovery entry point first.
+		// Their descriptors still come from WordPress Ability metadata; they are not a
+		// second hard-coded registry. The adapter meta-tools then provide the complete
+		// dynamic Ability/bridge catalog and execution path.
+		$map = array(
+			'cmsa.discovery'         => 'chattanooga-cms-admin/discovery',
+			'cmsa.stability-check'   => 'chattanooga-cms-admin/stability-check',
+			'cmsa.catalog'           => 'chattanooga-cms-admin/catalog',
+			'cmsa.discover-abilities' => 'chattanooga-cms-admin/mcp-discover-abilities',
+			'cmsa.get-ability-info'  => 'chattanooga-cms-admin/mcp-get-ability-info',
+			'cmsa.execute-ability'   => 'chattanooga-cms-admin/mcp-execute-ability',
+		);
+		foreach ( $map as $tool_name => $ability_name ) {
+			$ability = function_exists( 'wp_get_ability' ) ? wp_get_ability( $ability_name ) : null;
+			if ( $ability instanceof WP_Ability && self::ability_is_mcp_public( $ability ) ) {
+				$tools[ $tool_name ] = self::tool_descriptor( $ability, $tool_name );
+			}
+		}
 		return $tools;
 	}
 
