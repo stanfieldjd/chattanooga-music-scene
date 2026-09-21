@@ -172,7 +172,14 @@ $resources = cmsa_native_mcp_modern( 'resources/list', array(), 109 );
 cmsa_native_mcp_assert( 200 === $resources->get_status(), 'resources/list did not return HTTP 200: ' . $resources->get_status() . ' ' . wp_json_encode( $resources->get_data() ) );
 $resources_data = $resources->get_data();
 cmsa_native_mcp_assert( is_array( $resources_data['result']['resources'] ?? null ), 'resources/list did not return resources.' );
-cmsa_native_mcp_assert( CUA_MCP_Server::RESOURCE_CATALOG_URI === ( $resources_data['result']['resources'][0]['uri'] ?? '' ), 'Site-operation catalog resource was not listed.' );
+$catalog_resource = null;
+foreach ( $resources_data['result']['resources'] as $resource ) {
+	if ( is_array( $resource ) && CUA_MCP_Server::RESOURCE_CATALOG_URI === ( $resource['uri'] ?? '' ) ) {
+		$catalog_resource = $resource;
+		break;
+	}
+}
+cmsa_native_mcp_assert( is_array( $catalog_resource ), 'Site-operation catalog resource was not listed.' );
 
 $resource_read = cmsa_native_mcp_modern( 'resources/read', array( 'uri' => CUA_MCP_Server::RESOURCE_CATALOG_URI ), 110 );
 cmsa_native_mcp_assert( 200 === $resource_read->get_status(), 'resources/read did not return HTTP 200: ' . $resource_read->get_status() . ' ' . wp_json_encode( $resource_read->get_data() ) );
