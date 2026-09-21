@@ -21,6 +21,7 @@ final class CUA_OAuth_Server {
 	const CODE_TTL       = 300;
 	const ACCESS_TTL     = 3600;
 	const REFRESH_TTL    = 2592000;
+	const REFRESH_LOCK_TTL = 30;
 
 	public static function bootstrap() {
 		add_action( 'parse_request', array( __CLASS__, 'serve_well_known_metadata' ), 0 );
@@ -497,15 +498,24 @@ final class CUA_OAuth_Server {
 			return self::oauth_error( 'invalid_target', 'The resource does not match the refresh token.', 400 );
 		}
 
-		if ( $legacy_record ) {
-			delete_transient( $legacy_key );
-		} else {
-			$consumed = self::consume_refresh_record( $refresh );
-			if ( ! is_array( $consumed ) ) {
-				self::trace( 'refresh_token_exchange', 'failed', 400, 'invalid_grant', array( 'grant_type' => 'refresh_token' ) );
-				return self::oauth_error( 'invalid_grant', 'The refresh token is invalid, expired, or already used.', 400 );
+		$refresh_lock = self::acquire_refresh_lock( $refresh );
+		if ( ! is_array( $refresh_lock ) ) {
+			self::trace( 'refresh_token_exchange', 'failed', 400, 'invalid_grant', array( 'grant_type' => 'refresh_token', 'reason' => 'concurrent_use' ) );
+			return self::oauth_error( 'invalid_grant', 'The refresh token is invalid, expired, already used, or currently being exchanged.', 400 );
+		}
+		try {
+			if ( $legacy_record ) {
+				delete_transient( $legacy_key );
+			} else {
+				$consumed = self::consume_refresh_record( $refresh );
+				if ( ! is_array( $consumed ) ) {
+					self::trace( 'refresh_token_exchange', 'failed', 400, 'invalid_grant', array( 'grant_type' => 'refresh_token' ) );
+					return self::oauth_error( 'invalid_grant', 'The refresh token is invalid, expired, or already used.', 400 );
+				}
+				$record = $consumed;
 			}
-			$record = $consumed;
+		} finally {
+			self::release_refresh_lock( $refresh_lock );
 		}
 
 		self::trace( 'refresh_token_exchange', 'accepted', 200, '', array( 'grant_type' => 'refresh_token' ) );
@@ -560,6 +570,38 @@ final class CUA_OAuth_Server {
 		$record['expires_at'] = $now + self::REFRESH_TTL;
 		$records[ self::digest( $token ) ] = $record;
 		update_option( self::REFRESH_OPTION, $records, false );
+	}
+
+	private static function acquire_refresh_lock( $token ) {
+		$key = 'cua_oauth_refresh_lock_' . self::digest( $token );
+		$now = time();
+		$lock = array(
+			'key'        => $key,
+			'owner'      => self::random_token( 16 ),
+			'expires_at' => $now + self::REFRESH_LOCK_TTL,
+		);
+		if ( add_option( $key, $lock, '', 'no' ) ) {
+			return $lock;
+		}
+		$existing = get_option( $key, array() );
+		if ( is_array( $existing ) && (int) ( $existing['expires_at'] ?? 0 ) <= $now ) {
+			delete_option( $key );
+			if ( add_option( $key, $lock, '', 'no' ) ) {
+				return $lock;
+			}
+		}
+		return null;
+	}
+
+	private static function release_refresh_lock( array $lock ) {
+		$key = isset( $lock['key'] ) ? (string) $lock['key'] : '';
+		if ( '' === $key ) {
+			return;
+		}
+		$current = get_option( $key, array() );
+		if ( is_array( $current ) && hash_equals( (string) ( $current['owner'] ?? '' ), (string) ( $lock['owner'] ?? '' ) ) ) {
+			delete_option( $key );
+		}
 	}
 
 	private static function get_refresh_record( $token ) {
