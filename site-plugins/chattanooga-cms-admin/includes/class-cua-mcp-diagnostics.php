@@ -14,6 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class CUA_MCP_Diagnostics {
 	const CANARY_ROUTE       = '/mcp-canary';
 	const REPORT_ROUTE       = '/mcp/diagnostics';
+	const HEARTBEAT_ROUTE    = '/mcp-heartbeat';
 	const CANARY_TOOL        = 'cmsa.diagnostic-canary';
 	const STABILITY_ABILITY  = 'chattanooga-cms-admin/stability-check';
 	const STABILITY_TOOL     = 'cmsa.stability-check';
@@ -103,6 +104,73 @@ final class CUA_MCP_Diagnostics {
 				'permission_callback' => '__return_true',
 			)
 		);
+
+		register_rest_route(
+			CUA_MCP_Server::REST_NAMESPACE,
+			self::HEARTBEAT_ROUTE,
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( __CLASS__, 'heartbeat_report' ),
+				'permission_callback' => '__return_true',
+			)
+		);
+	}
+
+	/**
+	 * Return sanitized out-of-band evidence for the MCP ingestion boundary.
+	 * This endpoint deliberately lives outside tools/list and tools/call.
+	 */
+	public static function heartbeat_report( WP_REST_Request $request ) {
+		$catalog = self::catalog_report( false );
+		$recent = class_exists( 'CUA_Audit' ) ? CUA_Audit::read_mcp_diagnostics( 25 ) : array( 'entries' => array() );
+		$entries = is_wp_error( $recent ) ? array() : (array) ( $recent['entries'] ?? array() );
+		$latest = null;
+		$latest_discover = null;
+		$latest_tools_list = null;
+		foreach ( $entries as $entry ) {
+			if ( ! is_array( $entry ) ) {
+				continue;
+			}
+			if ( null === $latest ) {
+				$latest = self::heartbeat_entry( $entry );
+			}
+			if ( 'server/discover' === ( $entry['mcp_method'] ?? '' ) && null === $latest_discover ) {
+				$latest_discover = self::heartbeat_entry( $entry );
+			}
+			if ( 'tools/list' === ( $entry['mcp_method'] ?? '' ) && null === $latest_tools_list ) {
+				$latest_tools_list = self::heartbeat_entry( $entry );
+			}
+		}
+		$observed = null !== $latest;
+		$result = array(
+			'state'              => $observed ? 'server_request_observed' : 'no_mcp_request_observed',
+			'pluginVersion'      => defined( 'CUA_VERSION' ) ? CUA_VERSION : 'unknown',
+			'protocolVersion'    => CUA_MCP_Server::PROTOCOL_VERSION,
+			'checkedAt'          => gmdate( 'c' ),
+			'serverToolCount'    => (int) ( $catalog['toolCount'] ?? 0 ),
+			'toolFingerprint'    => (string) ( $catalog['toolFingerprint'] ?? '' ),
+			'descriptorPass'     => (int) ( $catalog['descriptorSummary']['pass'] ?? 0 ),
+			'descriptorFail'     => (int) ( $catalog['descriptorSummary']['fail'] ?? 0 ),
+			'lastRequest'        => $latest,
+			'lastDiscovery'      => $latest_discover,
+			'lastToolsList'      => $latest_tools_list,
+			'scope'              => 'Sanitized server-side evidence only. no_mcp_request_observed means this endpoint has no recorded MCP request; it does not identify why the host omitted the app.',
+		);
+		$response = new WP_REST_Response( $result, 200 );
+		$response->header( 'Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0' );
+		$response->header( 'Pragma', 'no-cache' );
+		return $response;
+	}
+
+	private static function heartbeat_entry( array $entry ) {
+		$keys = array( 'time', 'mcp_surface', 'mcp_method', 'protocol_version', 'http_status', 'client_class', 'request_bytes', 'response_bytes', 'tool_count', 'descriptor_pass', 'descriptor_fail', 'result_type', 'error_code' );
+		$result = array();
+		foreach ( $keys as $key ) {
+			if ( array_key_exists( $key, $entry ) ) {
+				$result[ $key ] = $entry[ $key ];
+			}
+		}
+		return $result;
 	}
 
 	public static function stability_report( $input = array() ) {
@@ -178,6 +246,7 @@ final class CUA_MCP_Diagnostics {
 		return array(
 			'endpoint'             => rest_url( CUA_MCP_Server::REST_NAMESPACE . CUA_MCP_Server::REST_ROUTE ),
 			'canaryEndpoint'       => rest_url( CUA_MCP_Server::REST_NAMESPACE . self::CANARY_ROUTE ),
+			'heartbeatEndpoint'    => rest_url( CUA_MCP_Server::REST_NAMESPACE . self::HEARTBEAT_ROUTE ),
 			'toolCount'            => (int) ( $catalog['toolCount'] ?? 0 ),
 			'toolFingerprint'      => (string) ( $catalog['toolFingerprint'] ?? '' ),
 			'pageSize'             => (int) ( $catalog['pageSize'] ?? CUA_MCP_Server::TOOL_PAGE_SIZE ),
