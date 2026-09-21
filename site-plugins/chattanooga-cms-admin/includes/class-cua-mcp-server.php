@@ -662,7 +662,7 @@ final class CUA_MCP_Server {
 		);
 	}
 
-	private static function discovery_manifest() {
+	public static function discovery_manifest() {
 		return array(
 			'schemaVersion' => '1',
 			'initialToolSet' => array(
@@ -831,6 +831,7 @@ final class CUA_MCP_Server {
 			'cmsa.clear-cache',
 			'cmsa.create-backup',
 			'cmsa.deactivate-plugin',
+			'cmsa.discovery',
 			'cmsa.delete-plugin',
 			'cmsa.delete-theme',
 			'cmsa.get-audit-log',
