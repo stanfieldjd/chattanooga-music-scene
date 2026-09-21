@@ -46,6 +46,7 @@ final class CUA_Ability_Bridge {
 							'maximum' => 100,
 							'default' => 100,
 						),
+						'snapshot' => array( 'type' => 'string', 'minLength' => 64, 'maxLength' => 64 ),
 					),
 					'additionalProperties' => false,
 				),
@@ -133,6 +134,13 @@ final class CUA_Ability_Bridge {
 			}
 		);
 
+		$encoded_snapshot = wp_json_encode( $items, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+		$snapshot = false === $encoded_snapshot ? '' : hash( 'sha256', (string) $encoded_snapshot );
+		$requested_snapshot = is_array( $input ) && isset( $input['snapshot'] ) ? trim( (string) $input['snapshot'] ) : '';
+		if ( '' !== $requested_snapshot && ( '' === $snapshot || ! hash_equals( $snapshot, $requested_snapshot ) ) ) {
+			return new WP_Error( 'cua_catalog_snapshot_changed', 'The WordPress capability catalog changed between pages. Restart discovery from cursor 0.' );
+		}
+
 		$total  = count( $items );
 		$cursor = is_array( $input ) && isset( $input['cursor'] ) ? max( 0, (int) $input['cursor'] ) : 0;
 		$limit  = is_array( $input ) && isset( $input['limit'] ) ? min( 100, max( 1, (int) $input['limit'] ) ) : 100;
@@ -145,6 +153,7 @@ final class CUA_Ability_Bridge {
 			'pageSize'   => $limit,
 			'items'      => $page,
 			'nextCursor' => $next,
+			'snapshot'   => $snapshot,
 		);
 	}
 
@@ -177,8 +186,8 @@ final class CUA_Ability_Bridge {
 						'open_world'  => array_key_exists( 'open_world', $annotations ) && null !== $annotations['open_world'] ? (bool) $annotations['open_world'] : null,
 					),
 				);
-				$input_schema = $target->get_input_schema();
-				$output_schema = $target->get_output_schema();
+				$input_schema = self::normalize_schema_for_transport( $target->get_input_schema() );
+				$output_schema = self::normalize_schema_for_transport( $target->get_output_schema() );
 				if ( is_array( $input_schema ) ) { $item['inputSchema'] = $input_schema; }
 				if ( is_array( $output_schema ) ) { $item['outputSchema'] = $output_schema; }
 				$items[] = $item;
@@ -194,6 +203,17 @@ final class CUA_Ability_Bridge {
 		);
 
 		return $items;
+	}
+
+	private static function normalize_schema_for_transport( $value, $parent_key = '' ) {
+		$object_keywords = array( '$defs', '$vocabulary', 'definitions', 'dependentRequired', 'dependentSchemas', 'patternProperties', 'properties' );
+		if ( is_array( $value ) ) {
+			if ( empty( $value ) && in_array( (string) $parent_key, $object_keywords, true ) ) { return new stdClass(); }
+			$normalized = array();
+			foreach ( $value as $key => $item ) { $normalized[ $key ] = self::normalize_schema_for_transport( $item, is_string( $key ) ? $key : '' ); }
+			return $normalized;
+		}
+		return $value;
 	}
 
 	public static function target_permission( $target_name, $input = null ) {
