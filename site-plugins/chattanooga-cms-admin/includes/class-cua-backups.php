@@ -62,7 +62,7 @@ final class CUA_Backups {
 				'label'               => __( 'Verify local backup', 'chattanooga-cms-admin' ),
 				'description'         => __( 'Recomputes SHA-256 and size checks for every artifact recorded in a local backup manifest.', 'chattanooga-cms-admin' ),
 				'category'            => self::CATEGORY,
-				'input_schema'        => self::id_schema(),
+				'input_schema'        => self::confirmed_id_schema( 'confirm_restore' ),
 				'output_schema'       => array( 'type' => 'object' ),
 				'execute_callback'    => array( __CLASS__, 'verify_backup' ),
 				'permission_callback' => static function () { return current_user_can( 'manage_options' ); },
@@ -194,6 +194,9 @@ final class CUA_Backups {
 	}
 
 	public static function restore_database_backup( $input ) {
+		if ( ! is_array( $input ) || empty( $input['confirm_restore'] ) ) {
+			return new WP_Error( 'cmsa_database_restore_not_confirmed', 'Explicit database restore confirmation is required.' );
+		}
 		$id = self::read_id( $input );
 		if ( is_wp_error( $id ) ) {
 			return $id;
@@ -837,6 +840,13 @@ final class CUA_Backups {
 	private static function read_id( $input ) {
 		$id = is_array( $input ) && isset( $input['id'] ) ? trim( (string) $input['id'] ) : '';
 		return preg_match( '/^[a-z0-9-]+$/', $id ) ? $id : new WP_Error( 'cmsa_backup_id', 'A valid local backup identifier is required.' );
+	}
+
+	private static function confirmed_id_schema( $field ) {
+		$schema = self::id_schema();
+		$schema['properties'][ $field ] = array( 'type' => 'boolean' );
+		$schema['required'][] = $field;
+		return $schema;
 	}
 
 	private static function id_schema() {
