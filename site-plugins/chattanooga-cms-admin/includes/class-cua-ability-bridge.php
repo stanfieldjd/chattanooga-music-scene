@@ -144,12 +144,6 @@ final class CUA_Ability_Bridge {
 		// Reconcile their bridge descriptors immediately before discovery reads the catalog.
 		self::register_external_bridges();
 		$items = self::catalog_items();
-		// A provider may finish populating the registry during the first read.
-		// Re-read once before pagination so discovery observes the settled registry.
-		$second_pass = self::catalog_items();
-		if ( is_array( $second_pass ) ) {
-			$items = array_merge( $items, $second_pass );
-		}
 
 		if ( class_exists( 'CUA_REST_Bridge' ) ) {
 			try {
@@ -168,16 +162,6 @@ final class CUA_Ability_Bridge {
 			$unique[ $key ] = $item;
 		}
 		$items = array_values( $unique );
-		// Reconcile once more after REST discovery; provider registries can settle
-		// while ancillary contracts are being enumerated.
-		$final_ability_items = self::catalog_items();
-		if ( is_array( $final_ability_items ) ) {
-			foreach ( $final_ability_items as $item ) {
-				$key = implode( '|', array( (string) ( $item['contract'] ?? '' ), (string) ( $item['target'] ?? '' ), (string) ( $item['bridge'] ?? '' ) ) );
-				$unique[ $key ] = $item;
-			}
-			$items = array_values( $unique );
-		}
 		usort(
 			$items,
 			static function ( $left, $right ) {
