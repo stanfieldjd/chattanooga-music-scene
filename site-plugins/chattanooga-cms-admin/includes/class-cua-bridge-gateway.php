@@ -60,14 +60,18 @@ final class CUA_Bridge_Gateway {
 			return $resolved;
 		}
 
-		if ( 'rest' === $resolved['contract'] ) {
-			return CUA_REST_Bridge::check_bridge_permissions( $resolved['bridge'], $resolved['arguments'] );
-		}
+		try {
+			if ( 'rest' === $resolved['contract'] ) {
+				return CUA_REST_Bridge::check_bridge_permissions( $resolved['bridge'], $resolved['arguments'] );
+			}
 
-		return CUA_Ability_Bridge::target_permission(
-			$resolved['target'],
-			$resolved['has_arguments'] ? $resolved['arguments'] : null
-		);
+			return CUA_Ability_Bridge::target_permission(
+				$resolved['target'],
+				$resolved['has_arguments'] ? $resolved['arguments'] : null
+			);
+		} catch ( Throwable $error ) {
+			return new WP_Error( 'cua_bridge_permission_exception', 'The selected bridge permission check failed.' );
+		}
 	}
 
 	public static function execute( $input, $readonly ) {
