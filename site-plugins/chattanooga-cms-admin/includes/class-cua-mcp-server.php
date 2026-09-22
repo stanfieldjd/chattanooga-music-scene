@@ -880,7 +880,13 @@ final class CUA_MCP_Server {
 
 	public static function discover_adapter_abilities( $input = array() ) {
 		$items = array();
-		if ( function_exists( 'wp_get_abilities' ) ) { foreach ( wp_get_abilities() as $ability ) { if ( $ability instanceof WP_Ability && self::ability_is_mcp_public( $ability ) && ! in_array( $ability->get_name(), self::adapter_ability_names(), true ) ) { $items[] = self::ability_info( $ability ); } } }
+		if ( function_exists( 'wp_get_abilities' ) ) {
+			try {
+				$abilities = wp_get_abilities();
+			} catch ( Throwable $error ) {
+				$abilities = array();
+			}
+			foreach ( $abilities as $ability ) { if ( $ability instanceof WP_Ability && self::ability_is_mcp_public( $ability ) && ! in_array( $ability->get_name(), self::adapter_ability_names(), true ) ) { $items[] = self::ability_info( $ability ); } } }
 		usort( $items, static function ( $left, $right ) { return strcmp( (string) $left['name'], (string) $right['name'] ); } );
 		$catalog = class_exists( 'CUA_Ability_Bridge' ) ? CUA_Ability_Bridge::catalog() : array( 'count' => 0, 'items' => array() );
 		return array( 'abilities' => $items, 'bridges' => $catalog );
