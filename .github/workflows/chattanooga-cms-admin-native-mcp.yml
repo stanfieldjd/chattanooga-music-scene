@@ -178,16 +178,16 @@ jobs:
             cat /tmp/cmsa-tools-list-response.json >&2
             exit 1
           fi
-          php -r '$d=json_decode(file_get_contents("/tmp/cmsa-tools-list-response.json"),true); $tools=$d["result"]["tools"]??[]; if (!$tools) exit(1); $ok=false; foreach($tools as $tool){ if(($tool["name"]??"")==="cmsa.catalog" && (($tool["securitySchemes"][0]["type"]??"")==="oauth2")) $ok=true; } if(!$ok) exit(1);'
+          php -r '$d=json_decode(file_get_contents("/tmp/cmsa-tools-list-response.json"),true); $tools=$d["result"]["tools"]??[]; if (!$tools) exit(1); $ok=false; foreach($tools as $tool){ if(($tool["name"]??"")==="cmsa.discovery" && (($tool["securitySchemes"][0]["type"]??"")==="oauth2")) $ok=true; } if(!$ok) exit(1);'
 
           cat > /tmp/cmsa-anonymous-call.json <<'JSON'
-          {"jsonrpc":"2.0","id":411,"method":"tools/call","params":{"name":"cmsa.catalog","arguments":{},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{},"io.modelcontextprotocol/clientInfo":{"name":"cmsa-http-ci","version":"1.0.0"}}}}
+          {"jsonrpc":"2.0","id":411,"method":"tools/call","params":{"name":"cmsa.discovery","arguments":{},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{},"io.modelcontextprotocol/clientInfo":{"name":"cmsa-http-ci","version":"1.0.0"}}}}
           JSON
           anonymous_call_code="$(curl -sS -o /tmp/cmsa-anonymous-call-response.json -w '%{http_code}' \
             -H 'Content-Type: application/json' \
             -H 'MCP-Protocol-Version: 2026-07-28' \
             -H 'Mcp-Method: tools/call' \
-            -H 'Mcp-Name: cmsa.catalog' \
+            -H 'Mcp-Name: cmsa.discovery' \
             --data-binary @/tmp/cmsa-anonymous-call.json \
             "$endpoint")"
           if [ "$anonymous_call_code" != '200' ]; then
@@ -244,7 +244,7 @@ jobs:
                 "id"=>(int)getenv("REQUEST_ID"),
                 "method"=>"tools/call",
                 "params"=>[
-                  "name"=>"cmsa.catalog",
+                  "name"=>"cmsa.discovery",
                   "arguments"=>["cursor"=>(int)getenv("CURSOR"),"limit"=>100],
                   "_meta"=>[
                     "io.modelcontextprotocol/protocolVersion"=>"2026-07-28",
@@ -260,7 +260,7 @@ jobs:
               -H 'Content-Type: application/json' \
               -H 'MCP-Protocol-Version: 2026-07-28' \
               -H 'Mcp-Method: tools/call' \
-              -H 'Mcp-Name: cmsa.catalog' \
+              -H 'Mcp-Name: cmsa.discovery' \
               --data-binary @/tmp/cmsa-catalog.json \
               "$endpoint")"
             if [ "$catalog_code" != '200' ]; then
@@ -274,12 +274,12 @@ jobs:
               exit 1
             fi
 
-            bridge="$(php -r '$d=json_decode(file_get_contents("/tmp/cmsa-catalog-response.json"),true); foreach (($d["result"]["structuredContent"]["items"]??[]) as $item) { if (($item["contract"]??"")==="rest" && ($item["method"]??"")==="POST" && ($item["route"]??"")==="/wp/v2/posts") { echo $item["bridge"]; exit(0); } }' || true)"
+            bridge="$(php -r '$d=json_decode(file_get_contents("/tmp/cmsa-catalog-response.json"),true); foreach (($d["result"]["structuredContent"]["catalogGateway"]["items"]??[]) as $item) { if (($item["contract"]??"")==="rest" && ($item["method"]??"")==="POST" && ($item["route"]??"")==="/wp/v2/posts") { echo $item["bridge"]; exit(0); } }' || true)"
             if [ -n "$bridge" ]; then
               break
             fi
 
-            next_cursor="$(php -r '$d=json_decode(file_get_contents("/tmp/cmsa-catalog-response.json"),true); $next=$d["result"]["structuredContent"]["nextCursor"]??null; if ($next===null || $next==="") exit(1); echo (int)$next;' || true)"
+            next_cursor="$(php -r '$d=json_decode(file_get_contents("/tmp/cmsa-catalog-response.json"),true); $next=$d["result"]["structuredContent"]["catalogGateway"]["nextCursor"]??null; if ($next===null || $next==="") exit(1); echo (int)$next;' || true)"
             if [ -z "$next_cursor" ]; then
               break
             fi
