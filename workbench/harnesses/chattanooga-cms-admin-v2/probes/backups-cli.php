@@ -160,7 +160,7 @@ if ( is_wp_error( $bad_integrity ) || empty( $bad_integrity['valid'] ) ) {
 	exit( 1 );
 }
 
-$bad_restore = $restore->execute( array( 'id' => $bad['id'] ) );
+$bad_restore = $restore->execute( array( 'id' => $bad['id'], 'confirm_restore' => true ) );
 if ( ! is_wp_error( $bad_restore ) || 'cmsa_database_restore_failed_rolled_back' !== $bad_restore->get_error_code() ) {
 	fwrite( STDERR, 'Forced database restore did not fail and roll back as required: ' . ( is_wp_error( $bad_restore ) ? $bad_restore->get_error_code() . ' ' . $bad_restore->get_error_message() : 'unexpected success' ) . "\n" );
 	exit( 1 );
