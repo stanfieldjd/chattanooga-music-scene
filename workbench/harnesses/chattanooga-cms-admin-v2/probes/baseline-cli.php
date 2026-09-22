@@ -190,7 +190,7 @@ if ( ! $rest instanceof WP_Ability || true !== $rest->check_permissions( $rest_i
 }
 $rest_result = $rest->execute( $rest_input );
 if ( is_wp_error( $rest_result ) || 29 !== (int) ( $rest_result['data']['id'] ?? 0 ) || 'comet' !== ( $rest_result['data']['marker'] ?? '' ) ) {
-	fwrite( STDERR, "REST facade execution failed.\n" );
+	fwrite( STDERR, "REST facade execution failed: " . wp_json_encode( $rest_result ) . "\n" );
 	exit( 1 );
 }
 $gateway_rest_result = $read_gateway->execute(
