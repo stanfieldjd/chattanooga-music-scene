@@ -1396,7 +1396,18 @@ final class CUA_MCP_Server {
 	}
 
 	private static function stable_gateway_descriptor( $name, $title, $description, array $schema, array $annotations, array $security_schemes ) {
-		return array('name'=>$name,'title'=>$title,'description'=>$description,'inputSchema'=>$schema,'annotations'=>$annotations,'securitySchemes'=>$security_schemes,'_meta'=>array('securitySchemes'=>$security_schemes));
+		return array(
+			'name'          => $name,
+			'title'         => $title,
+			'description'   => $description,
+			'inputSchema'   => $schema,
+			// Gateway responses are object envelopes; dynamic catalog entries
+			// remain described by the discovery payload rather than tools/list.
+			'outputSchema'  => array( 'type' => 'object', 'additionalProperties' => true ),
+			'annotations'  => $annotations,
+			'securitySchemes' => $security_schemes,
+			'_meta'         => array( 'securitySchemes' => $security_schemes ),
+		);
 	}
 
 	private static function call_adapter_tool( $name, array $arguments ) {
