@@ -15,6 +15,10 @@ function cmsa_v2_wc_catalog() {
 	if ( null !== $items ) {
 		return $items;
 	}
+
+	// eval-file runs after wp_loaded; reconcile provider contracts explicitly for this probe.
+	CUA_REST_Bridge::register_external_bridges();
+	CUA_Ability_Bridge::register_external_bridges();
 	$catalog = wp_get_ability( 'chattanooga-cms-admin/catalog' );
 	if ( ! $catalog instanceof WP_Ability ) {
 		cmsa_v2_wc_fail( 'Universal catalog is unavailable in WooCommerce compatibility job.' );
