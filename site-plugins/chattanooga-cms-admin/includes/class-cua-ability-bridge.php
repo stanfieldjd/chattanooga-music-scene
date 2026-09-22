@@ -75,7 +75,13 @@ final class CUA_Ability_Bridge {
 			return;
 		}
 
-		foreach ( wp_get_abilities() as $ability ) {
+		try {
+			$abilities = wp_get_abilities();
+		} catch ( Throwable $error ) {
+			return;
+		}
+
+		foreach ( $abilities as $ability ) {
 			try {
 				if ( ! $ability instanceof WP_Ability || ! self::is_bridgeable( $ability ) ) {
 					continue;
@@ -171,7 +177,12 @@ final class CUA_Ability_Bridge {
 		}
 
 		$items = array();
-		foreach ( wp_get_abilities() as $target ) {
+		try {
+			$targets = wp_get_abilities();
+		} catch ( Throwable $error ) {
+			return $items;
+		}
+		foreach ( $targets as $target ) {
 			if ( ! $target instanceof WP_Ability || ! self::is_bridgeable( $target ) ) {
 				continue;
 			}
