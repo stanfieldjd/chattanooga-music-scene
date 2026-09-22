@@ -141,6 +141,12 @@ final class CUA_Ability_Bridge {
 			return new WP_Error( 'cua_catalog_registry_unavailable', 'The WordPress public ability registry is unavailable.' );
 		}
 		$items = self::catalog_items();
+		// A provider may finish populating the registry during the first read.
+		// Re-read once before pagination so discovery observes the settled registry.
+		$second_pass = self::catalog_items();
+		if ( is_array( $second_pass ) ) {
+			$items = array_merge( $items, $second_pass );
+		}
 
 		if ( class_exists( 'CUA_REST_Bridge' ) ) {
 			try {
@@ -153,6 +159,12 @@ final class CUA_Ability_Bridge {
 			}
 		}
 
+		$unique = array();
+		foreach ( $items as $item ) {
+			$key = implode( '|', array( (string) ( $item['contract'] ?? '' ), (string) ( $item['target'] ?? '' ), (string) ( $item['bridge'] ?? '' ) ) );
+			$unique[ $key ] = $item;
+		}
+		$items = array_values( $unique );
 		usort(
 			$items,
 			static function ( $left, $right ) {
