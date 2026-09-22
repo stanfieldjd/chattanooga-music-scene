@@ -168,6 +168,16 @@ final class CUA_Ability_Bridge {
 			$unique[ $key ] = $item;
 		}
 		$items = array_values( $unique );
+		// Reconcile once more after REST discovery; provider registries can settle
+		// while ancillary contracts are being enumerated.
+		$final_ability_items = self::catalog_items();
+		if ( is_array( $final_ability_items ) ) {
+			foreach ( $final_ability_items as $item ) {
+				$key = implode( '|', array( (string) ( $item['contract'] ?? '' ), (string) ( $item['target'] ?? '' ), (string) ( $item['bridge'] ?? '' ) ) );
+				$unique[ $key ] = $item;
+			}
+			$items = array_values( $unique );
+		}
 		usort(
 			$items,
 			static function ( $left, $right ) {
