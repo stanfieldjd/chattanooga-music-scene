@@ -53,12 +53,14 @@ final class CUA_REST_Bridge {
 							'meta'                => self::bridge_meta( $method ),
 						)
 					);
+				}
 				} catch ( Throwable $error ) {
 					// A malformed third-party route must not abort core bridge registration.
 					continue;
 				}
 			}
 		}
+	}
 
 	public static function catalog_items() {
 		$items = array();
