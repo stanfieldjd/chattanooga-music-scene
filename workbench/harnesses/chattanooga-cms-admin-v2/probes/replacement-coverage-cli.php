@@ -89,6 +89,14 @@ add_action(
 	PHP_INT_MAX
 );
 
+// wp-cli eval-file runs after these lifecycle actions have already fired.
+// Replay the fixture registrations, then run the same provider-agnostic
+// reconciliation pass used by the plugin for late contracts.
+do_action( 'wp_abilities_api_init' );
+do_action( 'rest_api_init' );
+CUA_Ability_Bridge::register_external_bridges();
+CUA_REST_Bridge::register_external_bridges();
+
 wp_set_current_user( 1 );
 
 $required_platform = array(
