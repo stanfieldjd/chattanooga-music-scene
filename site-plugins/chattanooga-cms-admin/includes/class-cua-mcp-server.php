@@ -847,9 +847,13 @@ final class CUA_MCP_Server {
 	}
 
 	private static function call_adapter_tool( $name, array $arguments ) {
-		$ability_name = self::adapter_ability_name( $name );
-		$ability = '' !== $ability_name && function_exists( 'wp_get_ability' ) ? wp_get_ability( $ability_name ) : null;
-		if ( ! $ability instanceof WP_Ability || ! self::ability_is_mcp_public( $ability ) ) { return new WP_Error( 'cmsa_adapter_tool_not_found', 'The requested adapter tool is not available.' ); }
+		try {
+			$ability_name = self::adapter_ability_name( $name );
+			$ability = '' !== $ability_name && function_exists( 'wp_get_ability' ) ? wp_get_ability( $ability_name ) : null;
+			if ( ! $ability instanceof WP_Ability || ! self::ability_is_mcp_public( $ability ) ) { return new WP_Error( 'cmsa_adapter_tool_not_found', 'The requested adapter tool is not available.' ); }
+		} catch ( Throwable $error ) {
+			return new WP_Error( 'cmsa_adapter_resolution_exception', 'The requested adapter ability could not be resolved safely.' );
+		}
 		try {
 			$permission = $ability->check_permissions( $arguments );
 		} catch ( Throwable $error ) {
@@ -881,8 +885,13 @@ final class CUA_MCP_Server {
 	public static function execute_adapter_ability( $input = array() ) {
 		$name = is_array( $input ) && isset( $input['name'] ) ? trim( (string) $input['name'] ) : '';
 		$arguments = is_array( $input ) && isset( $input['input'] ) && is_array( $input['input'] ) ? $input['input'] : array();
-		$ability = function_exists( 'wp_get_ability' ) ? wp_get_ability( $name ) : null;
-		if ( $ability instanceof WP_Ability && self::ability_is_mcp_public( $ability ) && ! in_array( $name, self::adapter_ability_names(), true ) ) {
+		try {
+			$ability = function_exists( 'wp_get_ability' ) ? wp_get_ability( $name ) : null;
+			$is_public_target = $ability instanceof WP_Ability && self::ability_is_mcp_public( $ability ) && ! in_array( $name, self::adapter_ability_names(), true );
+		} catch ( Throwable $error ) {
+			return new WP_Error( 'cmsa_adapter_resolution_exception', 'The requested WordPress ability could not be resolved safely.' );
+		}
+		if ( $is_public_target ) {
 			try {
 				$permission = $ability->check_permissions( $arguments );
 			} catch ( Throwable $error ) {
@@ -1069,7 +1078,11 @@ final class CUA_MCP_Server {
 			return self::call_adapter_tool( $name, $arguments );
 		}
 
-		$ability = self::ability_for_tool( $name );
+		try {
+			$ability = self::ability_for_tool( $name );
+		} catch ( Throwable $error ) {
+			return new WP_Error( 'cmsa_mcp_tool_resolution_exception', 'The requested MCP tool could not be resolved safely.' );
+		}
 		if ( ! $ability instanceof WP_Ability ) {
 			return new WP_Error( 'cmsa_mcp_tool_not_found', 'The requested MCP tool is not available.' );
 		}
