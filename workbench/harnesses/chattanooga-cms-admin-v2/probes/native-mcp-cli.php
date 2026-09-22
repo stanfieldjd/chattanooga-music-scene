@@ -233,8 +233,8 @@ cmsa_native_mcp_assert( count( $names ) === 4, 'MCP tools/list returned an unexp
 
 $expected_names = array(
 	'cmsa.discovery',
-	'cmsa.read-bridge',
 	'cmsa.stability-check',
+	'cmsa.read-bridge',
 	'cmsa.write-bridge',
 );
 cmsa_native_mcp_assert( $expected_names === $names, 'MCP tools/list does not match the bounded deterministic core tool set: ' . wp_json_encode( $names ) );
