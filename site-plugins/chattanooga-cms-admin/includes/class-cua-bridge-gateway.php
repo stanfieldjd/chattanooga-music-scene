@@ -80,22 +80,27 @@ final class CUA_Bridge_Gateway {
 			return $resolved;
 		}
 
-		if ( 'rest' === $resolved['contract'] ) {
-			$result = CUA_REST_Bridge::execute_bridge( $resolved['bridge'], $resolved['arguments'] );
-			if ( is_wp_error( $result ) ) {
-				return $result;
+		try {
+			if ( 'rest' === $resolved['contract'] ) {
+				$result = CUA_REST_Bridge::execute_bridge( $resolved['bridge'], $resolved['arguments'] );
+				if ( is_wp_error( $result ) ) {
+					return $result;
+				}
+
+				return array(
+					'bridge' => $resolved['bridge'],
+					'result' => $result,
+				);
 			}
 
-			return array(
-				'bridge' => $resolved['bridge'],
-				'result' => $result,
+			$result = CUA_Ability_Bridge::execute_target(
+				$resolved['target'],
+				$resolved['has_arguments'] ? $resolved['arguments'] : null
 			);
+		} catch ( Throwable $error ) {
+			return new WP_Error( 'cua_bridge_gateway_exception', 'The selected bridge failed during execution.' );
 		}
 
-		$result = CUA_Ability_Bridge::execute_target(
-			$resolved['target'],
-			$resolved['has_arguments'] ? $resolved['arguments'] : null
-		);
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}
