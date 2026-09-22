@@ -90,10 +90,28 @@ function cmsa_mcp_redteam_tool( $name, array $arguments = array() ) {
 }
 
 function cmsa_mcp_redteam_catalog() {
-	$result = cmsa_mcp_redteam_tool( 'cmsa.catalog', array() );
-	$catalog = $result['structuredContent'] ?? null;
-	cmsa_mcp_redteam_assert( is_array( $catalog ) && isset( $catalog['items'] ) && is_array( $catalog['items'] ), 'MCP catalog returned no items.' );
-	return $catalog['items'];
+	$items = array();
+	$cursor = 0;
+	for ( $page = 0; $page < 100; $page++ ) {
+		$result = cmsa_mcp_redteam_tool(
+			'cmsa.discovery',
+			array(
+				'cursor' => $cursor,
+				'limit'  => 100,
+			)
+		);
+		$manifest = $result['structuredContent'] ?? null;
+		$gateway = is_array( $manifest ) ? ( $manifest['catalogGateway'] ?? null ) : null;
+		cmsa_mcp_redteam_assert( is_array( $gateway ) && isset( $gateway['items'] ) && is_array( $gateway['items'] ), 'MCP discovery returned no catalog items.' );
+		$items = array_merge( $items, $gateway['items'] );
+		$next_cursor = $gateway['nextCursor'] ?? null;
+		if ( null === $next_cursor ) {
+			return $items;
+		}
+		cmsa_mcp_redteam_assert( is_numeric( $next_cursor ) && (int) $next_cursor > $cursor, 'MCP discovery cursor did not advance.' );
+		$cursor = (int) $next_cursor;
+	}
+	cmsa_mcp_redteam_fail( 'MCP discovery exceeded the cursor safety limit.' );
 }
 
 function cmsa_mcp_redteam_find_ability( array $catalog, $target ) {
@@ -170,7 +188,7 @@ foreach ( $tools as $tool ) {
 		$tool_names[] = (string) $tool['name'];
 	}
 }
-foreach ( array( 'cmsa.catalog', 'cmsa.stability-check' ) as $required_tool ) {
+foreach ( array( 'cmsa.discovery', 'cmsa.stability-check', 'cmsa.read-bridge', 'cmsa.write-bridge' ) as $required_tool ) {
 	cmsa_mcp_redteam_assert( in_array( $required_tool, $tool_names, true ), 'Required bounded MCP tool is missing: ' . $required_tool );
 }
 
