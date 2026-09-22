@@ -234,60 +234,29 @@ sort( $sorted_names, SORT_STRING );
 cmsa_native_mcp_assert( $names === $sorted_names, 'MCP tools/list is not deterministic.' );
 
 $expected_names = array(
-	'cmsa.activate-plugin',
-	'cmsa.catalog',
-	'cmsa.clear-cache',
-	'cmsa.create-backup',
-	'cmsa.deactivate-plugin',
-	'cmsa.delete-plugin',
-	'cmsa.delete-theme',
 	'cmsa.discovery',
-	'cmsa.get-audit-log',
-	'cmsa.get-health',
-	'cmsa.get-registered-setting',
-	'cmsa.install-plugin',
-	'cmsa.install-plugin-package',
-	'cmsa.install-theme',
-	'cmsa.list-backups',
-	'cmsa.list-plugins',
-	'cmsa.list-registered-settings',
-	'cmsa.list-themes',
-	'cmsa.list-updates',
 	'cmsa.read-bridge',
-	'cmsa.restore-component-backup',
-	'cmsa.restore-core-backup',
-	'cmsa.restore-database-backup',
-	'cmsa.set-plugin-auto-update',
-	'cmsa.set-theme-auto-update',
 	'cmsa.stability-check',
-	'cmsa.switch-theme',
-	'cmsa.uninstall-plugin',
-	'cmsa.update-core',
-	'cmsa.update-plugin',
-	'cmsa.update-registered-setting',
-	'cmsa.update-theme',
-	'cmsa.verify-backup',
 	'cmsa.write-bridge',
 );
 cmsa_native_mcp_assert( $expected_names === $names, 'MCP tools/list does not match the bounded deterministic core tool set: ' . wp_json_encode( $names ) );
 foreach ( $names as $name ) {
 	cmsa_native_mcp_assert( ! preg_match( '/^cmsa\\.(?:bridge|rest)-[a-f0-9]{24}$/', $name ), 'Generated universal facade leaked into MCP tools/list: ' . $name );
 }
-$catalog_tool = cmsa_native_mcp_tool( $tools, 'cmsa.catalog' );
+$discovery_tool = cmsa_native_mcp_tool( $tools, 'cmsa.discovery' );
 $stability_tool = cmsa_native_mcp_tool( $tools, 'cmsa.stability-check' );
-$get_health_tool = cmsa_native_mcp_tool( $tools, 'cmsa.get-health' );
-cmsa_native_mcp_assert( is_array( $catalog_tool ), 'Catalog tool is missing from bounded tools/list.' );
-cmsa_native_mcp_assert( is_array( $stability_tool ), 'Stability tool is missing from bounded tools/list.' );
-cmsa_native_mcp_assert( is_array( $get_health_tool ), 'Health tool is missing from bounded tools/list.' );
-cmsa_native_mcp_assert( true === ( $catalog_tool['annotations']['readOnlyHint'] ?? null ), 'catalog is not annotated read-only.' );
-cmsa_native_mcp_assert( false === ( $catalog_tool['annotations']['openWorldHint'] ?? null ), 'catalog is incorrectly annotated open-world.' );
+$read_bridge_tool = cmsa_native_mcp_tool( $tools, 'cmsa.read-bridge' );
+$write_bridge_tool = cmsa_native_mcp_tool( $tools, 'cmsa.write-bridge' );
+foreach ( array( $discovery_tool, $stability_tool, $read_bridge_tool, $write_bridge_tool ) as $gateway_tool ) {
+	cmsa_native_mcp_assert( is_array( $gateway_tool ), 'A stable gateway tool is missing from bounded tools/list.' );
+	cmsa_native_mcp_assert( ( $gateway_tool['securitySchemes'] ?? null ) === ( $gateway_tool['_meta']['securitySchemes'] ?? null ), 'Tool security schemes are not mirrored into _meta.' );
+}
+cmsa_native_mcp_assert( true === ( $discovery_tool['annotations']['readOnlyHint'] ?? null ), 'discovery is not annotated read-only.' );
+cmsa_native_mcp_assert( false === ( $discovery_tool['annotations']['openWorldHint'] ?? null ), 'discovery is incorrectly annotated open-world.' );
 cmsa_native_mcp_assert( true === ( $stability_tool['annotations']['readOnlyHint'] ?? null ), 'stability-check is not annotated read-only.' );
 cmsa_native_mcp_assert( false === ( $stability_tool['annotations']['destructiveHint'] ?? null ), 'stability-check is incorrectly destructive.' );
 cmsa_native_mcp_assert( false === ( $stability_tool['annotations']['openWorldHint'] ?? null ), 'stability-check is incorrectly annotated open-world.' );
-cmsa_native_mcp_assert( true === ( $get_health_tool['annotations']['readOnlyHint'] ?? null ), 'get-health is not annotated read-only.' );
-cmsa_native_mcp_assert( false === ( $get_health_tool['annotations']['openWorldHint'] ?? null ), 'get-health is incorrectly annotated open-world.' );
-cmsa_native_mcp_assert( ( $catalog_tool['securitySchemes'] ?? null ) === ( $catalog_tool['_meta']['securitySchemes'] ?? null ), 'Tool security schemes are not mirrored into _meta.' );
-$catalog_security = $catalog_tool['securitySchemes'][0] ?? null;
+$catalog_security = $discovery_tool['securitySchemes'][0] ?? null;
 cmsa_native_mcp_assert( is_array( $catalog_security ) && 'oauth2' === ( $catalog_security['type'] ?? '' ), 'MCP tools do not advertise OAuth 2.0 to ChatGPT.' );
 cmsa_native_mcp_assert( array( CUA_OAuth_Server::SCOPE ) === ( $catalog_security['scopes'] ?? null ), 'MCP OAuth tool scope is not the administrator scope.' );
 cmsa_native_mcp_assert( 30000 === ( $resources_data['result']['ttlMs'] ?? null ) && 'private' === ( $resources_data['result']['cacheScope'] ?? '' ), 'resources/list cache hints are incomplete.' );
@@ -298,7 +267,7 @@ cmsa_native_mcp_assert( 30000 === ( $prompts_data['result']['ttlMs'] ?? null ) &
 $catalog = cmsa_native_mcp_modern(
 	'tools/call',
 	array(
-		'name'      => 'cmsa.catalog',
+		'name'      => 'cmsa.discovery',
 		'arguments' => array(),
 	),
 	103,
@@ -308,7 +277,7 @@ cmsa_native_mcp_assert( 200 === $catalog->get_status(), 'MCP catalog tool call d
 $catalog_data = $catalog->get_data();
 cmsa_native_mcp_assert( 'complete' === ( $catalog_data['result']['resultType'] ?? '' ), 'MCP tool call omitted complete resultType.' );
 cmsa_native_mcp_assert( false === ( $catalog_data['result']['isError'] ?? true ), 'MCP catalog returned a tool error.' );
-cmsa_native_mcp_assert( is_array( $catalog_data['result']['structuredContent']['items'] ?? null ), 'MCP catalog did not return bridgeable site-operation items.' );
+cmsa_native_mcp_assert( is_array( $catalog_data['result']['structuredContent']['catalogGateway']['items'] ?? null ), 'MCP catalog did not return bridgeable site-operation items.' );
 
 // The MCP boundary is explicitly audited without retaining request bodies,
 // tool arguments, responses, credentials, or raw session identifiers.
@@ -318,7 +287,7 @@ $audit_result = $audit_ability->execute( array( 'limit' => 100 ) );
 cmsa_native_mcp_assert( is_array( $audit_result['entries'] ?? null ), 'MCP audit log did not return entries.' );
 $mcp_audit = null;
 foreach ( $audit_result['entries'] as $entry ) {
-	if ( is_array( $entry ) && 'mcp' === ( $entry['surface'] ?? '' ) && 'tools/call' === ( $entry['method'] ?? '' ) && 'cmsa.catalog' === ( $entry['tool'] ?? '' ) && 'success' === ( $entry['outcome'] ?? '' ) ) {
+	if ( is_array( $entry ) && 'mcp' === ( $entry['surface'] ?? '' ) && 'tools/call' === ( $entry['method'] ?? '' ) && 'cmsa.discovery' === ( $entry['tool'] ?? '' ) && 'success' === ( $entry['outcome'] ?? '' ) ) {
 		$mcp_audit = $entry;
 		break;
 	}
@@ -391,7 +360,7 @@ cmsa_native_mcp_assert( 200 === $anonymous_list->get_status(), 'Anonymous modern
 $anonymous_list_data = $anonymous_list->get_data();
 $anonymous_tools = $anonymous_list_data['result']['tools'] ?? array();
 cmsa_native_mcp_assert( is_array( $anonymous_tools ) && ! empty( $anonymous_tools ), 'Anonymous tools/list returned no tool metadata.' );
-$anonymous_catalog_tool = cmsa_native_mcp_tool( $anonymous_tools, 'cmsa.catalog' );
+$anonymous_catalog_tool = cmsa_native_mcp_tool( $anonymous_tools, 'cmsa.discovery' );
 cmsa_native_mcp_assert( is_array( $anonymous_catalog_tool ), 'Anonymous tools/list did not expose the catalog tool descriptor.' );
 cmsa_native_mcp_assert( 'oauth2' === ( $anonymous_catalog_tool['securitySchemes'][0]['type'] ?? '' ), 'Anonymous tools/list did not advertise OAuth 2.0.' );
 cmsa_native_mcp_assert( array( CUA_OAuth_Server::SCOPE ) === ( $anonymous_catalog_tool['securitySchemes'][0]['scopes'] ?? null ), 'Anonymous tools/list advertised the wrong OAuth scope.' );
@@ -399,7 +368,7 @@ cmsa_native_mcp_assert( array( CUA_OAuth_Server::SCOPE ) === ( $anonymous_catalo
 $anonymous_call = cmsa_native_mcp_modern(
 	'tools/call',
 	array(
-		'name'      => 'cmsa.catalog',
+		'name'      => 'cmsa.discovery',
 		'arguments' => array(),
 	),
 	109
