@@ -230,11 +230,15 @@ final class CUA_Ability_Bridge {
 			return $guard;
 		}
 
-		if ( is_array( $target->get_input_schema() ) ) {
-			return $target->check_permissions( $input );
-		}
+		try {
+			if ( is_array( $target->get_input_schema() ) ) {
+				return $target->check_permissions( $input );
+			}
 
-		return $target->check_permissions();
+			return $target->check_permissions();
+		} catch ( Throwable $error ) {
+			return new WP_Error( 'cua_target_permission_exception', 'The discovered target permission check failed.' );
+		}
 	}
 
 	public static function execute_target( $target_name, $input = null ) {
@@ -247,24 +251,28 @@ final class CUA_Ability_Bridge {
 			return new WP_Error( 'cua_target_forbidden', 'The current user is not permitted to use the universal administration bridge.' );
 		}
 
-		$guard = self::guard_target( $target, $input );
-		if ( is_wp_error( $guard ) ) {
-			return $guard;
-		}
-		if ( false === $guard ) {
-			return new WP_Error( 'cua_target_forbidden', 'The control-plane guard denied the current request.' );
-		}
+		try {
+			$guard = self::guard_target( $target, $input );
+			if ( is_wp_error( $guard ) ) {
+				return $guard;
+			}
+			if ( false === $guard ) {
+				return new WP_Error( 'cua_target_forbidden', 'The control-plane guard denied the current request.' );
+			}
 
-		$has_input = is_array( $target->get_input_schema() );
-		$permission = $has_input ? $target->check_permissions( $input ) : $target->check_permissions();
-		if ( is_wp_error( $permission ) ) {
-			return $permission;
-		}
-		if ( ! $permission ) {
-			return new WP_Error( 'cua_target_forbidden', 'The target ability denied the current request.' );
-		}
+			$has_input = is_array( $target->get_input_schema() );
+			$permission = $has_input ? $target->check_permissions( $input ) : $target->check_permissions();
+			if ( is_wp_error( $permission ) ) {
+				return $permission;
+			}
+			if ( ! $permission ) {
+				return new WP_Error( 'cua_target_forbidden', 'The target ability denied the current request.' );
+			}
 
-		return $has_input ? $target->execute( $input ) : $target->execute();
+			return $has_input ? $target->execute( $input ) : $target->execute();
+		} catch ( Throwable $error ) {
+			return new WP_Error( 'cua_target_execution_exception', 'The discovered target execution failed.' );
+		}
 	}
 
 	private static function guard_target( WP_Ability $target, $input ) {
