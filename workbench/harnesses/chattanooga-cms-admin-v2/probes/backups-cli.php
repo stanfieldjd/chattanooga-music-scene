@@ -178,7 +178,7 @@ foreach ( $state_b as $index => $expected ) {
 	}
 }
 
-$good_restore = $restore->execute( array( 'id' => $good['id'] ) );
+$good_restore = $restore->execute( array( 'id' => $good['id'], 'confirm_restore' => true ) );
 if ( is_wp_error( $good_restore ) || empty( $good_restore['restored'] ) || empty( $good_restore['rollback_backup_id'] ) || empty( $good_restore['tables_verified'] ) ) {
 	fwrite( STDERR, 'Verified database restore failed: ' . ( is_wp_error( $good_restore ) ? $good_restore->get_error_code() . ' ' . $good_restore->get_error_message() : 'invalid result' ) . "\n" );
 	exit( 1 );
