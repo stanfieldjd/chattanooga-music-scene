@@ -1066,8 +1066,12 @@ final class CUA_MCP_Server {
 			return new WP_Error( 'cmsa_mcp_invalid_tool_arguments', 'Tool arguments must be a JSON object.' );
 		}
 
-		$has_input = is_array( $ability->get_input_schema() );
-		$permission = $has_input ? $ability->check_permissions( $arguments ) : $ability->check_permissions();
+		try {
+			$has_input = is_array( $ability->get_input_schema() );
+			$permission = $has_input ? $ability->check_permissions( $arguments ) : $ability->check_permissions();
+		} catch ( Throwable $error ) {
+			return new WP_Error( 'cmsa_mcp_permission_exception', 'The selected WordPress ability permission check failed.' );
+		}
 		if ( is_wp_error( $permission ) ) {
 			return $permission;
 		}
