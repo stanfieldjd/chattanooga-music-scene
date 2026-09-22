@@ -64,7 +64,7 @@ function cmsa_v2_rm_ability( $target ) {
 		$direct = wp_get_ability( $target );
 		cmsa_v2_rm_fail(
 			sprintf(
-				'Expected one bridged Rank Math ability for %1$s; found %2$d. direct=%3$s init=%4$d abilities_init=%5$d class=%6$s file=%7$s rank_math_ability_hooks=%8$d rank_math_category_hooks=%9$d meta=%10$s input_schema=%11$s output_schema=%12$s expected_bridge=%13$s direct_bridge=%14$s',
+				'Expected one bridged Rank Math ability for %1$s; found %2$d. direct=%3$s init=%4$d abilities_init=%5$d class=%6$s file=%7$s rank_math_ability_hooks=%8$d rank_math_category_hooks=%9$d meta=%10$s input_schema=%11$s output_schema=%12$s expected_bridge=%13$s direct_bridge=%14$s registry_target=%15$s catalog_target=%16$s',
 				$target,
 				count( $matches ),
 				$direct instanceof WP_Ability ? 'present' : 'absent',
@@ -78,7 +78,9 @@ function cmsa_v2_rm_ability( $target ) {
 				$direct instanceof WP_Ability ? wp_json_encode( $direct->get_input_schema() ) : 'n/a',
 				$direct instanceof WP_Ability ? wp_json_encode( $direct->get_output_schema() ) : 'n/a',
 				'chattanooga-cms-admin/bridge-' . substr( hash( 'sha256', $target ), 0, 24 ),
-				wp_get_ability( 'chattanooga-cms-admin/bridge-' . substr( hash( 'sha256', $target ), 0, 24 ) ) instanceof WP_Ability ? 'present' : 'absent'
+				wp_get_ability( 'chattanooga-cms-admin/bridge-' . substr( hash( 'sha256', $target ), 0, 24 ) ) instanceof WP_Ability ? 'present' : 'absent',
+				isset( wp_get_abilities()[ $target ] ) ? 'present' : 'absent',
+				count( array_filter( CUA_Ability_Bridge::catalog_items(), static function ( $item ) use ( $target ) { return $target === ( $item['target'] ?? '' ); } ) )
 			)
 		);
 	}
