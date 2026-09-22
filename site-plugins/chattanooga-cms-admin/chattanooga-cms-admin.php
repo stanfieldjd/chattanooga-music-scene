@@ -60,5 +60,7 @@ add_action( 'wp_abilities_api_init', array( 'CUA_Platform_Settings', 'register_a
 add_action( 'wp_abilities_api_init', array( 'CUA_MCP_Server', 'register_adapter_abilities' ), 9997 );
 add_action( 'wp_abilities_api_init', array( 'CUA_REST_Bridge', 'register_external_bridges' ), 9998 );
 add_action( 'wp_abilities_api_init', array( 'CUA_Ability_Bridge', 'register_external_bridges' ), 9999 );
+add_action( 'wp_loaded', array( 'CUA_REST_Bridge', 'register_external_bridges' ), 9998 );
+add_action( 'wp_loaded', array( 'CUA_Ability_Bridge', 'register_external_bridges' ), 9999 );
 add_action( 'rest_api_init', array( 'CUA_MCP_Server', 'register_route' ) );
 add_action( 'rest_api_init', array( 'CUA_MCP_Diagnostics', 'register_routes' ), 20 );
