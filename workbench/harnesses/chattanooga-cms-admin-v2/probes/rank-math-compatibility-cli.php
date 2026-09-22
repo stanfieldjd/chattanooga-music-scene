@@ -64,7 +64,7 @@ function cmsa_v2_rm_ability( $target ) {
 		$direct = wp_get_ability( $target );
 		cmsa_v2_rm_fail(
 			sprintf(
-				'Expected one bridged Rank Math ability for %1$s; found %2$d. direct=%3$s init=%4$d abilities_init=%5$d class=%6$s file=%7$s rank_math_ability_hooks=%8$d rank_math_category_hooks=%9$d',
+				'Expected one bridged Rank Math ability for %1$s; found %2$d. direct=%3$s init=%4$d abilities_init=%5$d class=%6$s file=%7$s rank_math_ability_hooks=%8$d rank_math_category_hooks=%9$d meta=%10$s input_schema=%11$s output_schema=%12$s',
 				$target,
 				count( $matches ),
 				$direct instanceof WP_Ability ? 'present' : 'absent',
@@ -73,7 +73,10 @@ function cmsa_v2_rm_ability( $target ) {
 				class_exists( 'RankMath\\Abilities\\Abilities' ) ? 'present' : 'absent',
 				file_exists( WP_PLUGIN_DIR . '/seo-by-rank-math/includes/abilities/class-abilities.php' ) ? 'present' : 'absent',
 				cmsa_v2_rm_rank_math_hook_count( 'wp_abilities_api_init' ),
-				cmsa_v2_rm_rank_math_hook_count( 'wp_abilities_api_categories_init' )
+				cmsa_v2_rm_rank_math_hook_count( 'wp_abilities_api_categories_init' ),
+				$direct instanceof WP_Ability ? wp_json_encode( $direct->get_meta() ) : 'n/a',
+				$direct instanceof WP_Ability ? wp_json_encode( $direct->get_input_schema() ) : 'n/a',
+				$direct instanceof WP_Ability ? wp_json_encode( $direct->get_output_schema() ) : 'n/a'
 			)
 		);
 	}
