@@ -229,9 +229,7 @@ foreach ( $tools as $tool ) {
 	cmsa_native_mcp_assert( ( $tool['securitySchemes'] ?? null ) === ( $tool['_meta']['securitySchemes'] ?? null ), 'A listed MCP tool does not mirror securitySchemes into _meta.' );
 	$names[] = (string) $tool['name'];
 }
-$sorted_names = $names;
-sort( $sorted_names, SORT_STRING );
-cmsa_native_mcp_assert( $names === $sorted_names, 'MCP tools/list is not deterministic.' );
+cmsa_native_mcp_assert( $names === $expected_names, 'MCP tools/list order or contents are not deterministic.' );
 
 $expected_names = array(
 	'cmsa.discovery',
