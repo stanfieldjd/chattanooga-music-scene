@@ -664,14 +664,33 @@ final class CUA_MCP_Diagnostics {
 	private static function allow_public_request( $bucket, $limit ) {
 		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : 'unknown';
 		$key = 'cua_public_rate_' . substr( hash( 'sha256', (string) $bucket . '|' . $ip ), 0, 40 );
-		$record = get_transient( $key );
-		$record = is_array( $record ) ? $record : array( 'count' => 0 );
-		if ( (int) ( $record['count'] ?? 0 ) >= (int) $limit ) {
-			return false;
+		$lock_key = $key . '_lock';
+		$lock_acquired = false;
+
+		// Persistent object caches can provide an atomic short lock across
+		// concurrent requests. Without one, retain the transient fallback but
+		// report only best-effort rate limiting rather than implying strictness.
+		if ( function_exists( 'wp_using_ext_object_cache' ) && wp_using_ext_object_cache() && function_exists( 'wp_cache_add' ) ) {
+			$lock_acquired = wp_cache_add( $lock_key, 1, 'chattanooga-cms-admin-rate', 5 );
+			if ( ! $lock_acquired ) {
+				return false;
+			}
 		}
-		$record['count'] = (int) ( $record['count'] ?? 0 ) + 1;
-		set_transient( $key, $record, MINUTE_IN_SECONDS );
-		return true;
+
+		try {
+			$record = get_transient( $key );
+			$record = is_array( $record ) ? $record : array( 'count' => 0 );
+			if ( (int) ( $record['count'] ?? 0 ) >= (int) $limit ) {
+				return false;
+			}
+			$record['count'] = (int) ( $record['count'] ?? 0 ) + 1;
+			set_transient( $key, $record, MINUTE_IN_SECONDS );
+			return true;
+		} finally {
+			if ( $lock_acquired && function_exists( 'wp_cache_delete' ) ) {
+				wp_cache_delete( $lock_key, 'chattanooga-cms-admin-rate' );
+			}
+		}
 	}
 
 	private static function rate_limited_response() {
