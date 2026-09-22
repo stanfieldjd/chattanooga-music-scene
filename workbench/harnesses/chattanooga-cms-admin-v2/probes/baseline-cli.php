@@ -183,7 +183,7 @@ if ( is_wp_error( $gateway_mcp_result ) || 'mcp-only' !== ( $gateway_mcp_result[
 }
 
 $rest = wp_get_ability( $rest_bridge );
-$rest_input = array( 'path' => '/comet-fixture/v1/marker/29', 'params' => array() );
+$rest_input = array( 'path' => '/comet-fixture/v1/marker/29', 'params' => array( 'id' => 29 ) );
 if ( ! $rest instanceof WP_Ability || true !== $rest->check_permissions( $rest_input ) ) {
 	fwrite( STDERR, "REST facade permission failed.\n" );
 	exit( 1 );
