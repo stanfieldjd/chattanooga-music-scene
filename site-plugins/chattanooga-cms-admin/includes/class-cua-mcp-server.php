@@ -1406,7 +1406,11 @@ final class CUA_MCP_Server {
 		$permission = $ability->check_permissions( $arguments );
 		if ( is_wp_error( $permission ) ) { return $permission; }
 		if ( ! $permission ) { return new WP_Error( 'cmsa_mcp_tool_forbidden', 'The selected adapter ability denied this request.' ); }
-		$result = $ability->execute( $arguments );
+		try {
+			$result = $ability->execute( $arguments );
+		} catch ( Throwable $error ) {
+			return new WP_Error( 'cmsa_adapter_tool_exception', 'The selected adapter ability failed during execution.' );
+		}
 		return is_wp_error( $result ) ? $result : self::tool_success_result( $result );
 	}
 
