@@ -117,67 +117,75 @@ final class CUA_REST_Bridge {
 	}
 
 	public static function target_permission( $route_regex, $method, array $handler, array $input ) {
-		if ( ! current_user_can( 'manage_options' ) ) {
-			return false;
-		}
+		try {
+			if ( ! current_user_can( 'manage_options' ) ) {
+				return false;
+			}
 
-		$request = self::build_request( $route_regex, $method, $handler, $input );
-		if ( is_wp_error( $request ) ) {
-			return $request;
-		}
+			$request = self::build_request( $route_regex, $method, $handler, $input );
+			if ( is_wp_error( $request ) ) {
+				return $request;
+			}
 
-		$prepared = self::validate_and_guard_request( $request, $method );
-		if ( is_wp_error( $prepared ) || false === $prepared ) {
-			return $prepared;
-		}
+			$prepared = self::validate_and_guard_request( $request, $method );
+			if ( is_wp_error( $prepared ) || false === $prepared ) {
+				return $prepared;
+			}
 
-		if ( empty( $handler['permission_callback'] ) || ! is_callable( $handler['permission_callback'] ) ) {
-			return false;
-		}
+			if ( empty( $handler['permission_callback'] ) || ! is_callable( $handler['permission_callback'] ) ) {
+				return false;
+			}
 
-		return call_user_func( $handler['permission_callback'], $request );
+			return call_user_func( $handler['permission_callback'], $request );
+		} catch ( Throwable $error ) {
+			return new WP_Error( 'cua_rest_permission_exception', 'The discovered REST permission check failed.' );
+		}
 	}
 
 	public static function execute_route( $route_regex, $method, array $input ) {
-		if ( ! current_user_can( 'manage_options' ) ) {
-			return new WP_Error( 'cua_rest_forbidden', 'The current user is not permitted to use the universal administration bridge.' );
-		}
+		try {
+			if ( ! current_user_can( 'manage_options' ) ) {
+				return new WP_Error( 'cua_rest_forbidden', 'The current user is not permitted to use the universal administration bridge.' );
+			}
 
-		$server = function_exists( 'rest_get_server' ) ? rest_get_server() : null;
-		if ( ! $server instanceof WP_REST_Server ) {
-			return new WP_Error( 'cua_rest_unavailable', 'The WordPress REST server is unavailable.' );
-		}
+			$server = function_exists( 'rest_get_server' ) ? rest_get_server() : null;
+			if ( ! $server instanceof WP_REST_Server ) {
+				return new WP_Error( 'cua_rest_unavailable', 'The WordPress REST server is unavailable.' );
+			}
 
-		$handler = self::find_live_handler( $server, $route_regex, $method );
-		if ( is_wp_error( $handler ) ) {
-			return $handler;
-		}
+			$handler = self::find_live_handler( $server, $route_regex, $method );
+			if ( is_wp_error( $handler ) ) {
+				return $handler;
+			}
 
-		$request = self::build_request( $route_regex, $method, $handler, $input );
-		if ( is_wp_error( $request ) ) {
-			return $request;
-		}
+			$request = self::build_request( $route_regex, $method, $handler, $input );
+			if ( is_wp_error( $request ) ) {
+				return $request;
+			}
 
-		$prepared = self::validate_and_guard_request( $request, $method );
-		if ( is_wp_error( $prepared ) ) {
-			return $prepared;
-		}
-		if ( false === $prepared ) {
-			return new WP_Error( 'cua_rest_forbidden', 'The control-plane guard denied the current REST request.' );
-		}
+			$prepared = self::validate_and_guard_request( $request, $method );
+			if ( is_wp_error( $prepared ) ) {
+				return $prepared;
+			}
+			if ( false === $prepared ) {
+				return new WP_Error( 'cua_rest_forbidden', 'The control-plane guard denied the current REST request.' );
+			}
 
-		$response = rest_do_request( $request );
-		if ( ! $response instanceof WP_REST_Response ) {
-			return new WP_Error( 'cua_rest_invalid_response', 'The registered REST endpoint did not return a WordPress REST response.' );
-		}
-		if ( $response->is_error() ) {
-			return $response->as_error();
-		}
+			$response = rest_do_request( $request );
+			if ( ! $response instanceof WP_REST_Response ) {
+				return new WP_Error( 'cua_rest_invalid_response', 'The registered REST endpoint did not return a WordPress REST response.' );
+			}
+			if ( $response->is_error() ) {
+				return $response->as_error();
+			}
 
-		return array(
-			'status' => (int) $response->get_status(),
-			'data'   => $response->get_data(),
-		);
+			return array(
+				'status' => (int) $response->get_status(),
+				'data'   => $response->get_data(),
+			);
+		} catch ( Throwable $error ) {
+			return new WP_Error( 'cua_rest_execution_exception', 'The discovered REST execution failed.' );
+		}
 	}
 
 	private static function live_bridges() {
