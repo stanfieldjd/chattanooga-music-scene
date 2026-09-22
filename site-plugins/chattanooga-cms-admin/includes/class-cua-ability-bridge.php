@@ -76,9 +76,10 @@ final class CUA_Ability_Bridge {
 		}
 
 		foreach ( wp_get_abilities() as $ability ) {
-			if ( ! $ability instanceof WP_Ability || ! self::is_bridgeable( $ability ) ) {
-				continue;
-			}
+			try {
+				if ( ! $ability instanceof WP_Ability || ! self::is_bridgeable( $ability ) ) {
+					continue;
+				}
 
 			$target_name = $ability->get_name();
 			$bridge_name = self::bridge_name( $target_name );
@@ -109,7 +110,11 @@ final class CUA_Ability_Bridge {
 				$args['output_schema'] = $output_schema;
 			}
 
-			wp_register_ability( $bridge_name, $args );
+				wp_register_ability( $bridge_name, $args );
+			} catch ( Throwable $error ) {
+				// A malformed third-party ability must not abort core bridge registration.
+				continue;
+			}
 		}
 	}
 
