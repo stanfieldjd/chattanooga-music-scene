@@ -313,12 +313,8 @@ final class CUA_Ability_Bridge {
 		}
 
 		$meta = $ability->get_meta();
-		// WordPress public abilities may carry an explicit MCP visibility flag for
-		// native MCP exposure. A false MCP flag must not hide an ability that is
-		// explicitly public through the WordPress Abilities API: this bridge is the
-		// compatibility surface for those public contracts.
-		if ( isset( $meta['mcp'] ) && is_array( $meta['mcp'] ) && true === ( $meta['mcp']['public'] ?? false ) ) {
-			return true;
+		if ( isset( $meta['mcp'] ) && is_array( $meta['mcp'] ) && array_key_exists( 'public', $meta['mcp'] ) && null !== $meta['mcp']['public'] ) {
+			return true === $meta['mcp']['public'];
 		}
 
 		return true === ( $meta['public'] ?? false );
