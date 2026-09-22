@@ -86,7 +86,9 @@ function cmsa_v2_rm_ability( $target ) {
 				wp_get_ability( 'chattanooga-cms-admin/bridge-' . substr( hash( 'sha256', $target ), 0, 24 ) ) instanceof WP_Ability ? 'present' : 'absent',
 				isset( wp_get_abilities()[ $target ] ) ? 'present' : 'absent',
 				count( array_filter( CUA_Ability_Bridge::catalog_items(), static function ( $item ) use ( $target ) { return $target === ( $item['target'] ?? '' ); } ) ),
-				wp_json_encode( array_values( array_filter( cmsa_v2_rm_catalog(), static function ( $item ) use ( $target ) { return $target === ( $item['target'] ?? '' ); } ) ) )
+				wp_json_encode( array_values( array_filter( cmsa_v2_rm_catalog(), static function ( $item ) use ( $target ) { return $target === ( $item['target'] ?? '' ); } ) ) ),
+				wp_json_encode( $direct_catalog_item ),
+				wp_json_encode( $execute_catalog_item )
 			)
 		);
 	}
