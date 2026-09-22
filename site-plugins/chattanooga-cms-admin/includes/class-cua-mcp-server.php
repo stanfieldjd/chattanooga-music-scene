@@ -850,7 +850,11 @@ final class CUA_MCP_Server {
 		$ability_name = self::adapter_ability_name( $name );
 		$ability = '' !== $ability_name && function_exists( 'wp_get_ability' ) ? wp_get_ability( $ability_name ) : null;
 		if ( ! $ability instanceof WP_Ability || ! self::ability_is_mcp_public( $ability ) ) { return new WP_Error( 'cmsa_adapter_tool_not_found', 'The requested adapter tool is not available.' ); }
-		$permission = $ability->check_permissions( $arguments );
+		try {
+			$permission = $ability->check_permissions( $arguments );
+		} catch ( Throwable $error ) {
+			return new WP_Error( 'cmsa_adapter_permission_exception', 'The selected adapter ability permission check failed.' );
+		}
 		if ( is_wp_error( $permission ) ) { return $permission; }
 		if ( ! $permission ) { return new WP_Error( 'cmsa_mcp_tool_forbidden', 'The selected adapter ability denied this request.' ); }
 		try {
@@ -878,7 +882,20 @@ final class CUA_MCP_Server {
 		$name = is_array( $input ) && isset( $input['name'] ) ? trim( (string) $input['name'] ) : '';
 		$arguments = is_array( $input ) && isset( $input['input'] ) && is_array( $input['input'] ) ? $input['input'] : array();
 		$ability = function_exists( 'wp_get_ability' ) ? wp_get_ability( $name ) : null;
-		if ( $ability instanceof WP_Ability && self::ability_is_mcp_public( $ability ) && ! in_array( $name, self::adapter_ability_names(), true ) ) { $permission = $ability->check_permissions( $arguments ); if ( is_wp_error( $permission ) ) { return $permission; } if ( ! $permission ) { return new WP_Error( 'cmsa_mcp_tool_forbidden', 'The selected WordPress ability denied this request.' ); } return $ability->execute( $arguments ); }
+		if ( $ability instanceof WP_Ability && self::ability_is_mcp_public( $ability ) && ! in_array( $name, self::adapter_ability_names(), true ) ) {
+			try {
+				$permission = $ability->check_permissions( $arguments );
+			} catch ( Throwable $error ) {
+				return new WP_Error( 'cmsa_adapter_permission_exception', 'The selected WordPress ability permission check failed.' );
+			}
+			if ( is_wp_error( $permission ) ) { return $permission; }
+			if ( ! $permission ) { return new WP_Error( 'cmsa_mcp_tool_forbidden', 'The selected WordPress ability denied this request.' ); }
+			try {
+				return $ability->execute( $arguments );
+			} catch ( Throwable $error ) {
+				return new WP_Error( 'cmsa_adapter_tool_exception', 'The selected WordPress ability failed during execution.' );
+			}
+		}
 		$catalog = class_exists( 'CUA_Ability_Bridge' ) ? CUA_Ability_Bridge::catalog() : array();
 		foreach ( (array) ( $catalog['items'] ?? array() ) as $item ) { if ( is_array( $item ) && $name === (string) ( $item['bridge'] ?? '' ) ) { $readonly = true === ( $item['annotations']['readonly'] ?? null ); return CUA_Bridge_Gateway::execute( array( 'bridge' => $name, 'input' => $arguments ), $readonly ); } }
 		return new WP_Error( 'cmsa_adapter_ability_not_found', 'The requested discovered ability or bridge is not available.' );
