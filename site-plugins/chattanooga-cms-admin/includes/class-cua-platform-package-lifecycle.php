@@ -33,7 +33,7 @@ final class CUA_Platform_Package_Lifecycle {
 			self::PREFIX . 'install-plugin-package',
 			array(
 				'label'               => __( 'Install verified plugin package', 'chattanooga-cms-admin' ),
-				'description'         => __( 'Installs one exact ZIP plugin package after SHA-256, package-root, plugin-file, and version verification. The plugin is left inactive and failed verification is rolled back.', 'chattanooga-cms-admin' ),
+				'description'         => __( 'Installs one exact ZIP plugin package only after byte, identity, version, archive-structure, and independently trusted digest verification. The plugin is left inactive and failed verification is rolled back.', 'chattanooga-cms-admin' ),
 				'category'            => self::CATEGORY,
 				'input_schema'        => self::plugin_package_schema(),
 				'output_schema'       => array( 'type' => 'object' ),
@@ -391,12 +391,48 @@ final class CUA_Platform_Package_Lifecycle {
 			);
 		}
 
+		if ( ! self::trusted_package_digest_allowed( $expected_sha256, $expected_plugin, $expected_version ) ) {
+			return new WP_Error( 'cmsa_plugin_package_untrusted', 'The package digest is not present in the site-configured trusted package allowlist.' );
+		}
+
 		return array(
 			'bytes'            => $bytes,
 			'expected_sha256'  => $expected_sha256,
 			'expected_plugin'  => $expected_plugin,
 			'expected_version' => $expected_version,
 		);
+	}
+
+	/**
+	 * Require an independently configured package digest before accepting a
+	 * caller-supplied ZIP. The filter is intentionally empty by default so a
+	 * caller cannot promote its own expected hash into a trust decision.
+	 *
+	 * Expected format:
+	 * array( 'plugin/file.php@1.2.3' => array( 'sha256hex...' ) )
+	 */
+	private static function trusted_package_digest_allowed( $sha256, $plugin, $version ) {
+		$allowlist = apply_filters( 'chattanooga_cms_admin_trusted_package_digests', array(), $plugin, $version );
+		if ( ! is_array( $allowlist ) ) {
+			return false;
+		}
+
+		$identity = (string) $plugin . '@' . (string) $version;
+		$digests = isset( $allowlist[ $identity ] ) ? $allowlist[ $identity ] : array();
+		if ( is_string( $digests ) ) {
+			$digests = array( $digests );
+		}
+		if ( ! is_array( $digests ) ) {
+			return false;
+		}
+
+		foreach ( $digests as $trusted_digest ) {
+			$trusted_digest = strtolower( trim( (string) $trusted_digest ) );
+			if ( preg_match( '/^[a-f0-9]{64}$/', $trusted_digest ) && hash_equals( $trusted_digest, strtolower( (string) $sha256 ) ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private static function verify_plugin_package_archive( $path, $expected_plugin ) {
