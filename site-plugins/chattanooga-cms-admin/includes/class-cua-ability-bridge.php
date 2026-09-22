@@ -220,9 +220,13 @@ final class CUA_Ability_Bridge {
 	}
 
 	public static function target_permission( $target_name, $input = null ) {
-		$target = function_exists( 'wp_get_ability' ) ? wp_get_ability( $target_name ) : null;
-		if ( ! $target instanceof WP_Ability || ! self::is_bridgeable( $target ) || ! current_user_can( 'manage_options' ) ) {
-			return false;
+		try {
+			$target = function_exists( 'wp_get_ability' ) ? wp_get_ability( $target_name ) : null;
+			if ( ! $target instanceof WP_Ability || ! self::is_bridgeable( $target ) || ! current_user_can( 'manage_options' ) ) {
+				return false;
+			}
+		} catch ( Throwable $error ) {
+			return new WP_Error( 'cua_target_resolution_exception', 'The discovered target could not be resolved safely.' );
 		}
 
 		$guard = self::guard_target( $target, $input );
@@ -242,13 +246,17 @@ final class CUA_Ability_Bridge {
 	}
 
 	public static function execute_target( $target_name, $input = null ) {
-		$target = function_exists( 'wp_get_ability' ) ? wp_get_ability( $target_name ) : null;
-		if ( ! $target instanceof WP_Ability || ! self::is_bridgeable( $target ) ) {
-			return new WP_Error( 'cua_target_unavailable', 'The discovered target ability is no longer available.' );
-		}
+		try {
+			$target = function_exists( 'wp_get_ability' ) ? wp_get_ability( $target_name ) : null;
+			if ( ! $target instanceof WP_Ability || ! self::is_bridgeable( $target ) ) {
+				return new WP_Error( 'cua_target_unavailable', 'The discovered target ability is no longer available.' );
+			}
 
-		if ( ! current_user_can( 'manage_options' ) ) {
-			return new WP_Error( 'cua_target_forbidden', 'The current user is not permitted to use the universal administration bridge.' );
+			if ( ! current_user_can( 'manage_options' ) ) {
+				return new WP_Error( 'cua_target_forbidden', 'The current user is not permitted to use the universal administration bridge.' );
+			}
+		} catch ( Throwable $error ) {
+			return new WP_Error( 'cua_target_resolution_exception', 'The discovered target could not be resolved safely.' );
 		}
 
 		try {
