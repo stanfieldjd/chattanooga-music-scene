@@ -116,8 +116,12 @@ final class CUA_Ability_Bridge {
 				$args['output_schema'] = $output_schema;
 			}
 
-				$registration = wp_register_ability( $bridge_name, $args );
-				if ( is_wp_error( $registration ) || false === $registration ) {
+				try {
+					$registration = wp_register_ability( $bridge_name, $args );
+					if ( is_wp_error( $registration ) || false === $registration ) {
+						throw new RuntimeException( 'The provider facade descriptor was rejected.' );
+					}
+				} catch ( Throwable $registration_error ) {
 					// Some third-party public abilities expose schemas accepted by their
 					// own runtime but rejected by the WordPress registry when reused as a
 					// facade descriptor. Keep the public contract discoverable and let the
