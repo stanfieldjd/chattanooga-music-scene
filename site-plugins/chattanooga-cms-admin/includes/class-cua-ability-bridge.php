@@ -140,9 +140,8 @@ final class CUA_Ability_Bridge {
 		if ( ! function_exists( 'wp_get_abilities' ) ) {
 			return new WP_Error( 'cua_catalog_registry_unavailable', 'The WordPress public ability registry is unavailable.' );
 		}
-		// Providers may register public abilities after the initial registry hook.
-		// Reconcile their bridge descriptors immediately before discovery reads the catalog.
-		self::register_external_bridges();
+		// Discovery is a pure read of the settled WordPress registry.
+		// Provider bridges are registered by the normal lifecycle hook.
 		$items = self::catalog_items();
 
 		if ( class_exists( 'CUA_REST_Bridge' ) ) {
