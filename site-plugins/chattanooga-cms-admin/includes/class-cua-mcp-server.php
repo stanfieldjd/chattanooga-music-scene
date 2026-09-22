@@ -792,7 +792,16 @@ final class CUA_MCP_Server {
 			'chattanooga-cms-admin/mcp-get-ability-info' => array( 'label' => 'Get WordPress ability information', 'description' => 'Get the schema, permissions metadata, and execution identity for one discovered WordPress ability or site-operation bridge.', 'input_schema' => array( 'type' => 'object', 'properties' => array( 'name' => array( 'type' => 'string' ) ), 'required' => array( 'name' ), 'additionalProperties' => false ), 'execute_callback' => array( __CLASS__, 'get_adapter_ability_info' ), 'meta' => array( 'public' => true, 'mcp' => array( 'public' => true ), 'annotations' => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true, 'open_world' => false ) ) ),
 			'chattanooga-cms-admin/mcp-execute-ability' => array( 'label' => 'Execute a WordPress ability', 'description' => 'Execute one previously discovered WordPress ability or site-operation bridge while retaining its own permission callback and Chattanooga control-plane guard.', 'input_schema' => array( 'type' => 'object', 'properties' => array( 'name' => array( 'type' => 'string' ), 'input' => array( 'type' => 'object' ) ), 'required' => array( 'name' ), 'additionalProperties' => false ), 'execute_callback' => array( __CLASS__, 'execute_adapter_ability' ), 'meta' => array( 'public' => true, 'mcp' => array( 'public' => true ), 'annotations' => array( 'readonly' => false, 'destructive' => true, 'idempotent' => false, 'open_world' => true ) ) ),
 		);
-		foreach ( $abilities as $name => $args ) { if ( ! function_exists( 'wp_get_ability' ) || ! wp_get_ability( $name ) instanceof WP_Ability ) { wp_register_ability( $name, $args ); } }
+		foreach ( $abilities as $name => $args ) {
+			try {
+				if ( ! function_exists( 'wp_get_ability' ) || ! wp_get_ability( $name ) instanceof WP_Ability ) {
+					wp_register_ability( $name, $args );
+				}
+			} catch ( Throwable $error ) {
+				// Legacy adapter registration must not interfere with the stable gateway ABI.
+				continue;
+			}
+		}
 	}
 
 	private static function adapter_ability_names() { return array( 'chattanooga-cms-admin/mcp-discover-abilities', 'chattanooga-cms-admin/mcp-get-ability-info', 'chattanooga-cms-admin/mcp-execute-ability' ); }
