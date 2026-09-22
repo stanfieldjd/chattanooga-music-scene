@@ -106,12 +106,12 @@ final class CUA_Ability_Bridge {
 				'meta'                => self::bridge_meta( $ability ),
 			);
 
-			$input_schema = $ability->get_input_schema();
+			$input_schema = self::normalize_schema_for_transport( $ability->get_input_schema() );
 			if ( is_array( $input_schema ) ) {
 				$args['input_schema'] = $input_schema;
 			}
 
-			$output_schema = $ability->get_output_schema();
+			$output_schema = self::normalize_schema_for_transport( $ability->get_output_schema() );
 			if ( is_array( $output_schema ) ) {
 				$args['output_schema'] = $output_schema;
 			}
