@@ -25,9 +25,10 @@ final class CUA_REST_Bridge {
 			}
 
 			foreach ( $handlers as $handler ) {
-				if ( ! self::handler_is_bridgeable( $handler ) ) {
-					continue;
-				}
+				try {
+					if ( ! self::handler_is_bridgeable( $handler ) ) {
+						continue;
+					}
 
 				foreach ( self::supported_methods( $handler['methods'] ) as $method ) {
 					$bridge_name = self::bridge_name( $method, $route_regex );
@@ -52,10 +53,12 @@ final class CUA_REST_Bridge {
 							'meta'                => self::bridge_meta( $method ),
 						)
 					);
+				} catch ( Throwable $error ) {
+					// A malformed third-party route must not abort core bridge registration.
+					continue;
 				}
 			}
 		}
-	}
 
 	public static function catalog_items() {
 		$items = array();
