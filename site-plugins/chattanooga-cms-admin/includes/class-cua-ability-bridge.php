@@ -118,7 +118,7 @@ final class CUA_Ability_Bridge {
 
 				try {
 					$registration = wp_register_ability( $bridge_name, $args );
-					if ( is_wp_error( $registration ) || false === $registration ) {
+					if ( is_wp_error( $registration ) || false === $registration || ! wp_get_ability( $bridge_name ) instanceof WP_Ability ) {
 						throw new RuntimeException( 'The provider facade descriptor was rejected.' );
 					}
 				} catch ( Throwable $registration_error ) {
