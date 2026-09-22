@@ -56,10 +56,11 @@ function cmsa_weekend_mcp_call( $tool, array $arguments ) {
 }
 
 function cmsa_weekend_mcp_catalog() {
-	$result = cmsa_weekend_mcp_call( 'cmsa.catalog', array() );
-	$catalog = $result['structuredContent'] ?? null;
-	cmsa_weekend_mcp_assert( is_array( $catalog ) && isset( $catalog['items'] ) && is_array( $catalog['items'] ), 'MCP catalog is unavailable.' );
-	return $catalog['items'];
+	$result = cmsa_weekend_mcp_call( 'cmsa.discovery', array( 'cursor' => 0, 'limit' => 100 ) );
+	$manifest = $result['structuredContent'] ?? null;
+	$gateway = is_array( $manifest ) ? ( $manifest['catalogGateway'] ?? null ) : null;
+	cmsa_weekend_mcp_assert( is_array( $gateway ) && isset( $gateway['items'] ) && is_array( $gateway['items'] ), 'MCP discovery catalog is unavailable.' );
+	return $gateway['items'];
 }
 
 function cmsa_weekend_mcp_find_ability( array $catalog, $target ) {
