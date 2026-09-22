@@ -217,10 +217,18 @@ final class CUA_Ability_Bridge {
 						'open_world'  => array_key_exists( 'open_world', $annotations ) && null !== $annotations['open_world'] ? (bool) $annotations['open_world'] : null,
 					),
 				);
-				$input_schema = self::normalize_schema_for_transport( $target->get_input_schema() );
-				$output_schema = self::normalize_schema_for_transport( $target->get_output_schema() );
-				if ( is_array( $input_schema ) ) { $item['inputSchema'] = $input_schema; }
-				if ( is_array( $output_schema ) ) { $item['outputSchema'] = $output_schema; }
+				try {
+					$input_schema = self::normalize_schema_for_transport( $target->get_input_schema() );
+					if ( is_array( $input_schema ) ) { $item['inputSchema'] = $input_schema; }
+				} catch ( Throwable $schema_error ) {
+					// Keep the provider identity discoverable when its optional schema is malformed.
+				}
+				try {
+					$output_schema = self::normalize_schema_for_transport( $target->get_output_schema() );
+					if ( is_array( $output_schema ) ) { $item['outputSchema'] = $output_schema; }
+				} catch ( Throwable $schema_error ) {
+					// Keep the provider identity discoverable when its optional schema is malformed.
+				}
 				$items[] = $item;
 			} catch ( Throwable $error ) {
 				// A malformed third-party ability must not abort the ability catalog.
