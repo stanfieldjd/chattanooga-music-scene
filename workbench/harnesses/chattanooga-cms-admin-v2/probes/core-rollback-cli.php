@@ -57,7 +57,7 @@ if ( hash_file( 'sha256', $readme ) === $readme_before || ! is_file( $extra_core
 	exit( 1 );
 }
 
-$result = $restore->execute( array( 'id' => $backup['id'] ) );
+$result = $restore->execute( array( 'id' => $backup['id'], 'confirm_restore' => true ) );
 if ( is_wp_error( $result ) || empty( $result['restored'] ) || empty( $result['rollback_backup_id'] ) || empty( $result['database'] ) || empty( $result['core'] ) ) {
 	fwrite( STDERR, 'Core rollback failed: ' . ( is_wp_error( $result ) ? $result->get_error_code() . ' ' . $result->get_error_message() : 'invalid result' ) . "\n" );
 	exit( 1 );
