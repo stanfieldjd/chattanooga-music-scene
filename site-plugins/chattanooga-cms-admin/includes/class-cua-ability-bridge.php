@@ -216,15 +216,41 @@ final class CUA_Ability_Bridge {
 
 			try {
 				$target_name = $target->get_name();
-				$meta = $target->get_meta();
+				$meta = array();
+				try {
+					$raw_meta = $target->get_meta();
+					if ( is_array( $raw_meta ) ) {
+						$meta = $raw_meta;
+					}
+				} catch ( Throwable $meta_error ) {
+					// Metadata is optional; preserve the ability identity when it is malformed.
+				}
+				$label = $target_name;
+				try {
+					$label = (string) $target->get_label();
+				} catch ( Throwable $label_error ) {
+					// Preserve the target name as a stable fallback label.
+				}
+				$description = '';
+				try {
+					$description = (string) $target->get_description();
+				} catch ( Throwable $description_error ) {
+					// Preserve discoverability when an optional description is malformed.
+				}
+				$category = '';
+				try {
+					$category = (string) $target->get_category();
+				} catch ( Throwable $category_error ) {
+					// Preserve discoverability when an optional category is malformed.
+				}
 				$annotations = isset( $meta['annotations'] ) && is_array( $meta['annotations'] ) ? $meta['annotations'] : array();
 				$item = array(
 					'contract'    => 'ability',
 					'bridge'      => self::bridge_name( $target_name ),
 					'target'      => $target_name,
-					'label'       => $target->get_label(),
-					'description' => $target->get_description(),
-					'category'    => $target->get_category(),
+					'label'       => $label,
+					'description' => $description,
+					'category'    => $category,
 					'annotations' => array(
 						'readonly'    => array_key_exists( 'readonly', $annotations ) && null !== $annotations['readonly'] ? (bool) $annotations['readonly'] : null,
 						'destructive' => array_key_exists( 'destructive', $annotations ) && null !== $annotations['destructive'] ? (bool) $annotations['destructive'] : null,
