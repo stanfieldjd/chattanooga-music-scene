@@ -18,7 +18,11 @@ final class CUA_REST_Bridge {
 			return;
 		}
 
-		$routes = $server->get_routes();
+		try {
+			$routes = $server->get_routes();
+		} catch ( Throwable $error ) {
+			return;
+		}
 		foreach ( $routes as $route_regex => $handlers ) {
 			if ( ! is_string( $route_regex ) || ! is_array( $handlers ) ) {
 				continue;
@@ -200,7 +204,12 @@ final class CUA_REST_Bridge {
 		}
 
 		$bridges = array();
-		foreach ( $server->get_routes() as $route_regex => $handlers ) {
+		try {
+			$routes = $server->get_routes();
+		} catch ( Throwable $error ) {
+			return $bridges;
+		}
+		foreach ( $routes as $route_regex => $handlers ) {
 			if ( ! is_string( $route_regex ) || ! is_array( $handlers ) ) {
 				continue;
 			}
@@ -285,7 +294,11 @@ final class CUA_REST_Bridge {
 	}
 
 	private static function find_live_handler( WP_REST_Server $server, $route_regex, $method ) {
-		$routes = $server->get_routes();
+		try {
+			$routes = $server->get_routes();
+		} catch ( Throwable $error ) {
+			return new WP_Error( 'cua_rest_route_resolution_exception', 'The live WordPress REST route table could not be resolved safely.' );
+		}
 		if ( empty( $routes[ $route_regex ] ) || ! is_array( $routes[ $route_regex ] ) ) {
 			return new WP_Error( 'cua_rest_route_unavailable', 'The discovered REST route is no longer registered.' );
 		}
