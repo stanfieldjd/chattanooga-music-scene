@@ -223,6 +223,11 @@ final class CUA_Ability_Bridge {
 		usort(
 			$items,
 			static function ( $left, $right ) {
+				$left_rank  = 'ability' === (string) ( $left['contract'] ?? '' ) ? 0 : 1;
+				$right_rank = 'ability' === (string) ( $right['contract'] ?? '' ) ? 0 : 1;
+				if ( $left_rank !== $right_rank ) {
+					return $left_rank <=> $right_rank;
+				}
 				return strcmp( (string) ( $left['target'] ?? '' ), (string) ( $right['target'] ?? '' ) );
 			}
 		);
