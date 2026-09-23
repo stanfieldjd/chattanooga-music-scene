@@ -54,7 +54,19 @@ final class CUA_Ability_Bridge {
 					),
 					'additionalProperties' => false,
 				),
-				'output_schema'       => array( 'type' => 'object' ),
+				'output_schema'       => array(
+					'type'                 => 'object',
+					'properties'           => array(
+						'count'      => array( 'type' => 'integer', 'minimum' => 0 ),
+						'cursor'     => array( 'type' => 'integer', 'minimum' => 0 ),
+						'pageSize'   => array( 'type' => 'integer', 'minimum' => 1 ),
+						'items'      => array( 'type' => 'array', 'items' => array( 'type' => 'object' ) ),
+						'nextCursor' => array( 'type' => array( 'string', 'integer', 'null' ) ),
+						'snapshot'   => array( 'type' => 'string', 'minLength' => 64, 'maxLength' => 64 ),
+					),
+					'required'             => array( 'count', 'cursor', 'pageSize', 'items', 'nextCursor', 'snapshot' ),
+					'additionalProperties' => false,
+				),
 				'execute_callback'    => array( __CLASS__, 'catalog' ),
 				'permission_callback' => static function () {
 					return current_user_can( 'manage_options' );
