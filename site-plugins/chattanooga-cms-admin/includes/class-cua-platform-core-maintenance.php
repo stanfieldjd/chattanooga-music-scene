@@ -37,8 +37,8 @@ final class CUA_Platform_Core_Maintenance {
 				'input_schema'        => array(
 					'type'                 => 'object',
 					'properties'           => array(
-						'version' => array( 'type' => 'string', 'pattern' => '^[0-9]+\.[0-9]+(?:\.[0-9]+)?(?:[-+][0-9A-Za-z.-]+)?
-						'confirm_update' => array( 'type' => 'boolean' ),
+\t\t\t\t\t\t'version' => array( 'type' => 'string', 'pattern' => '^[0-9]+\.[0-9]+(?:\.[0-9]+)?(?:[-+][0-9A-Za-z.-]+)?$', 'minLength' => 1, 'maxLength' => 64 ),
+
 					),
 					'required'             => array( 'version', 'confirm_update' ),
 					'additionalProperties' => false,
