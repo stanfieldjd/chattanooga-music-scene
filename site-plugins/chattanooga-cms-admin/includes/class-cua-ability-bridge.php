@@ -140,6 +140,11 @@ final class CUA_Ability_Bridge {
 	}
 
 	public static function prime_catalog_snapshot() {
+		// The first registry read initializes wp_abilities_api_init and returns
+		// the pre-hook registry snapshot; read again after provider callbacks run.
+		if ( function_exists( 'wp_get_abilities' ) ) {
+			wp_get_abilities();
+		}
 		self::$catalog_snapshot = self::catalog_items();
 	}
 
