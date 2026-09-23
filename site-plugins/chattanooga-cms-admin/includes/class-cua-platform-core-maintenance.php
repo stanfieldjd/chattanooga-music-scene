@@ -177,7 +177,7 @@ final class CUA_Platform_Core_Maintenance {
 			return new WP_Error( 'cmsa_core_update_not_confirmed', 'Explicit core update confirmation is required.' );
 		}
 		$version = is_array( $input ) && isset( $input['version'] ) ? trim( (string) $input['version'] ) : '';
-		if ( '' === $version || ! preg_match( '/^[0-9]+\\.[0-9]+(?:\\.[0-9]+)?(?:[-+][0-9A-Za-z.-]+)?$/', $version ) ) {
+		if ( '' === $version || ! preg_match( '/^[0-9]+\.[0-9]+(?:\.[0-9]+)?(?:[-+][0-9A-Za-z.-]+)?$/', $version ) ) {
 			return new WP_Error( 'cmsa_core_version_invalid', 'A valid exact WordPress version is required.' );
 		}
 
