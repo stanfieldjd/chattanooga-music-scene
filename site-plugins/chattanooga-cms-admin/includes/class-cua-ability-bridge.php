@@ -137,7 +137,9 @@ final class CUA_Ability_Bridge {
 			}
 		}
 
-		// Capture the settled ability registry before any catalog ability executes.
+	}
+
+	public static function prime_catalog_snapshot() {
 		self::$catalog_snapshot = self::catalog_items();
 	}
 
