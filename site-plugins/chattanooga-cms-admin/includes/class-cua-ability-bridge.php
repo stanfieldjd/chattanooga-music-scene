@@ -243,6 +243,10 @@ final class CUA_Ability_Bridge {
 
 			try {
 				$target_name = $target->get_name();
+				// Retain any confirmed provider target observed during catalog enumeration.
+				// A provider may be hidden by a later re-entrant registry read, but its
+				// already-registered facade must remain discoverable for this request.
+				self::$bridged_targets[ $target_name ] = $target;
 				$meta = array();
 				try {
 					$raw_meta = $target->get_meta();
