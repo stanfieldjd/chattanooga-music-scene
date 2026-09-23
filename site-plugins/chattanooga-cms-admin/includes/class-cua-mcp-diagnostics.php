@@ -215,9 +215,29 @@ final class CUA_MCP_Diagnostics {
 		if ( is_array( $latest_canary_list ) ) {
 			$latest_canary_healthy = 200 === (int) ( $latest_canary_list['http_status'] ?? 0 ) && 1 === (int) ( $latest_canary_list['tool_count'] ?? -1 ) && 0 === (int) ( $latest_canary_list['descriptor_fail'] ?? -1 );
 		}
-		if ( ! $catalog_healthy || false === $latest_main_matches || false === $latest_canary_healthy ) { $state = 'degraded'; }
-		elseif ( true === $latest_main_matches && true === $latest_canary_healthy ) { $state = 'healthy'; }
-		else { $state = 'insufficient_history'; }
+		/*
+		 * A historical tools/list record can legitimately belong to an older
+		 * immutable startup ABI after a plugin update. Keep that evidence visible,
+		 * but do not misclassify the current server catalog as broken because the
+		 * historical fingerprint is stale. A failed observed Canary exchange is
+		 * still degraded; an unobserved Canary exchange remains insufficient
+		 * history.
+		 */
+		$history_state = 'insufficient_history';
+		if ( false === $latest_main_matches || false === $latest_canary_healthy ) {
+			$history_state = 'stale_or_failed_observation';
+		} elseif ( true === $latest_main_matches && true === $latest_canary_healthy ) {
+			$history_state = 'verified';
+		}
+		if ( ! $catalog_healthy || false === $latest_canary_healthy ) {
+			$state = 'degraded';
+		} elseif ( false === $latest_main_matches ) {
+			$state = 'stale_history';
+		} elseif ( true === $latest_main_matches && true === $latest_canary_healthy ) {
+			$state = 'healthy';
+		} else {
+			$state = 'insufficient_history';
+		}
 		return array(
 			'state' => $state,
 			'pluginVersion' => defined( 'CUA_VERSION' ) ? CUA_VERSION : 'unknown',
@@ -232,6 +252,7 @@ final class CUA_MCP_Diagnostics {
 			'auditReadable' => $audit_readable,
 			'latestMainDiscoveryMatches' => $latest_main_matches,
 			'latestCanaryDiscoveryHealthy' => $latest_canary_healthy,
+			'historyState' => $history_state,
 			'observationCounts' => $counts,
 			'latestMainToolsList' => $latest_main_list,
 			'latestCanaryToolsList' => $latest_canary_list,
