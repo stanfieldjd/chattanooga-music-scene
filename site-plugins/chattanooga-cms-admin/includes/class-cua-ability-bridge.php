@@ -190,6 +190,14 @@ final class CUA_Ability_Bridge {
 		 * from the same response.
 		 */
 		$items = self::catalog_items();
+		// Confirmed provider facades are retained independently of the live
+		// registry enumeration, which may omit third-party entries after a
+		// re-entrant WordPress registry read.
+		foreach ( self::$bridged_catalog_items as $cached_item ) {
+			if ( is_array( $cached_item ) ) {
+				$items[] = $cached_item;
+			}
+		}
 
 		if ( class_exists( 'CUA_REST_Bridge' ) ) {
 			try {
