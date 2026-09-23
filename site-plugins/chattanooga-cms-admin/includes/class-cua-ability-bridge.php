@@ -230,7 +230,10 @@ final class CUA_Ability_Bridge {
 				if ( $left_rank !== $right_rank ) {
 					return $left_rank <=> $right_rank;
 				}
-				return strcmp( (string) ( $left['target'] ?? '' ), (string) ( $right['target'] ?? '' ) );
+				$left_key  = 'rest' === $left_contract ? (string) ( $left['route'] ?? $left['target'] ?? '' ) : (string) ( $left['target'] ?? '' );
+				$right_key = 'rest' === $right_contract ? (string) ( $right['route'] ?? $right['target'] ?? '' ) : (string) ( $right['target'] ?? '' );
+				$by_key = strcmp( $left_key, $right_key );
+				return 0 !== $by_key ? $by_key : strcmp( (string) ( $left['target'] ?? '' ), (string) ( $right['target'] ?? '' ) );
 			}
 		);
 
