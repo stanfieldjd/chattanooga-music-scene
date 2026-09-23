@@ -186,8 +186,10 @@ final class CUA_Ability_Bridge {
 		// plugin's initialization hook, so never let that stale snapshot hide a
 		// currently registered public contract.
 		$items = self::catalog_items();
-		if ( empty( $items ) && is_array( self::$catalog_snapshot ) ) {
-			$items = self::$catalog_snapshot;
+		if ( is_array( self::$catalog_snapshot ) ) {
+			// Merge the refreshed lifecycle snapshot even when the live read contains
+			// unrelated REST entries; otherwise those entries can mask provider targets.
+			$items = array_merge( self::$catalog_snapshot, $items );
 		}
 
 		if ( class_exists( 'CUA_REST_Bridge' ) ) {
