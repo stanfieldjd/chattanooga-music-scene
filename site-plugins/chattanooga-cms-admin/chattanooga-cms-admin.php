@@ -63,3 +63,8 @@ add_action( 'wp_abilities_api_init', array( 'CUA_Ability_Bridge', 'register_exte
 add_action( 'wp_loaded', array( 'CUA_Ability_Bridge', 'prime_catalog_snapshot' ), 999999 );
 add_action( 'rest_api_init', array( 'CUA_MCP_Server', 'register_route' ) );
 add_action( 'rest_api_init', array( 'CUA_MCP_Diagnostics', 'register_routes' ), 20 );
+// Providers may register public abilities or REST routes after the initial
+// wp_abilities_api_init pass. Re-run the idempotent facade registration once
+// the REST registry is fully assembled, before MCP calls can arrive.
+add_action( 'rest_api_init', array( 'CUA_REST_Bridge', 'register_external_bridges' ), 1000 );
+add_action( 'rest_api_init', array( 'CUA_Ability_Bridge', 'register_external_bridges' ), 1001 );
