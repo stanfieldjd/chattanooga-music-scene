@@ -91,9 +91,9 @@ final class CUA_Ability_Bridge {
 				}
 
 			$target_name = $ability->get_name();
-			self::$bridged_targets[ $target_name ] = $ability;
 			$bridge_name = self::bridge_name( $target_name );
 			if ( wp_get_ability( $bridge_name ) instanceof WP_Ability ) {
+				self::$bridged_targets[ $target_name ] = $ability;
 				continue;
 			}
 
@@ -132,6 +132,9 @@ final class CUA_Ability_Bridge {
 					// target ability remain authoritative for validation and execution.
 					unset( $args['input_schema'], $args['output_schema'] );
 					wp_register_ability( $bridge_name, $args );
+				}
+				if ( wp_get_ability( $bridge_name ) instanceof WP_Ability ) {
+					self::$bridged_targets[ $target_name ] = $ability;
 				}
 			} catch ( Throwable $error ) {
 				// A malformed third-party ability must not abort core bridge registration.
@@ -310,7 +313,11 @@ final class CUA_Ability_Bridge {
 			if ( isset( $known_targets[ $target_name ] ) || ! $target instanceof WP_Ability || ! self::is_bridgeable( $target ) ) {
 				continue;
 			}
-			$items[] = self::catalog_item_from_ability( $target );
+			try {
+				$items[] = self::catalog_item_from_ability( $target );
+			} catch ( Throwable $error ) {
+				// Preserve the rest of the catalog when an optional provider field is malformed.
+			}
 		}
 		usort(
 			$items,
