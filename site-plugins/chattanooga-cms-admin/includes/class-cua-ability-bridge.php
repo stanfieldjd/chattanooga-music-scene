@@ -182,19 +182,6 @@ final class CUA_Ability_Bridge {
 			return new WP_Error( 'cua_catalog_registry_unavailable', 'The WordPress public ability registry is unavailable.' );
 		}
 
-		// Providers can register public abilities after the initial registry hook.
-		// Reconcile once at the catalog boundary, with a recursion guard, so
-		// discovery sees those contracts without mutating the registry mid-read.
-		if ( ! self::$catalog_reconciliation_in_progress ) {
-			self::$catalog_reconciliation_in_progress = true;
-			try {
-				self::register_external_bridges();
-			} catch ( Throwable $error ) {
-				// Preserve already-confirmed descriptors if an optional provider fails.
-			}
-			self::$catalog_reconciliation_in_progress = false;
-		}
-
 		/*
 		 * Discovery is deliberately read-only. The official WordPress MCP
 		 * adapter keeps its startup tool registry static and resolves the
