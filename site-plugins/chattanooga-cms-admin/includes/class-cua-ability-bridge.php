@@ -211,7 +211,16 @@ final class CUA_Ability_Bridge {
 
 		$items = array();
 		try {
-			$targets = wp_get_abilities();
+			$targets = array();
+			if ( class_exists( 'WP_Abilities_Registry' ) ) {
+				$registry = WP_Abilities_Registry::get_instance();
+				if ( $registry && method_exists( $registry, 'get_all_registered' ) ) {
+					$targets = $registry->get_all_registered();
+				}
+			}
+			if ( empty( $targets ) ) {
+				$targets = wp_get_abilities();
+			}
 		} catch ( Throwable $error ) {
 			return $items;
 		}
