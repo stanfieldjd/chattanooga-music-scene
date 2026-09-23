@@ -246,7 +246,7 @@ final class CUA_Ability_Bridge {
 
 		$total  = count( $items );
 		$cursor = is_array( $input ) && isset( $input['cursor'] ) ? max( 0, (int) $input['cursor'] ) : 0;
-		$limit  = is_array( $input ) && isset( $input['limit'] ) ? min( 100, max( 1, (int) $input['limit'] ) ) : 100;
+		$limit  = is_array( $input ) && isset( $input['limit'] ) ? min( 1000, max( 1, (int) $input['limit'] ) ) : 1000;
 		$page   = array_slice( $items, $cursor, $limit );
 		$next   = $cursor + count( $page ) < $total ? $cursor + count( $page ) : null;
 
