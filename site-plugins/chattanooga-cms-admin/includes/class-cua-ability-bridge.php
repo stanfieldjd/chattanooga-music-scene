@@ -153,10 +153,14 @@ final class CUA_Ability_Bridge {
 		if ( ! function_exists( 'wp_get_abilities' ) ) {
 			return new WP_Error( 'cua_catalog_registry_unavailable', 'The WordPress public ability registry is unavailable.' );
 		}
-		// Discovery is a pure read of the settled lifecycle snapshot.
-		// Querying the public registry from its own executing ability can omit
-		// Ability contracts, while the lifecycle snapshot remains complete.
-		$items = is_array( self::$catalog_snapshot ) ? self::$catalog_snapshot : self::catalog_items();
+		// Discovery reads the settled registry at call time. A lifecycle snapshot can
+		// become stale when a provider registers or reconciles an ability after the
+		// plugin's initialization hook, so never let that stale snapshot hide a
+		// currently registered public contract.
+		$items = self::catalog_items();
+		if ( empty( $items ) && is_array( self::$catalog_snapshot ) ) {
+			$items = self::$catalog_snapshot;
+		}
 
 		if ( class_exists( 'CUA_REST_Bridge' ) ) {
 			try {
