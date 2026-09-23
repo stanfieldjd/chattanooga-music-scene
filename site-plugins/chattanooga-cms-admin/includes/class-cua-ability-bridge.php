@@ -60,7 +60,7 @@ final class CUA_Ability_Bridge {
 						'count'      => array( 'type' => 'integer', 'minimum' => 0 ),
 						'cursor'     => array( 'type' => 'integer', 'minimum' => 0 ),
 						'pageSize'   => array( 'type' => 'integer', 'minimum' => 1 ),
-						'items'      => array( 'type' => 'array', 'items' => array( 'type' => 'object' ) ),
+						'items'      => array( 'type' => 'array', 'items' => array( 'type' => 'object', 'additionalProperties' => true ) ),
 						'nextCursor' => array( 'type' => array( 'string', 'integer', 'null' ) ),
 						'snapshot'   => array( 'type' => 'string', 'minLength' => 64, 'maxLength' => 64 ),
 					),
