@@ -137,6 +137,7 @@ final class CUA_Ability_Bridge {
 			}
 		}
 
+		self::prime_catalog_snapshot();
 	}
 
 	public static function prime_catalog_snapshot() {
