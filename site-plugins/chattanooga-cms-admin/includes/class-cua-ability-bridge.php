@@ -8,6 +8,8 @@ final class CUA_Ability_Bridge {
 	const NAMESPACE_PREFIX = 'chattanooga-cms-admin/';
 	const CATEGORY = 'chattanooga-cms-admin';
 
+	private static $catalog_snapshot = null;
+
 	public static function register_category() {
 		if ( ! function_exists( 'wp_register_ability_category' ) ) {
 			return;
@@ -134,15 +136,19 @@ final class CUA_Ability_Bridge {
 				continue;
 			}
 		}
+
+		// Capture the settled ability registry before any catalog ability executes.
+		self::$catalog_snapshot = self::catalog_items();
 	}
 
 	public static function catalog( $input = array() ) {
 		if ( ! function_exists( 'wp_get_abilities' ) ) {
 			return new WP_Error( 'cua_catalog_registry_unavailable', 'The WordPress public ability registry is unavailable.' );
 		}
-		// Discovery is a pure read of the settled WordPress registry.
-		// Provider bridges are registered by the normal lifecycle hook.
-		$items = self::catalog_items();
+		// Discovery is a pure read of the settled lifecycle snapshot.
+		// Querying the public registry from its own executing ability can omit
+		// Ability contracts, while the lifecycle snapshot remains complete.
+		$items = is_array( self::$catalog_snapshot ) ? self::$catalog_snapshot : self::catalog_items();
 
 		if ( class_exists( 'CUA_REST_Bridge' ) ) {
 			try {
