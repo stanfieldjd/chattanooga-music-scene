@@ -96,6 +96,7 @@ do_action( 'wp_abilities_api_init' );
 do_action( 'rest_api_init' );
 CUA_Ability_Bridge::register_external_bridges();
 CUA_REST_Bridge::register_external_bridges();
+CUA_Ability_Bridge::prime_catalog_snapshot();
 
 wp_set_current_user( 1 );
 
