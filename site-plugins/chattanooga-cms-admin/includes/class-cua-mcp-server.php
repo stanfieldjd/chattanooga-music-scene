@@ -1083,6 +1083,14 @@ final class CUA_MCP_Server {
 
 	private static function call_tool( array $params ) {
 		$name = isset( $params['name'] ) ? trim( (string) $params['name'] ) : '';
+		// ChatGPT app runtimes may qualify an MCP tool name with the connected
+		// server namespace before sending tools/call. The stable gateway ABI is
+		// defined without that transport namespace, so normalize only this exact
+		// known prefix at the call boundary.
+		$qualified_namespace = 'chattanooga_music_scene.';
+		if ( 0 === strpos( $name, $qualified_namespace ) ) {
+			$name = substr( $name, strlen( $qualified_namespace ) );
+		}
 		if ( '' === $name ) {
 			return new WP_Error( 'cmsa_mcp_tool_name_required', 'A tool name is required.' );
 		}
