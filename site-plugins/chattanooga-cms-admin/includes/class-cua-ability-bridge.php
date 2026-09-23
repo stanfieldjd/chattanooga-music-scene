@@ -177,6 +177,10 @@ final class CUA_Ability_Bridge {
 		if ( ! function_exists( 'wp_get_abilities' ) ) {
 			return new WP_Error( 'cua_catalog_registry_unavailable', 'The WordPress public ability registry is unavailable.' );
 		}
+		// Reconcile provider registrations at call time because WordPress provider
+		// callbacks may be lazy or re-entrant after initialization.
+		self::register_external_bridges();
+
 		// Discovery reads the settled registry at call time. A lifecycle snapshot can
 		// become stale when a provider registers or reconciles an ability after the
 		// plugin's initialization hook, so never let that stale snapshot hide a
