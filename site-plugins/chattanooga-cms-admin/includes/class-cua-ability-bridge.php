@@ -317,12 +317,6 @@ final class CUA_Ability_Bridge {
 			}
 		}
 
-		foreach ( self::$bridged_catalog_items as $target_name => $item ) {
-			if ( ! isset( $known_targets[ $target_name ] ) && is_array( $item ) ) {
-				$items[] = $item;
-			}
-		}
-
 		// A provider can be visible through wp_get_ability() while its entry is
 		// temporarily omitted from a filtered registry enumeration during a
 		// re-entrant catalog call. Facades already registered by this bridge are
@@ -330,6 +324,11 @@ final class CUA_Ability_Bridge {
 		$known_targets = array();
 		foreach ( $items as $item ) {
 			$known_targets[ (string) ( $item['target'] ?? '' ) ] = true;
+		}
+		foreach ( self::$bridged_catalog_items as $target_name => $item ) {
+			if ( ! isset( $known_targets[ $target_name ] ) && is_array( $item ) ) {
+				$items[] = $item;
+			}
 		}
 		foreach ( self::$bridged_targets as $target_name => $target ) {
 			if ( isset( $known_targets[ $target_name ] ) || ! $target instanceof WP_Ability || ! self::is_bridgeable( $target ) ) {
