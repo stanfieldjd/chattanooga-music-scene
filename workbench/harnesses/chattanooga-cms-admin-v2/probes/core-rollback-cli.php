@@ -84,7 +84,7 @@ if ( $disk_version !== (string) $backup['wordpress'] ) {
 }
 
 $current_version = wp_get_wp_version();
-$noop = $update->execute( array( 'version' => $current_version ) );
+$noop = $update->execute( array( 'version' => $current_version, 'confirm_update' => true ) );
 if ( is_wp_error( $noop ) || ! empty( $noop['updated'] ) || 'already-current' !== ( $noop['reason'] ?? '' ) ) {
 	fwrite( STDERR, "Exact-current core update did not close as an idempotent no-op.\n" );
 	exit( 1 );
