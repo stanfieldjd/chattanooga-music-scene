@@ -342,7 +342,9 @@ final class CUA_Ability_Bridge {
 				continue;
 			}
 			try {
-				$items[] = self::catalog_item_from_ability( $target );
+				$item = self::catalog_item_from_ability( $target );
+				self::$bridged_catalog_items[ $target_name ] = $item;
+				$items[] = $item;
 			} catch ( Throwable $error ) {
 				// Preserve the rest of the catalog when an optional provider field is malformed.
 			}
