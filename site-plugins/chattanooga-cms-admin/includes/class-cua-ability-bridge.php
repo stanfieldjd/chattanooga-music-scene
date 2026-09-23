@@ -10,6 +10,7 @@ final class CUA_Ability_Bridge {
 
 	private static $catalog_snapshot = null;
 	private static $bridged_targets = array();
+	private static $bridged_catalog_items = array();
 
 	public static function register_category() {
 		if ( ! function_exists( 'wp_register_ability_category' ) ) {
@@ -93,7 +94,7 @@ final class CUA_Ability_Bridge {
 			$target_name = $ability->get_name();
 			$bridge_name = self::bridge_name( $target_name );
 			if ( wp_get_ability( $bridge_name ) instanceof WP_Ability ) {
-				self::$bridged_targets[ $target_name ] = $ability;
+				self::remember_bridge( $target_name, $ability );
 				continue;
 			}
 
@@ -143,6 +144,15 @@ final class CUA_Ability_Bridge {
 		}
 
 		self::prime_catalog_snapshot();
+	}
+
+	private static function remember_bridge( $target_name, $ability ) {
+		self::$bridged_targets[ $target_name ] = $ability;
+		try {
+			self::$bridged_catalog_items[ $target_name ] = self::catalog_item_from_ability( $ability );
+		} catch ( Throwable $error ) {
+			// Keep the executable facade even if an optional descriptor field is malformed.
+		}
 	}
 
 	private static function registered_abilities() {
@@ -246,7 +256,7 @@ final class CUA_Ability_Bridge {
 				// Retain any confirmed provider target observed during catalog enumeration.
 				// A provider may be hidden by a later re-entrant registry read, but its
 				// already-registered facade must remain discoverable for this request.
-				self::$bridged_targets[ $target_name ] = $target;
+				self::remember_bridge( $target_name, $target );
 				$meta = array();
 				try {
 					$raw_meta = $target->get_meta();
@@ -304,6 +314,12 @@ final class CUA_Ability_Bridge {
 				$items[] = $item;
 			} catch ( Throwable $error ) {
 				// A malformed third-party ability must not abort the ability catalog.
+			}
+		}
+
+		foreach ( self::$bridged_catalog_items as $target_name => $item ) {
+			if ( ! isset( $known_targets[ $target_name ] ) && is_array( $item ) ) {
+				$items[] = $item;
 			}
 		}
 
