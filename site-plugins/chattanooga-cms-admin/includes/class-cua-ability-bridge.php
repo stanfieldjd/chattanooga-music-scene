@@ -134,7 +134,10 @@ final class CUA_Ability_Bridge {
 					wp_register_ability( $bridge_name, $args );
 				}
 				if ( wp_get_ability( $bridge_name ) instanceof WP_Ability ) {
-					self::$bridged_targets[ $target_name ] = $ability;
+					// Preserve the catalog descriptor at first registration as well as
+					// on later reconciliation. This keeps provider discovery intact if
+					// a subsequent registry enumeration filters the provider target.
+					self::remember_bridge( $target_name, $ability );
 				}
 			} catch ( Throwable $error ) {
 				// A malformed third-party ability must not abort core bridge registration.
