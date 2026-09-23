@@ -5,6 +5,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class CUA_Platform_Core_Maintenance {
+	private static $raw_update_core_input = null;
+	private static $invocation_hook_registered = false;
 	const CATEGORY = 'chattanooga-cms-admin';
 	const PREFIX = 'chattanooga-cms-admin/';
 	const META_SUFFIX = '.meta.json';
@@ -12,6 +14,11 @@ final class CUA_Platform_Core_Maintenance {
 	public static function register_abilities() {
 		if ( ! function_exists( 'wp_register_ability' ) ) {
 			return;
+		}
+
+		if ( ! self::$invocation_hook_registered && function_exists( 'add_action' ) ) {
+			add_action( 'wp_ability_invoked', array( __CLASS__, 'capture_ability_invocation' ), 10, 3 );
+			self::$invocation_hook_registered = true;
 		}
 
 		wp_register_ability(
@@ -172,12 +179,25 @@ final class CUA_Platform_Core_Maintenance {
 		return $result;
 	}
 
+	public static function capture_ability_invocation( $ability_name, $input = null, $ability = null ) {
+		if ( self::PREFIX . 'update-core' === (string) $ability_name ) {
+			self::$raw_update_core_input = $input;
+		}
+	}
+
 	public static function update_core( $input ) {
 		if ( ! is_array( $input ) || empty( $input['confirm_update'] ) ) {
 			return new WP_Error( 'cmsa_core_update_not_confirmed', 'Explicit core update confirmation is required.' );
 		}
+		$raw_version = is_array( self::$raw_update_core_input ) && array_key_exists( 'version', self::$raw_update_core_input ) ? trim( (string) self::$raw_update_core_input['version'] ) : '';
 		$version = is_array( $input ) && isset( $input['version'] ) ? trim( (string) $input['version'] ) : '';
-		if ( '' === $version || ! preg_match( '/^[0-9]+\.[0-9]+(?:\.[0-9]+)?(?:[-+][0-9A-Za-z.-]+)?$/', $version ) ) {
+		$version_pattern = '/^[0-9]+\.[0-9]+(?:\.[0-9]+)?(?:[-+][0-9A-Za-z.-]+)?$/';
+		if ( '' !== $raw_version && ! preg_match( $version_pattern, $raw_version ) ) {
+			self::$raw_update_core_input = null;
+			return new WP_Error( 'cmsa_core_version_invalid', 'A valid exact WordPress version is required.' );
+		}
+		self::$raw_update_core_input = null;
+		if ( '' === $version || ! preg_match( $version_pattern, $version ) ) {
 			return new WP_Error( 'cmsa_core_version_invalid', 'A valid exact WordPress version is required.' );
 		}
 
