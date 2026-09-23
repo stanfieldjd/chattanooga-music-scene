@@ -185,7 +185,8 @@ final class CUA_Ability_Bridge {
 		// become stale when a provider registers or reconciles an ability after the
 		// plugin's initialization hook, so never let that stale snapshot hide a
 		// currently registered public contract.
-		$items = self::catalog_items();
+		$items = array_values( self::$bridged_catalog_items );
+		$items = array_merge( $items, self::catalog_items() );
 		if ( is_array( self::$catalog_snapshot ) ) {
 			// Merge the refreshed lifecycle snapshot even when the live read contains
 			// unrelated REST entries; otherwise those entries can mask provider targets.
