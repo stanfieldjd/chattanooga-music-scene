@@ -11,6 +11,7 @@ final class CUA_Ability_Bridge {
 	private static $catalog_snapshot = null;
 	private static $bridged_targets = array();
 	private static $bridged_catalog_items = array();
+	private static $catalog_reconciliation_in_progress = false;
 
 	public static function register_category() {
 		if ( ! function_exists( 'wp_register_ability_category' ) ) {
@@ -179,6 +180,19 @@ final class CUA_Ability_Bridge {
 	public static function catalog( $input = array() ) {
 		if ( ! function_exists( 'wp_get_abilities' ) ) {
 			return new WP_Error( 'cua_catalog_registry_unavailable', 'The WordPress public ability registry is unavailable.' );
+		}
+
+		// Providers can register public abilities after the initial registry hook.
+		// Reconcile once at the catalog boundary, with a recursion guard, so
+		// discovery sees those contracts without mutating the registry mid-read.
+		if ( ! self::$catalog_reconciliation_in_progress ) {
+			self::$catalog_reconciliation_in_progress = true;
+			try {
+				self::register_external_bridges();
+			} catch ( Throwable $error ) {
+				// Preserve already-confirmed descriptors if an optional provider fails.
+			}
+			self::$catalog_reconciliation_in_progress = false;
 		}
 
 		/*
