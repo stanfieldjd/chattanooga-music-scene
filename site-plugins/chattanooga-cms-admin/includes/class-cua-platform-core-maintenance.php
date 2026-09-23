@@ -4,6 +4,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+if ( class_exists( 'WP_Ability' ) && ! class_exists( 'CUA_Core_Update_Ability' ) ) {
+	class CUA_Core_Update_Ability extends WP_Ability {
+		public function execute( $input = null ) {
+			$version = is_array( $input ) && array_key_exists( 'version', $input ) ? trim( (string) $input['version'] ) : '';
+			if ( '' === $version || ! preg_match( '/^[0-9]+\\.[0-9]+(?:\\.[0-9]+)?(?:[-+][0-9A-Za-z.-]+)?$/', $version ) ) {
+				return new WP_Error( 'cmsa_core_version_invalid', 'A valid exact WordPress version is required.' );
+			}
+			return parent::execute( $input );
+		}
+	}
+}
+
 final class CUA_Platform_Core_Maintenance {
 	private static $raw_update_core_input = null;
 	private static $invocation_hook_registered = false;
@@ -51,6 +63,7 @@ final class CUA_Platform_Core_Maintenance {
 					'additionalProperties' => false,
 				),
 				'output_schema'       => array( 'type' => 'object' ),
+				'ability_class'       => 'CUA_Core_Update_Ability',
 				'execute_callback'    => array( __CLASS__, 'update_core' ),
 				'permission_callback' => static function () { return current_user_can( 'update_core' ); },
 				'meta'                => self::destructive_meta( true ),
