@@ -59,7 +59,8 @@ if ( hash_file( 'sha256', $readme ) === $readme_before || ! is_file( $extra_core
 
 $result = $restore->execute( array( 'id' => $backup['id'], 'confirm_restore' => true ) );
 if ( is_wp_error( $result ) || empty( $result['restored'] ) || empty( $result['rollback_backup_id'] ) || empty( $result['database'] ) || empty( $result['core'] ) ) {
-	fwrite( STDERR, 'Core rollback failed: ' . ( is_wp_error( $result ) ? $result->get_error_code() . ' ' . $result->get_error_message() : 'invalid result' ) . "\n" );
+	$error_detail = is_wp_error( $result ) ? wp_json_encode( $result->get_error_data() ) : '';
+	fwrite( STDERR, 'Core rollback failed: ' . ( is_wp_error( $result ) ? $result->get_error_code() . ' ' . $result->get_error_message() . ' data=' . $error_detail : 'invalid result' ) . "\n" );
 	exit( 1 );
 }
 clearstatcache();
