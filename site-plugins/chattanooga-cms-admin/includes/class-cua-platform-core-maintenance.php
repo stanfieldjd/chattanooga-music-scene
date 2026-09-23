@@ -282,7 +282,12 @@ final class CUA_Platform_Core_Maintenance {
 			return $files;
 		}
 
-		$database = CUA_Backups::restore_database_backup( array( 'id' => (string) $meta['database_backup_id'] ) );
+		$database = CUA_Backups::restore_database_backup(
+			array(
+				'id'              => (string) $meta['database_backup_id'],
+				'confirm_restore' => true,
+			)
+		);
 		if ( is_wp_error( $database ) ) {
 			return $database;
 		}
