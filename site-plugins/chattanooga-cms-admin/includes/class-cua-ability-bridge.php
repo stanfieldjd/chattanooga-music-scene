@@ -9,6 +9,7 @@ final class CUA_Ability_Bridge {
 	const CATEGORY = 'chattanooga-cms-admin';
 
 	private static $catalog_snapshot = null;
+	private static $bridged_targets = array();
 
 	public static function register_category() {
 		if ( ! function_exists( 'wp_register_ability_category' ) ) {
@@ -90,6 +91,7 @@ final class CUA_Ability_Bridge {
 				}
 
 			$target_name = $ability->get_name();
+			self::$bridged_targets[ $target_name ] = $ability;
 			$bridge_name = self::bridge_name( $target_name );
 			if ( wp_get_ability( $bridge_name ) instanceof WP_Ability ) {
 				continue;
@@ -295,6 +297,21 @@ final class CUA_Ability_Bridge {
 				// A malformed third-party ability must not abort the ability catalog.
 			}
 		}
+
+		// A provider can be visible through wp_get_ability() while its entry is
+		// temporarily omitted from a filtered registry enumeration during a
+		// re-entrant catalog call. Facades already registered by this bridge are
+		// authoritative, so retain and merge their original ability objects.
+		$known_targets = array();
+		foreach ( $items as $item ) {
+			$known_targets[ (string) ( $item['target'] ?? '' ) ] = true;
+		}
+		foreach ( self::$bridged_targets as $target_name => $target ) {
+			if ( isset( $known_targets[ $target_name ] ) || ! $target instanceof WP_Ability || ! self::is_bridgeable( $target ) ) {
+				continue;
+			}
+			$items[] = self::catalog_item_from_ability( $target );
+		}
 		usort(
 			$items,
 			static function ( $left, $right ) {
@@ -303,6 +320,31 @@ final class CUA_Ability_Bridge {
 		);
 
 		return $items;
+	}
+
+	private static function catalog_item_from_ability( WP_Ability $target ) {
+		$name = $target->get_name();
+		$meta = $target->get_meta();
+		$annotations = isset( $meta['annotations'] ) && is_array( $meta['annotations'] ) ? $meta['annotations'] : array();
+		$item = array(
+			'contract'    => 'ability',
+			'bridge'      => self::bridge_name( $name ),
+			'target'      => $name,
+			'label'       => (string) $target->get_label(),
+			'description' => (string) $target->get_description(),
+			'category'    => (string) $target->get_category(),
+			'annotations' => array(
+				'readonly'    => array_key_exists( 'readonly', $annotations ) && null !== $annotations['readonly'] ? (bool) $annotations['readonly'] : null,
+				'destructive' => array_key_exists( 'destructive', $annotations ) && null !== $annotations['destructive'] ? (bool) $annotations['destructive'] : null,
+				'idempotent'  => array_key_exists( 'idempotent', $annotations ) && null !== $annotations['idempotent'] ? (bool) $annotations['idempotent'] : null,
+				'open_world'  => array_key_exists( 'open_world', $annotations ) && null !== $annotations['open_world'] ? (bool) $annotations['open_world'] : null,
+			),
+		);
+		$input_schema = self::normalize_schema_for_transport( $target->get_input_schema() );
+		if ( is_array( $input_schema ) ) { $item['inputSchema'] = $input_schema; }
+		$output_schema = self::normalize_schema_for_transport( $target->get_output_schema() );
+		if ( is_array( $output_schema ) ) { $item['outputSchema'] = $output_schema; }
+		return $item;
 	}
 
 	private static function normalize_schema_for_transport( $value, $parent_key = '' ) {
