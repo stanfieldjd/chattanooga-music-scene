@@ -21,6 +21,10 @@ final class CUA_OAuth_Server {
 	const CODE_TTL       = 300;
 	const ACCESS_TTL     = 3600;
 	const REFRESH_TTL    = 2592000;
+	const REFRESH_LOCK_TTL = 30;
+	const PUBLIC_RATE_WINDOW = 60;
+	const REGISTRATION_RATE_LIMIT = 20;
+	const TOKEN_RATE_LIMIT = 120;
 
 	public static function bootstrap() {
 		add_action( 'parse_request', array( __CLASS__, 'serve_well_known_metadata' ), 0 );
@@ -226,6 +230,9 @@ final class CUA_OAuth_Server {
 	}
 
 	public static function register_client( WP_REST_Request $request ) {
+		if ( ! self::allow_public_request( 'registration', self::REGISTRATION_RATE_LIMIT ) ) {
+			return self::oauth_error( 'temporarily_unavailable', 'Public client registration is temporarily rate limited.', 429 );
+		}
 		self::trace( 'client_registration', 'received', 0, '', array( 'client_mode' => 'dcr' ) );
 		if ( ! self::is_oauth_enabled() ) {
 			self::trace( 'client_registration', 'failed', 404, 'authorization_mode_disabled', array( 'client_mode' => 'dcr' ) );
@@ -364,6 +371,9 @@ final class CUA_OAuth_Server {
 	}
 
 	public static function token( WP_REST_Request $request ) {
+		if ( ! self::allow_public_request( 'token', self::TOKEN_RATE_LIMIT ) ) {
+			return self::oauth_error( 'temporarily_unavailable', 'The token endpoint is temporarily rate limited.', 429 );
+		}
 		$grant_type = trim( (string) $request->get_param( 'grant_type' ) );
 		self::trace( 'token_request', 'received', 0, '', array( 'grant_type' => $grant_type ) );
 		if ( ! self::is_oauth_enabled() ) {
@@ -497,15 +507,24 @@ final class CUA_OAuth_Server {
 			return self::oauth_error( 'invalid_target', 'The resource does not match the refresh token.', 400 );
 		}
 
-		if ( $legacy_record ) {
-			delete_transient( $legacy_key );
-		} else {
-			$consumed = self::consume_refresh_record( $refresh );
-			if ( ! is_array( $consumed ) ) {
-				self::trace( 'refresh_token_exchange', 'failed', 400, 'invalid_grant', array( 'grant_type' => 'refresh_token' ) );
-				return self::oauth_error( 'invalid_grant', 'The refresh token is invalid, expired, or already used.', 400 );
+		$refresh_lock = self::acquire_refresh_lock( $refresh );
+		if ( ! is_array( $refresh_lock ) ) {
+			self::trace( 'refresh_token_exchange', 'failed', 400, 'invalid_grant', array( 'grant_type' => 'refresh_token', 'reason' => 'concurrent_use' ) );
+			return self::oauth_error( 'invalid_grant', 'The refresh token is invalid, expired, already used, or currently being exchanged.', 400 );
+		}
+		try {
+			if ( $legacy_record ) {
+				delete_transient( $legacy_key );
+			} else {
+				$consumed = self::consume_refresh_record( $refresh );
+				if ( ! is_array( $consumed ) ) {
+					self::trace( 'refresh_token_exchange', 'failed', 400, 'invalid_grant', array( 'grant_type' => 'refresh_token' ) );
+					return self::oauth_error( 'invalid_grant', 'The refresh token is invalid, expired, or already used.', 400 );
+				}
+				$record = $consumed;
 			}
-			$record = $consumed;
+		} finally {
+			self::release_refresh_lock( $refresh_lock );
 		}
 
 		self::trace( 'refresh_token_exchange', 'accepted', 200, '', array( 'grant_type' => 'refresh_token' ) );
@@ -560,6 +579,38 @@ final class CUA_OAuth_Server {
 		$record['expires_at'] = $now + self::REFRESH_TTL;
 		$records[ self::digest( $token ) ] = $record;
 		update_option( self::REFRESH_OPTION, $records, false );
+	}
+
+	private static function acquire_refresh_lock( $token ) {
+		$key = 'cua_oauth_refresh_lock_' . self::digest( $token );
+		$now = time();
+		$lock = array(
+			'key'        => $key,
+			'owner'      => self::random_token( 16 ),
+			'expires_at' => $now + self::REFRESH_LOCK_TTL,
+		);
+		if ( add_option( $key, $lock, '', 'no' ) ) {
+			return $lock;
+		}
+		$existing = get_option( $key, array() );
+		if ( is_array( $existing ) && (int) ( $existing['expires_at'] ?? 0 ) <= $now ) {
+			delete_option( $key );
+			if ( add_option( $key, $lock, '', 'no' ) ) {
+				return $lock;
+			}
+		}
+		return null;
+	}
+
+	private static function release_refresh_lock( array $lock ) {
+		$key = isset( $lock['key'] ) ? (string) $lock['key'] : '';
+		if ( '' === $key ) {
+			return;
+		}
+		$current = get_option( $key, array() );
+		if ( is_array( $current ) && hash_equals( (string) ( $current['owner'] ?? '' ), (string) ( $lock['owner'] ?? '' ) ) ) {
+			delete_option( $key );
+		}
 	}
 
 	private static function get_refresh_record( $token ) {
@@ -744,6 +795,19 @@ final class CUA_OAuth_Server {
 			),
 			false
 		);
+	}
+
+	private static function allow_public_request( $bucket, $limit ) {
+		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : 'unknown';
+		$key = 'cua_oauth_rate_' . substr( hash( 'sha256', (string) $bucket . '|' . $ip ), 0, 40 );
+		$record = get_transient( $key );
+		$record = is_array( $record ) ? $record : array( 'count' => 0 );
+		if ( (int) ( $record['count'] ?? 0 ) >= (int) $limit ) {
+			return false;
+		}
+		$record['count'] = (int) ( $record['count'] ?? 0 ) + 1;
+		set_transient( $key, $record, self::PUBLIC_RATE_WINDOW );
+		return true;
 	}
 
 	private static function trace( $stage, $outcome, $http_status = 0, $error_code = '', array $extra = array() ) {

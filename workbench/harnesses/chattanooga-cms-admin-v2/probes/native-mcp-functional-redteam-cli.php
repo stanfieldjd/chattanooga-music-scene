@@ -90,10 +90,28 @@ function cmsa_mcp_redteam_tool( $name, array $arguments = array() ) {
 }
 
 function cmsa_mcp_redteam_catalog() {
-	$result = cmsa_mcp_redteam_tool( 'cmsa.catalog', array() );
-	$catalog = $result['structuredContent'] ?? null;
-	cmsa_mcp_redteam_assert( is_array( $catalog ) && isset( $catalog['items'] ) && is_array( $catalog['items'] ), 'MCP catalog returned no items.' );
-	return $catalog['items'];
+	$items = array();
+	$cursor = 0;
+	for ( $page = 0; $page < 100; $page++ ) {
+		$result = cmsa_mcp_redteam_tool(
+			'cmsa.discovery',
+			array(
+				'cursor' => $cursor,
+				'limit'  => 100,
+			)
+		);
+		$manifest = $result['structuredContent'] ?? null;
+		$gateway = is_array( $manifest ) ? ( $manifest['catalogGateway'] ?? null ) : null;
+		cmsa_mcp_redteam_assert( is_array( $gateway ) && isset( $gateway['items'] ) && is_array( $gateway['items'] ), 'MCP discovery returned no catalog items.' );
+		$items = array_merge( $items, $gateway['items'] );
+		$next_cursor = $gateway['nextCursor'] ?? null;
+		if ( null === $next_cursor ) {
+			return $items;
+		}
+		cmsa_mcp_redteam_assert( is_numeric( $next_cursor ) && (int) $next_cursor > $cursor, 'MCP discovery cursor did not advance.' );
+		$cursor = (int) $next_cursor;
+	}
+	cmsa_mcp_redteam_fail( 'MCP discovery exceeded the cursor safety limit.' );
 }
 
 function cmsa_mcp_redteam_find_ability( array $catalog, $target ) {
@@ -158,7 +176,7 @@ function cmsa_mcp_redteam_extract_id( $value ) {
 
 wp_set_current_user( 1 );
 
-cmsa_mcp_redteam_assert( defined( 'CUA_VERSION' ) && '1.2.19' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.19 is not active.' );
+cmsa_mcp_redteam_assert( defined( 'CUA_VERSION' ) && '1.2.34' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.34 is not active.' );
 cmsa_mcp_redteam_assert( defined( 'EM_VERSION' ) && '7.4.3' === (string) EM_VERSION, 'Events Manager 7.4.3 is not active.' );
 cmsa_mcp_redteam_assert( defined( 'CMS_CORE_VERSION' ) && '0.2.2' === CMS_CORE_VERSION, 'Weekend Feature 0.2.2 is not active.' );
 cmsa_mcp_redteam_assert( class_exists( 'CMS_Weekend_Posts' ), 'Weekend Feature generator is unavailable.' );
@@ -170,11 +188,8 @@ foreach ( $tools as $tool ) {
 		$tool_names[] = (string) $tool['name'];
 	}
 }
-foreach ( array( 'cmsa.catalog', 'cmsa.stability-check' ) as $required_tool ) {
+foreach ( array( 'cmsa.discovery', 'cmsa.stability-check', 'cmsa.read-bridge', 'cmsa.write-bridge' ) as $required_tool ) {
 	cmsa_mcp_redteam_assert( in_array( $required_tool, $tool_names, true ), 'Required bounded MCP tool is missing: ' . $required_tool );
-}
-foreach ( array( 'cmsa.read-bridge', 'cmsa.write-bridge' ) as $direct_only_tool ) {
-	cmsa_mcp_redteam_assert( ! in_array( $direct_only_tool, $tool_names, true ), 'Direct-only bridge gateway leaked into bounded tools/list: ' . $direct_only_tool );
 }
 
 $catalog = cmsa_mcp_redteam_catalog();

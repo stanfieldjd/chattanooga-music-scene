@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Chattanooga CMS Admin
  * Description: Universal Chattanooga CMS Admin replacement using plugin-agnostic public WordPress contracts and verified intrinsic platform services.
- * Version: 1.2.24
+ * Version: 1.2.34
  * Author: Chattanooga Music Scene
  * Requires at least: 7.1
  * Requires PHP: 8.0
@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CUA_VERSION', '1.2.24' );
+define( 'CUA_VERSION', '1.2.34' );
 define( 'CUA_DIR', plugin_dir_path( __FILE__ ) );
 
 require_once CUA_DIR . 'includes/class-cua-local-storage.php';
@@ -57,7 +57,14 @@ add_action( 'wp_abilities_api_init', array( 'CUA_Audit', 'register_ability' ), 1
 add_action( 'wp_abilities_api_init', array( 'CUA_Backups', 'register_abilities' ), 18 );
 add_action( 'wp_abilities_api_init', array( 'CUA_Platform_Core_Maintenance', 'register_abilities' ), 19 );
 add_action( 'wp_abilities_api_init', array( 'CUA_Platform_Settings', 'register_abilities' ), 20 );
-add_action( 'wp_abilities_api_init', array( 'CUA_REST_Bridge', 'register_external_bridges' ), 9998 );
-add_action( 'wp_abilities_api_init', array( 'CUA_Ability_Bridge', 'register_external_bridges' ), 9999 );
+add_action( 'wp_abilities_api_init', array( 'CUA_MCP_Server', 'register_adapter_abilities' ), 9997 );
+add_action( 'wp_abilities_api_init', array( 'CUA_REST_Bridge', 'register_external_bridges' ), 999999 );
+add_action( 'wp_abilities_api_init', array( 'CUA_Ability_Bridge', 'register_external_bridges' ), 1000000 );
+add_action( 'wp_loaded', array( 'CUA_Ability_Bridge', 'prime_catalog_snapshot' ), 999999 );
 add_action( 'rest_api_init', array( 'CUA_MCP_Server', 'register_route' ) );
 add_action( 'rest_api_init', array( 'CUA_MCP_Diagnostics', 'register_routes' ), 20 );
+// Providers may register public abilities or REST routes after the initial
+// wp_abilities_api_init pass. Re-run the idempotent facade registration once
+// the REST registry is fully assembled, before MCP calls can arrive.
+add_action( 'rest_api_init', array( 'CUA_REST_Bridge', 'register_external_bridges' ), 1000 );
+add_action( 'rest_api_init', array( 'CUA_Ability_Bridge', 'register_external_bridges' ), 1001 );

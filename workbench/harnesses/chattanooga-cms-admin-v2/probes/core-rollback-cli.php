@@ -57,9 +57,10 @@ if ( hash_file( 'sha256', $readme ) === $readme_before || ! is_file( $extra_core
 	exit( 1 );
 }
 
-$result = $restore->execute( array( 'id' => $backup['id'] ) );
+$result = $restore->execute( array( 'id' => $backup['id'], 'confirm_restore' => true ) );
 if ( is_wp_error( $result ) || empty( $result['restored'] ) || empty( $result['rollback_backup_id'] ) || empty( $result['database'] ) || empty( $result['core'] ) ) {
-	fwrite( STDERR, 'Core rollback failed: ' . ( is_wp_error( $result ) ? $result->get_error_code() . ' ' . $result->get_error_message() : 'invalid result' ) . "\n" );
+	$error_detail = is_wp_error( $result ) ? wp_json_encode( $result->get_error_data() ) : '';
+	fwrite( STDERR, 'Core rollback failed: ' . ( is_wp_error( $result ) ? $result->get_error_code() . ' ' . $result->get_error_message() . ' data=' . $error_detail : 'invalid result' ) . "\n" );
 	exit( 1 );
 }
 clearstatcache();
@@ -83,7 +84,7 @@ if ( $disk_version !== (string) $backup['wordpress'] ) {
 }
 
 $current_version = wp_get_wp_version();
-$noop = $update->execute( array( 'version' => $current_version ) );
+$noop = $update->execute( array( 'version' => $current_version, 'confirm_update' => true ) );
 if ( is_wp_error( $noop ) || ! empty( $noop['updated'] ) || 'already-current' !== ( $noop['reason'] ?? '' ) ) {
 	fwrite( STDERR, "Exact-current core update did not close as an idempotent no-op.\n" );
 	exit( 1 );
