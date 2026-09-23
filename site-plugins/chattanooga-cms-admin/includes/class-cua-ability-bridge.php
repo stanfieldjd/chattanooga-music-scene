@@ -177,21 +177,16 @@ final class CUA_Ability_Bridge {
 		if ( ! function_exists( 'wp_get_abilities' ) ) {
 			return new WP_Error( 'cua_catalog_registry_unavailable', 'The WordPress public ability registry is unavailable.' );
 		}
-		// Reconcile provider registrations at call time because WordPress provider
-		// callbacks may be lazy or re-entrant after initialization.
-		self::register_external_bridges();
 
-		// Discovery reads the settled registry at call time. A lifecycle snapshot can
-		// become stale when a provider registers or reconciles an ability after the
-		// plugin's initialization hook, so never let that stale snapshot hide a
-		// currently registered public contract.
-		$items = array_values( self::$bridged_catalog_items );
-		$items = array_merge( $items, self::catalog_items() );
-		if ( is_array( self::$catalog_snapshot ) ) {
-			// Merge the refreshed lifecycle snapshot even when the live read contains
-			// unrelated REST entries; otherwise those entries can mask provider targets.
-			$items = array_merge( self::$catalog_snapshot, $items );
-		}
+		/*
+		 * Discovery is deliberately read-only. The official WordPress MCP
+		 * adapter keeps its startup tool registry static and resolves the
+		 * current ability set only when discovery is called. Re-registering
+		 * provider facades here can re-enter the WordPress abilities registry
+		 * while it is being enumerated and can make provider entries disappear
+		 * from the same response.
+		 */
+		$items = self::catalog_items();
 
 		if ( class_exists( 'CUA_REST_Bridge' ) ) {
 			try {
@@ -200,12 +195,15 @@ final class CUA_Ability_Bridge {
 					$items = array_merge( $items, $rest_items );
 				}
 			} catch ( Throwable $error ) {
-				// A malformed third-party REST route must not abort the ability catalog.
+				// A malformed third-party REST route must not abort discovery.
 			}
 		}
 
 		$unique = array();
 		foreach ( $items as $item ) {
+			if ( ! is_array( $item ) ) {
+				continue;
+			}
 			$key = implode( '|', array( (string) ( $item['contract'] ?? '' ), (string) ( $item['target'] ?? '' ), (string) ( $item['bridge'] ?? '' ) ) );
 			$unique[ $key ] = $item;
 		}
@@ -213,7 +211,7 @@ final class CUA_Ability_Bridge {
 		usort(
 			$items,
 			static function ( $left, $right ) {
-				return strcmp( (string) $left['target'], (string) $right['target'] );
+				return strcmp( (string) ( $left['target'] ?? '' ), (string) ( $right['target'] ?? '' ) );
 			}
 		);
 
