@@ -17,12 +17,8 @@ function cmsa_native_mcp_assert( $condition, $message ) {
 }
 
 function cmsa_native_mcp_post( $method, array $params = array(), array $headers = array(), $id = 1 ) {
-	global $cmsa_native_mcp_session_id;
 	$request = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
 	$request->set_header( 'content-type', 'application/json' );
-	if ( ! empty( $cmsa_native_mcp_session_id ) ) {
-		$request->set_header( 'Mcp-Session-Id', $cmsa_native_mcp_session_id );
-	}
 	foreach ( $headers as $name => $value ) {
 		$request->set_header( $name, $value );
 	}
@@ -46,7 +42,6 @@ function cmsa_native_mcp_post( $method, array $params = array(), array $headers 
 }
 
 function cmsa_native_mcp_modern( $method, array $params = array(), $id = 1, array $extra_headers = array() ) {
-	global $cmsa_native_mcp_session_id;
 	$params['_meta'] = isset( $params['_meta'] ) && is_array( $params['_meta'] ) ? $params['_meta'] : array();
 	$params['_meta']['io.modelcontextprotocol/protocolVersion'] = '2026-07-28';
 	$params['_meta']['io.modelcontextprotocol/clientCapabilities'] = array();
@@ -68,10 +63,6 @@ function cmsa_native_mcp_modern( $method, array $params = array(), $id = 1, arra
 	} elseif ( 'resources/read' === $method && isset( $params['uri'] ) ) {
 		$headers['Mcp-Name'] = (string) $params['uri'];
 	}
-	if ( '' !== (string) $cmsa_native_mcp_session_id ) {
-		$headers['Mcp-Session-Id'] = $cmsa_native_mcp_session_id;
-	}
-
 	return cmsa_native_mcp_post( $method, $params, $headers, $id );
 }
 
@@ -85,7 +76,6 @@ function cmsa_native_mcp_tool( array $tools, $name ) {
 }
 
 function cmsa_native_mcp_all_tools() {
-	global $cmsa_native_mcp_session_id;
 	$all_tools = array();
 	$cursor = '';
 	for ( $page = 0; $page < 20; $page++ ) {
@@ -198,15 +188,14 @@ $prompt_get = cmsa_native_mcp_modern(
 		'name'      => CUA_MCP_Server::PROMPT_SITE_OPERATION,
 		'arguments' => array( 'request' => 'inspect the current public site-operation catalog' ),
 	),
-	112,
-	array( 'Mcp-Session-Id' => $cmsa_native_mcp_session_id )
+	112
 );
 cmsa_native_mcp_assert( 200 === $prompt_get->get_status(), 'prompts/get did not return HTTP 200.' );
 $prompt_get_data = $prompt_get->get_data();
 cmsa_native_mcp_assert( 'user' === ( $prompt_get_data['result']['messages'][0]['role'] ?? '' ), 'Site-operation prompt returned the wrong message role.' );
 cmsa_native_mcp_assert( false !== strpos( (string) ( $prompt_get_data['result']['messages'][0]['content']['text'] ?? '' ), 'site-operation catalog' ), 'Site-operation prompt returned incomplete guidance.' );
 
-// tools/list: deterministic names, bounded public ability surface, and correct read/write annotations.
+// tools/list: deterministic ordered stable surface and correct read/write annotations.
 $list = cmsa_native_mcp_modern( 'tools/list', array(), 102 );
 cmsa_native_mcp_assert( 200 === $list->get_status(), 'tools/list did not return HTTP 200.' );
 $list_data = $list->get_data();
@@ -229,27 +218,51 @@ foreach ( $tools as $tool ) {
 	cmsa_native_mcp_assert( ( $tool['securitySchemes'] ?? null ) === ( $tool['_meta']['securitySchemes'] ?? null ), 'A listed MCP tool does not mirror securitySchemes into _meta.' );
 	$names[] = (string) $tool['name'];
 }
-$sorted_names = $names;
-sort( $sorted_names, SORT_STRING );
-cmsa_native_mcp_assert( $names === $sorted_names, 'MCP tools/list is not deterministic.' );
-
 $expected_names = array(
+	'cmsa.discovery',
+	'cmsa.stability-check',
 	'cmsa.activate-plugin',
 	'cmsa.catalog',
+	'cmsa.clear-cache',
+	'cmsa.create-backup',
 	'cmsa.deactivate-plugin',
 	'cmsa.delete-plugin',
+	'cmsa.delete-theme',
+	'cmsa.get-audit-log',
 	'cmsa.get-health',
+	'cmsa.get-registered-setting',
 	'cmsa.install-plugin',
 	'cmsa.install-plugin-package',
 	'cmsa.install-theme',
+	'cmsa.list-backups',
 	'cmsa.list-plugins',
+	'cmsa.list-registered-settings',
 	'cmsa.list-themes',
-	'cmsa.stability-check',
+	'cmsa.list-updates',
+	'cmsa.read-bridge',
+	'cmsa.restore-component-backup',
+	'cmsa.restore-core-backup',
+	'cmsa.restore-database-backup',
+	'cmsa.set-plugin-auto-update',
+	'cmsa.set-theme-auto-update',
+	'cmsa.switch-theme',
 	'cmsa.uninstall-plugin',
+	'cmsa.update-core',
+	'cmsa.update-plugin',
+	'cmsa.update-registered-setting',
+	'cmsa.update-theme',
+	'cmsa.verify-backup',
+	'cmsa.write-bridge',
 );
-cmsa_native_mcp_assert( $expected_names === $names, 'MCP tools/list does not match the bounded deterministic core tool set: ' . wp_json_encode( $names ) );
-foreach ( array( 'cmsa.read-bridge', 'cmsa.write-bridge' ) as $direct_only_tool ) {
-	cmsa_native_mcp_assert( ! in_array( $direct_only_tool, $names, true ), 'Direct-only bridge gateway leaked into bounded tools/list: ' . $direct_only_tool );
+cmsa_native_mcp_assert( $expected_names === $names, 'MCP tools/list does not match the ordered deterministic stable tool set: ' . wp_json_encode( $names ) );
+
+$repeat_names = array();
+foreach ( cmsa_native_mcp_all_tools() as $repeat_tool ) {
+	$repeat_names[] = (string) ( $repeat_tool['name'] ?? '' );
+}
+cmsa_native_mcp_assert( $names === $repeat_names, 'Repeated MCP tools/list changed the stable tool ordering.' );
+foreach ( array( 'cmsa.read-bridge', 'cmsa.write-bridge' ) as $gateway_tool ) {
+	cmsa_native_mcp_assert( in_array( $gateway_tool, $names, true ), 'Stable bridge gateway is missing from tools/list: ' . $gateway_tool );
 }
 foreach ( $names as $name ) {
 	cmsa_native_mcp_assert( ! preg_match( '/^cmsa\\.(?:bridge|rest)-[a-f0-9]{24}$/', $name ), 'Generated universal facade leaked into MCP tools/list: ' . $name );
@@ -282,8 +295,7 @@ $catalog = cmsa_native_mcp_modern(
 		'name'      => 'cmsa.catalog',
 		'arguments' => array(),
 	),
-	103,
-	array( 'Mcp-Session-Id' => $cmsa_native_mcp_session_id )
+	103
 );
 cmsa_native_mcp_assert( 200 === $catalog->get_status(), 'MCP catalog tool call did not return HTTP 200.' );
 $catalog_data = $catalog->get_data();
@@ -318,8 +330,7 @@ $missing = cmsa_native_mcp_modern(
 		'name'      => 'cmsa.not-a-real-tool',
 		'arguments' => array(),
 	),
-	104,
-	array( 'Mcp-Session-Id' => $cmsa_native_mcp_session_id )
+	104
 );
 cmsa_native_mcp_assert( 200 === $missing->get_status(), 'Missing tool did not return an MCP tool result.' );
 $missing_data = $missing->get_data();
@@ -429,5 +440,5 @@ $close_session->set_header( 'Mcp-Session-Id', $legacy_session_id );
 $close_session_response = rest_do_request( $close_session );
 cmsa_native_mcp_assert( 204 === $close_session_response->get_status(), 'Legacy MCP DELETE did not close the session.' );
 
-echo "cmsa-native-mcp: PASS version=1.2.24 protocol=2026-07-28 route=verified administrator_surface=bounded-public origin_guard=verified tools_list=bounded-deterministic oauth_scheme=verified read_call=verified header_validation=verified\n";
+echo "cmsa-native-mcp: PASS version=1.2.24 protocol=2026-07-28 route=verified administrator_surface=bounded-public origin_guard=verified tools_list=stable-deterministic oauth_scheme=verified read_call=verified header_validation=verified\n";
 exit( 0 );
