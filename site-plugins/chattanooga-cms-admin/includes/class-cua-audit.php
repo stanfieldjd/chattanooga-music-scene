@@ -297,6 +297,8 @@ final class CUA_Audit {
 			'correlation_sha256',
 			'tool_fingerprint',
 			'tool_count',
+			'ttl_ms',
+			'cache_scope',
 			'next_cursor_present',
 			'descriptor_pass',
 			'descriptor_fail',
@@ -311,12 +313,12 @@ final class CUA_Audit {
 		}
 
 		$sanitized['time'] = isset( $sanitized['time'] ) ? sanitize_text_field( (string) $sanitized['time'] ) : gmdate( 'c' );
-		foreach ( array( 'mcp_surface', 'mcp_method', 'protocol_version', 'client_class', 'result_type', 'error_code' ) as $key ) {
+		foreach ( array( 'mcp_surface', 'mcp_method', 'protocol_version', 'client_class', 'cache_scope', 'result_type', 'error_code' ) as $key ) {
 			if ( isset( $sanitized[ $key ] ) ) {
 				$sanitized[ $key ] = substr( sanitize_text_field( (string) $sanitized[ $key ] ), 0, 191 );
 			}
 		}
-		foreach ( array( 'http_status', 'request_bytes', 'response_bytes', 'tool_count', 'descriptor_pass', 'descriptor_fail' ) as $key ) {
+		foreach ( array( 'http_status', 'request_bytes', 'response_bytes', 'tool_count', 'ttl_ms', 'descriptor_pass', 'descriptor_fail' ) as $key ) {
 			if ( isset( $sanitized[ $key ] ) ) {
 				$sanitized[ $key ] = max( 0, (int) $sanitized[ $key ] );
 			}
