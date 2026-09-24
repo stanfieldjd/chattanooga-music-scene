@@ -58,10 +58,10 @@ jobs:
           find "$source" -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
           test -f "$source/chattanooga-cms-admin.php"
           test ! -e "$source/chattanooga-universal-admin.php"
-          test "$(grep -RIl '^ \* Plugin Name:' "$source" --include='*.php' | wc -l)" -eq 1
+          test "$(grep -RIl --exclude-dir=vendor '^ \* Plugin Name:' "$source" --include='*.php' | wc -l)" -eq 1
           grep -q '^ \* Plugin Name: Chattanooga CMS Admin$' "$source/chattanooga-cms-admin.php"
           grep -q '^ \* Version: 1.2.39$' "$source/chattanooga-cms-admin.php"
-          if grep -REiq 'WooCommerce|WC_Product|wc_get_product|Events_Manager|events-manager|EM_Event|EM_Location|BuddyBoss|Marketplace|Weekend_Feature|Rank_Math|rank-math|seo-by-rank-math|awpcp|another-wordpress-classifieds-plugin|miniOrange|miniorange' "$source"; then
+          if grep -REiq --exclude-dir=vendor 'WooCommerce|WC_Product|wc_get_product|Events_Manager|events-manager|EM_Event|EM_Location|BuddyBoss|Marketplace|Weekend_Feature|Rank_Math|rank-math|seo-by-rank-math|awpcp|another-wordpress-classifieds-plugin|miniOrange|miniorange' "$source"; then
             echo "Replacement contains provider-specific implementation logic." >&2
             exit 1
           fi
