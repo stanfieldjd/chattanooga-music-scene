@@ -1,0 +1,172 @@
+name: Reference WordPress MCP Simulation
+
+on:
+  push:
+    branches:
+      - diag/reference-mcp-simulation
+    paths:
+      - ".github/workflows/reference-wordpress-mcp-simulation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  simulate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mysqli, zip, gd, fileinfo
+          tools: composer:v2
+
+      - name: Install WordPress lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+          php /tmp/wp-cli.phar core download --version=7.1 --path=/tmp/wordpress --force
+          php /tmp/wp-cli.phar config create --path=/tmp/wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
+          php /tmp/wp-cli.phar config set WP_ENVIRONMENT_TYPE local --type=constant --path=/tmp/wordpress
+          password="$(php -r 'echo bin2hex(random_bytes(20));')"
+          php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://127.0.0.1:8090 --title="Reference MCP Lab" --admin_user=admin --admin_password="$password" --admin_email=lab@example.invalid --skip-email
+          php -S 127.0.0.1:8090 -t /tmp/wordpress >/tmp/reference-mcp-http.log 2>&1 &
+          for i in $(seq 1 40); do
+            curl -fsS 'http://127.0.0.1:8090/index.php?rest_route=%2F' >/dev/null 2>&1 && exit 0
+            sleep 1
+          done
+          exit 1
+
+      - name: Create MCP session simulator
+        shell: bash
+        run: |
+          cat > /tmp/simulate-mcp.sh <<'BASH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          endpoint="$1"
+          protocol="$2"
+          label="$3"
+          auth="$4"
+          min_tools="$5"
+
+          fingerprint=""
+          names=""
+          for iteration in $(seq 1 10); do
+            iid=$((1000 + iteration))
+            printf '{"jsonrpc":"2.0","id":%d,"method":"initialize","params":{"protocolVersion":"%s","capabilities":{},"clientInfo":{"name":"reference-%s","version":"1.0"}}}\n' "$iid" "$protocol" "$label" > /tmp/init.json
+            curl -fsS -D /tmp/init.headers -o /tmp/init.body \
+              --user "$auth" \
+              -H 'Content-Type: application/json' \
+              -H 'Accept: application/json, text/event-stream' \
+              -H "MCP-Protocol-Version: $protocol" \
+              --data-binary @/tmp/init.json "$endpoint"
+
+            session="$(awk 'BEGIN{IGNORECASE=1} /^Mcp-Session-Id:/{gsub("\r","",$2); print $2}' /tmp/init.headers | tail -1)"
+            test -n "$session"
+            php -r '$d=json_decode(file_get_contents("/tmp/init.body"),true); if(!isset($d["result"]["protocolVersion"])) {fwrite(STDERR,file_get_contents("/tmp/init.body"));exit(1);}'
+
+            printf '{"jsonrpc":"2.0","method":"notifications/initialized","params":{}}\n' > /tmp/initialized.json
+            code="$(curl -sS -o /tmp/initialized.body -w '%{http_code}' \
+              --user "$auth" \
+              -H 'Content-Type: application/json' \
+              -H 'Accept: application/json, text/event-stream' \
+              -H "MCP-Protocol-Version: $protocol" \
+              -H "Mcp-Session-Id: $session" \
+              --data-binary @/tmp/initialized.json "$endpoint")"
+            case "$code" in 200|202|204) ;; *) cat /tmp/initialized.body; exit 1;; esac
+
+            lid=$((2000 + iteration))
+            printf '{"jsonrpc":"2.0","id":%d,"method":"tools/list","params":{}}\n' "$lid" > /tmp/list.json
+            curl -fsS -D /tmp/list.headers -o /tmp/list.body \
+              --user "$auth" \
+              -H 'Content-Type: application/json' \
+              -H 'Accept: application/json, text/event-stream' \
+              -H "MCP-Protocol-Version: $protocol" \
+              -H "Mcp-Session-Id: $session" \
+              -H 'Connection: close' \
+              --data-binary @/tmp/list.json "$endpoint"
+
+            count="$(php -r '$d=json_decode(file_get_contents("/tmp/list.body"),true); echo count($d["result"]["tools"]??[]);')"
+            test "$count" -ge "$min_tools"
+            current_names="$(php -r '$d=json_decode(file_get_contents("/tmp/list.body"),true); $t=$d["result"]["tools"]??[]; echo json_encode(array_values(array_map(fn($x)=>$x["name"]??"",$t)));')"
+            current_fp="$(php -r '$d=json_decode(file_get_contents("/tmp/list.body"),true); $t=$d["result"]["tools"]??[]; echo hash("sha256",json_encode($t,JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));')"
+
+            if [ -z "$fingerprint" ]; then
+              fingerprint="$current_fp"
+              names="$current_names"
+            else
+              test "$fingerprint" = "$current_fp"
+              test "$names" = "$current_names"
+            fi
+            echo "$label iteration=$iteration tools=$count fingerprint=$current_fp"
+          done
+          echo "REFERENCE-MCP PASS label=$label protocol=$protocol reconnects=10 fingerprint=$fingerprint names=$names"
+          BASH
+          chmod +x /tmp/simulate-mcp.sh
+
+      - name: Simulate WebSensePro MCP
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth=1 https://github.com/bilalnaseer/wsp-wordpress-mcp.git /tmp/wsp
+          cp -R /tmp/wsp/wsp-mcp-ai-agents-connector /tmp/wordpress/wp-content/plugins/wsp-mcp-ai-agents-connector
+          php /tmp/wp-cli.phar plugin activate wsp-mcp-ai-agents-connector --path=/tmp/wordpress
+          ap="$(php /tmp/wp-cli.phar user application-password create admin wsp-sim --porcelain --path=/tmp/wordpress)"
+          /tmp/simulate-mcp.sh 'http://127.0.0.1:8090/index.php?rest_route=%2Fwsp-mcp%2Fv1%2Fmcp' '2025-06-18' 'wsp' "admin:$ap" 1
+          php /tmp/wp-cli.phar plugin deactivate wsp-mcp-ai-agents-connector --path=/tmp/wordpress
+          rm -rf /tmp/wordpress/wp-content/plugins/wsp-mcp-ai-agents-connector
+
+      - name: Simulate Agent Abilities for MCP
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth=1 https://github.com/unaibamir/agent-abilities-for-mcp.git /tmp/aafm
+          if [ -f /tmp/aafm/composer.json ]; then composer install --working-dir=/tmp/aafm --no-dev --prefer-dist --no-interaction --optimize-autoloader; fi
+          cp -R /tmp/aafm /tmp/wordpress/wp-content/plugins/agent-abilities-for-mcp
+          php /tmp/wp-cli.phar plugin activate agent-abilities-for-mcp --path=/tmp/wordpress
+          ap="$(php /tmp/wp-cli.phar user application-password create admin aafm-sim --porcelain --path=/tmp/wordpress)"
+          /tmp/simulate-mcp.sh 'http://127.0.0.1:8090/index.php?rest_route=%2Fagent-abilities-for-mcp%2Fmcp' '2025-11-25' 'aafm' "admin:$ap" 1
+          php /tmp/wp-cli.phar plugin deactivate agent-abilities-for-mcp --path=/tmp/wordpress
+          rm -rf /tmp/wordpress/wp-content/plugins/agent-abilities-for-mcp
+
+      - name: Simulate WordPress MCP Modern
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth=1 https://github.com/consigcody94/wordpress-mcp-modern.git /tmp/wpmcp-modern
+          composer install --working-dir=/tmp/wpmcp-modern --no-dev --prefer-dist --no-interaction --optimize-autoloader
+          cp -R /tmp/wpmcp-modern /tmp/wordpress/wp-content/plugins/wordpress-mcp-modern
+          php /tmp/wp-cli.phar plugin activate wordpress-mcp-modern --path=/tmp/wordpress
+          ap="$(php /tmp/wp-cli.phar user application-password create admin modern-sim --porcelain --path=/tmp/wordpress)"
+          /tmp/simulate-mcp.sh 'http://127.0.0.1:8090/index.php?rest_route=%2Fwpmcp%2Fmcp' '2025-06-18' 'modern' "admin:$ap" 1
+          php /tmp/wp-cli.phar plugin deactivate wordpress-mcp-modern --path=/tmp/wordpress
+          rm -rf /tmp/wordpress/wp-content/plugins/wordpress-mcp-modern
+
+      - name: Simulate official WordPress MCP Adapter
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth=1 https://github.com/WordPress/mcp-adapter.git /tmp/mcp-adapter
+          composer install --working-dir=/tmp/mcp-adapter --no-dev --prefer-dist --no-interaction --optimize-autoloader
+          cp -R /tmp/mcp-adapter /tmp/wordpress/wp-content/plugins/mcp-adapter
+          php /tmp/wp-cli.phar plugin activate mcp-adapter --path=/tmp/wordpress
+          ap="$(php /tmp/wp-cli.phar user application-password create admin adapter-sim --porcelain --path=/tmp/wordpress)"
+          /tmp/simulate-mcp.sh 'http://127.0.0.1:8090/index.php?rest_route=%2Fmcp%2Fmcp-adapter-default-server' '2025-11-25' 'adapter' "admin:$ap" 1
