@@ -18,16 +18,21 @@ final class CUA_REST_Bridge {
 			return;
 		}
 
-		$routes = $server->get_routes();
+		try {
+			$routes = $server->get_routes();
+		} catch ( Throwable $error ) {
+			return;
+		}
 		foreach ( $routes as $route_regex => $handlers ) {
 			if ( ! is_string( $route_regex ) || ! is_array( $handlers ) ) {
 				continue;
 			}
 
 			foreach ( $handlers as $handler ) {
-				if ( ! self::handler_is_bridgeable( $handler ) ) {
-					continue;
-				}
+				try {
+					if ( ! self::handler_is_bridgeable( $handler ) ) {
+						continue;
+					}
 
 				foreach ( self::supported_methods( $handler['methods'] ) as $method ) {
 					$bridge_name = self::bridge_name( $method, $route_regex );
@@ -41,7 +46,7 @@ final class CUA_REST_Bridge {
 							'label'               => sprintf( __( 'REST %1$s %2$s', 'chattanooga-cms-admin' ), $method, $route_regex ),
 							'description'         => sprintf( __( 'Permission-preserving facade for the registered WordPress REST endpoint %1$s %2$s.', 'chattanooga-cms-admin' ), $method, $route_regex ),
 							'category'            => self::CATEGORY,
-							'input_schema'        => self::input_schema(),
+							'input_schema'        => self::input_schema( $handler ),
 							'output_schema'       => array( 'type' => 'object' ),
 							'execute_callback'    => static function ( $input ) use ( $route_regex, $method ) {
 								return CUA_REST_Bridge::execute_route( $route_regex, $method, is_array( $input ) ? $input : array() );
@@ -52,6 +57,10 @@ final class CUA_REST_Bridge {
 							'meta'                => self::bridge_meta( $method ),
 						)
 					);
+				}
+				} catch ( Throwable $error ) {
+					// A malformed third-party route must not abort core bridge registration.
+					continue;
 				}
 			}
 		}
@@ -70,6 +79,8 @@ final class CUA_REST_Bridge {
 				'route'       => $route_regex,
 				'label'       => $method . ' ' . $route_regex,
 				'description' => 'Registered WordPress REST endpoint exposed through a route-locked universal facade.',
+				'inputSchema' => self::input_schema( $route['handler'] ),
+				'outputSchema' => array( 'type' => 'object' ),
 				'category'    => self::CATEGORY,
 				'annotations' => self::annotations( $method ),
 			);
@@ -115,67 +126,75 @@ final class CUA_REST_Bridge {
 	}
 
 	public static function target_permission( $route_regex, $method, array $handler, array $input ) {
-		if ( ! current_user_can( 'manage_options' ) ) {
-			return false;
-		}
+		try {
+			if ( ! current_user_can( 'manage_options' ) ) {
+				return false;
+			}
 
-		$request = self::build_request( $route_regex, $method, $handler, $input );
-		if ( is_wp_error( $request ) ) {
-			return $request;
-		}
+			$request = self::build_request( $route_regex, $method, $handler, $input );
+			if ( is_wp_error( $request ) ) {
+				return $request;
+			}
 
-		$prepared = self::validate_and_guard_request( $request, $method );
-		if ( is_wp_error( $prepared ) || false === $prepared ) {
-			return $prepared;
-		}
+			$prepared = self::validate_and_guard_request( $request, $method );
+			if ( is_wp_error( $prepared ) || false === $prepared ) {
+				return $prepared;
+			}
 
-		if ( empty( $handler['permission_callback'] ) || ! is_callable( $handler['permission_callback'] ) ) {
-			return false;
-		}
+			if ( empty( $handler['permission_callback'] ) || ! is_callable( $handler['permission_callback'] ) ) {
+				return false;
+			}
 
-		return call_user_func( $handler['permission_callback'], $request );
+			return call_user_func( $handler['permission_callback'], $request );
+		} catch ( Throwable $error ) {
+			return new WP_Error( 'cua_rest_permission_exception', 'The discovered REST permission check failed.' );
+		}
 	}
 
 	public static function execute_route( $route_regex, $method, array $input ) {
-		if ( ! current_user_can( 'manage_options' ) ) {
-			return new WP_Error( 'cua_rest_forbidden', 'The current user is not permitted to use the universal administration bridge.' );
-		}
+		try {
+			if ( ! current_user_can( 'manage_options' ) ) {
+				return new WP_Error( 'cua_rest_forbidden', 'The current user is not permitted to use the universal administration bridge.' );
+			}
 
-		$server = function_exists( 'rest_get_server' ) ? rest_get_server() : null;
-		if ( ! $server instanceof WP_REST_Server ) {
-			return new WP_Error( 'cua_rest_unavailable', 'The WordPress REST server is unavailable.' );
-		}
+			$server = function_exists( 'rest_get_server' ) ? rest_get_server() : null;
+			if ( ! $server instanceof WP_REST_Server ) {
+				return new WP_Error( 'cua_rest_unavailable', 'The WordPress REST server is unavailable.' );
+			}
 
-		$handler = self::find_live_handler( $server, $route_regex, $method );
-		if ( is_wp_error( $handler ) ) {
-			return $handler;
-		}
+			$handler = self::find_live_handler( $server, $route_regex, $method );
+			if ( is_wp_error( $handler ) ) {
+				return $handler;
+			}
 
-		$request = self::build_request( $route_regex, $method, $handler, $input );
-		if ( is_wp_error( $request ) ) {
-			return $request;
-		}
+			$request = self::build_request( $route_regex, $method, $handler, $input );
+			if ( is_wp_error( $request ) ) {
+				return $request;
+			}
 
-		$prepared = self::validate_and_guard_request( $request, $method );
-		if ( is_wp_error( $prepared ) ) {
-			return $prepared;
-		}
-		if ( false === $prepared ) {
-			return new WP_Error( 'cua_rest_forbidden', 'The control-plane guard denied the current REST request.' );
-		}
+			$prepared = self::validate_and_guard_request( $request, $method );
+			if ( is_wp_error( $prepared ) ) {
+				return $prepared;
+			}
+			if ( false === $prepared ) {
+				return new WP_Error( 'cua_rest_forbidden', 'The control-plane guard denied the current REST request.' );
+			}
 
-		$response = rest_do_request( $request );
-		if ( ! $response instanceof WP_REST_Response ) {
-			return new WP_Error( 'cua_rest_invalid_response', 'The registered REST endpoint did not return a WordPress REST response.' );
-		}
-		if ( $response->is_error() ) {
-			return $response->as_error();
-		}
+			$response = rest_do_request( $request );
+			if ( ! $response instanceof WP_REST_Response ) {
+				return new WP_Error( 'cua_rest_invalid_response', 'The registered REST endpoint did not return a WordPress REST response.' );
+			}
+			if ( $response->is_error() ) {
+				return $response->as_error();
+			}
 
-		return array(
-			'status' => (int) $response->get_status(),
-			'data'   => $response->get_data(),
-		);
+			return array(
+				'status' => (int) $response->get_status(),
+				'data'   => $response->get_data(),
+			);
+		} catch ( Throwable $error ) {
+			return new WP_Error( 'cua_rest_execution_exception', 'The discovered REST execution failed.' );
+		}
 	}
 
 	private static function live_bridges() {
@@ -185,7 +204,12 @@ final class CUA_REST_Bridge {
 		}
 
 		$bridges = array();
-		foreach ( $server->get_routes() as $route_regex => $handlers ) {
+		try {
+			$routes = $server->get_routes();
+		} catch ( Throwable $error ) {
+			return $bridges;
+		}
+		foreach ( $routes as $route_regex => $handlers ) {
 			if ( ! is_string( $route_regex ) || ! is_array( $handlers ) ) {
 				continue;
 			}
@@ -270,7 +294,11 @@ final class CUA_REST_Bridge {
 	}
 
 	private static function find_live_handler( WP_REST_Server $server, $route_regex, $method ) {
-		$routes = $server->get_routes();
+		try {
+			$routes = $server->get_routes();
+		} catch ( Throwable $error ) {
+			return new WP_Error( 'cua_rest_route_resolution_exception', 'The live WordPress REST route table could not be resolved safely.' );
+		}
 		if ( empty( $routes[ $route_regex ] ) || ! is_array( $routes[ $route_regex ] ) ) {
 			return new WP_Error( 'cua_rest_route_unavailable', 'The discovered REST route is no longer registered.' );
 		}
@@ -343,7 +371,35 @@ final class CUA_REST_Bridge {
 		return self::NAMESPACE_PREFIX . 'rest-' . substr( hash( 'sha256', $method . '|' . $route_regex ), 0, 24 );
 	}
 
-	private static function input_schema() {
+	private static function input_schema( array $handler = array() ) {
+		$param_properties = array();
+		$required_params = array();
+		$args = isset( $handler['args'] ) && is_array( $handler['args'] ) ? $handler['args'] : array();
+		foreach ( $args as $name => $options ) {
+			if ( ! is_string( $name ) || ! is_array( $options ) ) {
+				continue;
+			}
+			$property = array();
+			foreach ( array( 'type', 'format', 'enum', 'items', 'minimum', 'maximum', 'minItems', 'maxItems', 'minLength', 'maxLength', 'pattern', 'description', 'default' ) as $keyword ) {
+				if ( array_key_exists( $keyword, $options ) ) {
+					$property[ $keyword ] = $options[ $keyword ];
+				}
+			}
+			$param_properties[ $name ] = $property;
+			if ( ! empty( $options['required'] ) ) {
+				$required_params[] = $name;
+			}
+		}
+		$params_schema = array(
+			'type'                 => 'object',
+			'additionalProperties' => true,
+		);
+		if ( ! empty( $param_properties ) ) {
+			$params_schema['properties'] = $param_properties;
+		}
+		if ( ! empty( $required_params ) ) {
+			$params_schema['required'] = array_values( array_unique( $required_params ) );
+		}
 		return array(
 			'type'                 => 'object',
 			'properties'           => array(
@@ -352,9 +408,7 @@ final class CUA_REST_Bridge {
 					'minLength' => 1,
 					'maxLength' => 2048,
 				),
-				'params' => array(
-					'type' => 'object',
-				),
+				'params' => $params_schema,
 			),
 			'required'             => array( 'path' ),
 			'additionalProperties' => false,

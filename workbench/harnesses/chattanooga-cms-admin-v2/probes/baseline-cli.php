@@ -183,14 +183,14 @@ if ( is_wp_error( $gateway_mcp_result ) || 'mcp-only' !== ( $gateway_mcp_result[
 }
 
 $rest = wp_get_ability( $rest_bridge );
-$rest_input = array( 'path' => '/comet-fixture/v1/marker/29', 'params' => array() );
+$rest_input = array( 'path' => '/comet-fixture/v1/marker/29', 'params' => array( 'id' => 29 ) );
 if ( ! $rest instanceof WP_Ability || true !== $rest->check_permissions( $rest_input ) ) {
 	fwrite( STDERR, "REST facade permission failed.\n" );
 	exit( 1 );
 }
 $rest_result = $rest->execute( $rest_input );
 if ( is_wp_error( $rest_result ) || 29 !== (int) ( $rest_result['data']['id'] ?? 0 ) || 'comet' !== ( $rest_result['data']['marker'] ?? '' ) ) {
-	fwrite( STDERR, "REST facade execution failed.\n" );
+	fwrite( STDERR, "REST facade execution failed: " . wp_json_encode( $rest_result ) . "\n" );
 	exit( 1 );
 }
 $gateway_rest_result = $read_gateway->execute(

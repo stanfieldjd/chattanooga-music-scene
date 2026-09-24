@@ -164,7 +164,7 @@ if ( '7.1' !== $before ) {
 $marker_key = 'cmsa_v2_core_update_db_marker';
 update_option( $marker_key, 'pre-update-database', false );
 
-$result = $ability->execute( array( 'version' => $target ) );
+$result = $ability->execute( array( 'version' => $target, 'confirm_update' => true ) );
 if ( is_wp_error( $result ) || empty( $result['updated'] ) || $target !== ( $result['version'] ?? '' ) || $before !== ( $result['from_version'] ?? '' ) || empty( $result['rollback_backup_id'] ) || empty( $result['checksums'] ) || empty( $result['database_version'] ) ) {
 	fwrite( STDERR, 'Synthetic Core_Upgrader transition failed: ' . ( is_wp_error( $result ) ? $result->get_error_code() . ' ' . $result->get_error_message() : 'invalid result' ) . "\n" );
 	exit( 1 );

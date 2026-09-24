@@ -137,6 +137,14 @@ if ( false === $plugin_bytes || '' === $plugin_bytes ) {
 	exit( 1 );
 }
 $plugin_sha256 = hash( 'sha256', $plugin_bytes );
+$trusted_package_filter = static function ( $allowlist, $plugin, $version ) use ( $plugin_file, $plugin_sha256 ) {
+	$identity = (string) $plugin . '@' . (string) $version;
+	if ( $identity === $plugin_file . '@3.2.1' ) {
+		$allowlist[ $identity ] = array( $plugin_sha256 );
+	}
+	return $allowlist;
+};
+add_filter( 'chattanooga_cms_admin_trusted_package_digests', $trusted_package_filter, 10, 3 );
 $custom_input = array(
 	'content_base64'   => base64_encode( $plugin_bytes ),
 	'expected_sha256'  => $plugin_sha256,
@@ -216,6 +224,7 @@ wp_set_current_user( 1 );
 
 remove_filter( 'plugins_api', $plugin_api_filter, 10 );
 remove_filter( 'themes_api', $theme_api_filter, 10 );
+remove_filter( 'chattanooga_cms_admin_trusted_package_digests', $trusted_package_filter, 10 );
 
 $plugin_cleanup = delete_plugins( array( $plugin_file ) );
 $theme_cleanup = delete_theme( $theme_slug );

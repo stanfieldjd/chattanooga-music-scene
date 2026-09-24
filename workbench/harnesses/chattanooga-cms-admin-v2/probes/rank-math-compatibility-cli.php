@@ -34,6 +34,10 @@ function cmsa_v2_rm_catalog() {
 		return $items;
 	}
 
+	// eval-file runs after wp_loaded; reconcile provider contracts explicitly for this probe.
+	CUA_REST_Bridge::register_external_bridges();
+	CUA_Ability_Bridge::register_external_bridges();
+
 	$catalog = wp_get_ability( 'chattanooga-cms-admin/catalog' );
 	if ( ! $catalog instanceof WP_Ability ) {
 		cmsa_v2_rm_fail( 'Universal catalog is unavailable in Rank Math compatibility job.' );
@@ -58,9 +62,16 @@ function cmsa_v2_rm_ability( $target ) {
 
 	if ( 1 !== count( $matches ) ) {
 		$direct = wp_get_ability( $target );
+		$before_direct_items = CUA_Ability_Bridge::catalog_items();
+		$before_direct_item = array_values( array_filter( $before_direct_items, static function ( $item ) use ( $target ) { return $target === ( $item['target'] ?? '' ); } ) );
+		$direct_catalog_result = CUA_Ability_Bridge::catalog( array() );
+		$direct_catalog_item = is_array( $direct_catalog_result ) && is_array( $direct_catalog_result['items'] ?? null )
+			? array_values( array_filter( $direct_catalog_result['items'], static function ( $item ) use ( $target ) { return $target === ( $item['target'] ?? '' ); } ) )
+			: array();
+		$execute_catalog_item = array_values( array_filter( cmsa_v2_rm_catalog(), static function ( $item ) use ( $target ) { return $target === ( $item['target'] ?? '' ); } ) );
 		cmsa_v2_rm_fail(
 			sprintf(
-				'Expected one bridged Rank Math ability for %1$s; found %2$d. direct=%3$s init=%4$d abilities_init=%5$d class=%6$s file=%7$s rank_math_ability_hooks=%8$d rank_math_category_hooks=%9$d',
+				'Expected one bridged Rank Math ability for %1$s; found %2$d. direct=%3$s init=%4$d abilities_init=%5$d class=%6$s file=%7$s rank_math_ability_hooks=%8$d rank_math_category_hooks=%9$d meta=%10$s input_schema=%11$s output_schema=%12$s expected_bridge=%13$s direct_bridge=%14$s registry_target=%15$s catalog_target=%16$s catalog_item=%17$s direct_method_item=%18$s execute_item=%19$s before_direct_item=%20$s direct_method_type=%21$s direct_method_error=%22$s direct_method_targets=%23$s',
 				$target,
 				count( $matches ),
 				$direct instanceof WP_Ability ? 'present' : 'absent',
@@ -69,7 +80,21 @@ function cmsa_v2_rm_ability( $target ) {
 				class_exists( 'RankMath\\Abilities\\Abilities' ) ? 'present' : 'absent',
 				file_exists( WP_PLUGIN_DIR . '/seo-by-rank-math/includes/abilities/class-abilities.php' ) ? 'present' : 'absent',
 				cmsa_v2_rm_rank_math_hook_count( 'wp_abilities_api_init' ),
-				cmsa_v2_rm_rank_math_hook_count( 'wp_abilities_api_categories_init' )
+				cmsa_v2_rm_rank_math_hook_count( 'wp_abilities_api_categories_init' ),
+				$direct instanceof WP_Ability ? wp_json_encode( $direct->get_meta() ) : 'n/a',
+				$direct instanceof WP_Ability ? wp_json_encode( $direct->get_input_schema() ) : 'n/a',
+				$direct instanceof WP_Ability ? wp_json_encode( $direct->get_output_schema() ) : 'n/a',
+				'chattanooga-cms-admin/bridge-' . substr( hash( 'sha256', $target ), 0, 24 ),
+				wp_get_ability( 'chattanooga-cms-admin/bridge-' . substr( hash( 'sha256', $target ), 0, 24 ) ) instanceof WP_Ability ? 'present' : 'absent',
+				isset( wp_get_abilities()[ $target ] ) ? 'present' : 'absent',
+				count( array_filter( CUA_Ability_Bridge::catalog_items(), static function ( $item ) use ( $target ) { return $target === ( $item['target'] ?? '' ); } ) ),
+				wp_json_encode( array_values( array_filter( cmsa_v2_rm_catalog(), static function ( $item ) use ( $target ) { return $target === ( $item['target'] ?? '' ); } ) ) ),
+				wp_json_encode( $direct_catalog_item ),
+				wp_json_encode( $execute_catalog_item ),
+				wp_json_encode( $before_direct_item ),
+				is_wp_error( $direct_catalog_result ) ? 'wp_error' : ( is_array( $direct_catalog_result ) ? 'array' : gettype( $direct_catalog_result ) ),
+				is_wp_error( $direct_catalog_result ) ? $direct_catalog_result->get_error_code() : '',
+				is_array( $direct_catalog_result ) && is_array( $direct_catalog_result['items'] ?? null ) ? wp_json_encode( array_values( array_map( static function ( $item ) { return $item['target'] ?? ''; }, $direct_catalog_result['items'] ) ) ) : ''
 			)
 		);
 	}

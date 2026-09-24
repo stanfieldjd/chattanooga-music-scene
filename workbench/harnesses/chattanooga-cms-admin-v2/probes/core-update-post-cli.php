@@ -45,7 +45,7 @@ if ( is_wp_error( $verified ) || empty( $verified['valid'] ) ) {
 	exit( 1 );
 }
 
-$restore_result = $restore->execute( array( 'id' => $state['rollback_backup_id'] ) );
+$restore_result = $restore->execute( array( 'id' => $state['rollback_backup_id'], 'confirm_restore' => true ) );
 if ( is_wp_error( $restore_result ) || empty( $restore_result['restored'] ) || empty( $restore_result['rollback_backup_id'] ) || ( $restore_result['version'] ?? '' ) !== $state['baseline'] ) {
 	fwrite( STDERR, 'Restoring the pre-update core snapshot failed: ' . ( is_wp_error( $restore_result ) ? $restore_result->get_error_code() . ' ' . $restore_result->get_error_message() : 'invalid result' ) . "\n" );
 	exit( 1 );

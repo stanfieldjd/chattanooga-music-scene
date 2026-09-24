@@ -88,15 +88,15 @@ make_tool_body() {
 }
 
 catalog_body=/tmp/cmsa-external-catalog.json
-make_tool_body 1001 'cmsa.catalog' '{}' "$catalog_body"
-mcp_call "$catalog_body" 'tools/call' 'cmsa.catalog' /tmp/cmsa-external-catalog-response.json
+make_tool_body 1001 'cmsa.discovery' '{}' "$catalog_body"
+mcp_call "$catalog_body" 'tools/call' 'cmsa.discovery' /tmp/cmsa-external-catalog-response.json
 
 find_ability_bridge() {
   local target="$1"
   TARGET="$target" php -r '
     $d=json_decode(file_get_contents("/tmp/cmsa-external-catalog-response.json"),true);
     $matches=[];
-    foreach (($d["result"]["structuredContent"]["items"]??[]) as $item) {
+    foreach (($d["result"]["structuredContent"]["catalogGateway"]["items"]??[]) as $item) {
       if (($item["contract"]??"")==="ability" && ($item["target"]??"")===getenv("TARGET") && !empty($item["bridge"])) $matches[]=$item["bridge"];
     }
     if (count($matches)!==1) exit(1);
@@ -110,7 +110,7 @@ find_rest_bridge() {
   METHOD="$method" PATH_VALUE="$path" php -r '
     $d=json_decode(file_get_contents("/tmp/cmsa-external-catalog-response.json"),true);
     $matches=[];
-    foreach (($d["result"]["structuredContent"]["items"]??[]) as $item) {
+    foreach (($d["result"]["structuredContent"]["catalogGateway"]["items"]??[]) as $item) {
       if (($item["contract"]??"")!=="rest" || ($item["method"]??"")!==getenv("METHOD") || empty($item["route"]) || empty($item["bridge"])) continue;
       if (@preg_match("@^".$item["route"]."$@i", getenv("PATH_VALUE"))===1) $matches[]=$item["bridge"];
     }

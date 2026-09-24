@@ -66,7 +66,15 @@ final class CUA_MCP_Diagnostics {
 				'label'               => __( 'Discover Chattanooga MCP tools', 'chattanooga-cms-admin' ),
 				'description'         => __( 'Returns the stable Chattanooga MCP tool manifest, fingerprint, catalog entry point, and next discovery steps.', 'chattanooga-cms-admin' ),
 				'category'            => 'chattanooga-cms-admin',
-				'input_schema'        => array( 'type' => 'object', 'properties' => array(), 'additionalProperties' => false ),
+				'input_schema'        => array(
+					'type'                 => 'object',
+					'properties'           => array(
+						'cursor' => array( 'type' => 'integer', 'minimum' => 0, 'default' => 0 ),
+						'limit'  => array( 'type' => 'integer', 'minimum' => 1, 'maximum' => 100, 'default' => 100 ),
+						'snapshot' => array( 'type' => 'string', 'minLength' => 64, 'maxLength' => 64 ),
+					),
+					'additionalProperties' => false,
+				),
 				'output_schema'       => array( 'type' => 'object' ),
 				'execute_callback'    => array( 'CUA_MCP_Server', 'discovery_manifest' ),
 				'permission_callback' => static function () { return current_user_can( 'manage_options' ); },
@@ -121,6 +129,9 @@ final class CUA_MCP_Diagnostics {
 	 * This endpoint deliberately lives outside tools/list and tools/call.
 	 */
 	public static function heartbeat_report( WP_REST_Request $request ) {
+		if ( ! self::allow_public_request( 'heartbeat', 120 ) ) {
+			return self::rate_limited_response();
+		}
 		$catalog = self::catalog_report( false );
 		$recent = class_exists( 'CUA_Audit' ) ? CUA_Audit::read_mcp_diagnostics( 25 ) : array( 'entries' => array() );
 		$entries = is_wp_error( $recent ) ? array() : (array) ( $recent['entries'] ?? array() );
@@ -238,9 +249,29 @@ final class CUA_MCP_Diagnostics {
 		if ( is_array( $latest_canary_list ) ) {
 			$latest_canary_healthy = 200 === (int) ( $latest_canary_list['http_status'] ?? 0 ) && 1 === (int) ( $latest_canary_list['tool_count'] ?? -1 ) && 0 === (int) ( $latest_canary_list['descriptor_fail'] ?? -1 );
 		}
-		if ( ! $catalog_healthy || false === $latest_main_matches || false === $latest_canary_healthy ) { $state = 'degraded'; }
-		elseif ( true === $latest_main_matches && true === $latest_canary_healthy ) { $state = 'healthy'; }
-		else { $state = 'insufficient_history'; }
+		/*
+		 * A historical tools/list record can legitimately belong to an older
+		 * immutable startup ABI after a plugin update. Keep that evidence visible,
+		 * but do not misclassify the current server catalog as broken because the
+		 * historical fingerprint is stale. A failed observed Canary exchange is
+		 * still degraded; an unobserved Canary exchange remains insufficient
+		 * history.
+		 */
+		$history_state = 'insufficient_history';
+		if ( false === $latest_main_matches || false === $latest_canary_healthy ) {
+			$history_state = 'stale_or_failed_observation';
+		} elseif ( true === $latest_main_matches && true === $latest_canary_healthy ) {
+			$history_state = 'verified';
+		}
+		if ( ! $catalog_healthy || false === $latest_canary_healthy ) {
+			$state = 'degraded';
+		} elseif ( false === $latest_main_matches ) {
+			$state = 'stale_history';
+		} elseif ( true === $latest_main_matches && true === $latest_canary_healthy ) {
+			$state = 'healthy';
+		} else {
+			$state = 'insufficient_history';
+		}
 		return array(
 			'state' => $state,
 			'pluginVersion' => defined( 'CUA_VERSION' ) ? CUA_VERSION : 'unknown',
@@ -255,6 +286,7 @@ final class CUA_MCP_Diagnostics {
 			'auditReadable' => $audit_readable,
 			'latestMainDiscoveryMatches' => $latest_main_matches,
 			'latestCanaryDiscoveryHealthy' => $latest_canary_healthy,
+			'historyState' => $history_state,
 			'observationCounts' => $counts,
 			'latestMainToolsList' => $latest_main_list,
 			'latestCanaryToolsList' => $latest_canary_list,
@@ -499,6 +531,9 @@ final class CUA_MCP_Diagnostics {
 	}
 
 	public static function handle_canary_request( WP_REST_Request $request ) {
+		if ( ! self::allow_public_request( 'canary', 240 ) ) {
+			return self::rate_limited_response();
+		}
 		if ( 'GET' === strtoupper( $request->get_method() ) ) {
 			$response = new WP_REST_Response( null, 405 );
 			$response->header( 'Allow', 'POST' );
@@ -680,6 +715,51 @@ final class CUA_MCP_Diagnostics {
 			(int) $status
 		);
 		$response->header( 'MCP-Protocol-Version', CUA_MCP_Server::PROTOCOL_VERSION );
+		return $response;
+	}
+
+	private static function allow_public_request( $bucket, $limit ) {
+		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : 'unknown';
+		$key = 'cua_public_rate_' . substr( hash( 'sha256', (string) $bucket . '|' . $ip ), 0, 40 );
+		$lock_key = $key . '_lock';
+		$lock_acquired = false;
+
+		// Persistent object caches can provide an atomic short lock across
+		// concurrent requests. Without one, retain the transient fallback but
+		// report only best-effort rate limiting rather than implying strictness.
+		if ( function_exists( 'wp_using_ext_object_cache' ) && wp_using_ext_object_cache() && function_exists( 'wp_cache_add' ) ) {
+			$lock_acquired = wp_cache_add( $lock_key, 1, 'chattanooga-cms-admin-rate', 5 );
+			if ( ! $lock_acquired ) {
+				return false;
+			}
+		}
+
+		try {
+			$record = get_transient( $key );
+			$record = is_array( $record ) ? $record : array( 'count' => 0 );
+			if ( (int) ( $record['count'] ?? 0 ) >= (int) $limit ) {
+				return false;
+			}
+			$record['count'] = (int) ( $record['count'] ?? 0 ) + 1;
+			set_transient( $key, $record, MINUTE_IN_SECONDS );
+			return true;
+		} finally {
+			if ( $lock_acquired && function_exists( 'wp_cache_delete' ) ) {
+				wp_cache_delete( $lock_key, 'chattanooga-cms-admin-rate' );
+			}
+		}
+	}
+
+	private static function rate_limited_response() {
+		$response = new WP_REST_Response(
+			array(
+				'code'    => 'cmsa_public_rate_limited',
+				'message' => 'The public diagnostic endpoint rate limit has been exceeded.',
+			),
+			429
+		);
+		$response->header( 'Retry-After', '60' );
+		$response->header( 'Cache-Control', 'no-store' );
 		return $response;
 	}
 
