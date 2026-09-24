@@ -143,7 +143,7 @@ jobs:
           cp -R /tmp/aafm /tmp/wordpress/wp-content/plugins/agent-abilities-for-mcp
           php /tmp/wp-cli.phar plugin activate agent-abilities-for-mcp --path=/tmp/wordpress
           ap="$(php /tmp/wp-cli.phar user application-password create admin aafm-sim --porcelain --path=/tmp/wordpress)"
-          /tmp/simulate-mcp.sh 'http://127.0.0.1:8090/index.php?rest_route=%2Fagent-abilities-for-mcp%2Fmcp' '2025-11-25' 'aafm' "admin:$ap" 1
+          /tmp/simulate-mcp.sh 'http://127.0.0.1:8090/index.php?rest_route=%2Fagent-abilities-for-mcp%2Fmcp' '2025-06-18' 'aafm' "admin:$ap" 1
           php /tmp/wp-cli.phar plugin deactivate agent-abilities-for-mcp --path=/tmp/wordpress
           rm -rf /tmp/wordpress/wp-content/plugins/agent-abilities-for-mcp
 
