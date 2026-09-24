@@ -215,7 +215,7 @@ jobs:
             cat /tmp/cmsa-discover-response.json >&2
             exit 1
           fi
-          php -r '$d=json_decode(file_get_contents("/tmp/cmsa-discover-response.json"),true); if (($d["result"]["resultType"]??"")!=="complete" || ($d["result"]["supportedVersions"]??[])!==["2026-07-28","2025-11-25"]) { fwrite(STDERR, "Authenticated MCP discovery body did not match the protocol contract.\n"); fwrite(STDERR, file_get_contents("/tmp/cmsa-discover-response.json")); exit(1); }'
+          php -r '$d=json_decode(file_get_contents("/tmp/cmsa-discover-response.json"),true); if (($d["result"]["resultType"]??"")!=="complete" || ($d["result"]["supportedVersions"]??[])!==["2026-07-28","2025-11-25","2025-06-18"]) { fwrite(STDERR, "Authenticated MCP discovery body did not match the protocol contract.\n"); fwrite(STDERR, file_get_contents("/tmp/cmsa-discover-response.json")); exit(1); }'
           if grep -qi '^Mcp-Session-Id:' /tmp/cmsa-discover-headers.txt; then
             echo "Modern MCP discovery emitted a forbidden session header." >&2
             cat /tmp/cmsa-discover-headers.txt >&2
@@ -239,6 +239,81 @@ jobs:
             exit 1
           fi
           php -r '$d=json_decode(file_get_contents("/tmp/cmsa-initialize-response.json"),true); if (($d["error"]["code"]??null)!==-32022) exit(1);'
+
+          # Emulate the conventional WordPress MCP client lifecycle:
+          # initialize -> notifications/initialized -> tools/list.
+          compat_fingerprint=''
+          for compat_iteration in $(seq 1 5); do
+            cat > /tmp/cmsa-compat-initialize.json <<JSON
+          {"jsonrpc":"2.0","id":$((420 + compat_iteration)),"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"cmsa-wordpress-compat-http","version":"1.0.0"}}}
+          JSON
+            compat_initialize_code="$(curl -sS -D /tmp/cmsa-compat-initialize-headers.txt -o /tmp/cmsa-compat-initialize-response.json -w '%{http_code}' \
+              --user "admin:${app_password}" \
+              -H 'Content-Type: application/json' \
+              -H 'Accept: application/json, text/event-stream' \
+              -H 'MCP-Protocol-Version: 2025-06-18' \
+              -H 'Mcp-Method: initialize' \
+              --data-binary @/tmp/cmsa-compat-initialize.json \
+              "$endpoint")"
+            if [ "$compat_initialize_code" != '200' ]; then
+              echo "2025-06-18 compatibility initialize returned HTTP $compat_initialize_code" >&2
+              cat /tmp/cmsa-compat-initialize-response.json >&2
+              exit 1
+            fi
+            compat_session="$(awk 'BEGIN{IGNORECASE=1} /^Mcp-Session-Id:/{gsub("\r","",$2); print $2}' /tmp/cmsa-compat-initialize-headers.txt | tail -1)"
+            if [ -z "$compat_session" ]; then
+              echo "2025-06-18 initialize did not return Mcp-Session-Id." >&2
+              cat /tmp/cmsa-compat-initialize-headers.txt >&2
+              exit 1
+            fi
+            php -r '$d=json_decode(file_get_contents("/tmp/cmsa-compat-initialize-response.json"),true); if (($d["result"]["protocolVersion"]??"")!=="2025-06-18" || isset($d["result"]["resultType"]) || isset($d["result"]["ttlMs"]) || isset($d["result"]["cacheScope"])) exit(1);'
+
+            cat > /tmp/cmsa-compat-initialized.json <<'JSON'
+          {"jsonrpc":"2.0","method":"notifications/initialized","params":{}}
+          JSON
+            compat_initialized_code="$(curl -sS -o /tmp/cmsa-compat-initialized-response.txt -w '%{http_code}' \
+              --user "admin:${app_password}" \
+              -H 'Content-Type: application/json' \
+              -H 'Accept: application/json, text/event-stream' \
+              -H 'MCP-Protocol-Version: 2025-06-18' \
+              -H 'Mcp-Method: notifications/initialized' \
+              -H "Mcp-Session-Id: $compat_session" \
+              --data-binary @/tmp/cmsa-compat-initialized.json \
+              "$endpoint")"
+            if [ "$compat_initialized_code" != '202' ]; then
+              echo "2025-06-18 initialized notification returned HTTP $compat_initialized_code" >&2
+              cat /tmp/cmsa-compat-initialized-response.txt >&2
+              exit 1
+            fi
+
+            cat > /tmp/cmsa-compat-list.json <<JSON
+          {"jsonrpc":"2.0","id":$((430 + compat_iteration)),"method":"tools/list","params":{}}
+          JSON
+            compat_list_code="$(curl -sS -D /tmp/cmsa-compat-list-headers.txt -o /tmp/cmsa-compat-list-response.json -w '%{http_code}' \
+              --user "admin:${app_password}" \
+              -H 'Content-Type: application/json' \
+              -H 'Accept: application/json, text/event-stream' \
+              -H 'MCP-Protocol-Version: 2025-06-18' \
+              -H 'Mcp-Method: tools/list' \
+              -H "Mcp-Session-Id: $compat_session" \
+              -H 'Connection: close' \
+              --data-binary @/tmp/cmsa-compat-list.json \
+              "$endpoint")"
+            if [ "$compat_list_code" != '200' ]; then
+              echo "2025-06-18 tools/list returned HTTP $compat_list_code" >&2
+              cat /tmp/cmsa-compat-list-response.json >&2
+              exit 1
+            fi
+            grep -qi '^MCP-Protocol-Version: 2025-06-18' /tmp/cmsa-compat-list-headers.txt
+            current_compat_fingerprint="$(php -r '$d=json_decode(file_get_contents("/tmp/cmsa-compat-list-response.json"),true); $t=$d["result"]["tools"]??[]; if(count($t)!==4 || isset($d["result"]["resultType"]) || isset($d["result"]["ttlMs"]) || isset($d["result"]["cacheScope"])) exit(1); echo hash("sha256",json_encode($t));')"
+            if [ -z "$compat_fingerprint" ]; then
+              compat_fingerprint="$current_compat_fingerprint"
+            elif [ "$compat_fingerprint" != "$current_compat_fingerprint" ]; then
+              echo "2025-06-18 tool fingerprint changed across independent sessions." >&2
+              exit 1
+            fi
+          done
+          echo "cmsa-http-2025-06-18: PASS reconnects=5 fingerprint=$compat_fingerprint"
 
           catalog_cursor=0
           catalog_id=402
