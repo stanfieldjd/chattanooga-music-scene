@@ -197,7 +197,7 @@ final class CUA_MCP_Server {
 
 		$header_error = self::validate_headers( $request, $method, $params, $protocol_version );
 		if ( is_wp_error( $header_error ) ) {
-			return self::protocol_error_response( $id, -32020, $header_error->get_error_message(), 400 );
+			return self::protocol_error_response( $id, -32020, $header_error->get_error_message(), 400, array(), $protocol_version );
 		}
 
 		$meta_error = self::validate_request_meta( $params, $protocol_version );
@@ -242,15 +242,15 @@ final class CUA_MCP_Server {
 					return self::tool_authentication_response( $id, $authorization, $protocol_version, $session_id );
 				}
 				self::audit_request( $request, $method, $tool, 'authentication_failed', self::error_status( $authorization ), $authorization->get_error_code(), $started, $id, $params );
-				return self::authentication_error_response( $authorization );
+				return self::authentication_error_response( $authorization, $protocol_version );
 			}
 		}
 
 		$declared_protocol_version = self::declared_protocol_version( $request, $params );
 		$is_legacy = self::LEGACY_PROTOCOL_VERSION === $protocol_version;
-		$session_required = $is_legacy && ! in_array( $method, array( 'initialize', 'server/discover', 'notifications/initialized', 'tools/list', 'resources/list', 'resources/read', 'prompts/list', 'prompts/get' ), true );
+		$session_required = $is_legacy && 'initialize' !== $method;
 		if ( $session_required && ! self::session_is_valid( $session_id ) ) {
-			return self::protocol_error_response( $id, -32001, 'A valid MCP session is required for this legacy MCP method.', 400 );
+			return self::protocol_error_response( $id, -32001, 'A valid MCP session is required for this legacy MCP method.', 400, array(), $protocol_version );
 		}
 		$session_supplied = $is_legacy && '' !== $session_id && self::session_is_valid( $session_id );
 		if ( $session_supplied && '' !== $declared_protocol_version && ! self::session_protocol_matches( $session_id, $declared_protocol_version ) ) {
@@ -259,7 +259,8 @@ final class CUA_MCP_Server {
 				-32022,
 				'The request protocol version does not match the negotiated MCP session version.',
 				400,
-				array( 'supportedVersions' => self::supported_protocol_versions() )
+				array( 'supportedVersions' => self::supported_protocol_versions() ),
+				$protocol_version
 			);
 		}
 
@@ -267,8 +268,12 @@ final class CUA_MCP_Server {
 			return self::notification_response( $session_id );
 		}
 
+		if ( $is_legacy && 'server/discover' === $method ) {
+			return self::protocol_error_response( $id, -32601, 'Method not found.', 404, array(), $protocol_version );
+		}
+
 		if ( ! array_key_exists( 'id', $payload ) ) {
-			return self::protocol_error_response( null, -32600, 'A request id is required for this MCP method.', 400 );
+			return self::protocol_error_response( null, -32600, 'A request id is required for this MCP method.', 400, array(), $protocol_version );
 		}
 
 		switch ( $method ) {
@@ -279,7 +284,7 @@ final class CUA_MCP_Server {
 			case 'server/discover':
 				$discovery = self::discover_result( $params );
 				if ( is_wp_error( $discovery ) ) {
-					$response = self::protocol_error_response( $id, -32603, $discovery->get_error_message(), 500 );
+					$response = self::protocol_error_response( $id, -32603, $discovery->get_error_message(), 500, array(), $protocol_version );
 					if ( class_exists( 'CUA_MCP_Diagnostics' ) ) {
 						CUA_MCP_Diagnostics::record_exchange( $request, $payload, $response, 'main' );
 					}
@@ -297,7 +302,7 @@ final class CUA_MCP_Server {
 					if ( class_exists( 'CUA_Audit' ) ) {
 						CUA_Audit::log_oauth_trace( array( 'stage' => 'mcp_tools_list', 'outcome' => 'failed', 'http_status' => 400, 'error_code' => $tools->get_error_code(), 'mcp_method' => 'tools/list', 'protocol_version' => $protocol_version ) );
 					}
-					$response = self::protocol_error_response( $id, -32602, $tools->get_error_message(), 400 );
+					$response = self::protocol_error_response( $id, -32602, $tools->get_error_message(), 400, array(), $protocol_version );
 					if ( class_exists( 'CUA_MCP_Diagnostics' ) ) {
 						CUA_MCP_Diagnostics::record_exchange( $request, $payload, $response, 'main' );
 					}
@@ -327,7 +332,7 @@ final class CUA_MCP_Server {
 			case 'resources/read':
 				$resource = self::read_resource_result( $params );
 				if ( is_wp_error( $resource ) ) {
-					return self::protocol_error_response( $id, -32602, $resource->get_error_message(), 400 );
+					return self::protocol_error_response( $id, -32602, $resource->get_error_message(), 400, array(), $protocol_version );
 				}
 				return self::success_response( $id, $resource, $protocol_version, $session_id );
 
@@ -337,12 +342,12 @@ final class CUA_MCP_Server {
 			case 'prompts/get':
 				$prompt = self::get_prompt_result( $params );
 				if ( is_wp_error( $prompt ) ) {
-					return self::protocol_error_response( $id, -32602, $prompt->get_error_message(), 400 );
+					return self::protocol_error_response( $id, -32602, $prompt->get_error_message(), 400, array(), $protocol_version );
 				}
 				return self::success_response( $id, $prompt, $protocol_version, $session_id );
 
 			default:
-				return self::protocol_error_response( $id, -32601, 'Method not found.', 404 );
+				return self::protocol_error_response( $id, -32601, 'Method not found.', 404, array(), $protocol_version );
 		}
 	}
 
@@ -491,6 +496,10 @@ final class CUA_MCP_Server {
 			}
 			if ( '' === $header_method ) {
 				return new WP_Error( 'cmsa_mcp_method_header_required', 'Modern MCP requests require Mcp-Method.' );
+			}
+		} elseif ( self::LEGACY_PROTOCOL_VERSION === $protocol_version && 'initialize' !== $method ) {
+			if ( self::LEGACY_PROTOCOL_VERSION !== trim( (string) $request->get_header( 'mcp-protocol-version' ) ) ) {
+				return new WP_Error( 'cmsa_mcp_protocol_header_required', 'Legacy MCP requests after initialize require MCP-Protocol-Version: 2025-11-25.' );
 			}
 		}
 		if ( '' !== $header_method && $method !== $header_method ) {
@@ -1261,9 +1270,19 @@ final class CUA_MCP_Server {
 	}
 
 	private static function success_response( $id, array $result, $protocol_version = self::PROTOCOL_VERSION, $session_id = '' ) {
-		$result['resultType'] = 'complete';
-		$result['_meta'] = isset( $result['_meta'] ) && is_array( $result['_meta'] ) ? $result['_meta'] : array();
-		$result['_meta']['io.modelcontextprotocol/serverInfo'] = self::server_info();
+		if ( self::PROTOCOL_VERSION === $protocol_version ) {
+			$result['resultType'] = 'complete';
+			$result['_meta'] = isset( $result['_meta'] ) && is_array( $result['_meta'] ) ? $result['_meta'] : array();
+			$result['_meta']['io.modelcontextprotocol/serverInfo'] = self::server_info();
+		} else {
+			unset( $result['resultType'], $result['ttlMs'], $result['cacheScope'] );
+			if ( isset( $result['_meta'] ) && is_array( $result['_meta'] ) ) {
+				unset( $result['_meta']['io.modelcontextprotocol/serverInfo'] );
+				if ( empty( $result['_meta'] ) ) {
+					unset( $result['_meta'] );
+				}
+			}
+		}
 
 		$response = new WP_REST_Response(
 			array(
@@ -1288,7 +1307,7 @@ final class CUA_MCP_Server {
 		return $response;
 	}
 
-	private static function protocol_error_response( $id, $code, $message, $status, array $data = array() ) {
+	private static function protocol_error_response( $id, $code, $message, $status, array $data = array(), $protocol_version = self::PROTOCOL_VERSION ) {
 		$error = array(
 			'code'    => (int) $code,
 			'message' => (string) $message,
@@ -1308,7 +1327,10 @@ final class CUA_MCP_Server {
 			),
 			(int) $status
 		);
-		$response->header( 'MCP-Protocol-Version', self::PROTOCOL_VERSION );
+		$response->header(
+			'MCP-Protocol-Version',
+			in_array( $protocol_version, self::supported_protocol_versions(), true ) ? $protocol_version : self::PROTOCOL_VERSION
+		);
 		return $response;
 	}
 
@@ -1371,12 +1393,12 @@ final class CUA_MCP_Server {
 		);
 	}
 
-	private static function authentication_error_response( WP_Error $error ) {
+	private static function authentication_error_response( WP_Error $error, $protocol_version = self::PROTOCOL_VERSION ) {
 		$data = $error->get_error_data();
 		$status = is_array( $data ) && isset( $data['status'] ) ? (int) $data['status'] : 401;
 		$error_code = (string) $error->get_error_code();
 		$challenge = CUA_OAuth_Server::resource_challenge( $error_code );
-		$response = self::protocol_error_response( null, -32001, $error->get_error_message(), $status );
+		$response = self::protocol_error_response( null, -32001, $error->get_error_message(), $status, array(), $protocol_version );
 		$body = $response->get_data();
 		$body['_meta']['mcp/www_authenticate'] = array( $challenge );
 		$body['error']['data'] = isset( $body['error']['data'] ) && is_array( $body['error']['data'] ) ? $body['error']['data'] : array();
