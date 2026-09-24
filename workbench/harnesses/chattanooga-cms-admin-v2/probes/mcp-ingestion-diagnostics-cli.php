@@ -27,7 +27,7 @@ function cmsa_ingestion_modern_request( $route, $method, array $params = array()
 
 	$request = new WP_REST_Request( 'POST', $route );
 	$request->set_header( 'content-type', 'application/json' );
-	$request->set_header( 'user-agent', 'cmsa-ingestion-probe/1.0' );
+	$request->set_header( 'user-agent', 'ChatGPT cmsa-ingestion-probe/1.0' );
 	$request->set_header( 'MCP-Protocol-Version', CUA_MCP_Server::PROTOCOL_VERSION );
 	$request->set_header( 'Mcp-Method', $method );
 	if ( 'tools/call' === $method && isset( $params['name'] ) ) {
@@ -48,7 +48,7 @@ function cmsa_ingestion_modern_request( $route, $method, array $params = array()
 
 wp_set_current_user( 1 );
 
-cmsa_ingestion_assert( defined( 'CUA_VERSION' ) && '1.2.19' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.19 did not load.' );
+cmsa_ingestion_assert( defined( 'CUA_VERSION' ) && 1 === preg_match( '/^\\d+\\.\\d+\\.\\d+$/', CUA_VERSION ), 'Chattanooga CMS Admin version did not load as a semantic version.' );
 cmsa_ingestion_assert( class_exists( 'CUA_MCP_Diagnostics' ), 'MCP diagnostics class did not load.' );
 cmsa_ingestion_assert( class_exists( 'CUA_MCP_Server' ), 'MCP server class did not load.' );
 cmsa_ingestion_assert( class_exists( 'CUA_Audit' ), 'Audit class did not load.' );
@@ -113,6 +113,37 @@ cmsa_ingestion_assert( false === ( $canary_call_data['result']['isError'] ?? tru
 cmsa_ingestion_assert( true === ( $canary_call_data['result']['structuredContent']['ok'] ?? false ), 'Canary tools/call did not report ok.' );
 cmsa_ingestion_assert( 'ingestion-canary' === ( $canary_call_data['result']['structuredContent']['diagnostic'] ?? '' ), 'Canary tools/call returned the wrong diagnostic identity.' );
 
+$heartbeat_request = new WP_REST_Request( 'GET', '/chattanooga-cms-admin/v1' . CUA_MCP_Diagnostics::HEARTBEAT_ROUTE );
+$heartbeat = rest_do_request( $heartbeat_request );
+cmsa_ingestion_assert( 200 === $heartbeat->get_status(), 'Initial MCP heartbeat failed.' );
+$heartbeat_data = $heartbeat->get_data();
+cmsa_ingestion_assert( 'within_advertised_ttl' === ( $heartbeat_data['lastChatGPTToolsListCache']['state'] ?? '' ), 'Initial ChatGPT tools/list observation was not within the advertised TTL.' );
+cmsa_ingestion_assert( 30000 === (int) ( $heartbeat_data['lastChatGPTToolsListCache']['ttlMs'] ?? -1 ), 'Heartbeat reported the wrong tools/list TTL.' );
+cmsa_ingestion_assert( 'private' === (string) ( $heartbeat_data['lastChatGPTToolsListCache']['cacheScope'] ?? '' ), 'Heartbeat reported the wrong tools/list cache scope.' );
+$first_chatgpt_correlation = (string) ( $heartbeat_data['lastChatGPTToolsList']['correlation_sha256'] ?? '' );
+cmsa_ingestion_assert( 1 === preg_match( '/^[a-f0-9]{64}$/', $first_chatgpt_correlation ), 'Heartbeat did not expose a valid ChatGPT tools/list correlation hash.' );
+
+sleep( 31 );
+
+$stale_heartbeat = rest_do_request( new WP_REST_Request( 'GET', '/chattanooga-cms-admin/v1' . CUA_MCP_Diagnostics::HEARTBEAT_ROUTE ) );
+cmsa_ingestion_assert( 200 === $stale_heartbeat->get_status(), 'Post-TTL MCP heartbeat failed.' );
+$stale_heartbeat_data = $stale_heartbeat->get_data();
+cmsa_ingestion_assert( 'past_advertised_ttl' === ( $stale_heartbeat_data['lastChatGPTToolsListCache']['state'] ?? '' ), 'Heartbeat did not classify the pre-refresh ChatGPT tools/list observation as past TTL.' );
+cmsa_ingestion_assert( (int) ( $stale_heartbeat_data['lastChatGPTToolsListCache']['ageMs'] ?? 0 ) >= 30000, 'Post-TTL heartbeat age did not cross the advertised TTL.' );
+
+$main_refresh = cmsa_ingestion_modern_request( '/chattanooga-cms-admin/v1/mcp', 'tools/list', array(), 707 );
+cmsa_ingestion_assert( 200 === $main_refresh->get_status(), 'Post-TTL main MCP tools/list refresh failed.' );
+$main_refresh_tools = $main_refresh->get_data()['result']['tools'] ?? null;
+cmsa_ingestion_assert( $main_tools === $main_refresh_tools, 'Post-TTL tools/list changed the deterministic core tool catalog.' );
+
+$refreshed_heartbeat = rest_do_request( new WP_REST_Request( 'GET', '/chattanooga-cms-admin/v1' . CUA_MCP_Diagnostics::HEARTBEAT_ROUTE ) );
+cmsa_ingestion_assert( 200 === $refreshed_heartbeat->get_status(), 'Post-refresh MCP heartbeat failed.' );
+$refreshed_heartbeat_data = $refreshed_heartbeat->get_data();
+cmsa_ingestion_assert( 'within_advertised_ttl' === ( $refreshed_heartbeat_data['lastChatGPTToolsListCache']['state'] ?? '' ), 'Heartbeat did not return to within-TTL state after tools/list refresh.' );
+$second_chatgpt_correlation = (string) ( $refreshed_heartbeat_data['lastChatGPTToolsList']['correlation_sha256'] ?? '' );
+cmsa_ingestion_assert( 1 === preg_match( '/^[a-f0-9]{64}$/', $second_chatgpt_correlation ), 'Refreshed heartbeat did not expose a valid ChatGPT correlation hash.' );
+cmsa_ingestion_assert( $first_chatgpt_correlation !== $second_chatgpt_correlation, 'Post-TTL refresh did not produce a distinct tools/list correlation record.' );
+
 $diagnostics = CUA_Audit::read_mcp_diagnostics( 20 );
 cmsa_ingestion_assert( ! is_wp_error( $diagnostics ), 'MCP diagnostic trace could not be read.' );
 $entries = $diagnostics['entries'] ?? array();
@@ -169,6 +200,7 @@ echo 'cmsa-mcp-ingestion-diagnostics: PASS tools=' . (int) $catalog['toolCount']
 	. ' descriptor_pass=' . (int) $catalog['descriptorSummary']['pass']
 	. ' descriptor_fail=' . (int) $catalog['descriptorSummary']['fail']
 	. ' canary=verified'
+	. ' post_ttl_refresh=verified'
 	. ' trace=secret-free'
 	. "\n";
 exit( 0 );
