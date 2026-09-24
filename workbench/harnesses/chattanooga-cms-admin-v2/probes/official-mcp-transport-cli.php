@@ -59,7 +59,14 @@ cmsa_official_assert( class_exists( 'CUA_MCP_Official_Transport' ), 'Chattanooga
 
 $routes = rest_get_server()->get_routes();
 $route = $routes['/chattanooga-cms-admin/v1/mcp'] ?? null;
-cmsa_official_assert( is_array( $route ) && ! empty( $route ), 'Official Chattanooga MCP route is not registered.' );
+if ( ! is_array( $route ) || empty( $route ) ) {
+	$registration_error = CUA_MCP_Official_Transport::registration_error();
+	$message = 'Official Chattanooga MCP route is not registered.';
+	if ( is_wp_error( $registration_error ) ) {
+		$message .= ' create_server=' . $registration_error->get_error_code() . ': ' . $registration_error->get_error_message();
+	}
+	cmsa_official_assert( false, $message );
+}
 $official_callback = false;
 foreach ( $route as $definition ) {
 	$callback = is_array( $definition ) ? ( $definition['callback'] ?? null ) : null;
