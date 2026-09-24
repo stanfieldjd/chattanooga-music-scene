@@ -87,17 +87,42 @@ make_tool_body() {
   ' > "$output_file"
 }
 
-catalog_body=/tmp/cmsa-external-catalog.json
-make_tool_body 1001 'cmsa.catalog' '{}' "$catalog_body"
-mcp_call "$catalog_body" 'tools/call' 'cmsa.catalog' /tmp/cmsa-external-catalog-response.json
+rm -f /tmp/cmsa-external-catalog-response-*.json
+catalog_cursor=0
+catalog_complete=0
+for page in $(seq 0 99); do
+  catalog_args="$(CURSOR="$catalog_cursor" php -r 'echo json_encode(["cursor"=>(int)getenv("CURSOR"),"limit"=>100], JSON_UNESCAPED_SLASHES);')"
+  catalog_body="/tmp/cmsa-external-catalog-${page}.json"
+  catalog_response="/tmp/cmsa-external-catalog-response-${page}.json"
+  make_tool_body "$((1001 + page))" 'cmsa.catalog' "$catalog_args" "$catalog_body"
+  mcp_call "$catalog_body" 'tools/call' 'cmsa.catalog' "$catalog_response"
+  catalog_next="$(php -r '
+    $d=json_decode(file_get_contents($argv[1]),true);
+    $catalog=$d["result"]["structuredContent"]??null;
+    if (!is_array($catalog) || !isset($catalog["items"]) || !is_array($catalog["items"])) exit(1);
+    $next=$catalog["nextCursor"]??null;
+    if ($next===null) { echo "DONE"; exit(0); }
+    if (!is_numeric($next)) exit(1);
+    echo (int)$next;
+  ' "$catalog_response")" || fail 'External MCP catalog returned an invalid page.'
+  if [ "$catalog_next" = 'DONE' ]; then
+    catalog_complete=1
+    break
+  fi
+  [ "$catalog_next" -gt "$catalog_cursor" ] || fail 'External MCP catalog returned a non-advancing cursor.'
+  catalog_cursor="$catalog_next"
+done
+[ "$catalog_complete" -eq 1 ] || fail 'External MCP catalog exceeded the pagination safety limit.'
 
 find_ability_bridge() {
   local target="$1"
   TARGET="$target" php -r '
-    $d=json_decode(file_get_contents("/tmp/cmsa-external-catalog-response.json"),true);
     $matches=[];
-    foreach (($d["result"]["structuredContent"]["items"]??[]) as $item) {
-      if (($item["contract"]??"")==="ability" && ($item["target"]??"")===getenv("TARGET") && !empty($item["bridge"])) $matches[]=$item["bridge"];
+    foreach (glob("/tmp/cmsa-external-catalog-response-*.json") as $file) {
+      $d=json_decode(file_get_contents($file),true);
+      foreach (($d["result"]["structuredContent"]["items"]??[]) as $item) {
+        if (($item["contract"]??"")==="ability" && ($item["target"]??"")===getenv("TARGET") && !empty($item["bridge"])) $matches[]=$item["bridge"];
+      }
     }
     if (count($matches)!==1) exit(1);
     echo $matches[0];
@@ -108,11 +133,13 @@ find_rest_bridge() {
   local method="$1"
   local path="$2"
   METHOD="$method" PATH_VALUE="$path" php -r '
-    $d=json_decode(file_get_contents("/tmp/cmsa-external-catalog-response.json"),true);
     $matches=[];
-    foreach (($d["result"]["structuredContent"]["items"]??[]) as $item) {
-      if (($item["contract"]??"")!=="rest" || ($item["method"]??"")!==getenv("METHOD") || empty($item["route"]) || empty($item["bridge"])) continue;
-      if (@preg_match("@^".$item["route"]."$@i", getenv("PATH_VALUE"))===1) $matches[]=$item["bridge"];
+    foreach (glob("/tmp/cmsa-external-catalog-response-*.json") as $file) {
+      $d=json_decode(file_get_contents($file),true);
+      foreach (($d["result"]["structuredContent"]["items"]??[]) as $item) {
+        if (($item["contract"]??"")!=="rest" || ($item["method"]??"")!==getenv("METHOD") || empty($item["route"]) || empty($item["bridge"])) continue;
+        if (@preg_match("@^".$item["route"]."$@i", getenv("PATH_VALUE"))===1) $matches[]=$item["bridge"];
+      }
     }
     if (count($matches)!==1) exit(1);
     echo $matches[0];
