@@ -16,27 +16,69 @@ function cmsa_mcp_redteam_assert( $condition, $message ) {
 	}
 }
 
+function cmsa_mcp_redteam_session() {
+	static $session = '';
+	if ( '' !== $session ) {
+		return $session;
+	}
+
+	if ( ! did_action( 'rest_api_init' ) ) {
+		do_action( 'rest_api_init', rest_get_server() );
+	}
+
+	$initialize = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
+	$initialize->set_header( 'content-type', 'application/json' );
+	$initialize->set_header( 'accept', 'application/json, text/event-stream' );
+	$initialize->set_body(
+		wp_json_encode(
+			array(
+				'jsonrpc' => '2.0',
+				'id'      => 699,
+				'method'  => 'initialize',
+				'params'  => array(
+					'protocolVersion' => '2025-06-18',
+					'capabilities'    => array(),
+					'clientInfo'      => array(
+						'name'    => 'cmsa-functional-redteam',
+						'version' => '1.0.0',
+					),
+				),
+			)
+		)
+	);
+	$response = rest_do_request( $initialize );
+	cmsa_mcp_redteam_assert( 200 === $response->get_status(), 'Official MCP initialize failed: ' . wp_json_encode( $response->get_data() ) );
+	$data = $response->get_data();
+	cmsa_mcp_redteam_assert( '2025-06-18' === ( $data['result']['protocolVersion'] ?? '' ), 'Official MCP negotiated the wrong protocol.' );
+	$headers = array_change_key_case( $response->get_headers(), CASE_LOWER );
+	$session = trim( (string) ( $headers['mcp-session-id'] ?? '' ) );
+	cmsa_mcp_redteam_assert( '' !== $session, 'Official MCP initialize returned no session id.' );
+
+	$initialized = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
+	$initialized->set_header( 'content-type', 'application/json' );
+	$initialized->set_header( 'accept', 'application/json, text/event-stream' );
+	$initialized->set_header( 'MCP-Protocol-Version', '2025-06-18' );
+	$initialized->set_header( 'Mcp-Session-Id', $session );
+	$initialized->set_body( wp_json_encode( array( 'jsonrpc' => '2.0', 'method' => 'notifications/initialized', 'params' => array() ) ) );
+	$initialized_response = rest_do_request( $initialized );
+	cmsa_mcp_redteam_assert(
+		in_array( $initialized_response->get_status(), array( 200, 202, 204 ), true ),
+		'Official MCP initialized notification failed.'
+	);
+
+	return $session;
+}
+
 function cmsa_mcp_redteam_call( $method, array $params, $tool_name = '' ) {
 	static $id = 700;
 	++$id;
+	unset( $tool_name );
 
 	$request = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
 	$request->set_header( 'content-type', 'application/json' );
-	$request->set_header( 'MCP-Protocol-Version', '2026-07-28' );
-	$request->set_header( 'Mcp-Method', $method );
-	if ( '' !== $tool_name ) {
-		$request->set_header( 'Mcp-Name', $tool_name );
-	}
-
-	$params['_meta'] = array(
-		'io.modelcontextprotocol/protocolVersion' => '2026-07-28',
-			'io.modelcontextprotocol/clientCapabilities' => array(),
-		'io.modelcontextprotocol/clientInfo'      => array(
-			'name'    => 'cmsa-functional-redteam',
-			'version' => '1.0.0',
-		),
-	);
-
+	$request->set_header( 'accept', 'application/json, text/event-stream' );
+	$request->set_header( 'MCP-Protocol-Version', '2025-06-18' );
+	$request->set_header( 'Mcp-Session-Id', cmsa_mcp_redteam_session() );
 	$request->set_body(
 		wp_json_encode(
 			array(
@@ -49,12 +91,12 @@ function cmsa_mcp_redteam_call( $method, array $params, $tool_name = '' ) {
 	);
 
 	$response = rest_do_request( $request );
-	cmsa_mcp_redteam_assert( $response instanceof WP_REST_Response, 'Native MCP did not return a REST response.' );
-	cmsa_mcp_redteam_assert( 200 === $response->get_status(), sprintf( 'Native MCP %s returned HTTP %d.', $method, $response->get_status() ) );
+	cmsa_mcp_redteam_assert( $response instanceof WP_REST_Response, 'Official MCP did not return a REST response.' );
+	cmsa_mcp_redteam_assert( 200 === $response->get_status(), sprintf( 'Official MCP %s returned HTTP %d: %s', $method, $response->get_status(), wp_json_encode( $response->get_data() ) ) );
 
 	$data = $response->get_data();
-	cmsa_mcp_redteam_assert( is_array( $data ) && empty( $data['error'] ), 'Native MCP returned a JSON-RPC error.' );
-	cmsa_mcp_redteam_assert( isset( $data['result'] ) && is_array( $data['result'] ), 'Native MCP returned no structured result.' );
+	cmsa_mcp_redteam_assert( is_array( $data ) && empty( $data['error'] ), 'Official MCP returned a JSON-RPC error: ' . wp_json_encode( $data ) );
+	cmsa_mcp_redteam_assert( isset( $data['result'] ) && is_array( $data['result'] ), 'Official MCP returned no structured result.' );
 	return $data['result'];
 }
 
