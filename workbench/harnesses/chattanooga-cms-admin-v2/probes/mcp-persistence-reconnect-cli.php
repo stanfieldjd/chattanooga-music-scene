@@ -146,10 +146,50 @@ if ( 'reconnect' === $phase ) {
 	$records[ $key ]['stale_until'] = time() + 300;
 	update_option( 'cua_oauth_cimd_clients', $records, false );
 
-	$fallback = new ReflectionMethod( 'CUA_OAuth_Server', 'cimd_stale_fallback' );
-	$fallback->setAccessible( true );
-	$stale = $fallback->invoke( null, $stable_client_id, $stable_redirect, 'transport_error', 0 );
-	cmsa_persistence_assert( is_array( $stale ) && $stable_client_id === ( $stale['client_id'] ?? '' ), 'Bounded CIMD stale-on-network-error fallback failed.' );
+	$resolve = new ReflectionMethod( 'CUA_OAuth_Server', 'resolve_client' );
+	$resolve->setAccessible( true );
+
+	$network_failure = static function ( $preempt, $args, $url ) use ( $stable_client_id ) {
+		if ( $stable_client_id === $url ) {
+			return new WP_Error( 'cmsa_probe_network_down', 'Simulated CIMD transport outage.' );
+		}
+		return $preempt;
+	};
+	add_filter( 'pre_http_request', $network_failure, 10, 3 );
+	$stale = $resolve->invoke( null, $stable_client_id, $stable_redirect );
+	remove_filter( 'pre_http_request', $network_failure, 10 );
+	cmsa_persistence_assert( is_array( $stale ) && $stable_client_id === ( $stale['client_id'] ?? '' ), 'Bounded CIMD stale-on-network-error fallback failed through resolve_client().' );
+
+	$records = get_option( 'cua_oauth_cimd_clients', array() );
+	$key = is_array( $records ) ? array_key_first( $records ) : null;
+	cmsa_persistence_assert( is_string( $key ) && isset( $records[ $key ] ), 'CIMD cache vanished before invalid-document fail-closed simulation.' );
+	$records[ $key ]['expires_at'] = time() - 1;
+	$records[ $key ]['stale_until'] = time() + 300;
+	update_option( 'cua_oauth_cimd_clients', $records, false );
+
+	$invalid_document = static function ( $preempt, $args, $url ) use ( $stable_client_id, $stable_redirect ) {
+		if ( $stable_client_id !== $url ) {
+			return $preempt;
+		}
+		return array(
+			'headers'  => array( 'content-type' => 'application/json' ),
+			'body'     => wp_json_encode(
+				array(
+					'client_id'     => 'https://invalid.example/oauth/client.json',
+					'redirect_uris' => array( $stable_redirect ),
+				)
+			),
+			'response' => array( 'code' => 200, 'message' => 'OK' ),
+			'cookies'  => array(),
+			'filename' => null,
+		);
+	};
+	add_filter( 'pre_http_request', $invalid_document, 10, 3 );
+	$invalid = $resolve->invoke( null, $stable_client_id, $stable_redirect );
+	remove_filter( 'pre_http_request', $invalid_document, 10 );
+	cmsa_persistence_assert( is_wp_error( $invalid ), 'Invalid 200 CIMD metadata incorrectly used the stale cache.' );
+	cmsa_persistence_assert( 'cmsa_oauth_client_metadata_invalid' === $invalid->get_error_code(), 'Invalid CIMD metadata returned the wrong error.' );
+	cmsa_persistence_assert( empty( get_option( 'cua_oauth_cimd_clients', array() ) ), 'Invalid 200 CIMD metadata did not purge the stale cache.' );
 
 	delete_option( 'cmsa_persistence_probe_seed' );
 	delete_option( 'cua_oauth_cimd_clients' );
