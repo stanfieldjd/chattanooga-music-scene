@@ -126,14 +126,14 @@ final class CUA_MCP_Server {
 			$response = new WP_REST_Response( null, 204 );
 			$response->header( self::SESSION_HEADER, $session_id );
 			self::audit_request( $request, 'DELETE', '', 'success', 204, '', $started );
-			return $response;
+			return self::no_store_response( $response );
 		}
 
 		if ( 'GET' === $http_method ) {
 			$response = new WP_REST_Response( null, 405 );
 			$response->header( 'Allow', 'POST, DELETE' );
 			self::audit_request( $request, 'GET', '', 'method_not_allowed', 405, 'cmsa_mcp_method_not_allowed', $started );
-			return $response;
+			return self::no_store_response( $response );
 		}
 
 		$payload = self::decode_request( $request );
@@ -679,13 +679,12 @@ final class CUA_MCP_Server {
 	}
 
 	private static function discover_result( array $params = array() ) {
-		$manifest = self::discovery_manifest( $params );
-		if ( is_wp_error( $manifest ) ) {
-			return $manifest;
-		}
+		unset( $params );
+		// Keep the 2026 bootstrap small and deterministic. The dynamic WordPress
+		// operation catalog remains available through cmsa.discovery and the
+		// chattanooga://site-operation-catalog resource.
 		return array(
 			'supportedVersions' => self::supported_protocol_versions(),
-			'serverInfo'        => self::server_info(),
 			'capabilities'      => array(
 				'tools' => array(
 					'listChanged' => false,
@@ -698,10 +697,9 @@ final class CUA_MCP_Server {
 					'listChanged' => false,
 				),
 			),
-			'discovery'         => $manifest,
-			'instructions'      => 'Authenticated WordPress site-operation tools. Use read-only tools for inspection and mutating tools only for explicitly authorized site changes.',
-			'ttlMs'      => 0,
-			'cacheScope'        => 'private',
+			'instructions' => 'Authenticated WordPress site-operation tools. Use cmsa.discovery for the paginated operation catalog, then cmsa.read-bridge or cmsa.write-bridge for execution.',
+			'ttlMs'        => 0,
+			'cacheScope'   => 'private',
 		);
 	}
 
@@ -1411,7 +1409,7 @@ final class CUA_MCP_Server {
 		if ( self::LEGACY_PROTOCOL_VERSION === $protocol_version && '' !== (string) $session_id ) {
 			$response->header( self::SESSION_HEADER, $session_id );
 		}
-		return $response;
+		return self::no_store_response( $response );
 	}
 
 	private static function notification_response( $session_id = '' ) {
@@ -1419,7 +1417,7 @@ final class CUA_MCP_Server {
 		if ( '' !== (string) $session_id ) {
 			$response->header( self::SESSION_HEADER, $session_id );
 		}
-		return $response;
+		return self::no_store_response( $response );
 	}
 
 	private static function protocol_error_response( $id, $code, $message, $status, array $data = array(), $protocol_version = self::PROTOCOL_VERSION ) {
@@ -1446,7 +1444,7 @@ final class CUA_MCP_Server {
 			'MCP-Protocol-Version',
 			in_array( $protocol_version, self::supported_protocol_versions(), true ) ? $protocol_version : self::PROTOCOL_VERSION
 		);
-		return $response;
+		return self::no_store_response( $response );
 	}
 
 	private static function auth_security_schemes() {
@@ -1583,6 +1581,16 @@ final class CUA_MCP_Server {
 			'version'    => defined( 'CUA_VERSION' ) ? CUA_VERSION : 'unknown',
 			'websiteUrl' => home_url( '/' ),
 		);
+	}
+
+	private static function no_store_response( WP_REST_Response $response ) {
+		if ( function_exists( 'nocache_headers' ) ) {
+			nocache_headers();
+		}
+		$response->header( 'Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, private' );
+		$response->header( 'Pragma', 'no-cache' );
+		$response->header( 'Expires', 'Wed, 11 Jan 1984 05:00:00 GMT' );
+		return $response;
 	}
 
 	private static function json_text( $value ) {

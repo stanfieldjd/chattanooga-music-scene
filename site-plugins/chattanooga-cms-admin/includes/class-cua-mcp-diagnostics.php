@@ -656,6 +656,9 @@ final class CUA_MCP_Diagnostics {
 			200
 		);
 		$response->header( 'MCP-Protocol-Version', CUA_MCP_Server::PROTOCOL_VERSION );
+		$response->header( 'Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, private' );
+		$response->header( 'Pragma', 'no-cache' );
+		$response->header( 'Expires', 'Wed, 11 Jan 1984 05:00:00 GMT' );
 		return $response;
 	}
 
@@ -679,6 +682,9 @@ final class CUA_MCP_Diagnostics {
 			(int) $status
 		);
 		$response->header( 'MCP-Protocol-Version', CUA_MCP_Server::PROTOCOL_VERSION );
+		$response->header( 'Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, private' );
+		$response->header( 'Pragma', 'no-cache' );
+		$response->header( 'Expires', 'Wed, 11 Jan 1984 05:00:00 GMT' );
 		return $response;
 	}
 

@@ -140,6 +140,8 @@ for ( $iteration = 0; $iteration < 20; ++$iteration ) {
 	$response = cmsa_persistence_modern( 'tools/list', array(), 520 + $iteration );
 	$data = $response->get_data();
 	$headers = array_change_key_case( $response->get_headers(), CASE_LOWER );
+	cmsa_persistence_assert( false !== strpos( (string) ( $headers['cache-control'] ?? '' ), 'no-store' ), 'Modern reconnect response is cacheable.' );
+	cmsa_persistence_assert( false !== strpos( (string) ( $headers['cache-control'] ?? '' ), 'max-age=0' ), 'Modern reconnect response lacks max-age=0.' );
 	cmsa_persistence_assert( 200 === $response->get_status(), 'Modern tools/list failed during repeated reconnect simulation.' );
 	cmsa_persistence_assert( ! isset( $headers['mcp-session-id'] ), 'Modern reconnect simulation emitted a session id.' );
 	cmsa_persistence_assert( 0 === ( $data['result']['ttlMs'] ?? null ), 'Modern tools/list is not immediately stale (ttlMs must be 0).' );
@@ -161,6 +163,9 @@ for ( $iteration = 0; $iteration < 20; ++$iteration ) {
 
 $discover = cmsa_persistence_modern( 'server/discover', array(), 550 );
 $discover_data = $discover->get_data();
+$discover_headers = array_change_key_case( $discover->get_headers(), CASE_LOWER );
+cmsa_persistence_assert( false !== strpos( (string) ( $discover_headers['cache-control'] ?? '' ), 'no-store' ), 'Modern server/discover HTTP response is cacheable.' );
+cmsa_persistence_assert( ! array_key_exists( 'discovery', $discover_data['result'] ?? array() ), 'Modern server/discover embedded the dynamic catalog.' );
 cmsa_persistence_assert( 200 === $discover->get_status(), 'Modern server/discover failed.' );
 cmsa_persistence_assert( 0 === ( $discover_data['result']['ttlMs'] ?? null ), 'Modern server/discover is not immediately stale.' );
 cmsa_persistence_assert( 'private' === ( $discover_data['result']['cacheScope'] ?? null ), 'Modern server/discover cacheScope is not private.' );

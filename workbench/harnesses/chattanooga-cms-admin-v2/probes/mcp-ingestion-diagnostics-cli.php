@@ -48,7 +48,7 @@ function cmsa_ingestion_modern_request( $route, $method, array $params = array()
 
 wp_set_current_user( 1 );
 
-cmsa_ingestion_assert( defined( 'CUA_VERSION' ) && '1.2.36' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.36 did not load.' );
+cmsa_ingestion_assert( defined( 'CUA_VERSION' ) && '1.2.37' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.37 did not load.' );
 cmsa_ingestion_assert( class_exists( 'CUA_MCP_Diagnostics' ), 'MCP diagnostics class did not load.' );
 cmsa_ingestion_assert( class_exists( 'CUA_MCP_Server' ), 'MCP server class did not load.' );
 cmsa_ingestion_assert( class_exists( 'CUA_Audit' ), 'Audit class did not load.' );
@@ -83,6 +83,8 @@ cmsa_ingestion_assert( false !== strpos( (string) ( $stability['scope'] ?? '' ),
 
 $canary_discover = cmsa_ingestion_modern_request( '/chattanooga-cms-admin/v1' . CUA_MCP_Diagnostics::CANARY_ROUTE, 'server/discover', array(), 703 );
 cmsa_ingestion_assert( 200 === $canary_discover->get_status(), 'Canary server/discover failed.' );
+$canary_discover_headers = array_change_key_case( $canary_discover->get_headers(), CASE_LOWER );
+cmsa_ingestion_assert( false !== strpos( (string) ( $canary_discover_headers['cache-control'] ?? '' ), 'no-store' ), 'Canary server/discover HTTP response is cacheable.' );
 cmsa_ingestion_assert(
 	array( CUA_MCP_Server::PROTOCOL_VERSION ) === ( $canary_discover->get_data()['result']['supportedVersions'] ?? null ),
 	'Canary discovery advertised the wrong protocol version.'
@@ -90,6 +92,8 @@ cmsa_ingestion_assert(
 
 $canary_list = cmsa_ingestion_modern_request( '/chattanooga-cms-admin/v1' . CUA_MCP_Diagnostics::CANARY_ROUTE, 'tools/list', array(), 704 );
 cmsa_ingestion_assert( 200 === $canary_list->get_status(), 'Canary tools/list failed.' );
+$canary_list_headers = array_change_key_case( $canary_list->get_headers(), CASE_LOWER );
+cmsa_ingestion_assert( false !== strpos( (string) ( $canary_list_headers['cache-control'] ?? '' ), 'no-store' ), 'Canary tools/list HTTP response is cacheable.' );
 $canary_tools = $canary_list->get_data()['result']['tools'] ?? null;
 cmsa_ingestion_assert( is_array( $canary_tools ) && 1 === count( $canary_tools ), 'Canary did not expose exactly one tool.' );
 cmsa_ingestion_assert( CUA_MCP_Diagnostics::CANARY_TOOL === ( $canary_tools[0]['name'] ?? '' ), 'Canary exposed the wrong tool name.' );
