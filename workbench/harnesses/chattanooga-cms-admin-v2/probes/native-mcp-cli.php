@@ -155,7 +155,7 @@ cmsa_native_mcp_assert(
 	false === ( $discover_data['result']['capabilities']['tools']['listChanged'] ?? null ),
 	'Discovery returned the wrong tools capability.'
 );
-cmsa_native_mcp_assert( 30000 === ( $discover_data['result']['ttlMs'] ?? null ), 'Discovery cache TTL is incorrect.' );
+cmsa_native_mcp_assert( 0 === ( $discover_data['result']['ttlMs'] ?? null ), 'Discovery cache TTL is incorrect.' );
 cmsa_native_mcp_assert( 'private' === ( $discover_data['result']['cacheScope'] ?? '' ), 'Discovery cache scope is not private.' );
 cmsa_native_mcp_assert(
 	'chattanooga-cms-admin' === ( $discover_data['result']['_meta']['io.modelcontextprotocol/serverInfo']['name'] ?? '' ),
@@ -257,9 +257,9 @@ cmsa_native_mcp_assert( false === ( $stability_tool['annotations']['openWorldHin
 $catalog_security = $discovery_tool['securitySchemes'][0] ?? null;
 cmsa_native_mcp_assert( is_array( $catalog_security ) && 'oauth2' === ( $catalog_security['type'] ?? '' ), 'MCP tools do not advertise OAuth 2.0 to ChatGPT.' );
 cmsa_native_mcp_assert( array( CUA_OAuth_Server::SCOPE ) === ( $catalog_security['scopes'] ?? null ), 'MCP OAuth tool scope is not the administrator scope.' );
-cmsa_native_mcp_assert( 30000 === ( $resources_data['result']['ttlMs'] ?? null ) && 'private' === ( $resources_data['result']['cacheScope'] ?? '' ), 'resources/list cache hints are incomplete.' );
-cmsa_native_mcp_assert( 30000 === ( $resource_read_data['result']['ttlMs'] ?? null ) && 'private' === ( $resource_read_data['result']['cacheScope'] ?? '' ), 'resources/read cache hints are incomplete.' );
-cmsa_native_mcp_assert( 30000 === ( $prompts_data['result']['ttlMs'] ?? null ) && 'private' === ( $prompts_data['result']['cacheScope'] ?? '' ), 'prompts/list cache hints are incomplete.' );
+cmsa_native_mcp_assert( 0 === ( $resources_data['result']['ttlMs'] ?? null ) && 'private' === ( $resources_data['result']['cacheScope'] ?? '' ), 'resources/list cache hints are incomplete.' );
+cmsa_native_mcp_assert( 0 === ( $resource_read_data['result']['ttlMs'] ?? null ) && 'private' === ( $resource_read_data['result']['cacheScope'] ?? '' ), 'resources/read cache hints are incomplete.' );
+cmsa_native_mcp_assert( 0 === ( $prompts_data['result']['ttlMs'] ?? null ) && 'private' === ( $prompts_data['result']['cacheScope'] ?? '' ), 'prompts/list cache hints are incomplete.' );
 
 // Execute one real site-operation catalog call through MCP.
 $catalog = cmsa_native_mcp_modern(
