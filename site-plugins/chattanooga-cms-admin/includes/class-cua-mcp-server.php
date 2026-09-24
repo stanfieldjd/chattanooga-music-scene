@@ -5,7 +5,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class CUA_MCP_Server {
-	private static $active_sessions = array();
 	const REST_NAMESPACE = 'chattanooga-cms-admin/v1';
 	const REST_ROUTE     = '/mcp';
 	const ABILITY_PREFIX = 'chattanooga-cms-admin/';
@@ -27,8 +26,12 @@ final class CUA_MCP_Server {
 		'cmsa.read-bridge',
 		'cmsa.write-bridge',
 	);
-	const SESSION_TTL = HOUR_IN_SECONDS;
+	const SESSION_TTL = DAY_IN_SECONDS;
 	const SESSION_HEADER = 'Mcp-Session-Id';
+	const SESSION_META_KEY = 'chattanooga_cms_admin_mcp_sessions';
+	const SESSION_MAX = 20;
+	const SESSION_UPDATE_ATTEMPTS = 5;
+	const SESSION_ACTIVITY_UPDATE_INTERVAL = 60;
 
 	public static function register_route() {
 		if ( ! CUA_MCP_Settings_Page::is_enabled() ) {
@@ -117,8 +120,9 @@ final class CUA_MCP_Server {
 				self::audit_request( $request, '', '', 'protocol_error', 400, 'cmsa_mcp_session_required', $started );
 				return self::protocol_error_response( null, -32001, 'A valid MCP session is required to close this endpoint session.', 400 );
 			}
-			unset( self::$active_sessions[ $session_id ] );
-			delete_transient( self::session_key( $session_id ) );
+			if ( ! self::delete_session( $session_id ) ) {
+				return self::protocol_error_response( null, -32603, 'The MCP session could not be closed safely.', 500, array(), self::LEGACY_PROTOCOL_VERSION );
+			}
 			$response = new WP_REST_Response( null, 204 );
 			$response->header( self::SESSION_HEADER, $session_id );
 			self::audit_request( $request, 'DELETE', '', 'success', 204, '', $started );
@@ -279,6 +283,9 @@ final class CUA_MCP_Server {
 		switch ( $method ) {
 			case 'initialize':
 				$session_id = self::create_session( self::LEGACY_PROTOCOL_VERSION );
+				if ( false === $session_id ) {
+					return self::protocol_error_response( $id, -32603, 'The MCP session could not be persisted.', 500, array(), self::LEGACY_PROTOCOL_VERSION );
+				}
 				return self::success_response( $id, self::initialize_result( self::LEGACY_PROTOCOL_VERSION ), self::LEGACY_PROTOCOL_VERSION, $session_id );
 
 			case 'server/discover':
@@ -412,40 +419,6 @@ final class CUA_MCP_Server {
 		return trim( (string) $request->get_header( self::SESSION_HEADER ) );
 	}
 
-	private static function session_key( $session_id ) {
-		return 'cmsa_mcp_session_' . hash( 'sha256', (string) $session_id );
-	}
-
-	private static function create_session( $protocol_version ) {
-		$session_id = wp_generate_uuid4();
-		$session = array(
-			'user_id'         => get_current_user_id(),
-			'protocolVersion' => (string) $protocol_version,
-			'createdAt'       => time(),
-		);
-		self::$active_sessions[ $session_id ] = $session;
-		set_transient(
-			self::session_key( $session_id ),
-			$session,
-			self::SESSION_TTL
-		);
-		return $session_id;
-	}
-
-	private static function session_is_valid( $session_id ) {
-		if ( '' === (string) $session_id ) {
-			return false;
-		}
-
-		$session = isset( self::$active_sessions[ $session_id ] ) ? self::$active_sessions[ $session_id ] : get_transient( self::session_key( $session_id ) );
-		if ( ! is_array( $session ) || (int) ( $session['user_id'] ?? 0 ) !== (int) get_current_user_id() ) {
-			return false;
-		}
-
-		self::$active_sessions[ $session_id ] = $session;
-		set_transient( self::session_key( $session_id ), $session, self::SESSION_TTL );
-		return true;
-	}
 
 	private static function request_protocol_version( WP_REST_Request $request, array $params ) {
 		$header_version = trim( (string) $request->get_header( 'mcp-protocol-version' ) );
@@ -457,13 +430,6 @@ final class CUA_MCP_Server {
 		}
 		if ( isset( $params['_meta']['io.modelcontextprotocol/protocolVersion'] ) ) {
 			return trim( (string) $params['_meta']['io.modelcontextprotocol/protocolVersion'] );
-		}
-		$session_id = self::request_session_id( $request );
-		if ( '' !== $session_id ) {
-			$session = isset( self::$active_sessions[ $session_id ] ) ? self::$active_sessions[ $session_id ] : get_transient( self::session_key( $session_id ) );
-			if ( is_array( $session ) && isset( $session['protocolVersion'] ) ) {
-				return (string) $session['protocolVersion'];
-			}
 		}
 		return self::LEGACY_PROTOCOL_VERSION;
 	}
@@ -482,9 +448,158 @@ final class CUA_MCP_Server {
 		return '';
 	}
 
+	private static function session_meta_key() {
+		if ( function_exists( 'is_multisite' ) && is_multisite() ) {
+			$blog_id = function_exists( 'get_current_blog_id' ) ? (int) get_current_blog_id() : 0;
+			if ( 0 < $blog_id ) {
+				return self::SESSION_META_KEY . '_' . $blog_id;
+			}
+		}
+		return self::SESSION_META_KEY;
+	}
+
+	private static function get_sessions( $user_id ) {
+		if ( 0 >= (int) $user_id ) {
+			return array();
+		}
+		$sessions = get_user_meta( (int) $user_id, self::session_meta_key(), true );
+		return is_array( $sessions ) ? $sessions : array();
+	}
+
+	private static function mutate_sessions( $user_id, callable $mutation ) {
+		$user_id = (int) $user_id;
+		if ( 0 >= $user_id ) {
+			return false;
+		}
+
+		for ( $attempt = 0; $attempt < self::SESSION_UPDATE_ATTEMPTS; ++$attempt ) {
+			wp_cache_delete( $user_id, 'user_meta' );
+			$previous = self::get_sessions( $user_id );
+			$updated  = $mutation( $previous );
+			if ( ! is_array( $updated ) ) {
+				return false;
+			}
+			if ( $updated === $previous ) {
+				return true;
+			}
+			$stored = update_user_meta( $user_id, self::session_meta_key(), $updated, $previous );
+			if ( false !== $stored ) {
+				wp_cache_delete( $user_id, 'user_meta' );
+				return true;
+			}
+		}
+
+		if ( class_exists( 'CUA_Audit' ) ) {
+			CUA_Audit::log_oauth_trace(
+				array(
+					'stage'       => 'mcp_session_store',
+					'outcome'     => 'persist_failed',
+					'http_status' => 500,
+					'error_code'  => 'cmsa_mcp_session_persist_failed',
+				)
+			);
+		}
+		return false;
+	}
+
+	private static function create_session( $protocol_version ) {
+		$user_id = get_current_user_id();
+		if ( 0 >= (int) $user_id ) {
+			return false;
+		}
+
+		$session_id = wp_generate_uuid4();
+		$now        = time();
+		$stored = self::mutate_sessions(
+			$user_id,
+			static function ( array $sessions ) use ( $session_id, $protocol_version, $now ) {
+				foreach ( $sessions as $stored_id => $session ) {
+					if ( ! is_array( $session ) || (int) ( $session['lastActivity'] ?? 0 ) + self::SESSION_TTL < $now ) {
+						unset( $sessions[ $stored_id ] );
+					}
+				}
+				if ( count( $sessions ) >= self::SESSION_MAX ) {
+					uasort(
+						$sessions,
+						static function ( $left, $right ) {
+							return (int) ( $left['createdAt'] ?? 0 ) <=> (int) ( $right['createdAt'] ?? 0 );
+						}
+					);
+					array_shift( $sessions );
+				}
+				$sessions[ $session_id ] = array(
+					'protocolVersion' => (string) $protocol_version,
+					'createdAt'       => $now,
+					'lastActivity'    => $now,
+				);
+				return $sessions;
+			}
+		);
+		if ( ! $stored ) {
+			return false;
+		}
+
+		wp_cache_delete( $user_id, 'user_meta' );
+		$sessions = self::get_sessions( $user_id );
+		if ( ! isset( $sessions[ $session_id ] ) || ! is_array( $sessions[ $session_id ] ) ) {
+			return false;
+		}
+		return $session_id;
+	}
+
+	private static function session_is_valid( $session_id ) {
+		$user_id = get_current_user_id();
+		if ( '' === (string) $session_id || 0 >= (int) $user_id ) {
+			return false;
+		}
+		$now = time();
+		$valid = false;
+		$stored = self::mutate_sessions(
+			$user_id,
+			static function ( array $sessions ) use ( $session_id, $now, &$valid ) {
+				if ( ! isset( $sessions[ $session_id ] ) || ! is_array( $sessions[ $session_id ] ) ) {
+					return $sessions;
+				}
+				$last_activity = (int) ( $sessions[ $session_id ]['lastActivity'] ?? 0 );
+				if ( $last_activity + self::SESSION_TTL < $now ) {
+					unset( $sessions[ $session_id ] );
+					return $sessions;
+				}
+				$valid = true;
+				if ( $now - $last_activity >= self::SESSION_ACTIVITY_UPDATE_INTERVAL ) {
+					$sessions[ $session_id ]['lastActivity'] = $now;
+				}
+				return $sessions;
+			}
+		);
+		return $stored && $valid;
+	}
+
 	private static function session_protocol_matches( $session_id, $protocol_version ) {
-		$session = isset( self::$active_sessions[ $session_id ] ) ? self::$active_sessions[ $session_id ] : get_transient( self::session_key( $session_id ) );
-		return is_array( $session ) && hash_equals( (string) ( $session['protocolVersion'] ?? '' ), (string) $protocol_version );
+		$user_id = get_current_user_id();
+		if ( '' === (string) $session_id || 0 >= (int) $user_id ) {
+			return false;
+		}
+		wp_cache_delete( $user_id, 'user_meta' );
+		$sessions = self::get_sessions( $user_id );
+		$session = $sessions[ $session_id ] ?? null;
+		return is_array( $session )
+			&& (int) ( $session['lastActivity'] ?? 0 ) + self::SESSION_TTL >= time()
+			&& hash_equals( (string) ( $session['protocolVersion'] ?? '' ), (string) $protocol_version );
+	}
+
+	private static function delete_session( $session_id ) {
+		$user_id = get_current_user_id();
+		if ( '' === (string) $session_id || 0 >= (int) $user_id ) {
+			return false;
+		}
+		return self::mutate_sessions(
+			$user_id,
+			static function ( array $sessions ) use ( $session_id ) {
+				unset( $sessions[ $session_id ] );
+				return $sessions;
+			}
+		);
 	}
 
 	private static function validate_headers( WP_REST_Request $request, $method, array $params, $protocol_version ) {
@@ -585,7 +700,7 @@ final class CUA_MCP_Server {
 			),
 			'discovery'         => $manifest,
 			'instructions'      => 'Authenticated WordPress site-operation tools. Use read-only tools for inspection and mutating tools only for explicitly authorized site changes.',
-			'ttlMs'             => 30000,
+			'ttlMs'      => 0,
 			'cacheScope'        => 'private',
 		);
 	}
@@ -628,7 +743,7 @@ final class CUA_MCP_Server {
 
 		$result = array(
 			'tools'      => array_slice( $all_tools, $offset, self::TOOL_PAGE_SIZE ),
-			'ttlMs'      => 30000,
+			'ttlMs'      => 0,
 			'cacheScope' => 'private',
 		);
 		$next_offset = $offset + count( $result['tools'] );
@@ -656,7 +771,7 @@ final class CUA_MCP_Server {
 					'mimeType'    => 'application/json',
 				),
 			),
-			'ttlMs'      => 30000,
+			'ttlMs'      => 0,
 			'cacheScope' => 'private',
 		);
 	}
@@ -672,7 +787,7 @@ final class CUA_MCP_Server {
 						'text'     => self::json_text( self::discovery_manifest( $params ) ),
 					),
 				),
-				'ttlMs'      => 30000,
+				'ttlMs'      => 0,
 				'cacheScope' => 'private',
 			);
 		}
@@ -697,7 +812,7 @@ final class CUA_MCP_Server {
 					'text'     => self::json_text( $catalog ),
 				),
 			),
-			'ttlMs'      => 30000,
+			'ttlMs'      => 0,
 			'cacheScope' => 'private',
 		);
 	}
@@ -742,7 +857,7 @@ final class CUA_MCP_Server {
 					),
 				),
 			),
-			'ttlMs'      => 30000,
+			'ttlMs'      => 0,
 			'cacheScope' => 'private',
 		);
 	}
