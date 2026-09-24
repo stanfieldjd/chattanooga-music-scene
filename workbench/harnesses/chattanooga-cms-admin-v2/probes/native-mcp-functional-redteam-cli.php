@@ -90,10 +90,27 @@ function cmsa_mcp_redteam_tool( $name, array $arguments = array() ) {
 }
 
 function cmsa_mcp_redteam_catalog() {
-	$result = cmsa_mcp_redteam_tool( 'cmsa.catalog', array() );
-	$catalog = $result['structuredContent'] ?? null;
-	cmsa_mcp_redteam_assert( is_array( $catalog ) && isset( $catalog['items'] ) && is_array( $catalog['items'] ), 'MCP catalog returned no items.' );
-	return $catalog['items'];
+	$items = array();
+	$cursor = 0;
+	for ( $page = 0; $page < 100; ++$page ) {
+		$result = cmsa_mcp_redteam_tool(
+			'cmsa.catalog',
+			array(
+				'cursor' => $cursor,
+				'limit'  => 100,
+			)
+		);
+		$catalog = $result['structuredContent'] ?? null;
+		cmsa_mcp_redteam_assert( is_array( $catalog ) && isset( $catalog['items'] ) && is_array( $catalog['items'] ), 'MCP catalog returned no items.' );
+		$items = array_merge( $items, $catalog['items'] );
+		$next = $catalog['nextCursor'] ?? null;
+		if ( null === $next ) {
+			return $items;
+		}
+		cmsa_mcp_redteam_assert( is_numeric( $next ) && (int) $next > $cursor, 'MCP catalog returned a non-advancing cursor.' );
+		$cursor = (int) $next;
+	}
+	cmsa_mcp_redteam_fail( 'MCP catalog exceeded the pagination safety limit.' );
 }
 
 function cmsa_mcp_redteam_find_ability( array $catalog, $target ) {
