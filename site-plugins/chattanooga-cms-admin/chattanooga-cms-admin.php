@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Chattanooga CMS Admin
  * Description: Universal Chattanooga CMS Admin replacement using plugin-agnostic public WordPress contracts and verified intrinsic platform services.
- * Version: 1.2.38
+ * Version: 1.2.39
  * Author: Chattanooga Music Scene
  * Requires at least: 7.1
  * Requires PHP: 8.0
@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CUA_VERSION', '1.2.38' );
+define( 'CUA_VERSION', '1.2.39' );
 define( 'CUA_DIR', plugin_dir_path( __FILE__ ) );
 
 require_once CUA_DIR . 'includes/class-cua-local-storage.php';
@@ -36,10 +36,17 @@ require_once CUA_DIR . 'includes/class-cua-bridge-gateway.php';
 require_once CUA_DIR . 'includes/class-cua-oauth-server.php';
 require_once CUA_DIR . 'includes/class-cua-mcp-server.php';
 require_once CUA_DIR . 'includes/class-cua-mcp-diagnostics.php';
+require_once CUA_DIR . 'includes/class-cua-mcp-official-transport.php';
+
+$cua_mcp_autoload = CUA_DIR . 'vendor/autoload.php';
+if ( is_readable( $cua_mcp_autoload ) ) {
+	require_once $cua_mcp_autoload;
+}
 
 CUA_Audit::bootstrap();
 CUA_MCP_Settings_Page::register_admin_hooks();
 CUA_OAuth_Server::bootstrap();
+CUA_MCP_Official_Transport::bootstrap();
 
 add_action( 'wp_abilities_api_categories_init', array( 'CUA_Ability_Bridge', 'register_category' ) );
 add_action( 'wp_abilities_api_init', array( 'CUA_MCP_Diagnostics', 'register_ability' ), 4 );
@@ -61,7 +68,6 @@ add_action( 'wp_abilities_api_init', array( 'CUA_MCP_Server', 'register_adapter_
 add_action( 'wp_abilities_api_init', array( 'CUA_REST_Bridge', 'register_external_bridges' ), 999999 );
 add_action( 'wp_abilities_api_init', array( 'CUA_Ability_Bridge', 'register_external_bridges' ), 1000000 );
 add_action( 'wp_loaded', array( 'CUA_Ability_Bridge', 'prime_catalog_snapshot' ), 999999 );
-add_action( 'rest_api_init', array( 'CUA_MCP_Server', 'register_route' ) );
 add_action( 'rest_api_init', array( 'CUA_MCP_Diagnostics', 'register_routes' ), 20 );
 // Providers may register public abilities or REST routes after the initial
 // wp_abilities_api_init pass. Re-run the idempotent facade registration once
