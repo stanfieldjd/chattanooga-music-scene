@@ -42,6 +42,14 @@ jobs:
         with:
           php-version: "8.2"
           extensions: mysqli, zip, gd, fileinfo
+      - name: Install pinned MCP adapter runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          composer update --working-dir=site-plugins/chattanooga-cms-admin --no-dev --prefer-dist --no-interaction --optimize-autoloader
+          test -f site-plugins/chattanooga-cms-admin/vendor/autoload.php
+          composer show --working-dir=site-plugins/chattanooga-cms-admin wordpress/mcp-adapter | grep -Eq '^versions[[:space:]]*:[[:space:]]*\*? v?0\.6\.1$'
+
       - name: Lint and enforce one-plugin boundary
         shell: bash
         run: |
@@ -52,7 +60,7 @@ jobs:
           test ! -e "$source/chattanooga-universal-admin.php"
           test "$(grep -RIl '^ \* Plugin Name:' "$source" --include='*.php' | wc -l)" -eq 1
           grep -q '^ \* Plugin Name: Chattanooga CMS Admin$' "$source/chattanooga-cms-admin.php"
-          grep -q '^ \* Version: 1.2.38$' "$source/chattanooga-cms-admin.php"
+          grep -q '^ \* Version: 1.2.39$' "$source/chattanooga-cms-admin.php"
           if grep -REiq 'WooCommerce|WC_Product|wc_get_product|Events_Manager|events-manager|EM_Event|EM_Location|BuddyBoss|Marketplace|Weekend_Feature|Rank_Math|rank-math|seo-by-rank-math|awpcp|another-wordpress-classifieds-plugin|miniOrange|miniorange' "$source"; then
             echo "Replacement contains provider-specific implementation logic." >&2
             exit 1
