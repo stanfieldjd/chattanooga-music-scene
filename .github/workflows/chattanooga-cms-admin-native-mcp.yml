@@ -58,24 +58,27 @@ jobs:
           php-version: "8.2"
           extensions: mysqli, zip, gd, fileinfo
 
+      - name: Install pinned MCP adapter runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          composer update --working-dir=site-plugins/chattanooga-cms-admin --no-dev --prefer-dist --no-interaction --optimize-autoloader
+          test -f site-plugins/chattanooga-cms-admin/vendor/autoload.php
+          composer show --working-dir=site-plugins/chattanooga-cms-admin wordpress/mcp-adapter | grep -Eq '^versions[[:space:]]*:[[:space:]]*\*? v?0\.6\.1$'
+
       - name: Validate native MCP source boundary
         shell: bash
         run: |
           set -euo pipefail
           source="site-plugins/chattanooga-cms-admin"
           find "$source" -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
-          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php >/dev/null
-          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php >/dev/null
-          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-persistence-cli.php >/dev/null
-          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php >/dev/null
-          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-settings-page-cli.php >/dev/null
-          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-ingestion-diagnostics-cli.php >/dev/null
-          python3 -m py_compile workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-jsonschema-2020-report.py
+          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/official-mcp-transport-cli.php >/dev/null
           grep -q '^ \* Plugin Name: Chattanooga CMS Admin$' "$source/chattanooga-cms-admin.php"
-          grep -q '^ \* Version: 1.2.38$' "$source/chattanooga-cms-admin.php"
-          grep -Fq "add_action( 'rest_api_init', array( 'CUA_MCP_Server', 'register_route' ) );" "$source/chattanooga-cms-admin.php"
-          test -f "$source/includes/class-cua-mcp-server.php"
-          test -f "$source/includes/class-cua-mcp-diagnostics.php"
+          grep -q '^ \* Version: 1.2.39$' "$source/chattanooga-cms-admin.php"
+          ! grep -Fq "add_action( 'rest_api_init', array( 'CUA_MCP_Server', 'register_route' ) );" "$source/chattanooga-cms-admin.php"
+          test -f "$source/includes/class-cua-mcp-official-transport.php"
+          test -f "$source/composer.json"
+          grep -Fq '"wordpress/mcp-adapter": "0.6.1"' "$source/composer.json"
           if grep -REiq 'WooCommerce|WC_Product|wc_get_product|Events_Manager|events-manager|EM_Event|EM_Location|BuddyBoss|Marketplace|Weekend_Feature|Rank_Math|rank-math|seo-by-rank-math|awpcp|another-wordpress-classifieds-plugin|miniOrange|miniorange' "$source"; then
             echo "Native MCP source contains provider-specific implementation logic." >&2
             exit 1
@@ -95,312 +98,62 @@ jobs:
           php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin is-active chattanooga-cms-admin --path=/tmp/wordpress
 
-      - name: Verify native MCP transport
-        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php" --path=/tmp/wordpress
+      - name: Verify official WordPress MCP transport in-process
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/official-mcp-transport-cli.php" --path=/tmp/wordpress
 
-      - name: Verify single MCP protocol boundary
-        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php" --path=/tmp/wordpress
-
-      - name: Verify MCP persistence fault handling
-        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-persistence-cli.php" --path=/tmp/wordpress
-
-      - name: Verify complete MCP administrator ability exposure
-        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php" --path=/tmp/wordpress
-
-      - name: Verify MCP settings page and configuration sanitization
-        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-settings-page-cli.php" --path=/tmp/wordpress
-
-      - name: Install JSON Schema 2020-12 diagnostic validator
-        run: python3 -m pip install --disable-pip-version-check 'jsonschema==4.25.1'
-
-      - name: Generate MCP ingestion diagnostic report
-        shell: bash
-        env:
-          CMSA_DIAGNOSTIC_REPORT: /tmp/cmsa-mcp-ingestion-diagnostics-report.json
-        run: |
-          set -euo pipefail
-          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-ingestion-diagnostics-cli.php" --path=/tmp/wordpress
-          python3 "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-jsonschema-2020-report.py" "$CMSA_DIAGNOSTIC_REPORT"
-          php -r '$d=json_decode(file_get_contents(getenv("CMSA_DIAGNOSTIC_REPORT")),true); if (($d["jsonSchema202012"]["fail"]??-1)!==0 || ($d["catalog"]["descriptorSummary"]["fail"]??-1)!==0) exit(1);'
-
-      - name: Upload MCP ingestion diagnostic report
-        uses: actions/upload-artifact@v4
-        with:
-          name: chattanooga-cms-admin-mcp-ingestion-report-1.2.38
-          path: /tmp/cmsa-mcp-ingestion-diagnostics-report.json
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Verify external administrator authentication and write authority
+      - name: Verify official transport across fresh HTTP sessions
         shell: bash
         run: |
           set -euo pipefail
           endpoint='http://127.0.0.1:8090/index.php?rest_route=%2Fchattanooga-cms-admin%2Fv1%2Fmcp'
-          app_password="$(php /tmp/wp-cli.phar user application-password create admin cmsa-native-mcp-ci --porcelain --path=/tmp/wordpress)"
+          app_password="$(php /tmp/wp-cli.phar user application-password create admin cmsa-official-http-ci --porcelain --path=/tmp/wordpress)"
 
-          php -S 127.0.0.1:8090 -t /tmp/wordpress >/tmp/cmsa-native-mcp-http.log 2>&1 &
+          php -S 127.0.0.1:8090 -t /tmp/wordpress >/tmp/cmsa-official-http.log 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
-
           for attempt in $(seq 1 30); do
-            if curl -fsS 'http://127.0.0.1:8090/index.php?rest_route=%2F' >/dev/null 2>&1; then
-              break
-            fi
-            if [ "$attempt" -eq 30 ]; then
-              cat /tmp/cmsa-native-mcp-http.log >&2
-              exit 1
-            fi
+            curl -fsS 'http://127.0.0.1:8090/index.php?rest_route=%2F' >/dev/null 2>&1 && break
+            if [ "$attempt" -eq 30 ]; then cat /tmp/cmsa-official-http.log >&2; exit 1; fi
             sleep 1
           done
 
-          cat > /tmp/cmsa-discover.json <<'JSON'
-          {"jsonrpc":"2.0","id":401,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{},"io.modelcontextprotocol/clientInfo":{"name":"cmsa-http-ci","version":"1.0.0"}}}}
-          JSON
-
-          anonymous_code="$(curl -sS -o /tmp/cmsa-anonymous.json -w '%{http_code}' \
-            -H 'Content-Type: application/json' \
-            -H 'MCP-Protocol-Version: 2026-07-28' \
-            -H 'Mcp-Method: server/discover' \
-            --data-binary @/tmp/cmsa-discover.json \
-            "$endpoint")"
-          if [ "$anonymous_code" != '200' ]; then
-            echo "Anonymous modern MCP discovery returned HTTP $anonymous_code" >&2
-            cat /tmp/cmsa-anonymous.json >&2
-            exit 1
-          fi
-          php -r '$d=json_decode(file_get_contents("/tmp/cmsa-anonymous.json"),true); if (($d["result"]["resultType"]??"")!=="complete") exit(1);'
-
-          cat > /tmp/cmsa-tools-list.json <<'JSON'
-          {"jsonrpc":"2.0","id":410,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{},"io.modelcontextprotocol/clientInfo":{"name":"cmsa-http-ci","version":"1.0.0"}}}}
-          JSON
-          anonymous_list_code="$(curl -sS -o /tmp/cmsa-tools-list-response.json -w '%{http_code}' \
-            -H 'Content-Type: application/json' \
-            -H 'MCP-Protocol-Version: 2026-07-28' \
-            -H 'Mcp-Method: tools/list' \
-            --data-binary @/tmp/cmsa-tools-list.json \
-            "$endpoint")"
-          if [ "$anonymous_list_code" != '200' ]; then
-            echo "Anonymous tools/list returned HTTP $anonymous_list_code" >&2
-            cat /tmp/cmsa-tools-list-response.json >&2
-            exit 1
-          fi
-          php -r '$d=json_decode(file_get_contents("/tmp/cmsa-tools-list-response.json"),true); $tools=$d["result"]["tools"]??[]; if (!$tools) exit(1); $ok=false; foreach($tools as $tool){ if(($tool["name"]??"")==="cmsa.discovery" && (($tool["securitySchemes"][0]["type"]??"")==="oauth2")) $ok=true; } if(!$ok) exit(1);'
-
-          cat > /tmp/cmsa-anonymous-call.json <<'JSON'
-          {"jsonrpc":"2.0","id":411,"method":"tools/call","params":{"name":"cmsa.discovery","arguments":{},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{},"io.modelcontextprotocol/clientInfo":{"name":"cmsa-http-ci","version":"1.0.0"}}}}
-          JSON
-          anonymous_call_code="$(curl -sS -o /tmp/cmsa-anonymous-call-response.json -w '%{http_code}' \
-            -H 'Content-Type: application/json' \
-            -H 'MCP-Protocol-Version: 2026-07-28' \
-            -H 'Mcp-Method: tools/call' \
-            -H 'Mcp-Name: cmsa.discovery' \
-            --data-binary @/tmp/cmsa-anonymous-call.json \
-            "$endpoint")"
-          if [ "$anonymous_call_code" != '200' ]; then
-            echo "Anonymous tools/call OAuth trigger returned HTTP $anonymous_call_code" >&2
-            cat /tmp/cmsa-anonymous-call-response.json >&2
-            exit 1
-          fi
-          php -r '$d=json_decode(file_get_contents("/tmp/cmsa-anonymous-call-response.json"),true); $r=$d["result"]??[]; $c=$r["_meta"]["mcp/www_authenticate"][0]??""; if (($r["isError"]??false)!==true || strpos($c,"resource_metadata=")===false || strpos($c,"error=")===false || strpos($c,"error_description=")===false || isset($r["structuredContent"])) exit(1);'
-
-          authenticated_code="$(curl -sS -D /tmp/cmsa-discover-headers.txt -o /tmp/cmsa-discover-response.json -w '%{http_code}' \
-            --user "admin:${app_password}" \
-            -H 'Content-Type: application/json' \
-            -H 'MCP-Protocol-Version: 2026-07-28' \
-            -H 'Mcp-Method: server/discover' \
-            --data-binary @/tmp/cmsa-discover.json \
-            "$endpoint")"
-          if [ "$authenticated_code" != '200' ]; then
-            echo "Authenticated MCP discovery returned HTTP $authenticated_code" >&2
-            cat /tmp/cmsa-discover-response.json >&2
-            exit 1
-          fi
-          php -r '$d=json_decode(file_get_contents("/tmp/cmsa-discover-response.json"),true); if (($d["result"]["resultType"]??"")!=="complete" || ($d["result"]["supportedVersions"]??[])!==["2026-07-28","2025-11-25","2025-06-18"]) { fwrite(STDERR, "Authenticated MCP discovery body did not match the protocol contract.\n"); fwrite(STDERR, file_get_contents("/tmp/cmsa-discover-response.json")); exit(1); }'
-          if grep -qi '^Mcp-Session-Id:' /tmp/cmsa-discover-headers.txt; then
-            echo "Modern MCP discovery emitted a forbidden session header." >&2
-            cat /tmp/cmsa-discover-headers.txt >&2
-            exit 1
-          fi
-
-          cat > /tmp/cmsa-initialize.json <<'JSON'
-          {"jsonrpc":"2.0","id":400,"method":"initialize","params":{"protocolVersion":"2026-07-28","capabilities":{},"clientInfo":{"name":"cmsa-http-ci","version":"1.0.0"}}}
-          JSON
-
-          initialize_code="$(curl -sS -o /tmp/cmsa-initialize-response.json -w '%{http_code}' \
-            --user "admin:${app_password}" \
-            -H 'Content-Type: application/json' \
-            -H 'MCP-Protocol-Version: 2026-07-28' \
-            -H 'Mcp-Method: initialize' \
-            --data-binary @/tmp/cmsa-initialize.json \
-            "$endpoint")"
-          if [ "$initialize_code" != '400' ]; then
-            echo "Modern MCP initialize was not rejected with HTTP 400." >&2
-            cat /tmp/cmsa-initialize-response.json >&2
-            exit 1
-          fi
-          php -r '$d=json_decode(file_get_contents("/tmp/cmsa-initialize-response.json"),true); if (($d["error"]["code"]??null)!==-32022) exit(1);'
-
-          # Emulate the conventional WordPress MCP client lifecycle:
-          # initialize -> notifications/initialized -> tools/list.
-          compat_fingerprint=''
-          for compat_iteration in $(seq 1 5); do
-            cat > /tmp/cmsa-compat-initialize.json <<JSON
-          {"jsonrpc":"2.0","id":$((420 + compat_iteration)),"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"cmsa-wordpress-compat-http","version":"1.0.0"}}}
-          JSON
-            compat_initialize_code="$(curl -sS -D /tmp/cmsa-compat-initialize-headers.txt -o /tmp/cmsa-compat-initialize-response.json -w '%{http_code}' \
-              --user "admin:${app_password}" \
+          expected_fp=''
+          expected_names='["cmsa.discovery","cmsa.stability-check","cmsa.read-bridge","cmsa.write-bridge"]'
+          for iteration in $(seq 1 20); do
+            printf '{"jsonrpc":"2.0","id":%d,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"cmsa-official-http-ci","version":"1.0.0"}}}\n' "$iteration" > /tmp/cmsa-init.json
+            code="$(curl -sS -D /tmp/cmsa-init.headers -o /tmp/cmsa-init.body -w '%{http_code}' \
+              --user "admin:$app_password" \
               -H 'Content-Type: application/json' \
               -H 'Accept: application/json, text/event-stream' \
-              -H 'Mcp-Method: initialize' \
-              --data-binary @/tmp/cmsa-compat-initialize.json \
-              "$endpoint")"
-            if [ "$compat_initialize_code" != '200' ]; then
-              echo "2025-06-18 compatibility initialize returned HTTP $compat_initialize_code" >&2
-              cat /tmp/cmsa-compat-initialize-response.json >&2
-              exit 1
-            fi
-            compat_session="$(awk 'BEGIN{IGNORECASE=1} /^Mcp-Session-Id:/{gsub("\r","",$2); print $2}' /tmp/cmsa-compat-initialize-headers.txt | tail -1)"
-            if [ -z "$compat_session" ]; then
-              echo "2025-06-18 initialize did not return Mcp-Session-Id." >&2
-              cat /tmp/cmsa-compat-initialize-headers.txt >&2
-              exit 1
-            fi
-            php -r '$d=json_decode(file_get_contents("/tmp/cmsa-compat-initialize-response.json"),true); if (($d["result"]["protocolVersion"]??"")!=="2025-06-18" || isset($d["result"]["resultType"]) || isset($d["result"]["ttlMs"]) || isset($d["result"]["cacheScope"])) exit(1);'
+              --data-binary @/tmp/cmsa-init.json "$endpoint")"
+            test "$code" = '200'
+            session="$(awk 'BEGIN{IGNORECASE=1} /^Mcp-Session-Id:/{gsub("\r","",$2); print $2}' /tmp/cmsa-init.headers | tail -1)"
+            test -n "$session"
+            php -r '$d=json_decode(file_get_contents("/tmp/cmsa-init.body"),true); if(($d["result"]["protocolVersion"]??"")!=="2025-06-18") exit(1);'
 
-            cat > /tmp/cmsa-compat-initialized.json <<'JSON'
-          {"jsonrpc":"2.0","method":"notifications/initialized","params":{}}
-          JSON
-            compat_initialized_code="$(curl -sS -o /tmp/cmsa-compat-initialized-response.txt -w '%{http_code}' \
-              --user "admin:${app_password}" \
+            printf '{"jsonrpc":"2.0","id":%d,"method":"tools/list","params":{}}\n' "$((100 + iteration))" > /tmp/cmsa-list.json
+            curl -fsS -D /tmp/cmsa-list.headers -o /tmp/cmsa-list.body \
+              --user "admin:$app_password" \
               -H 'Content-Type: application/json' \
               -H 'Accept: application/json, text/event-stream' \
               -H 'MCP-Protocol-Version: 2025-06-18' \
-              -H 'Mcp-Method: notifications/initialized' \
-              -H "Mcp-Session-Id: $compat_session" \
-              --data-binary @/tmp/cmsa-compat-initialized.json \
-              "$endpoint")"
-            if [ "$compat_initialized_code" != '202' ]; then
-              echo "2025-06-18 initialized notification returned HTTP $compat_initialized_code" >&2
-              cat /tmp/cmsa-compat-initialized-response.txt >&2
-              exit 1
-            fi
-
-            cat > /tmp/cmsa-compat-list.json <<JSON
-          {"jsonrpc":"2.0","id":$((430 + compat_iteration)),"method":"tools/list","params":{}}
-          JSON
-            compat_list_code="$(curl -sS -D /tmp/cmsa-compat-list-headers.txt -o /tmp/cmsa-compat-list-response.json -w '%{http_code}' \
-              --user "admin:${app_password}" \
-              -H 'Content-Type: application/json' \
-              -H 'Accept: application/json, text/event-stream' \
-              -H 'MCP-Protocol-Version: 2025-06-18' \
-              -H 'Mcp-Method: tools/list' \
-              -H "Mcp-Session-Id: $compat_session" \
+              -H "Mcp-Session-Id: $session" \
               -H 'Connection: close' \
-              --data-binary @/tmp/cmsa-compat-list.json \
-              "$endpoint")"
-            if [ "$compat_list_code" != '200' ]; then
-              echo "2025-06-18 tools/list returned HTTP $compat_list_code" >&2
-              cat /tmp/cmsa-compat-list-response.json >&2
-              exit 1
-            fi
-            grep -qi '^MCP-Protocol-Version: 2025-06-18' /tmp/cmsa-compat-list-headers.txt
-            current_compat_fingerprint="$(php -r '$d=json_decode(file_get_contents("/tmp/cmsa-compat-list-response.json"),true); $t=$d["result"]["tools"]??[]; if(count($t)!==4 || isset($d["result"]["resultType"]) || isset($d["result"]["ttlMs"]) || isset($d["result"]["cacheScope"])) exit(1); echo hash("sha256",json_encode($t));')"
-            if [ -z "$compat_fingerprint" ]; then
-              compat_fingerprint="$current_compat_fingerprint"
-            elif [ "$compat_fingerprint" != "$current_compat_fingerprint" ]; then
-              echo "2025-06-18 tool fingerprint changed across independent sessions." >&2
-              exit 1
-            fi
-          done
-          echo "cmsa-http-2025-06-18: PASS reconnects=5 fingerprint=$compat_fingerprint"
+              --data-binary @/tmp/cmsa-list.json "$endpoint"
 
-          catalog_cursor=0
-          catalog_id=402
-          bridge=''
-          for catalog_page in $(seq 1 50); do
-            CURSOR="$catalog_cursor" REQUEST_ID="$catalog_id" php -r '
-              echo json_encode([
-                "jsonrpc"=>"2.0",
-                "id"=>(int)getenv("REQUEST_ID"),
-                "method"=>"tools/call",
-                "params"=>[
-                  "name"=>"cmsa.discovery",
-                  "arguments"=>["cursor"=>(int)getenv("CURSOR"),"limit"=>100],
-                  "_meta"=>[
-                    "io.modelcontextprotocol/protocolVersion"=>"2026-07-28",
-                    "io.modelcontextprotocol/clientCapabilities"=>[],
-                    "io.modelcontextprotocol/clientInfo"=>["name"=>"cmsa-http-ci","version"=>"1.0.0"]
-                  ]
-                ]
-              ], JSON_UNESCAPED_SLASHES);
-            ' > /tmp/cmsa-catalog.json
-
-            catalog_code="$(curl -sS -D /tmp/cmsa-catalog-headers.txt -o /tmp/cmsa-catalog-response.json -w '%{http_code}' \
-              --user "admin:${app_password}" \
-              -H 'Content-Type: application/json' \
-              -H 'MCP-Protocol-Version: 2026-07-28' \
-              -H 'Mcp-Method: tools/call' \
-              -H 'Mcp-Name: cmsa.discovery' \
-              --data-binary @/tmp/cmsa-catalog.json \
-              "$endpoint")"
-            if [ "$catalog_code" != '200' ]; then
-              echo "Authenticated MCP catalog call returned HTTP $catalog_code at cursor $catalog_cursor" >&2
-              cat /tmp/cmsa-catalog-response.json >&2
-              exit 1
-            fi
-            if grep -qi '^Mcp-Session-Id:' /tmp/cmsa-catalog-headers.txt; then
-              echo "Modern MCP tool call emitted a forbidden session header." >&2
-              cat /tmp/cmsa-catalog-headers.txt >&2
-              exit 1
-            fi
-
-            bridge="$(php -r '$d=json_decode(file_get_contents("/tmp/cmsa-catalog-response.json"),true); foreach (($d["result"]["structuredContent"]["catalogGateway"]["items"]??[]) as $item) { if (($item["contract"]??"")==="rest" && ($item["method"]??"")==="POST" && ($item["route"]??"")==="/wp/v2/posts") { echo $item["bridge"]; exit(0); } }' || true)"
-            if [ -n "$bridge" ]; then
-              break
-            fi
-
-            next_cursor="$(php -r '$d=json_decode(file_get_contents("/tmp/cmsa-catalog-response.json"),true); $next=$d["result"]["structuredContent"]["catalogGateway"]["nextCursor"]??null; if ($next===null || $next==="") exit(1); echo (int)$next;' || true)"
-            if [ -z "$next_cursor" ]; then
-              break
-            fi
-            if [ "$next_cursor" -le "$catalog_cursor" ]; then
-              echo "Catalog cursor did not advance: $catalog_cursor -> $next_cursor" >&2
-              exit 1
-            fi
-            catalog_cursor="$next_cursor"
-            catalog_id=$((catalog_id + 1))
+            names="$(php -r '$d=json_decode(file_get_contents("/tmp/cmsa-list.body"),true); $t=$d["result"]["tools"]??[]; echo json_encode(array_values(array_map(fn($x)=>$x["name"]??"",$t)));')"
+            test "$names" = "$expected_names"
+            fp="$(php -r '$d=json_decode(file_get_contents("/tmp/cmsa-list.body"),true); echo hash("sha256",json_encode($d["result"]["tools"]??[],JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE));')"
+            if [ -z "$expected_fp" ]; then expected_fp="$fp"; else test "$fp" = "$expected_fp"; fi
+            echo "cmsa-official iteration=$iteration fingerprint=$fp names=$names"
           done
 
-          if [ -z "$bridge" ]; then
-            echo "Catalog did not expose the POST /wp/v2/posts REST bridge after bounded pagination." >&2
-            cat /tmp/cmsa-catalog-response.json >&2
-            exit 1
-          fi
-
-          BRIDGE="$bridge" php -r '$b=getenv("BRIDGE"); echo json_encode(["jsonrpc"=>"2.0","id"=>403,"method"=>"tools/call","params"=>["name"=>"cmsa.write-bridge","arguments"=>["bridge"=>$b,"input"=>["path"=>"/wp/v2/posts","params"=>["title"=>["raw"=>"CMSA MCP HTTP Write Probe"],"status"=>"draft","content"=>["raw"=>"Disposable native MCP CI write-authority probe."]]]],"_meta"=>["io.modelcontextprotocol/protocolVersion"=>"2026-07-28","io.modelcontextprotocol/clientCapabilities"=>[],"io.modelcontextprotocol/clientInfo"=>["name"=>"cmsa-http-ci","version"=>"1.0.0"]]]]);' > /tmp/cmsa-write.json
-
-          write_code="$(curl -sS -o /tmp/cmsa-write-response.json -w '%{http_code}' \
-            --user "admin:${app_password}" \
+          anonymous_code="$(curl -sS -D /tmp/cmsa-anon.headers -o /tmp/cmsa-anon.body -w '%{http_code}' \
             -H 'Content-Type: application/json' \
-            -H 'MCP-Protocol-Version: 2026-07-28' \
-            -H 'Mcp-Method: tools/call' \
-            -H 'Mcp-Name: cmsa.write-bridge' \
-            --data-binary @/tmp/cmsa-write.json \
-            "$endpoint")"
-          if [ "$write_code" != '200' ]; then
-            echo "Authenticated MCP write call returned HTTP $write_code" >&2
-            cat /tmp/cmsa-write-response.json >&2
-            exit 1
-          fi
-
-          post_id="$(php -r '$d=json_decode(file_get_contents("/tmp/cmsa-write-response.json"),true); $result=$d["result"]??[]; $rest=$result["structuredContent"]["result"]??[]; if (($result["isError"]??true)!==false || ($rest["status"]??0)!==201 || ($rest["data"]["status"]??"")!=="draft" || empty($rest["data"]["id"])) exit(1); echo (int)$rest["data"]["id"];')" || {
-            echo "Authenticated MCP write response did not contain a created draft post." >&2
-            cat /tmp/cmsa-write-response.json >&2
-            exit 1
-          }
-          test -n "$post_id"
-          test "$(php /tmp/wp-cli.phar post get "$post_id" --field=post_status --path=/tmp/wordpress)" = 'draft'
-          php /tmp/wp-cli.phar post delete "$post_id" --force --path=/tmp/wordpress >/dev/null
+            --data-binary @/tmp/cmsa-init.json "$endpoint")"
+          test "$anonymous_code" = '401'
+          grep -qi '^WWW-Authenticate: Bearer ' /tmp/cmsa-anon.headers
+          echo "cmsa-official-http: PASS reconnects=20 fingerprint=$expected_fp auth=401-challenge"
 
       - name: Verify existing replacement coverage
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/replacement-coverage-cli.php" --path=/tmp/wordpress
