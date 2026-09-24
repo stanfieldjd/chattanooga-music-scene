@@ -46,6 +46,14 @@ jobs:
         with:
           php-version: "8.2"
           extensions: mysqli, zip, gd, fileinfo
+      - name: Install pinned MCP adapter runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          composer update --working-dir=site-plugins/chattanooga-cms-admin --no-dev --prefer-dist --no-interaction --optimize-autoloader
+          test -f site-plugins/chattanooga-cms-admin/vendor/autoload.php
+          composer show --working-dir=site-plugins/chattanooga-cms-admin wordpress/mcp-adapter | grep -Eq '^versions[[:space:]]*:[[:space:]]*\*? v?0\.6\.1$'
+
       - name: Install WordPress and provider
         shell: bash
         run: |
