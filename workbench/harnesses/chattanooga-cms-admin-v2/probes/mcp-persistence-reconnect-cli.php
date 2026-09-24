@@ -98,12 +98,31 @@ $stable_client_id = 'https://chatgpt.com/oauth/client.json';
 $stable_redirect  = 'https://chatgpt.com/connector_platform_oauth_redirect';
 
 if ( 'seed' === $phase ) {
+	$refresh_token = 'cmsa-persistence-refresh-' . wp_generate_password( 48, false, false );
+	$refresh_client_id = $stable_client_id;
+	$refresh_resource = rest_url( CUA_MCP_Server::REST_NAMESPACE . CUA_MCP_Server::REST_ROUTE );
+	$store_refresh = new ReflectionMethod( 'CUA_OAuth_Server', 'store_refresh_record' );
+	$store_refresh->setAccessible( true );
+	$store_refresh->invoke(
+		null,
+		$refresh_token,
+		array(
+			'client_id' => $refresh_client_id,
+			'user_id'   => 1,
+			'scope'     => CUA_OAuth_Server::SCOPE,
+			'resource'  => $refresh_resource,
+		)
+	);
+
 	update_option(
 		'cmsa_persistence_probe_seed',
 		array(
-			'fingerprint' => $fingerprint,
-			'tools'       => $tools,
-			'seeded_at'   => time(),
+			'fingerprint'       => $fingerprint,
+			'tools'             => $tools,
+			'seeded_at'         => time(),
+			'refresh_token'     => $refresh_token,
+			'refresh_client_id' => $refresh_client_id,
+			'refresh_resource'  => $refresh_resource,
 		),
 		false
 	);
@@ -164,6 +183,25 @@ if ( 'reconnect' === $phase ) {
 	cmsa_persistence_assert( $stable_client_id === ( $client['client_id'] ?? '' ), 'Persisted CIMD client identity changed.' );
 	cmsa_persistence_assert( in_array( $stable_redirect, $client['redirect_uris'] ?? array(), true ), 'Persisted CIMD redirect allowlist changed.' );
 
+	$seed_refresh = (string) ( $seed['refresh_token'] ?? '' );
+	$seed_refresh_client = (string) ( $seed['refresh_client_id'] ?? '' );
+	$seed_refresh_resource = (string) ( $seed['refresh_resource'] ?? '' );
+	cmsa_persistence_assert( '' !== $seed_refresh && '' !== $seed_refresh_client && '' !== $seed_refresh_resource, 'Refresh-token seed state did not survive the process boundary.' );
+	$refresh_request = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/oauth/token' );
+	$refresh_request->set_param( 'grant_type', 'refresh_token' );
+	$refresh_request->set_param( 'refresh_token', $seed_refresh );
+	$refresh_request->set_param( 'client_id', $seed_refresh_client );
+	$refresh_request->set_param( 'resource', $seed_refresh_resource );
+	$refresh_response = CUA_OAuth_Server::token( $refresh_request );
+	$refresh_data = $refresh_response->get_data();
+	cmsa_persistence_assert( 200 === $refresh_response->get_status(), 'Persisted refresh token could not be rotated in the fresh process.' );
+	cmsa_persistence_assert( ! empty( $refresh_data['access_token'] ), 'Fresh-process refresh rotation returned no access token.' );
+	cmsa_persistence_assert( ! empty( $refresh_data['refresh_token'] ) && $seed_refresh !== $refresh_data['refresh_token'], 'Fresh-process refresh token was not rotated.' );
+	$get_refresh = new ReflectionMethod( 'CUA_OAuth_Server', 'get_refresh_record' );
+	$get_refresh->setAccessible( true );
+	cmsa_persistence_assert( null === $get_refresh->invoke( null, $seed_refresh ), 'Fresh-process refresh rotation left the old refresh token active.' );
+	cmsa_persistence_assert( is_array( $get_refresh->invoke( null, (string) $refresh_data['refresh_token'] ) ), 'Fresh-process refresh rotation did not persist the replacement refresh token.' );
+
 	$records = get_option( 'cua_oauth_cimd_clients', array() );
 	$key = is_array( $records ) ? array_key_first( $records ) : null;
 	cmsa_persistence_assert( is_string( $key ) && isset( $records[ $key ] ) && is_array( $records[ $key ] ), 'CIMD cache record is unavailable for stale-fallback simulation.' );
@@ -215,8 +253,9 @@ if ( 'reconnect' === $phase ) {
 
 	delete_option( 'cmsa_persistence_probe_seed' );
 	delete_option( 'cua_oauth_cimd_clients' );
+	delete_option( CUA_OAuth_Server::REFRESH_OPTION );
 
-	echo 'cmsa-persistence-reconnect: PASS fingerprint=' . $fingerprint . ' tools=' . count( $tools ) . " cimd=durable ttl=0 cors=mcp\n";
+	echo 'cmsa-persistence-reconnect: PASS fingerprint=' . $fingerprint . ' tools=' . count( $tools ) . " cimd=durable refresh=durable ttl=0 cors=mcp\n";
 	exit( 0 );
 }
 
