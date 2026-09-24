@@ -543,7 +543,7 @@ final class CUA_MCP_Diagnostics {
 					'supportedVersions' => array( CUA_MCP_Server::PROTOCOL_VERSION ),
 					'capabilities'      => array( 'tools' => array( 'listChanged' => false ) ),
 					'instructions'      => 'Read-only Chattanooga MCP ingestion canary. It exposes no site content and performs no site mutations.',
-					'ttlMs'             => 30000,
+					'ttlMs'             => 0,
 					'cacheScope'        => 'private',
 				)
 			);
@@ -556,7 +556,7 @@ final class CUA_MCP_Diagnostics {
 				$id,
 				array(
 					'tools'      => array( self::canary_tool_descriptor() ),
-					'ttlMs'      => 30000,
+					'ttlMs'      => 0,
 					'cacheScope' => 'private',
 				)
 			);
