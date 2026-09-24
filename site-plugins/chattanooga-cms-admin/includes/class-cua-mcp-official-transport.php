@@ -5,6 +5,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class CUA_MCP_Official_Transport {
+	private static $registration_error = null;
 	const SERVER_ID       = 'chattanooga-cms-admin';
 	const ROUTE_NAMESPACE = 'chattanooga-cms-admin/v1';
 	const ROUTE            = 'mcp';
@@ -32,7 +33,7 @@ final class CUA_MCP_Official_Transport {
 			return;
 		}
 
-		$adapter->create_server(
+		$result = $adapter->create_server(
 			self::SERVER_ID,
 			self::ROUTE_NAMESPACE,
 			self::ROUTE,
@@ -47,6 +48,13 @@ final class CUA_MCP_Official_Transport {
 			array(),
 			array( __CLASS__, 'check_permission' )
 		);
+		if ( is_wp_error( $result ) ) {
+			self::$registration_error = $result;
+		}
+	}
+
+	public static function registration_error() {
+		return self::$registration_error;
 	}
 
 	public static function check_permission( $request ) {
