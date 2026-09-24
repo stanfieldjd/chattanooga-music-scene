@@ -108,19 +108,33 @@ if ( 'seed' === $phase ) {
 		false
 	);
 
-	$store = new ReflectionMethod( 'CUA_OAuth_Server', 'store_cached_cimd_client' );
-	$store->setAccessible( true );
-	$store->invoke(
-		null,
-		array(
-			'client_id'     => $stable_client_id,
-			'redirect_uris' => array( $stable_redirect ),
-			'client_name'   => 'ChatGPT',
-		)
-	);
+	$resolve = new ReflectionMethod( 'CUA_OAuth_Server', 'resolve_client' );
+	$resolve->setAccessible( true );
+	$valid_document = static function ( $preempt, $args, $url ) use ( $stable_client_id, $stable_redirect ) {
+		if ( $stable_client_id !== $url ) {
+			return $preempt;
+		}
+		return array(
+			'headers'  => array( 'content-type' => 'application/json' ),
+			'body'     => wp_json_encode(
+				array(
+					'client_id'     => $stable_client_id,
+					'client_name'   => 'ChatGPT',
+					'redirect_uris' => array( $stable_redirect ),
+				)
+			),
+			'response' => array( 'code' => 200, 'message' => 'OK' ),
+			'cookies'  => array(),
+			'filename' => null,
+		);
+	};
+	add_filter( 'pre_http_request', $valid_document, 10, 3 );
+	$resolved = $resolve->invoke( null, $stable_client_id, $stable_redirect );
+	remove_filter( 'pre_http_request', $valid_document, 10 );
+	cmsa_persistence_assert( is_array( $resolved ) && $stable_client_id === ( $resolved['client_id'] ?? '' ), 'Valid CIMD metadata did not resolve through the production resolver.' );
 
 	$records = get_option( 'cua_oauth_cimd_clients', array() );
-	cmsa_persistence_assert( is_array( $records ) && ! empty( $records ), 'Validated CIMD client was not persisted.' );
+	cmsa_persistence_assert( is_array( $records ) && ! empty( $records ), 'Valid CIMD resolution did not persist the client.' );
 
 	echo 'cmsa-persistence-seed: PASS fingerprint=' . $fingerprint . " tools=" . count( $tools ) . "\n";
 	exit( 0 );
@@ -132,10 +146,21 @@ if ( 'reconnect' === $phase ) {
 	cmsa_persistence_assert( hash_equals( (string) $seed['fingerprint'], $fingerprint ), 'Tool fingerprint changed across fresh WordPress/PHP processes.' );
 	cmsa_persistence_assert( ( $seed['tools'] ?? null ) === $tools, 'Tool descriptors changed across fresh WordPress/PHP processes.' );
 
-	$cached = new ReflectionMethod( 'CUA_OAuth_Server', 'cached_cimd_client' );
-	$cached->setAccessible( true );
-	$client = $cached->invoke( null, $stable_client_id, $stable_redirect, false );
+	$resolve = new ReflectionMethod( 'CUA_OAuth_Server', 'resolve_client' );
+	$resolve->setAccessible( true );
+	$fresh_network_calls = 0;
+	$fresh_network_guard = static function ( $preempt, $args, $url ) use ( $stable_client_id, &$fresh_network_calls ) {
+		if ( $stable_client_id === $url ) {
+			++$fresh_network_calls;
+			return new WP_Error( 'cmsa_probe_unexpected_network', 'Fresh CIMD cache unexpectedly reached the network.' );
+		}
+		return $preempt;
+	};
+	add_filter( 'pre_http_request', $fresh_network_guard, 10, 3 );
+	$client = $resolve->invoke( null, $stable_client_id, $stable_redirect );
+	remove_filter( 'pre_http_request', $fresh_network_guard, 10 );
 	cmsa_persistence_assert( is_array( $client ), 'Validated CIMD client did not survive the process boundary.' );
+	cmsa_persistence_assert( 0 === $fresh_network_calls, 'Fresh persisted CIMD resolution performed a network request.' );
 	cmsa_persistence_assert( $stable_client_id === ( $client['client_id'] ?? '' ), 'Persisted CIMD client identity changed.' );
 	cmsa_persistence_assert( in_array( $stable_redirect, $client['redirect_uris'] ?? array(), true ), 'Persisted CIMD redirect allowlist changed.' );
 
@@ -145,9 +170,6 @@ if ( 'reconnect' === $phase ) {
 	$records[ $key ]['expires_at'] = time() - 1;
 	$records[ $key ]['stale_until'] = time() + 300;
 	update_option( 'cua_oauth_cimd_clients', $records, false );
-
-	$resolve = new ReflectionMethod( 'CUA_OAuth_Server', 'resolve_client' );
-	$resolve->setAccessible( true );
 
 	$network_failure = static function ( $preempt, $args, $url ) use ( $stable_client_id ) {
 		if ( $stable_client_id === $url ) {
