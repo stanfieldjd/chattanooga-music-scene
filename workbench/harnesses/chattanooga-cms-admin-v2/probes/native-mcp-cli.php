@@ -144,6 +144,7 @@ cmsa_native_mcp_assert( 400 === $mismatched_versions_response->get_status() && -
 $discover = cmsa_native_mcp_modern( 'server/discover', array(), 101 );
 cmsa_native_mcp_assert( 200 === $discover->get_status(), 'server/discover did not return HTTP 200.' );
 $discover_data = $discover->get_data();
+$discover_headers = array_change_key_case( $discover->get_headers(), CASE_LOWER );
 cmsa_native_mcp_assert( '2.0' === ( $discover_data['jsonrpc'] ?? '' ), 'Discovery did not return JSON-RPC 2.0.' );
 cmsa_native_mcp_assert( 101 === ( $discover_data['id'] ?? null ), 'Discovery returned the wrong request id.' );
 cmsa_native_mcp_assert( 'complete' === ( $discover_data['result']['resultType'] ?? '' ), 'Discovery omitted complete resultType.' );
@@ -157,6 +158,11 @@ cmsa_native_mcp_assert(
 );
 cmsa_native_mcp_assert( 0 === ( $discover_data['result']['ttlMs'] ?? null ), 'Discovery cache TTL is incorrect.' );
 cmsa_native_mcp_assert( 'private' === ( $discover_data['result']['cacheScope'] ?? '' ), 'Discovery cache scope is not private.' );
+cmsa_native_mcp_assert( false !== strpos( (string) ( $discover_headers['cache-control'] ?? '' ), 'no-store' ), 'Discovery HTTP response is cacheable.' );
+cmsa_native_mcp_assert( false !== strpos( (string) ( $discover_headers['cache-control'] ?? '' ), 'max-age=0' ), 'Discovery HTTP response lacks max-age=0.' );
+cmsa_native_mcp_assert( 'no-cache' === strtolower( trim( (string) ( $discover_headers['pragma'] ?? '' ) ) ), 'Discovery HTTP response lacks Pragma: no-cache.' );
+cmsa_native_mcp_assert( ! array_key_exists( 'discovery', $discover_data['result'] ?? array() ), 'server/discover embedded the dynamic operation catalog.' );
+cmsa_native_mcp_assert( strlen( (string) wp_json_encode( $discover_data ) ) < 8192, 'server/discover bootstrap exceeded the 8 KiB ingestion budget.' );
 cmsa_native_mcp_assert(
 	'chattanooga-cms-admin' === ( $discover_data['result']['_meta']['io.modelcontextprotocol/serverInfo']['name'] ?? '' ),
 	'Discovery did not identify the Chattanooga CMS Admin server.'
@@ -166,6 +172,8 @@ cmsa_native_mcp_assert( false === ( $discover_data['result']['capabilities']['re
 $stateless_list = cmsa_native_mcp_modern( 'tools/list', array(), 108, array( 'Mcp-Session-Id' => 'ignored-modern-session' ) );
 cmsa_native_mcp_assert( 200 === $stateless_list->get_status(), 'Modern tools/list did not run without initialization.' );
 $stateless_headers = array_change_key_case( $stateless_list->get_headers(), CASE_LOWER );
+cmsa_native_mcp_assert( false !== strpos( (string) ( $stateless_headers['cache-control'] ?? '' ), 'no-store' ), 'Modern tools/list HTTP response is cacheable.' );
+cmsa_native_mcp_assert( false !== strpos( (string) ( $stateless_headers['cache-control'] ?? '' ), 'max-age=0' ), 'Modern tools/list HTTP response lacks max-age=0.' );
 cmsa_native_mcp_assert( ! isset( $stateless_headers['mcp-session-id'] ), 'Modern tools/list echoed a session header.' );
 
 $resources = cmsa_native_mcp_modern( 'resources/list', array(), 109 );
@@ -320,6 +328,8 @@ $mismatch = cmsa_native_mcp_modern(
 );
 cmsa_native_mcp_assert( 400 === $mismatch->get_status(), 'MCP header/body mismatch was not rejected with HTTP 400.' );
 $mismatch_data = $mismatch->get_data();
+$mismatch_headers = array_change_key_case( $mismatch->get_headers(), CASE_LOWER );
+cmsa_native_mcp_assert( false !== strpos( (string) ( $mismatch_headers['cache-control'] ?? '' ), 'no-store' ), 'MCP protocol error response is cacheable.' );
 cmsa_native_mcp_assert( -32020 === ( $mismatch_data['error']['code'] ?? null ), 'MCP header/body mismatch did not return -32020.' );
 
 // Origin validation still blocks protected browser-origin requests from unrelated sites.
