@@ -157,6 +157,35 @@ jobs:
             sleep 1
           done
 
+          preflight_code="$(curl -sS -D /tmp/cmsa-preflight-headers.txt -o /tmp/cmsa-preflight-body.txt -w '%{http_code}' \
+            -X OPTIONS \
+            -H 'Origin: https://chatgpt.com' \
+            -H 'Access-Control-Request-Method: POST' \
+            -H 'Access-Control-Request-Headers: Authorization, Content-Type, MCP-Protocol-Version, Mcp-Method, Mcp-Name, Mcp-Session-Id, Last-Event-ID' \
+            "$endpoint")"
+          if [ "$preflight_code" != '200' ]; then
+            echo "MCP CORS preflight returned HTTP $preflight_code" >&2
+            cat /tmp/cmsa-preflight-headers.txt >&2
+            cat /tmp/cmsa-preflight-body.txt >&2
+            exit 1
+          fi
+          allow_headers="$(grep -i '^Access-Control-Allow-Headers:' /tmp/cmsa-preflight-headers.txt | tr '[:upper:]' '[:lower:]')"
+          expose_headers="$(grep -i '^Access-Control-Expose-Headers:' /tmp/cmsa-preflight-headers.txt | tr '[:upper:]' '[:lower:]')"
+          for required_header in mcp-protocol-version mcp-method mcp-name mcp-session-id last-event-id; do
+            if [[ "$allow_headers" != *"$required_header"* ]]; then
+              echo "MCP CORS preflight omitted request header: $required_header" >&2
+              cat /tmp/cmsa-preflight-headers.txt >&2
+              exit 1
+            fi
+          done
+          for required_header in www-authenticate mcp-protocol-version mcp-session-id; do
+            if [[ "$expose_headers" != *"$required_header"* ]]; then
+              echo "MCP CORS preflight omitted exposed response header: $required_header" >&2
+              cat /tmp/cmsa-preflight-headers.txt >&2
+              exit 1
+            fi
+          done
+
           cat > /tmp/cmsa-discover.json <<'JSON'
           {"jsonrpc":"2.0","id":401,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{},"io.modelcontextprotocol/clientInfo":{"name":"cmsa-http-ci","version":"1.0.0"}}}}
           JSON
