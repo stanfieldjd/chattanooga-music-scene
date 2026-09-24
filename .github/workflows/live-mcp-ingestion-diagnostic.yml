@@ -1,0 +1,124 @@
+name: Live MCP Ingestion Diagnostic
+
+on:
+  push:
+    branches:
+      - diag/live-mcp-ingestion
+    paths:
+      - ".github/workflows/live-mcp-ingestion-diagnostic.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Probe live MCP and OAuth discovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://www.chattanoogamusicscene.com'
+          mcp="${base}/wp-json/chattanooga-cms-admin/v1/mcp"
+          prm_path="${base}/.well-known/oauth-protected-resource/wp-json/chattanooga-cms-admin/v1/mcp"
+          prm_root="${base}/.well-known/oauth-protected-resource"
+          as_meta="${base}/.well-known/oauth-authorization-server"
+
+          mkdir -p /tmp/cmsa-live-diag
+
+          get_probe() {
+            local name="$1"
+            local url="$2"
+            curl --silent --show-error --connect-timeout 10 --max-time 30 \
+              --header 'Accept: application/json' \
+              --header 'Cache-Control: no-cache' \
+              --user-agent 'ChatGPT-Connector-Diagnostic/1.0' \
+              --dump-header "/tmp/cmsa-live-diag/${name}.headers" \
+              --output "/tmp/cmsa-live-diag/${name}.body" \
+              --write-out '%{http_code}|%{url_effective}|%{num_redirects}|%{remote_ip}|%{http_version}\n' \
+              "$url" > "/tmp/cmsa-live-diag/${name}.meta"
+            echo "=== ${name} ==="
+            cat "/tmp/cmsa-live-diag/${name}.meta"
+            sed -n '1,40p' "/tmp/cmsa-live-diag/${name}.headers"
+            cat "/tmp/cmsa-live-diag/${name}.body"
+            echo
+          }
+
+          get_probe prm_path "$prm_path"
+          get_probe prm_root "$prm_root"
+          get_probe as_meta "$as_meta"
+
+          prm_code="$(cut -d'|' -f1 /tmp/cmsa-live-diag/prm_path.meta)"
+          as_code="$(cut -d'|' -f1 /tmp/cmsa-live-diag/as_meta.meta)"
+          test "$prm_code" = "200"
+          test "$as_code" = "200"
+          jq -e 'type=="object" and (.resource|type=="string") and (.authorization_servers|type=="array") and (.authorization_servers|length>0)' /tmp/cmsa-live-diag/prm_path.body >/dev/null
+          jq -e 'type=="object" and (.issuer|type=="string") and (.authorization_endpoint|type=="string") and (.token_endpoint|type=="string") and (.grant_types_supported|index("refresh_token") != null) and (.scopes_supported|index("offline_access") != null)' /tmp/cmsa-live-diag/as_meta.body >/dev/null
+
+          discover_payload='{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{},"io.modelcontextprotocol/clientInfo":{"name":"chatgpt-live-diag","version":"1.0.0"}}}}'
+          list_payload='{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{},"io.modelcontextprotocol/clientInfo":{"name":"chatgpt-live-diag","version":"1.0.0"}}}}'
+
+          post_probe() {
+            local name="$1"
+            local method="$2"
+            local payload="$3"
+            curl --silent --show-error --connect-timeout 10 --max-time 30 \
+              --http1.1 \
+              --header 'Content-Type: application/json' \
+              --header 'Accept: application/json, text/event-stream' \
+              --header 'MCP-Protocol-Version: 2026-07-28' \
+              --header "Mcp-Method: ${method}" \
+              --header 'Cache-Control: no-cache' \
+              --header 'Connection: close' \
+              --user-agent 'ChatGPT-Connector-Diagnostic/1.0' \
+              --data "$payload" \
+              --dump-header "/tmp/cmsa-live-diag/${name}.headers" \
+              --output "/tmp/cmsa-live-diag/${name}.body" \
+              --write-out '%{http_code}|%{url_effective}|%{num_redirects}|%{remote_ip}|%{http_version}|%{time_total}\n' \
+              "$mcp" > "/tmp/cmsa-live-diag/${name}.meta"
+          }
+
+          post_probe discover server/discover "$discover_payload"
+          echo '=== discover ==='
+          cat /tmp/cmsa-live-diag/discover.meta
+          sed -n '1,60p' /tmp/cmsa-live-diag/discover.headers
+          jq . /tmp/cmsa-live-diag/discover.body
+          test "$(cut -d'|' -f1 /tmp/cmsa-live-diag/discover.meta)" = "200"
+          jq -e '.result.supportedVersions | index("2026-07-28") != null' /tmp/cmsa-live-diag/discover.body >/dev/null
+          jq -e '.result.ttlMs == 0 and .result.cacheScope == "private"' /tmp/cmsa-live-diag/discover.body >/dev/null
+
+          expected_fp=''
+          expected_names=''
+          for i in $(seq 1 20); do
+            post_probe "list-${i}" tools/list "$list_payload"
+            code="$(cut -d'|' -f1 "/tmp/cmsa-live-diag/list-${i}.meta")"
+            test "$code" = "200"
+            jq -e '.result.ttlMs == 0 and .result.cacheScope == "private" and (.result.tools|type=="array") and (.result.tools|length==4)' "/tmp/cmsa-live-diag/list-${i}.body" >/dev/null
+            names="$(jq -c '[.result.tools[].name]' "/tmp/cmsa-live-diag/list-${i}.body")"
+            fp="$(jq -cS '.result.tools' "/tmp/cmsa-live-diag/list-${i}.body" | sha256sum | awk '{print $1}')"
+            echo "iteration=${i} code=${code} names=${names} fingerprint=${fp} meta=$(cat "/tmp/cmsa-live-diag/list-${i}.meta")"
+            if [ -z "$expected_fp" ]; then
+              expected_fp="$fp"
+              expected_names="$names"
+            else
+              test "$fp" = "$expected_fp"
+              test "$names" = "$expected_names"
+            fi
+          done
+
+          echo "LIVE-MCP-DIAG PASS repeated_lists=20 fingerprint=${expected_fp} names=${expected_names}"
+          echo "protected_resource=$(jq -c . /tmp/cmsa-live-diag/prm_path.body)"
+          echo "authorization_server=$(jq -c . /tmp/cmsa-live-diag/as_meta.body)"
+
+      - name: Upload diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-mcp-ingestion-diagnostic
+          path: /tmp/cmsa-live-diag
+          if-no-files-found: warn
+          retention-days: 7
