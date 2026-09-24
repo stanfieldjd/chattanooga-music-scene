@@ -58,6 +58,14 @@ jobs:
           php-version: "8.2"
           extensions: mysqli, zip, gd, fileinfo
 
+      - name: Install pinned MCP adapter runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          composer update --working-dir=site-plugins/chattanooga-cms-admin --no-dev --prefer-dist --no-interaction --optimize-autoloader
+          test -f site-plugins/chattanooga-cms-admin/vendor/autoload.php
+          composer show --working-dir=site-plugins/chattanooga-cms-admin wordpress/mcp-adapter | grep -Eq '^versions[[:space:]]*:[[:space:]]*\*? v?0\.6\.1$'
+
       - name: Validate native MCP source boundary
         shell: bash
         run: |
@@ -72,7 +80,7 @@ jobs:
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-ingestion-diagnostics-cli.php >/dev/null
           python3 -m py_compile workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-jsonschema-2020-report.py
           grep -q '^ \* Plugin Name: Chattanooga CMS Admin$' "$source/chattanooga-cms-admin.php"
-          grep -q '^ \* Version: 1.2.38$' "$source/chattanooga-cms-admin.php"
+          grep -q '^ \* Version: 1.2.39$' "$source/chattanooga-cms-admin.php"
           grep -Fq "add_action( 'rest_api_init', array( 'CUA_MCP_Server', 'register_route' ) );" "$source/chattanooga-cms-admin.php"
           test -f "$source/includes/class-cua-mcp-server.php"
           test -f "$source/includes/class-cua-mcp-diagnostics.php"
@@ -126,7 +134,7 @@ jobs:
       - name: Upload MCP ingestion diagnostic report
         uses: actions/upload-artifact@v4
         with:
-          name: chattanooga-cms-admin-mcp-ingestion-report-1.2.38
+          name: chattanooga-cms-admin-mcp-ingestion-report-1.2.39
           path: /tmp/cmsa-mcp-ingestion-diagnostics-report.json
           if-no-files-found: error
           retention-days: 30
