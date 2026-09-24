@@ -251,7 +251,6 @@ jobs:
               --user "admin:${app_password}" \
               -H 'Content-Type: application/json' \
               -H 'Accept: application/json, text/event-stream' \
-              -H 'MCP-Protocol-Version: 2025-06-18' \
               -H 'Mcp-Method: initialize' \
               --data-binary @/tmp/cmsa-compat-initialize.json \
               "$endpoint")"
