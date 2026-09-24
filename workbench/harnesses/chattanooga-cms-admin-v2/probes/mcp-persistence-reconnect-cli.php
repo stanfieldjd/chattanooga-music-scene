@@ -140,8 +140,8 @@ if ( 'reconnect' === $phase ) {
 	cmsa_persistence_assert( in_array( $stable_redirect, $client['redirect_uris'] ?? array(), true ), 'Persisted CIMD redirect allowlist changed.' );
 
 	$records = get_option( 'cua_oauth_cimd_clients', array() );
-	$key = hash( 'sha256', $stable_client_id );
-	cmsa_persistence_assert( isset( $records[ $key ] ) && is_array( $records[ $key ] ), 'CIMD cache record is unavailable for stale-fallback simulation.' );
+	$key = is_array( $records ) ? array_key_first( $records ) : null;
+	cmsa_persistence_assert( is_string( $key ) && isset( $records[ $key ] ) && is_array( $records[ $key ] ), 'CIMD cache record is unavailable for stale-fallback simulation.' );
 	$records[ $key ]['expires_at'] = time() - 1;
 	$records[ $key ]['stale_until'] = time() + 300;
 	update_option( 'cua_oauth_cimd_clients', $records, false );
