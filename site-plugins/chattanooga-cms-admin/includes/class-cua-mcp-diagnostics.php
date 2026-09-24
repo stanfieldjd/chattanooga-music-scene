@@ -138,8 +138,6 @@ final class CUA_MCP_Diagnostics {
 		$latest = null;
 		$latest_discover = null;
 		$latest_tools_list = null;
-		$latest_chatgpt = null;
-		$latest_chatgpt_tools_list = null;
 		foreach ( $entries as $entry ) {
 			if ( ! is_array( $entry ) ) {
 				continue;
@@ -153,17 +151,8 @@ final class CUA_MCP_Diagnostics {
 			if ( 'tools/list' === ( $entry['mcp_method'] ?? '' ) && null === $latest_tools_list ) {
 				$latest_tools_list = self::heartbeat_entry( $entry );
 			}
-			if ( 'chatgpt' === ( $entry['client_class'] ?? '' ) && null === $latest_chatgpt ) {
-				$latest_chatgpt = self::heartbeat_entry( $entry );
-			}
-			if ( 'chatgpt' === ( $entry['client_class'] ?? '' ) && 'tools/list' === ( $entry['mcp_method'] ?? '' ) && null === $latest_chatgpt_tools_list ) {
-				$latest_chatgpt_tools_list = self::heartbeat_entry( $entry );
-			}
 		}
 		$observed = null !== $latest;
-		$checked_at = time();
-		$tools_list_cache = self::cache_freshness( $latest_tools_list, $checked_at );
-		$chatgpt_tools_list_cache = self::cache_freshness( $latest_chatgpt_tools_list, $checked_at );
 		$result = array(
 			'state'              => $observed ? 'server_request_observed' : 'no_mcp_request_observed',
 			'pluginVersion'      => defined( 'CUA_VERSION' ) ? CUA_VERSION : 'unknown',
@@ -176,11 +165,7 @@ final class CUA_MCP_Diagnostics {
 			'lastRequest'        => $latest,
 			'lastDiscovery'      => $latest_discover,
 			'lastToolsList'      => $latest_tools_list,
-			'lastToolsListCache' => $tools_list_cache,
-			'lastChatGPTRequest' => $latest_chatgpt,
-			'lastChatGPTToolsList' => $latest_chatgpt_tools_list,
-			'lastChatGPTToolsListCache' => $chatgpt_tools_list_cache,
-			'scope'              => 'Sanitized server-side evidence only. Cache freshness reports whether the last observed tools/list is inside or past the server-advertised ttlMs; it does not assume that an idle client must refresh. A past-TTL ChatGPT entry with no newer tools/list proves only that no newer ChatGPT tools/list reached this server.',
+			'scope'              => 'Sanitized server-side evidence only. no_mcp_request_observed means this endpoint has no recorded MCP request; it does not identify why the host omitted the app.',
 		);
 		$response = new WP_REST_Response( $result, 200 );
 		$response->header( 'Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0' );
@@ -189,7 +174,7 @@ final class CUA_MCP_Diagnostics {
 	}
 
 	private static function heartbeat_entry( array $entry ) {
-		$keys = array( 'time', 'mcp_surface', 'mcp_method', 'protocol_version', 'http_status', 'client_class', 'request_bytes', 'response_bytes', 'tool_count', 'tool_fingerprint', 'descriptor_pass', 'descriptor_fail', 'result_type', 'ttl_ms', 'cache_scope', 'correlation_sha256', 'error_code' );
+		$keys = array( 'time', 'mcp_surface', 'mcp_method', 'protocol_version', 'http_status', 'client_class', 'request_bytes', 'response_bytes', 'tool_count', 'descriptor_pass', 'descriptor_fail', 'result_type', 'error_code' );
 		$result = array();
 		foreach ( $keys as $key ) {
 			if ( array_key_exists( $key, $entry ) ) {
@@ -197,25 +182,6 @@ final class CUA_MCP_Diagnostics {
 			}
 		}
 		return $result;
-	}
-
-	private static function cache_freshness( $entry, $checked_at ) {
-		if ( ! is_array( $entry ) || empty( $entry['time'] ) ) {
-			return array( 'state' => 'unknown', 'ageMs' => null, 'ttlMs' => null, 'cacheScope' => null, 'expiresAt' => null );
-		}
-		$observed_at = strtotime( (string) $entry['time'] );
-		if ( false === $observed_at ) {
-			return array( 'state' => 'invalid_observation_time', 'ageMs' => null, 'ttlMs' => null, 'cacheScope' => null, 'expiresAt' => null );
-		}
-		$ttl_ms = isset( $entry['ttl_ms'] ) ? max( 0, (int) $entry['ttl_ms'] ) : 0;
-		$age_ms = max( 0, (int) round( ( (int) $checked_at - (int) $observed_at ) * 1000 ) );
-		return array(
-			'state'      => 0 < $ttl_ms && $age_ms <= $ttl_ms ? 'within_advertised_ttl' : 'past_advertised_ttl',
-			'ageMs'      => $age_ms,
-			'ttlMs'      => $ttl_ms,
-			'cacheScope' => isset( $entry['cache_scope'] ) ? (string) $entry['cache_scope'] : '',
-			'expiresAt'  => gmdate( 'c', (int) $observed_at + (int) ceil( $ttl_ms / 1000 ) ),
-		);
 	}
 
 	public static function stability_report( $input = array() ) {
@@ -519,8 +485,6 @@ final class CUA_MCP_Diagnostics {
 				'correlation_sha256'  => hash( 'sha256', $request_sha . '|' . $response_sha . '|' . $method ),
 				'tool_count'          => count( $tools ),
 				'tool_fingerprint'    => isset( $result['toolFingerprint'] ) ? (string) $result['toolFingerprint'] : ( class_exists( 'CUA_MCP_Server' ) ? CUA_MCP_Server::tool_fingerprint() : '' ),
-				'ttl_ms'              => isset( $result['ttlMs'] ) ? max( 0, (int) $result['ttlMs'] ) : 0,
-				'cache_scope'         => isset( $result['cacheScope'] ) ? (string) $result['cacheScope'] : '',
 				'next_cursor_present' => isset( $result['nextCursor'] ) && '' !== trim( (string) $result['nextCursor'] ),
 				'descriptor_pass'     => $descriptor_pass,
 				'descriptor_fail'     => $descriptor_fail,
