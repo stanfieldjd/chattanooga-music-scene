@@ -57,6 +57,10 @@ cmsa_official_assert( class_exists( '\\WP\\MCP\\Core\\McpAdapter' ), 'Official W
 cmsa_official_assert( '0.6.1' === \WP\MCP\Core\McpAdapter::VERSION, 'Unexpected WordPress MCP Adapter version.' );
 cmsa_official_assert( class_exists( 'CUA_MCP_Official_Transport' ), 'Chattanooga official transport provider did not load.' );
 
+if ( ! did_action( 'rest_api_init' ) ) {
+	do_action( 'rest_api_init', rest_get_server() );
+}
+
 $routes = rest_get_server()->get_routes();
 $route = $routes['/chattanooga-cms-admin/v1/mcp'] ?? null;
 if ( ! is_array( $route ) || empty( $route ) ) {
