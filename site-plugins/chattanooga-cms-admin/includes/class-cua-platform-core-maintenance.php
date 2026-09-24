@@ -4,7 +4,21 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+if ( class_exists( 'WP_Ability' ) && ! class_exists( 'CUA_Core_Update_Ability' ) ) {
+	class CUA_Core_Update_Ability extends WP_Ability {
+		public function execute( $input = null ) {
+			$version = is_array( $input ) && array_key_exists( 'version', $input ) ? trim( (string) $input['version'] ) : '';
+			if ( '' === $version || ! preg_match( '/^[0-9]+\\.[0-9]+(?:\\.[0-9]+)?(?:[-+][0-9A-Za-z.-]+)?$/', $version ) ) {
+				return new WP_Error( 'cmsa_core_version_invalid', 'A valid exact WordPress version is required.' );
+			}
+			return parent::execute( $input );
+		}
+	}
+}
+
 final class CUA_Platform_Core_Maintenance {
+	private static $raw_update_core_input = null;
+	private static $invocation_hook_registered = false;
 	const CATEGORY = 'chattanooga-cms-admin';
 	const PREFIX = 'chattanooga-cms-admin/';
 	const META_SUFFIX = '.meta.json';
@@ -14,13 +28,18 @@ final class CUA_Platform_Core_Maintenance {
 			return;
 		}
 
+		if ( ! self::$invocation_hook_registered && function_exists( 'add_action' ) ) {
+			add_action( 'wp_ability_invoked', array( __CLASS__, 'capture_ability_invocation' ), 10, 3 );
+			self::$invocation_hook_registered = true;
+		}
+
 		wp_register_ability(
 			self::PREFIX . 'restore-core-backup',
 			array(
 				'label'               => __( 'Restore WordPress core rollback backup', 'chattanooga-cms-admin' ),
 				'description'         => __( 'Restores a verified Chattanooga CMS Admin WordPress core and database rollback snapshot after first creating and verifying a rollback snapshot of the current core and database state.', 'chattanooga-cms-admin' ),
 				'category'            => self::CATEGORY,
-				'input_schema'        => self::id_schema(),
+				'input_schema'        => self::confirmed_id_schema( 'confirm_restore' ),
 				'output_schema'       => array( 'type' => 'object' ),
 				'execute_callback'    => array( __CLASS__, 'restore_core_backup' ),
 				'permission_callback' => static function () { return current_user_can( 'update_core' ); },
@@ -37,12 +56,14 @@ final class CUA_Platform_Core_Maintenance {
 				'input_schema'        => array(
 					'type'                 => 'object',
 					'properties'           => array(
-						'version' => array( 'type' => 'string', 'minLength' => 1, 'maxLength' => 64 ),
+						'version' => array( 'type' => 'string', 'pattern' => '^[0-9]+\.[0-9]+(?:\.[0-9]+)?(?:[-+][0-9A-Za-z.-]+)?$', 'minLength' => 1, 'maxLength' => 64 ),
+						'confirm_update' => array( 'type' => 'boolean' ),
 					),
-					'required'             => array( 'version' ),
+					'required'             => array( 'version', 'confirm_update' ),
 					'additionalProperties' => false,
 				),
 				'output_schema'       => array( 'type' => 'object' ),
+				'ability_class'       => 'CUA_Core_Update_Ability',
 				'execute_callback'    => array( __CLASS__, 'update_core' ),
 				'permission_callback' => static function () { return current_user_can( 'update_core' ); },
 				'meta'                => self::destructive_meta( true ),
@@ -130,6 +151,9 @@ final class CUA_Platform_Core_Maintenance {
 	}
 
 	public static function restore_core_backup( $input ) {
+		if ( ! is_array( $input ) || empty( $input['confirm_restore'] ) ) {
+			return new WP_Error( 'cmsa_core_restore_not_confirmed', 'Explicit core restore confirmation is required.' );
+		}
 		$id = self::read_id( $input );
 		if ( is_wp_error( $id ) ) {
 			return $id;
@@ -168,9 +192,25 @@ final class CUA_Platform_Core_Maintenance {
 		return $result;
 	}
 
+	public static function capture_ability_invocation( $ability_name, $input = null, $ability = null ) {
+		if ( self::PREFIX . 'update-core' === (string) $ability_name ) {
+			self::$raw_update_core_input = $input;
+		}
+	}
+
 	public static function update_core( $input ) {
+		if ( ! is_array( $input ) || empty( $input['confirm_update'] ) ) {
+			return new WP_Error( 'cmsa_core_update_not_confirmed', 'Explicit core update confirmation is required.' );
+		}
+		$raw_version = is_array( self::$raw_update_core_input ) && array_key_exists( 'version', self::$raw_update_core_input ) ? trim( (string) self::$raw_update_core_input['version'] ) : '';
 		$version = is_array( $input ) && isset( $input['version'] ) ? trim( (string) $input['version'] ) : '';
-		if ( '' === $version || ! preg_match( '/^[0-9A-Za-z][0-9A-Za-z.+-]{0,63}$/', $version ) ) {
+		$version_pattern = '/^[0-9]+\.[0-9]+(?:\.[0-9]+)?(?:[-+][0-9A-Za-z.-]+)?$/';
+		if ( '' !== $raw_version && ! preg_match( $version_pattern, $raw_version ) ) {
+			self::$raw_update_core_input = null;
+			return new WP_Error( 'cmsa_core_version_invalid', 'A valid exact WordPress version is required.' );
+		}
+		self::$raw_update_core_input = null;
+		if ( '' === $version || ! preg_match( $version_pattern, $version ) ) {
 			return new WP_Error( 'cmsa_core_version_invalid', 'A valid exact WordPress version is required.' );
 		}
 
@@ -275,7 +315,12 @@ final class CUA_Platform_Core_Maintenance {
 			return $files;
 		}
 
-		$database = CUA_Backups::restore_database_backup( array( 'id' => (string) $meta['database_backup_id'] ) );
+		$database = CUA_Backups::restore_database_backup(
+			array(
+				'id'              => (string) $meta['database_backup_id'],
+				'confirm_restore' => true,
+			)
+		);
 		if ( is_wp_error( $database ) ) {
 			return $database;
 		}
@@ -603,6 +648,13 @@ final class CUA_Platform_Core_Maintenance {
 			return new WP_Error( 'cmsa_core_backup_id', 'A valid core rollback backup identifier is required.' );
 		}
 		return $id;
+	}
+
+	private static function confirmed_id_schema( $field ) {
+		$schema = self::id_schema();
+		$schema['properties'][ $field ] = array( 'type' => 'boolean' );
+		$schema['required'][] = $field;
+		return $schema;
 	}
 
 	private static function id_schema() {

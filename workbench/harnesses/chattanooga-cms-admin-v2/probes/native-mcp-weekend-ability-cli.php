@@ -56,10 +56,23 @@ function cmsa_weekend_mcp_call( $tool, array $arguments ) {
 }
 
 function cmsa_weekend_mcp_catalog() {
-	$result = cmsa_weekend_mcp_call( 'cmsa.catalog', array() );
-	$catalog = $result['structuredContent'] ?? null;
-	cmsa_weekend_mcp_assert( is_array( $catalog ) && isset( $catalog['items'] ) && is_array( $catalog['items'] ), 'MCP catalog is unavailable.' );
-	return $catalog['items'];
+	$items = array();
+	$cursor = 0;
+	for ( $page = 0; $page < 100; $page++ ) {
+		$result = cmsa_weekend_mcp_call( 'cmsa.discovery', array( 'cursor' => $cursor, 'limit' => 100 ) );
+		$manifest = $result['structuredContent'] ?? null;
+		$gateway = is_array( $manifest ) ? ( $manifest['catalogGateway'] ?? null ) : null;
+		cmsa_weekend_mcp_assert( is_array( $gateway ) && isset( $gateway['items'] ) && is_array( $gateway['items'] ), 'MCP discovery catalog is unavailable.' );
+		$items = array_merge( $items, $gateway['items'] );
+		$next_cursor = $gateway['nextCursor'] ?? null;
+		if ( null === $next_cursor ) {
+			return $items;
+		}
+		cmsa_weekend_mcp_assert( is_numeric( $next_cursor ) && (int) $next_cursor > $cursor, 'MCP discovery cursor did not advance.' );
+		$cursor = (int) $next_cursor;
+	}
+	cmsa_weekend_mcp_assert( false, 'MCP discovery exceeded the cursor safety limit.' );
+	return $items;
 }
 
 function cmsa_weekend_mcp_find_ability( array $catalog, $target ) {

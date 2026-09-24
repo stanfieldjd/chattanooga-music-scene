@@ -110,8 +110,8 @@ if ( $category_id < 1 || $tag_id < 1 ) {
 }
 
 $post = cmsa_v2_core_content_call( 'POST', '/wp/v2/posts', array(
-	'title' => 'CMSA v2 Post ' . $suffix,
-	'content' => 'Core REST parity post body.',
+	'title' => array( 'raw' => 'CMSA v2 Post ' . $suffix ),
+	'content' => array( 'raw' => 'Core REST parity post body.' ),
 	'status' => 'draft',
 	'categories' => array( $category_id ),
 	'tags' => array( $tag_id ),
@@ -124,18 +124,18 @@ $post_read = cmsa_v2_core_content_call( 'GET', '/wp/v2/posts/' . $post_id, array
 if ( (int) ( $post_read['id'] ?? 0 ) !== $post_id || ! in_array( $category_id, (array) ( $post_read['categories'] ?? array() ), true ) || ! in_array( $tag_id, (array) ( $post_read['tags'] ?? array() ), true ) ) {
 	cmsa_v2_core_content_fail( 'Core REST post read did not preserve taxonomy assignments.' );
 }
-$post_update = cmsa_v2_core_content_call( 'POST', '/wp/v2/posts/' . $post_id, array( 'title' => 'CMSA v2 Post Updated ' . $suffix ) );
+$post_update = cmsa_v2_core_content_call( 'POST', '/wp/v2/posts/' . $post_id, array( 'title' => array( 'raw' => 'CMSA v2 Post Updated ' . $suffix ) ) );
 if ( (int) ( $post_update['id'] ?? 0 ) !== $post_id || false === strpos( (string) ( $post_update['title']['rendered'] ?? '' ), 'Updated' ) ) {
 	cmsa_v2_core_content_fail( 'Core REST post update failed.' );
 }
 
-$page = cmsa_v2_core_content_call( 'POST', '/wp/v2/pages', array( 'title' => 'CMSA v2 Page ' . $suffix, 'content' => 'Core REST parity page body.', 'status' => 'draft' ) );
+$page = cmsa_v2_core_content_call( 'POST', '/wp/v2/pages', array( 'title' => array( 'raw' => 'CMSA v2 Page ' . $suffix ), 'content' => array( 'raw' => 'Core REST parity page body.' ), 'status' => 'draft' ) );
 $page_id = (int) ( $page['id'] ?? 0 );
 if ( $page_id < 1 ) {
 	cmsa_v2_core_content_fail( 'Core REST page creation failed.' );
 }
 $page_read = cmsa_v2_core_content_call( 'GET', '/wp/v2/pages/' . $page_id, array( 'context' => 'edit' ) );
-$page_update = cmsa_v2_core_content_call( 'POST', '/wp/v2/pages/' . $page_id, array( 'title' => 'CMSA v2 Page Updated ' . $suffix ) );
+$page_update = cmsa_v2_core_content_call( 'POST', '/wp/v2/pages/' . $page_id, array( 'title' => array( 'raw' => 'CMSA v2 Page Updated ' . $suffix ) ) );
 if ( (int) ( $page_read['id'] ?? 0 ) !== $page_id || (int) ( $page_update['id'] ?? 0 ) !== $page_id || false === strpos( (string) ( $page_update['title']['rendered'] ?? '' ), 'Updated' ) ) {
 	cmsa_v2_core_content_fail( 'Core REST page read/update failed.' );
 }
@@ -155,7 +155,7 @@ if ( (int) ( $location['menu'] ?? 0 ) !== $menu_id ) {
 }
 
 $menu_item = cmsa_v2_core_content_call( 'POST', '/wp/v2/menu-items', array(
-	'title' => 'CMSA v2 Menu Item ' . $suffix,
+	'title' => array( 'raw' => 'CMSA v2 Menu Item ' . $suffix ),
 	'type' => 'custom',
 	'status' => 'publish',
 	'url' => 'https://example.com/cmsa-v2-' . $suffix,
@@ -173,7 +173,7 @@ if ( (int) ( $menu_item_read['id'] ?? 0 ) !== $menu_item_id || (int) ( $menu_ite
 
 wp_set_current_user( 0 );
 $blocked = cmsa_v2_core_content_ability( 'POST', '/wp/v2/posts' );
-if ( false !== $blocked->check_permissions( array( 'path' => '/wp/v2/posts', 'params' => array( 'title' => 'blocked', 'status' => 'draft' ) ) ) ) {
+if ( false !== $blocked->check_permissions( array( 'path' => '/wp/v2/posts', 'params' => array( 'title' => array( 'raw' => 'blocked' ), 'status' => 'draft' ) ) ) ) {
 	cmsa_v2_core_content_fail( 'Anonymous core REST mutation was not blocked.' );
 }
 wp_set_current_user( 1 );

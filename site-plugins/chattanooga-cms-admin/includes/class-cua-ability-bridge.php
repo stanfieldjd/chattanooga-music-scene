@@ -8,6 +8,11 @@ final class CUA_Ability_Bridge {
 	const NAMESPACE_PREFIX = 'chattanooga-cms-admin/';
 	const CATEGORY = 'chattanooga-cms-admin';
 
+	private static $catalog_snapshot = null;
+	private static $bridged_targets = array();
+	private static $bridged_catalog_items = array();
+	private static $catalog_reconciliation_in_progress = false;
+
 	public static function register_category() {
 		if ( ! function_exists( 'wp_register_ability_category' ) ) {
 			return;
@@ -46,10 +51,10 @@ final class CUA_Ability_Bridge {
 							'maximum' => 100,
 							'default' => 100,
 						),
+						'snapshot' => array( 'type' => 'string', 'minLength' => 64, 'maxLength' => 64 ),
 					),
 					'additionalProperties' => false,
 				),
-				'output_schema'       => array( 'type' => 'object' ),
 				'execute_callback'    => array( __CLASS__, 'catalog' ),
 				'permission_callback' => static function () {
 					return current_user_can( 'manage_options' );
@@ -74,14 +79,22 @@ final class CUA_Ability_Bridge {
 			return;
 		}
 
-		foreach ( wp_get_abilities() as $ability ) {
-			if ( ! $ability instanceof WP_Ability || ! self::is_bridgeable( $ability ) ) {
-				continue;
-			}
+		try {
+			$abilities = self::registered_abilities();
+		} catch ( Throwable $error ) {
+			return;
+		}
+
+		foreach ( $abilities as $ability ) {
+			try {
+				if ( ! $ability instanceof WP_Ability || ! self::is_bridgeable( $ability ) ) {
+					continue;
+				}
 
 			$target_name = $ability->get_name();
 			$bridge_name = self::bridge_name( $target_name );
 			if ( wp_get_ability( $bridge_name ) instanceof WP_Ability ) {
+				self::remember_bridge( $target_name, $ability );
 				continue;
 			}
 
@@ -98,22 +111,94 @@ final class CUA_Ability_Bridge {
 				'meta'                => self::bridge_meta( $ability ),
 			);
 
-			$input_schema = $ability->get_input_schema();
+			$input_schema = self::normalize_schema_for_transport( $ability->get_input_schema() );
 			if ( is_array( $input_schema ) ) {
 				$args['input_schema'] = $input_schema;
 			}
 
-			$output_schema = $ability->get_output_schema();
+			$output_schema = self::normalize_schema_for_transport( $ability->get_output_schema() );
 			if ( is_array( $output_schema ) ) {
 				$args['output_schema'] = $output_schema;
 			}
 
-			wp_register_ability( $bridge_name, $args );
+				try {
+					$registration = wp_register_ability( $bridge_name, $args );
+					if ( is_wp_error( $registration ) || false === $registration || ! ( wp_get_ability( $bridge_name ) instanceof WP_Ability ) ) {
+						throw new RuntimeException( 'The provider facade descriptor was rejected.' );
+					}
+				} catch ( Throwable $registration_error ) {
+					// Some third-party public abilities expose schemas accepted by their
+					// own runtime but rejected by the WordPress registry when reused as a
+					// facade descriptor. Keep the public contract discoverable and let the
+					// target ability remain authoritative for validation and execution.
+					unset( $args['input_schema'], $args['output_schema'] );
+					wp_register_ability( $bridge_name, $args );
+				}
+				if ( wp_get_ability( $bridge_name ) instanceof WP_Ability ) {
+					// Preserve the catalog descriptor at first registration as well as
+					// on later reconciliation. This keeps provider discovery intact if
+					// a subsequent registry enumeration filters the provider target.
+					self::remember_bridge( $target_name, $ability );
+				}
+			} catch ( Throwable $error ) {
+				// A malformed third-party ability must not abort core bridge registration.
+				continue;
+			}
+		}
+
+		self::prime_catalog_snapshot();
+	}
+
+	private static function remember_bridge( $target_name, $ability ) {
+		self::$bridged_targets[ $target_name ] = $ability;
+		try {
+			self::$bridged_catalog_items[ $target_name ] = self::catalog_item_from_ability( $ability );
+		} catch ( Throwable $error ) {
+			// Keep the executable facade even if an optional descriptor field is malformed.
 		}
 	}
 
+	private static function registered_abilities() {
+		if ( class_exists( 'WP_Abilities_Registry' ) ) {
+			$registry = WP_Abilities_Registry::get_instance();
+			if ( $registry && method_exists( $registry, 'get_all_registered' ) ) {
+				return $registry->get_all_registered();
+			}
+		}
+		return wp_get_abilities();
+	}
+
+	public static function prime_catalog_snapshot() {
+		// The first registry read initializes wp_abilities_api_init and returns
+		// the pre-hook registry snapshot; read again after provider callbacks run.
+		if ( function_exists( 'wp_get_abilities' ) ) {
+			wp_get_abilities();
+		}
+		self::$catalog_snapshot = self::catalog_items();
+	}
+
 	public static function catalog( $input = array() ) {
+		if ( ! function_exists( 'wp_get_abilities' ) ) {
+			return new WP_Error( 'cua_catalog_registry_unavailable', 'The WordPress public ability registry is unavailable.' );
+		}
+
+		/*
+		 * Discovery is deliberately read-only. The official WordPress MCP
+		 * adapter keeps its startup tool registry static and resolves the
+		 * current ability set only when discovery is called. Re-registering
+		 * provider facades here can re-enter the WordPress abilities registry
+		 * while it is being enumerated and can make provider entries disappear
+		 * from the same response.
+		 */
 		$items = self::catalog_items();
+		// Confirmed provider facades are retained independently of the live
+		// registry enumeration, which may omit third-party entries after a
+		// re-entrant WordPress registry read.
+		foreach ( self::$bridged_catalog_items as $cached_item ) {
+			if ( is_array( $cached_item ) ) {
+				$items[] = $cached_item;
+			}
+		}
 
 		if ( class_exists( 'CUA_REST_Bridge' ) ) {
 			try {
@@ -122,20 +207,46 @@ final class CUA_Ability_Bridge {
 					$items = array_merge( $items, $rest_items );
 				}
 			} catch ( Throwable $error ) {
-				// A malformed third-party REST route must not abort the ability catalog.
+				// A malformed third-party REST route must not abort discovery.
 			}
 		}
 
+		$unique = array();
+		foreach ( $items as $item ) {
+			if ( ! is_array( $item ) ) {
+				continue;
+			}
+			$key = implode( '|', array( (string) ( $item['contract'] ?? '' ), (string) ( $item['target'] ?? '' ), (string) ( $item['bridge'] ?? '' ) ) );
+			$unique[ $key ] = $item;
+		}
+		$items = array_values( $unique );
 		usort(
 			$items,
 			static function ( $left, $right ) {
-				return strcmp( (string) $left['target'], (string) $right['target'] );
+				$left_contract  = (string) ( $left['contract'] ?? '' );
+				$right_contract = (string) ( $right['contract'] ?? '' );
+				$left_rank      = 'ability' === $left_contract ? 0 : ( 'rest' === $left_contract && 0 !== strpos( (string) ( $left['route'] ?? '' ), '/wp/' ) ? 1 : 2 );
+				$right_rank     = 'ability' === $right_contract ? 0 : ( 'rest' === $right_contract && 0 !== strpos( (string) ( $right['route'] ?? '' ), '/wp/' ) ? 1 : 2 );
+				if ( $left_rank !== $right_rank ) {
+					return $left_rank <=> $right_rank;
+				}
+				$left_key  = 'rest' === $left_contract ? (string) ( $left['route'] ?? $left['target'] ?? '' ) : (string) ( $left['target'] ?? '' );
+				$right_key = 'rest' === $right_contract ? (string) ( $right['route'] ?? $right['target'] ?? '' ) : (string) ( $right['target'] ?? '' );
+				$by_key = strcmp( $left_key, $right_key );
+				return 0 !== $by_key ? $by_key : strcmp( (string) ( $left['target'] ?? '' ), (string) ( $right['target'] ?? '' ) );
 			}
 		);
 
+		$encoded_snapshot = wp_json_encode( $items, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+		$snapshot = false === $encoded_snapshot ? '' : hash( 'sha256', (string) $encoded_snapshot );
+		$requested_snapshot = is_array( $input ) && isset( $input['snapshot'] ) ? trim( (string) $input['snapshot'] ) : '';
+		if ( '' !== $requested_snapshot && ( '' === $snapshot || ! hash_equals( $snapshot, $requested_snapshot ) ) ) {
+			return new WP_Error( 'cua_catalog_snapshot_changed', 'The WordPress capability catalog changed between pages. Restart discovery from cursor 0.' );
+		}
+
 		$total  = count( $items );
 		$cursor = is_array( $input ) && isset( $input['cursor'] ) ? max( 0, (int) $input['cursor'] ) : 0;
-		$limit  = is_array( $input ) && isset( $input['limit'] ) ? min( 100, max( 1, (int) $input['limit'] ) ) : 100;
+		$limit  = is_array( $input ) && isset( $input['limit'] ) ? min( 1000, max( 1, (int) $input['limit'] ) ) : 1000;
 		$page   = array_slice( $items, $cursor, $limit );
 		$next   = $cursor + count( $page ) < $total ? $cursor + count( $page ) : null;
 
@@ -145,6 +256,7 @@ final class CUA_Ability_Bridge {
 			'pageSize'   => $limit,
 			'items'      => $page,
 			'nextCursor' => $next,
+			'snapshot'   => $snapshot,
 		);
 	}
 
@@ -154,22 +266,58 @@ final class CUA_Ability_Bridge {
 		}
 
 		$items = array();
-		foreach ( wp_get_abilities() as $target ) {
+		try {
+			$targets = array();
+			$targets = self::registered_abilities();
+		} catch ( Throwable $error ) {
+			return $items;
+		}
+		foreach ( $targets as $target ) {
 			if ( ! $target instanceof WP_Ability || ! self::is_bridgeable( $target ) ) {
 				continue;
 			}
 
 			try {
 				$target_name = $target->get_name();
-				$meta = $target->get_meta();
+				// Retain any confirmed provider target observed during catalog enumeration.
+				// A provider may be hidden by a later re-entrant registry read, but its
+				// already-registered facade must remain discoverable for this request.
+				self::remember_bridge( $target_name, $target );
+				$meta = array();
+				try {
+					$raw_meta = $target->get_meta();
+					if ( is_array( $raw_meta ) ) {
+						$meta = $raw_meta;
+					}
+				} catch ( Throwable $meta_error ) {
+					// Metadata is optional; preserve the ability identity when it is malformed.
+				}
+				$label = $target_name;
+				try {
+					$label = (string) $target->get_label();
+				} catch ( Throwable $label_error ) {
+					// Preserve the target name as a stable fallback label.
+				}
+				$description = '';
+				try {
+					$description = (string) $target->get_description();
+				} catch ( Throwable $description_error ) {
+					// Preserve discoverability when an optional description is malformed.
+				}
+				$category = '';
+				try {
+					$category = (string) $target->get_category();
+				} catch ( Throwable $category_error ) {
+					// Preserve discoverability when an optional category is malformed.
+				}
 				$annotations = isset( $meta['annotations'] ) && is_array( $meta['annotations'] ) ? $meta['annotations'] : array();
-				$items[] = array(
+				$item = array(
 					'contract'    => 'ability',
 					'bridge'      => self::bridge_name( $target_name ),
 					'target'      => $target_name,
-					'label'       => $target->get_label(),
-					'description' => $target->get_description(),
-					'category'    => $target->get_category(),
+					'label'       => $label,
+					'description' => $description,
+					'category'    => $category,
 					'annotations' => array(
 						'readonly'    => array_key_exists( 'readonly', $annotations ) && null !== $annotations['readonly'] ? (bool) $annotations['readonly'] : null,
 						'destructive' => array_key_exists( 'destructive', $annotations ) && null !== $annotations['destructive'] ? (bool) $annotations['destructive'] : null,
@@ -177,8 +325,47 @@ final class CUA_Ability_Bridge {
 						'open_world'  => array_key_exists( 'open_world', $annotations ) && null !== $annotations['open_world'] ? (bool) $annotations['open_world'] : null,
 					),
 				);
+				try {
+					$input_schema = self::normalize_schema_for_transport( $target->get_input_schema() );
+					if ( is_array( $input_schema ) ) { $item['inputSchema'] = $input_schema; }
+				} catch ( Throwable $schema_error ) {
+					// Keep the provider identity discoverable when its optional schema is malformed.
+				}
+				try {
+					$output_schema = self::normalize_schema_for_transport( $target->get_output_schema() );
+					if ( is_array( $output_schema ) ) { $item['outputSchema'] = $output_schema; }
+				} catch ( Throwable $schema_error ) {
+					// Keep the provider identity discoverable when its optional schema is malformed.
+				}
+				$items[] = $item;
 			} catch ( Throwable $error ) {
 				// A malformed third-party ability must not abort the ability catalog.
+			}
+		}
+
+		// A provider can be visible through wp_get_ability() while its entry is
+		// temporarily omitted from a filtered registry enumeration during a
+		// re-entrant catalog call. Facades already registered by this bridge are
+		// authoritative, so retain and merge their original ability objects.
+		$known_targets = array();
+		foreach ( $items as $item ) {
+			$known_targets[ (string) ( $item['target'] ?? '' ) ] = true;
+		}
+		foreach ( self::$bridged_catalog_items as $target_name => $item ) {
+			if ( ! isset( $known_targets[ $target_name ] ) && is_array( $item ) ) {
+				$items[] = $item;
+			}
+		}
+		foreach ( self::$bridged_targets as $target_name => $target ) {
+			if ( isset( $known_targets[ $target_name ] ) || ! $target instanceof WP_Ability || ! self::is_bridgeable( $target ) ) {
+				continue;
+			}
+			try {
+				$item = self::catalog_item_from_ability( $target );
+				self::$bridged_catalog_items[ $target_name ] = $item;
+				$items[] = $item;
+			} catch ( Throwable $error ) {
+				// Preserve the rest of the catalog when an optional provider field is malformed.
 			}
 		}
 		usort(
@@ -191,10 +378,50 @@ final class CUA_Ability_Bridge {
 		return $items;
 	}
 
+	private static function catalog_item_from_ability( WP_Ability $target ) {
+		$name = $target->get_name();
+		$meta = $target->get_meta();
+		$annotations = isset( $meta['annotations'] ) && is_array( $meta['annotations'] ) ? $meta['annotations'] : array();
+		$item = array(
+			'contract'    => 'ability',
+			'bridge'      => self::bridge_name( $name ),
+			'target'      => $name,
+			'label'       => (string) $target->get_label(),
+			'description' => (string) $target->get_description(),
+			'category'    => (string) $target->get_category(),
+			'annotations' => array(
+				'readonly'    => array_key_exists( 'readonly', $annotations ) && null !== $annotations['readonly'] ? (bool) $annotations['readonly'] : null,
+				'destructive' => array_key_exists( 'destructive', $annotations ) && null !== $annotations['destructive'] ? (bool) $annotations['destructive'] : null,
+				'idempotent'  => array_key_exists( 'idempotent', $annotations ) && null !== $annotations['idempotent'] ? (bool) $annotations['idempotent'] : null,
+				'open_world'  => array_key_exists( 'open_world', $annotations ) && null !== $annotations['open_world'] ? (bool) $annotations['open_world'] : null,
+			),
+		);
+		$input_schema = self::normalize_schema_for_transport( $target->get_input_schema() );
+		if ( is_array( $input_schema ) ) { $item['inputSchema'] = $input_schema; }
+		$output_schema = self::normalize_schema_for_transport( $target->get_output_schema() );
+		if ( is_array( $output_schema ) ) { $item['outputSchema'] = $output_schema; }
+		return $item;
+	}
+
+	private static function normalize_schema_for_transport( $value, $parent_key = '' ) {
+		$object_keywords = array( '$defs', '$vocabulary', 'definitions', 'dependentRequired', 'dependentSchemas', 'patternProperties', 'properties' );
+		if ( is_array( $value ) ) {
+			if ( empty( $value ) && in_array( (string) $parent_key, $object_keywords, true ) ) { return new stdClass(); }
+			$normalized = array();
+			foreach ( $value as $key => $item ) { $normalized[ $key ] = self::normalize_schema_for_transport( $item, is_string( $key ) ? $key : '' ); }
+			return $normalized;
+		}
+		return $value;
+	}
+
 	public static function target_permission( $target_name, $input = null ) {
-		$target = function_exists( 'wp_get_ability' ) ? wp_get_ability( $target_name ) : null;
-		if ( ! $target instanceof WP_Ability || ! self::is_bridgeable( $target ) || ! current_user_can( 'manage_options' ) ) {
-			return false;
+		try {
+			$target = function_exists( 'wp_get_ability' ) ? wp_get_ability( $target_name ) : null;
+			if ( ! $target instanceof WP_Ability || ! self::is_bridgeable( $target ) || ! current_user_can( 'manage_options' ) ) {
+				return false;
+			}
+		} catch ( Throwable $error ) {
+			return new WP_Error( 'cua_target_resolution_exception', 'The discovered target could not be resolved safely.' );
 		}
 
 		$guard = self::guard_target( $target, $input );
@@ -202,41 +429,53 @@ final class CUA_Ability_Bridge {
 			return $guard;
 		}
 
-		if ( is_array( $target->get_input_schema() ) ) {
-			return $target->check_permissions( $input );
-		}
+		try {
+			if ( is_array( $target->get_input_schema() ) ) {
+				return $target->check_permissions( $input );
+			}
 
-		return $target->check_permissions();
+			return $target->check_permissions();
+		} catch ( Throwable $error ) {
+			return new WP_Error( 'cua_target_permission_exception', 'The discovered target permission check failed.' );
+		}
 	}
 
 	public static function execute_target( $target_name, $input = null ) {
-		$target = function_exists( 'wp_get_ability' ) ? wp_get_ability( $target_name ) : null;
-		if ( ! $target instanceof WP_Ability || ! self::is_bridgeable( $target ) ) {
-			return new WP_Error( 'cua_target_unavailable', 'The discovered target ability is no longer available.' );
+		try {
+			$target = function_exists( 'wp_get_ability' ) ? wp_get_ability( $target_name ) : null;
+			if ( ! $target instanceof WP_Ability || ! self::is_bridgeable( $target ) ) {
+				return new WP_Error( 'cua_target_unavailable', 'The discovered target ability is no longer available.' );
+			}
+
+			if ( ! current_user_can( 'manage_options' ) ) {
+				return new WP_Error( 'cua_target_forbidden', 'The current user is not permitted to use the universal administration bridge.' );
+			}
+		} catch ( Throwable $error ) {
+			return new WP_Error( 'cua_target_resolution_exception', 'The discovered target could not be resolved safely.' );
 		}
 
-		if ( ! current_user_can( 'manage_options' ) ) {
-			return new WP_Error( 'cua_target_forbidden', 'The current user is not permitted to use the universal administration bridge.' );
-		}
+		try {
+			$guard = self::guard_target( $target, $input );
+			if ( is_wp_error( $guard ) ) {
+				return $guard;
+			}
+			if ( false === $guard ) {
+				return new WP_Error( 'cua_target_forbidden', 'The control-plane guard denied the current request.' );
+			}
 
-		$guard = self::guard_target( $target, $input );
-		if ( is_wp_error( $guard ) ) {
-			return $guard;
-		}
-		if ( false === $guard ) {
-			return new WP_Error( 'cua_target_forbidden', 'The control-plane guard denied the current request.' );
-		}
+			$has_input = is_array( $target->get_input_schema() );
+			$permission = $has_input ? $target->check_permissions( $input ) : $target->check_permissions();
+			if ( is_wp_error( $permission ) ) {
+				return $permission;
+			}
+			if ( ! $permission ) {
+				return new WP_Error( 'cua_target_forbidden', 'The target ability denied the current request.' );
+			}
 
-		$has_input = is_array( $target->get_input_schema() );
-		$permission = $has_input ? $target->check_permissions( $input ) : $target->check_permissions();
-		if ( is_wp_error( $permission ) ) {
-			return $permission;
+			return $has_input ? $target->execute( $input ) : $target->execute();
+		} catch ( Throwable $error ) {
+			return new WP_Error( 'cua_target_execution_exception', 'The discovered target execution failed.' );
 		}
-		if ( ! $permission ) {
-			return new WP_Error( 'cua_target_forbidden', 'The target ability denied the current request.' );
-		}
-
-		return $has_input ? $target->execute( $input ) : $target->execute();
 	}
 
 	private static function guard_target( WP_Ability $target, $input ) {

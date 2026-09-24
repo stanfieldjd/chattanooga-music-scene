@@ -60,14 +60,18 @@ final class CUA_Bridge_Gateway {
 			return $resolved;
 		}
 
-		if ( 'rest' === $resolved['contract'] ) {
-			return CUA_REST_Bridge::check_bridge_permissions( $resolved['bridge'], $resolved['arguments'] );
-		}
+		try {
+			if ( 'rest' === $resolved['contract'] ) {
+				return CUA_REST_Bridge::check_bridge_permissions( $resolved['bridge'], $resolved['arguments'] );
+			}
 
-		return CUA_Ability_Bridge::target_permission(
-			$resolved['target'],
-			$resolved['has_arguments'] ? $resolved['arguments'] : null
-		);
+			return CUA_Ability_Bridge::target_permission(
+				$resolved['target'],
+				$resolved['has_arguments'] ? $resolved['arguments'] : null
+			);
+		} catch ( Throwable $error ) {
+			return new WP_Error( 'cua_bridge_permission_exception', 'The selected bridge permission check failed.' );
+		}
 	}
 
 	public static function execute( $input, $readonly ) {
@@ -80,22 +84,27 @@ final class CUA_Bridge_Gateway {
 			return $resolved;
 		}
 
-		if ( 'rest' === $resolved['contract'] ) {
-			$result = CUA_REST_Bridge::execute_bridge( $resolved['bridge'], $resolved['arguments'] );
-			if ( is_wp_error( $result ) ) {
-				return $result;
+		try {
+			if ( 'rest' === $resolved['contract'] ) {
+				$result = CUA_REST_Bridge::execute_bridge( $resolved['bridge'], $resolved['arguments'] );
+				if ( is_wp_error( $result ) ) {
+					return $result;
+				}
+
+				return array(
+					'bridge' => $resolved['bridge'],
+					'result' => $result,
+				);
 			}
 
-			return array(
-				'bridge' => $resolved['bridge'],
-				'result' => $result,
+			$result = CUA_Ability_Bridge::execute_target(
+				$resolved['target'],
+				$resolved['has_arguments'] ? $resolved['arguments'] : null
 			);
+		} catch ( Throwable $error ) {
+			return new WP_Error( 'cua_bridge_gateway_exception', 'The selected bridge failed during execution.' );
 		}
 
-		$result = CUA_Ability_Bridge::execute_target(
-			$resolved['target'],
-			$resolved['has_arguments'] ? $resolved['arguments'] : null
-		);
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}
@@ -121,7 +130,11 @@ final class CUA_Bridge_Gateway {
 			return $item;
 		}
 
-		$item_readonly = true === ( $item['annotations']['readonly'] ?? null );
+		$annotations = isset( $item['annotations'] ) && is_array( $item['annotations'] ) ? $item['annotations'] : array();
+		if ( ! array_key_exists( 'readonly', $annotations ) || null === $annotations['readonly'] ) {
+			return new WP_Error( 'cua_bridge_gateway_classification_required', 'The selected bridge lacks an explicit read-only or mutating classification.' );
+		}
+		$item_readonly = (bool) $annotations['readonly'];
 		if ( (bool) $readonly !== $item_readonly ) {
 			return new WP_Error(
 				'cua_bridge_gateway_class_mismatch',
@@ -177,15 +190,27 @@ final class CUA_Bridge_Gateway {
 		}
 
 		$cursor = 0;
+		$snapshot = '';
 		for ( $page = 0; $page < 100; ++$page ) {
-			$catalog = CUA_Ability_Bridge::catalog(
-				array(
-					'cursor' => $cursor,
-					'limit'  => 100,
-				)
+			$catalog_input = array(
+				'cursor' => $cursor,
+				'limit'  => 100,
 			);
-			if ( ! is_array( $catalog ) || empty( $catalog['items'] ) || ! is_array( $catalog['items'] ) ) {
+			if ( '' !== $snapshot ) {
+				$catalog_input['snapshot'] = $snapshot;
+			}
+			$catalog = CUA_Ability_Bridge::catalog( $catalog_input );
+			if ( is_wp_error( $catalog ) ) {
+				return $catalog;
+			}
+			if ( ! is_array( $catalog ) || ! isset( $catalog['items'] ) || ! is_array( $catalog['items'] ) ) {
 				return new WP_Error( 'cua_bridge_gateway_catalog_unavailable', 'The universal bridge catalog is unavailable.' );
+			}
+			if ( '' === $snapshot ) {
+				$snapshot = isset( $catalog['snapshot'] ) ? trim( (string) $catalog['snapshot'] ) : '';
+				if ( ! preg_match( '/^[a-f0-9]{64}$/', $snapshot ) ) {
+					return new WP_Error( 'cua_bridge_gateway_catalog_snapshot_missing', 'The universal bridge catalog did not return a valid snapshot.' );
+				}
 			}
 
 			foreach ( $catalog['items'] as $item ) {
