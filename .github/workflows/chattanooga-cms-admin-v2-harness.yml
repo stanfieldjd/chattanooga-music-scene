@@ -43,6 +43,14 @@ jobs:
           php-version: "8.2"
           extensions: mysqli, zip, gd, fileinfo
 
+      - name: Install pinned MCP adapter runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          composer update --working-dir=site-plugins/chattanooga-cms-admin --no-dev --prefer-dist --no-interaction --optimize-autoloader
+          test -f site-plugins/chattanooga-cms-admin/vendor/autoload.php
+          composer show --working-dir=site-plugins/chattanooga-cms-admin wordpress/mcp-adapter | grep -Eq '^versions[[:space:]]*:[[:space:]]*\*? v?0\.6\.1$'
+
       - name: Enforce clean replacement boundary
         shell: bash
         run: |
@@ -55,7 +63,7 @@ jobs:
           test ! -e workbench/labs/chattanooga-universal-admin/candidate
           test "$(grep -RIl '^ \* Plugin Name:' "$source" --include='*.php' | wc -l)" -eq 1
           grep -q '^ \* Plugin Name: Chattanooga CMS Admin$' "$source/chattanooga-cms-admin.php"
-          grep -q '^ \* Version: 1.2.38$' "$source/chattanooga-cms-admin.php"
+          grep -q '^ \* Version: 1.2.39$' "$source/chattanooga-cms-admin.php"
           if grep -REiq 'orbit-fixture|comet-fixture|asteroid-private|saturn-lifecycle|meteor-lifecycle|neptune-install|aurora-install|quasar-audit|pulsar-core-loopback|nova-settings|nova_private_setting|nova_rest_setting|nova_custom_setting|nova_absent_setting|cmsa_v2_snapshot_fixture|cmsa_v2_extra_after_backup|cmsa_v2_core_restore_marker|cmsa_v2_core_update_db_marker|wp-cmsa-v2-extra|cmsa-v2\.invalid' "$source"; then
             echo "Replacement contains v2 fixture-specific logic." >&2
             exit 1
