@@ -1418,7 +1418,7 @@ final class CUA_MCP_Server {
 			200
 		);
 		$response->header( 'MCP-Protocol-Version', $protocol_version );
-		if ( self::LEGACY_PROTOCOL_VERSION === $protocol_version && '' !== (string) $session_id ) {
+		if ( self::is_legacy_protocol_version( $protocol_version ) && '' !== (string) $session_id ) {
 			$response->header( self::SESSION_HEADER, $session_id );
 		}
 		return self::no_store_response( $response );
