@@ -9,6 +9,7 @@ on:
       - "site-plugins/chattanooga-cms-admin/**"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-persistence-reconnect-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-settings-page-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-ingestion-diagnostics-cli.php"
@@ -20,6 +21,7 @@ on:
       - "site-plugins/chattanooga-cms-admin/**"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-persistence-reconnect-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-settings-page-cli.php"
       - "workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-ingestion-diagnostics-cli.php"
@@ -64,12 +66,13 @@ jobs:
           find "$source" -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php >/dev/null
+          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-persistence-reconnect-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-settings-page-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-ingestion-diagnostics-cli.php >/dev/null
           python3 -m py_compile workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-jsonschema-2020-report.py
           grep -q '^ \* Plugin Name: Chattanooga CMS Admin$' "$source/chattanooga-cms-admin.php"
-          grep -q '^ \* Version: 1.2.35$' "$source/chattanooga-cms-admin.php"
+          grep -q '^ \* Version: 1.2.36$' "$source/chattanooga-cms-admin.php"
           grep -Fq "add_action( 'rest_api_init', array( 'CUA_MCP_Server', 'register_route' ) );" "$source/chattanooga-cms-admin.php"
           test -f "$source/includes/class-cua-mcp-server.php"
           test -f "$source/includes/class-cua-mcp-diagnostics.php"
@@ -98,6 +101,13 @@ jobs:
       - name: Verify single MCP protocol boundary
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php" --path=/tmp/wordpress
 
+      - name: Verify MCP persistence across fresh processes
+        shell: bash
+        run: |
+          set -euo pipefail
+          CMSA_PERSISTENCE_PHASE=seed php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-persistence-reconnect-cli.php" --path=/tmp/wordpress
+          CMSA_PERSISTENCE_PHASE=reconnect php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-persistence-reconnect-cli.php" --path=/tmp/wordpress
+
       - name: Verify complete MCP administrator ability exposure
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php" --path=/tmp/wordpress
 
@@ -120,7 +130,7 @@ jobs:
       - name: Upload MCP ingestion diagnostic report
         uses: actions/upload-artifact@v4
         with:
-          name: chattanooga-cms-admin-mcp-ingestion-report-1.2.35
+          name: chattanooga-cms-admin-mcp-ingestion-report-1.2.36
           path: /tmp/cmsa-mcp-ingestion-diagnostics-report.json
           if-no-files-found: error
           retention-days: 30
@@ -145,6 +155,35 @@ jobs:
               exit 1
             fi
             sleep 1
+          done
+
+          preflight_code="$(curl -sS -D /tmp/cmsa-preflight-headers.txt -o /tmp/cmsa-preflight-body.txt -w '%{http_code}' \
+            -X OPTIONS \
+            -H 'Origin: https://chatgpt.com' \
+            -H 'Access-Control-Request-Method: POST' \
+            -H 'Access-Control-Request-Headers: Authorization, Content-Type, MCP-Protocol-Version, Mcp-Method, Mcp-Name, Mcp-Session-Id, Last-Event-ID' \
+            "$endpoint")"
+          if [ "$preflight_code" != '200' ]; then
+            echo "MCP CORS preflight returned HTTP $preflight_code" >&2
+            cat /tmp/cmsa-preflight-headers.txt >&2
+            cat /tmp/cmsa-preflight-body.txt >&2
+            exit 1
+          fi
+          allow_headers="$(grep -i '^Access-Control-Allow-Headers:' /tmp/cmsa-preflight-headers.txt | tr '[:upper:]' '[:lower:]')"
+          expose_headers="$(grep -i '^Access-Control-Expose-Headers:' /tmp/cmsa-preflight-headers.txt | tr '[:upper:]' '[:lower:]')"
+          for required_header in mcp-protocol-version mcp-method mcp-name mcp-session-id last-event-id; do
+            if [[ "$allow_headers" != *"$required_header"* ]]; then
+              echo "MCP CORS preflight omitted request header: $required_header" >&2
+              cat /tmp/cmsa-preflight-headers.txt >&2
+              exit 1
+            fi
+          done
+          for required_header in www-authenticate mcp-protocol-version mcp-session-id; do
+            if [[ "$expose_headers" != *"$required_header"* ]]; then
+              echo "MCP CORS preflight omitted exposed response header: $required_header" >&2
+              cat /tmp/cmsa-preflight-headers.txt >&2
+              exit 1
+            fi
           done
 
           cat > /tmp/cmsa-discover.json <<'JSON'

@@ -16,6 +16,9 @@ final class CUA_OAuth_Server {
 	const OFFLINE_SCOPE  = 'offline_access';
 	const CLIENT_OPTION  = 'cua_oauth_clients';
 	const REFRESH_OPTION = 'cua_oauth_refresh_tokens';
+	const CIMD_CACHE_OPTION = 'cua_oauth_cimd_clients';
+	const CIMD_CACHE_TTL = 86400;
+	const CIMD_STALE_TTL = 604800;
 	const DIAGNOSTIC_OPTION = 'cua_oauth_last_client_metadata_check';
 	const REWRITE_VERSION_OPTION = 'cua_oauth_rewrite_version';
 	const CODE_TTL       = 300;
@@ -661,6 +664,13 @@ final class CUA_OAuth_Server {
 			self::record_client_metadata_check( 'invalid_client_id', 0 );
 			return new WP_Error( 'cmsa_oauth_client_invalid', 'The OAuth client is not registered and its client metadata URL is invalid.' );
 		}
+
+		$cached = self::cached_cimd_client( $client_id, $redirect_uri, false );
+		if ( is_array( $cached ) ) {
+			self::record_client_metadata_check( 'cached_client', 0 );
+			return $cached;
+		}
+
 		$response = wp_safe_remote_get(
 			$client_id,
 			array(
@@ -671,34 +681,110 @@ final class CUA_OAuth_Server {
 			)
 		);
 		if ( is_wp_error( $response ) ) {
-			self::record_client_metadata_check( 'transport_error', 0 );
-			return new WP_Error( 'cmsa_oauth_client_unavailable', 'The OAuth client metadata document could not be verified.' );
+			return self::cimd_stale_fallback( $client_id, $redirect_uri, 'transport_error', 0 );
 		}
 		$status = (int) wp_remote_retrieve_response_code( $response );
 		if ( 200 !== $status ) {
+			if ( 429 === $status || $status >= 500 ) {
+				return self::cimd_stale_fallback( $client_id, $redirect_uri, 'http_error', $status );
+			}
+			self::delete_cached_cimd_client( $client_id );
 			self::record_client_metadata_check( 'http_error', $status );
 			return new WP_Error( 'cmsa_oauth_client_unavailable', 'The OAuth client metadata document could not be verified.' );
 		}
 		$metadata = json_decode( wp_remote_retrieve_body( $response ), true );
 		if ( ! is_array( $metadata ) ) {
+			self::delete_cached_cimd_client( $client_id );
 			self::record_client_metadata_check( 'invalid_json', $status );
 			return new WP_Error( 'cmsa_oauth_client_metadata_invalid', 'The OAuth client metadata document is not valid JSON.' );
 		}
 		if ( isset( $metadata['client_id'] ) && ! hash_equals( $client_id, esc_url_raw( (string) $metadata['client_id'] ) ) ) {
+			self::delete_cached_cimd_client( $client_id );
 			self::record_client_metadata_check( 'client_id_mismatch', $status );
 			return new WP_Error( 'cmsa_oauth_client_metadata_invalid', 'The OAuth client metadata document identifies a different client.' );
 		}
 		$uris = self::validated_redirect_uris( isset( $metadata['redirect_uris'] ) ? $metadata['redirect_uris'] : null );
 		if ( is_wp_error( $uris ) || ! in_array( $redirect_uri, $uris, true ) ) {
+			self::delete_cached_cimd_client( $client_id );
 			self::record_client_metadata_check( 'redirect_mismatch', $status );
 			return new WP_Error( 'cmsa_oauth_redirect_invalid', 'The redirect URI is not registered by the OAuth client.' );
 		}
-		self::record_client_metadata_check( 'ok', $status );
-		return array(
+		$client = array(
 			'client_id'     => $client_id,
 			'redirect_uris' => $uris,
 			'client_name'   => isset( $metadata['client_name'] ) ? sanitize_text_field( (string) $metadata['client_name'] ) : 'OAuth client',
 		);
+		self::store_cached_cimd_client( $client );
+		self::record_client_metadata_check( 'ok', $status );
+		return $client;
+	}
+
+	private static function cached_cimd_client( $client_id, $redirect_uri, $allow_stale ) {
+		$records = get_option( self::CIMD_CACHE_OPTION, array() );
+		if ( ! is_array( $records ) ) {
+			return null;
+		}
+		$key = self::digest( $client_id );
+		$record = isset( $records[ $key ] ) && is_array( $records[ $key ] ) ? $records[ $key ] : null;
+		if ( ! is_array( $record )
+			|| ! isset( $record['client_id'], $record['redirect_uris'], $record['expires_at'], $record['stale_until'] )
+			|| ! hash_equals( (string) $record['client_id'], (string) $client_id )
+			|| ! is_array( $record['redirect_uris'] )
+			|| ! in_array( $redirect_uri, $record['redirect_uris'], true )
+		) {
+			return null;
+		}
+		$deadline = $allow_stale ? (int) $record['stale_until'] : (int) $record['expires_at'];
+		if ( $deadline <= time() ) {
+			return null;
+		}
+		return array(
+			'client_id'     => (string) $record['client_id'],
+			'redirect_uris' => array_values( $record['redirect_uris'] ),
+			'client_name'   => isset( $record['client_name'] ) ? (string) $record['client_name'] : 'OAuth client',
+		);
+	}
+
+	private static function store_cached_cimd_client( array $client ) {
+		$records = get_option( self::CIMD_CACHE_OPTION, array() );
+		$records = is_array( $records ) ? $records : array();
+		$now = time();
+		foreach ( $records as $key => $record ) {
+			if ( ! is_array( $record ) || (int) ( $record['stale_until'] ?? 0 ) <= $now ) {
+				unset( $records[ $key ] );
+			}
+		}
+		$records[ self::digest( (string) $client['client_id'] ) ] = array(
+			'client_id'     => (string) $client['client_id'],
+			'redirect_uris' => array_values( (array) $client['redirect_uris'] ),
+			'client_name'   => isset( $client['client_name'] ) ? sanitize_text_field( (string) $client['client_name'] ) : 'OAuth client',
+			'validated_at'  => $now,
+			'expires_at'    => $now + self::CIMD_CACHE_TTL,
+			'stale_until'   => $now + self::CIMD_STALE_TTL,
+		);
+		update_option( self::CIMD_CACHE_OPTION, $records, false );
+	}
+
+	private static function delete_cached_cimd_client( $client_id ) {
+		$records = get_option( self::CIMD_CACHE_OPTION, array() );
+		if ( ! is_array( $records ) ) {
+			return;
+		}
+		$key = self::digest( $client_id );
+		if ( isset( $records[ $key ] ) ) {
+			unset( $records[ $key ] );
+			update_option( self::CIMD_CACHE_OPTION, $records, false );
+		}
+	}
+
+	private static function cimd_stale_fallback( $client_id, $redirect_uri, $outcome, $http_status ) {
+		$cached = self::cached_cimd_client( $client_id, $redirect_uri, true );
+		if ( is_array( $cached ) ) {
+			self::record_client_metadata_check( $outcome . '_stale_cache', $http_status );
+			return $cached;
+		}
+		self::record_client_metadata_check( $outcome, $http_status );
+		return new WP_Error( 'cmsa_oauth_client_unavailable', 'The OAuth client metadata document could not be verified.' );
 	}
 
 	private static function is_client_metadata_url( $client_id ) {

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Chattanooga CMS Admin
  * Description: Universal Chattanooga CMS Admin replacement using plugin-agnostic public WordPress contracts and verified intrinsic platform services.
- * Version: 1.2.35
+ * Version: 1.2.36
  * Author: Chattanooga Music Scene
  * Requires at least: 7.1
  * Requires PHP: 8.0
@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CUA_VERSION', '1.2.35' );
+define( 'CUA_VERSION', '1.2.36' );
 define( 'CUA_DIR', plugin_dir_path( __FILE__ ) );
 
 require_once CUA_DIR . 'includes/class-cua-local-storage.php';
@@ -63,6 +63,8 @@ add_action( 'wp_abilities_api_init', array( 'CUA_Ability_Bridge', 'register_exte
 add_action( 'wp_loaded', array( 'CUA_Ability_Bridge', 'prime_catalog_snapshot' ), 999999 );
 add_action( 'rest_api_init', array( 'CUA_MCP_Server', 'register_route' ) );
 add_action( 'rest_api_init', array( 'CUA_MCP_Diagnostics', 'register_routes' ), 20 );
+add_filter( 'rest_allowed_cors_headers', array( 'CUA_MCP_Server', 'allow_cors_request_headers' ), 10, 2 );
+add_filter( 'rest_exposed_cors_headers', array( 'CUA_MCP_Server', 'expose_cors_response_headers' ), 10, 2 );
 // Providers may register public abilities or REST routes after the initial
 // wp_abilities_api_init pass. Re-run the idempotent facade registration once
 // the REST registry is fully assembled, before MCP calls can arrive.

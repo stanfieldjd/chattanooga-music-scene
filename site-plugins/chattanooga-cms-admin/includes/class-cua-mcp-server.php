@@ -38,6 +38,41 @@ final class CUA_MCP_Server {
 		self::register_rest_endpoint( self::REST_ROUTE );
 	}
 
+	/**
+	 * Extend WordPress REST CORS for MCP transport headers only on this plugin's
+	 * namespace. Browser-based MCP clients otherwise fail preflight before the
+	 * request can reach the protocol handler.
+	 */
+	public static function allow_cors_request_headers( $headers, WP_REST_Request $request ) {
+		if ( ! self::is_plugin_rest_request( $request ) ) {
+			return $headers;
+		}
+		foreach ( array( 'Accept', 'MCP-Protocol-Version', 'Mcp-Method', 'Mcp-Name', 'Mcp-Session-Id', 'Last-Event-ID' ) as $header ) {
+			if ( ! in_array( strtolower( $header ), array_map( 'strtolower', $headers ), true ) ) {
+				$headers[] = $header;
+			}
+		}
+		return array_values( array_unique( $headers ) );
+	}
+
+	public static function expose_cors_response_headers( $headers, WP_REST_Request $request ) {
+		if ( ! self::is_plugin_rest_request( $request ) ) {
+			return $headers;
+		}
+		foreach ( array( 'WWW-Authenticate', 'MCP-Protocol-Version', 'Mcp-Session-Id', 'Retry-After' ) as $header ) {
+			if ( ! in_array( strtolower( $header ), array_map( 'strtolower', $headers ), true ) ) {
+				$headers[] = $header;
+			}
+		}
+		return array_values( array_unique( $headers ) );
+	}
+
+	private static function is_plugin_rest_request( WP_REST_Request $request ) {
+		$route = '/' . ltrim( (string) $request->get_route(), '/' );
+		$prefix = '/' . self::REST_NAMESPACE;
+		return $route === $prefix || 0 === strpos( $route, $prefix . '/' );
+	}
+
 	private static function register_rest_endpoint( $route ) {
 		register_rest_route(
 			self::REST_NAMESPACE,
@@ -585,7 +620,7 @@ final class CUA_MCP_Server {
 			),
 			'discovery'         => $manifest,
 			'instructions'      => 'Authenticated WordPress site-operation tools. Use read-only tools for inspection and mutating tools only for explicitly authorized site changes.',
-			'ttlMs'             => 30000,
+			'ttlMs'             => 0,
 			'cacheScope'        => 'private',
 		);
 	}
@@ -628,7 +663,7 @@ final class CUA_MCP_Server {
 
 		$result = array(
 			'tools'      => array_slice( $all_tools, $offset, self::TOOL_PAGE_SIZE ),
-			'ttlMs'      => 30000,
+			'ttlMs'      => 0,
 			'cacheScope' => 'private',
 		);
 		$next_offset = $offset + count( $result['tools'] );
@@ -656,7 +691,7 @@ final class CUA_MCP_Server {
 					'mimeType'    => 'application/json',
 				),
 			),
-			'ttlMs'      => 30000,
+			'ttlMs'      => 0,
 			'cacheScope' => 'private',
 		);
 	}
@@ -672,7 +707,7 @@ final class CUA_MCP_Server {
 						'text'     => self::json_text( self::discovery_manifest( $params ) ),
 					),
 				),
-				'ttlMs'      => 30000,
+				'ttlMs'      => 0,
 				'cacheScope' => 'private',
 			);
 		}
@@ -697,7 +732,7 @@ final class CUA_MCP_Server {
 					'text'     => self::json_text( $catalog ),
 				),
 			),
-			'ttlMs'      => 30000,
+			'ttlMs'      => 0,
 			'cacheScope' => 'private',
 		);
 	}
@@ -742,7 +777,7 @@ final class CUA_MCP_Server {
 					),
 				),
 			),
-			'ttlMs'      => 30000,
+			'ttlMs'      => 0,
 			'cacheScope' => 'private',
 		);
 	}
