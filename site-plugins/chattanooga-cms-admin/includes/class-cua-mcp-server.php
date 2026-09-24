@@ -419,6 +419,35 @@ final class CUA_MCP_Server {
 		return trim( (string) $request->get_header( self::SESSION_HEADER ) );
 	}
 
+
+	private static function request_protocol_version( WP_REST_Request $request, array $params ) {
+		$header_version = trim( (string) $request->get_header( 'mcp-protocol-version' ) );
+		if ( '' !== $header_version ) {
+			return $header_version;
+		}
+		if ( isset( $params['protocolVersion'] ) && '' !== trim( (string) $params['protocolVersion'] ) ) {
+			return trim( (string) $params['protocolVersion'] );
+		}
+		if ( isset( $params['_meta']['io.modelcontextprotocol/protocolVersion'] ) ) {
+			return trim( (string) $params['_meta']['io.modelcontextprotocol/protocolVersion'] );
+		}
+		return self::LEGACY_PROTOCOL_VERSION;
+	}
+
+	private static function declared_protocol_version( WP_REST_Request $request, array $params ) {
+		$header_version = trim( (string) $request->get_header( 'mcp-protocol-version' ) );
+		if ( '' !== $header_version ) {
+			return $header_version;
+		}
+		if ( isset( $params['protocolVersion'] ) && '' !== trim( (string) $params['protocolVersion'] ) ) {
+			return trim( (string) $params['protocolVersion'] );
+		}
+		if ( isset( $params['_meta']['io.modelcontextprotocol/protocolVersion'] ) ) {
+			return trim( (string) $params['_meta']['io.modelcontextprotocol/protocolVersion'] );
+		}
+		return '';
+	}
+
 	private static function session_meta_key() {
 		if ( function_exists( 'is_multisite' ) && is_multisite() ) {
 			$blog_id = function_exists( 'get_current_blog_id' ) ? (int) get_current_blog_id() : 0;
