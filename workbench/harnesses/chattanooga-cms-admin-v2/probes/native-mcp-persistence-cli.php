@@ -46,10 +46,11 @@ function cmsa_persistence_modern( $method, array $params = array(), $id = 501 ) 
 	return rest_do_request( $request );
 }
 
-function cmsa_persistence_legacy_initialize( $id ) {
+function cmsa_persistence_legacy_initialize( $version, $id ) {
 	$request = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
 	$request->set_header( 'content-type', 'application/json' );
-	$request->set_header( 'MCP-Protocol-Version', '2025-11-25' );
+	$request->set_header( 'accept', 'application/json, text/event-stream' );
+	$request->set_header( 'MCP-Protocol-Version', $version );
 	$request->set_header( 'Mcp-Method', 'initialize' );
 	$request->set_body(
 		wp_json_encode(
@@ -58,7 +59,7 @@ function cmsa_persistence_legacy_initialize( $id ) {
 				'id'      => $id,
 				'method'  => 'initialize',
 				'params'  => array(
-					'protocolVersion' => '2025-11-25',
+					'protocolVersion' => $version,
 					'capabilities'    => array(),
 					'clientInfo'      => array(
 						'name'    => 'cmsa-persistence-probe',
@@ -71,10 +72,11 @@ function cmsa_persistence_legacy_initialize( $id ) {
 	return rest_do_request( $request );
 }
 
-function cmsa_persistence_legacy_list( $session_id, $id ) {
+function cmsa_persistence_legacy_list( $version, $session_id, $id ) {
 	$request = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
 	$request->set_header( 'content-type', 'application/json' );
-	$request->set_header( 'MCP-Protocol-Version', '2025-11-25' );
+	$request->set_header( 'accept', 'application/json, text/event-stream' );
+	$request->set_header( 'MCP-Protocol-Version', $version );
 	$request->set_header( 'Mcp-Method', 'tools/list' );
 	$request->set_header( 'Mcp-Session-Id', $session_id );
 	$request->set_body(
@@ -96,21 +98,31 @@ cmsa_persistence_assert( current_user_can( 'manage_options' ), 'Probe user is no
 $session_meta_key = 'chattanooga_cms_admin_mcp_sessions';
 delete_user_meta( get_current_user_id(), $session_meta_key );
 
-$initialize = cmsa_persistence_legacy_initialize( 510 );
-$initialize_headers = array_change_key_case( $initialize->get_headers(), CASE_LOWER );
-$session_id = trim( (string) ( $initialize_headers['mcp-session-id'] ?? '' ) );
-cmsa_persistence_assert( 200 === $initialize->get_status(), 'Durable legacy initialize failed.' );
-cmsa_persistence_assert( '' !== $session_id, 'Durable legacy initialize emitted no session id.' );
+$legacy_versions = array( '2025-11-25', '2025-06-18' );
+$legacy_sessions = array();
+$id = 510;
 
-wp_cache_delete( get_current_user_id(), 'user_meta' );
-$sessions = get_user_meta( get_current_user_id(), $session_meta_key, true );
-cmsa_persistence_assert( is_array( $sessions ) && isset( $sessions[ $session_id ] ), 'Issued legacy session was not durably persisted in user meta.' );
-cmsa_persistence_assert( '2025-11-25' === ( $sessions[ $session_id ]['protocolVersion'] ?? '' ), 'Persisted legacy session has the wrong protocol version.' );
+foreach ( $legacy_versions as $legacy_version ) {
+	delete_user_meta( get_current_user_id(), $session_meta_key );
+	$initialize = cmsa_persistence_legacy_initialize( $legacy_version, $id++ );
+	$initialize_headers = array_change_key_case( $initialize->get_headers(), CASE_LOWER );
+	$session_id = trim( (string) ( $initialize_headers['mcp-session-id'] ?? '' ) );
+	$initialize_data = $initialize->get_data();
+	cmsa_persistence_assert( 200 === $initialize->get_status(), $legacy_version . ' durable initialize failed.' );
+	cmsa_persistence_assert( '' !== $session_id, $legacy_version . ' durable initialize emitted no session id.' );
+	cmsa_persistence_assert( $legacy_version === ( $initialize_data['result']['protocolVersion'] ?? '' ), $legacy_version . ' initialize was not echoed exactly.' );
 
-wp_cache_flush();
-$legacy_after_flush = cmsa_persistence_legacy_list( $session_id, 511 );
-cmsa_persistence_assert( 200 === $legacy_after_flush->get_status(), 'Legacy session did not survive an object-cache flush.' );
-cmsa_persistence_assert( ! empty( $legacy_after_flush->get_data()['result']['tools'] ?? array() ), 'Legacy tools/list returned no tools after cache flush.' );
+	wp_cache_delete( get_current_user_id(), 'user_meta' );
+	$sessions = get_user_meta( get_current_user_id(), $session_meta_key, true );
+	cmsa_persistence_assert( is_array( $sessions ) && isset( $sessions[ $session_id ] ), $legacy_version . ' session was not durably persisted in user meta.' );
+	cmsa_persistence_assert( $legacy_version === ( $sessions[ $session_id ]['protocolVersion'] ?? '' ), $legacy_version . ' persisted session has the wrong protocol version.' );
+
+	wp_cache_flush();
+	$legacy_after_flush = cmsa_persistence_legacy_list( $legacy_version, $session_id, $id++ );
+	cmsa_persistence_assert( 200 === $legacy_after_flush->get_status(), $legacy_version . ' session did not survive an object-cache flush.' );
+	cmsa_persistence_assert( ! empty( $legacy_after_flush->get_data()['result']['tools'] ?? array() ), $legacy_version . ' tools/list returned no tools after cache flush.' );
+	$legacy_sessions[ $legacy_version ] = $session_id;
+}
 
 delete_user_meta( get_current_user_id(), $session_meta_key );
 $block_session_writes = static function ( $check, $object_id, $meta_key ) use ( $session_meta_key ) {
@@ -120,11 +132,11 @@ $block_session_writes = static function ( $check, $object_id, $meta_key ) use ( 
 	return $check;
 };
 add_filter( 'update_user_metadata', $block_session_writes, 10, 5 );
-$failed_initialize = cmsa_persistence_legacy_initialize( 512 );
+$failed_initialize = cmsa_persistence_legacy_initialize( '2025-06-18', $id++ );
 remove_filter( 'update_user_metadata', $block_session_writes, 10 );
 $failed_headers = array_change_key_case( $failed_initialize->get_headers(), CASE_LOWER );
 $failed_data = $failed_initialize->get_data();
-cmsa_persistence_assert( 500 === $failed_initialize->get_status(), 'Session-store write failure did not fail initialize honestly.' );
+cmsa_persistence_assert( 500 === $failed_initialize->get_status(), '2025-06-18 session-store write failure did not fail initialize honestly.' );
 cmsa_persistence_assert( -32603 === ( $failed_data['error']['code'] ?? null ), 'Session-store write failure returned the wrong JSON-RPC error.' );
 cmsa_persistence_assert( empty( $failed_headers['mcp-session-id'] ), 'Failed session persistence still emitted a phantom Mcp-Session-Id.' );
 
@@ -170,5 +182,5 @@ cmsa_persistence_assert( 200 === $discover->get_status(), 'Modern server/discove
 cmsa_persistence_assert( 0 === ( $discover_data['result']['ttlMs'] ?? null ), 'Modern server/discover is not immediately stale.' );
 cmsa_persistence_assert( 'private' === ( $discover_data['result']['cacheScope'] ?? null ), 'Modern server/discover cacheScope is not private.' );
 
-echo "cmsa-mcp-persistence: PASS modern_reconnects=20 modern_ttl=0 legacy_store=durable legacy_cache_flush=survived phantom_session=blocked fingerprint=stable\n";
+echo "cmsa-mcp-persistence: PASS modern_reconnects=20 modern_ttl=0 legacy_2025_11=durable legacy_2025_06=durable legacy_cache_flush=survived negotiation=exact phantom_session=blocked fingerprint=stable\n";
 exit( 0 );

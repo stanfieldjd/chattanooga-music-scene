@@ -14,6 +14,7 @@ final class CUA_MCP_Server {
 	const PROMPT_SITE_OPERATION = 'site-operation-guide';
 	const PROTOCOL_VERSION = '2026-07-28';
 	const LEGACY_PROTOCOL_VERSION = '2025-11-25';
+	const COMPAT_PROTOCOL_VERSION = '2025-06-18';
 	const TOOL_PAGE_SIZE = 50;
 	/**
 	 * Immutable MCP-facing gateway ABI. The complete admin operation catalog is
@@ -251,7 +252,7 @@ final class CUA_MCP_Server {
 		}
 
 		$declared_protocol_version = self::declared_protocol_version( $request, $params );
-		$is_legacy = self::LEGACY_PROTOCOL_VERSION === $protocol_version;
+		$is_legacy = self::is_legacy_protocol_version( $protocol_version );
 		$session_required = $is_legacy && 'initialize' !== $method;
 		if ( $session_required && ! self::session_is_valid( $session_id ) ) {
 			return self::protocol_error_response( $id, -32001, 'A valid MCP session is required for this legacy MCP method.', 400, array(), $protocol_version );
@@ -282,11 +283,11 @@ final class CUA_MCP_Server {
 
 		switch ( $method ) {
 			case 'initialize':
-				$session_id = self::create_session( self::LEGACY_PROTOCOL_VERSION );
+				$session_id = self::create_session( $protocol_version );
 				if ( false === $session_id ) {
-					return self::protocol_error_response( $id, -32603, 'The MCP session could not be persisted.', 500, array(), self::LEGACY_PROTOCOL_VERSION );
+					return self::protocol_error_response( $id, -32603, 'The MCP session could not be persisted.', 500, array(), $protocol_version );
 				}
-				return self::success_response( $id, self::initialize_result( self::LEGACY_PROTOCOL_VERSION ), self::LEGACY_PROTOCOL_VERSION, $session_id );
+				return self::success_response( $id, self::initialize_result( $protocol_version ), $protocol_version, $session_id );
 
 			case 'server/discover':
 				$discovery = self::discover_result( $params );
@@ -412,7 +413,15 @@ final class CUA_MCP_Server {
 	}
 
 	private static function supported_protocol_versions() {
-		return array( self::PROTOCOL_VERSION, self::LEGACY_PROTOCOL_VERSION );
+		return array( self::PROTOCOL_VERSION, self::LEGACY_PROTOCOL_VERSION, self::COMPAT_PROTOCOL_VERSION );
+	}
+
+	private static function legacy_protocol_versions() {
+		return array( self::LEGACY_PROTOCOL_VERSION, self::COMPAT_PROTOCOL_VERSION );
+	}
+
+	private static function is_legacy_protocol_version( $protocol_version ) {
+		return in_array( (string) $protocol_version, self::legacy_protocol_versions(), true );
 	}
 
 	private static function request_session_id( WP_REST_Request $request ) {
@@ -612,9 +621,12 @@ final class CUA_MCP_Server {
 			if ( '' === $header_method ) {
 				return new WP_Error( 'cmsa_mcp_method_header_required', 'Modern MCP requests require Mcp-Method.' );
 			}
-		} elseif ( self::LEGACY_PROTOCOL_VERSION === $protocol_version && 'initialize' !== $method ) {
-			if ( self::LEGACY_PROTOCOL_VERSION !== trim( (string) $request->get_header( 'mcp-protocol-version' ) ) ) {
-				return new WP_Error( 'cmsa_mcp_protocol_header_required', 'Legacy MCP requests after initialize require MCP-Protocol-Version: 2025-11-25.' );
+		} elseif ( self::is_legacy_protocol_version( $protocol_version ) && 'initialize' !== $method ) {
+			if ( (string) $protocol_version !== trim( (string) $request->get_header( 'mcp-protocol-version' ) ) ) {
+				return new WP_Error(
+					'cmsa_mcp_protocol_header_required',
+					'Legacy MCP requests after initialize require MCP-Protocol-Version matching the negotiated session version.'
+				);
 			}
 		}
 		if ( '' !== $header_method && $method !== $header_method ) {
@@ -1406,7 +1418,7 @@ final class CUA_MCP_Server {
 			200
 		);
 		$response->header( 'MCP-Protocol-Version', $protocol_version );
-		if ( self::LEGACY_PROTOCOL_VERSION === $protocol_version && '' !== (string) $session_id ) {
+		if ( self::is_legacy_protocol_version( $protocol_version ) && '' !== (string) $session_id ) {
 			$response->header( self::SESSION_HEADER, $session_id );
 		}
 		return self::no_store_response( $response );

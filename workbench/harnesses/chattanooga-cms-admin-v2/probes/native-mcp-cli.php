@@ -105,7 +105,7 @@ function cmsa_native_mcp_all_tools() {
 }
 
 wp_set_current_user( 1 );
-cmsa_native_mcp_assert( defined( 'CUA_VERSION' ) && '1.2.37' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.37 did not load.' );
+cmsa_native_mcp_assert( defined( 'CUA_VERSION' ) && '1.2.38' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.38 did not load.' );
 cmsa_native_mcp_assert( class_exists( 'CUA_MCP_Server' ), 'Chattanooga MCP server class did not load.' );
 
 $server = rest_get_server();
@@ -149,7 +149,7 @@ cmsa_native_mcp_assert( '2.0' === ( $discover_data['jsonrpc'] ?? '' ), 'Discover
 cmsa_native_mcp_assert( 101 === ( $discover_data['id'] ?? null ), 'Discovery returned the wrong request id.' );
 cmsa_native_mcp_assert( 'complete' === ( $discover_data['result']['resultType'] ?? '' ), 'Discovery omitted complete resultType.' );
 cmsa_native_mcp_assert(
-	array( '2026-07-28', '2025-11-25' ) === ( $discover_data['result']['supportedVersions'] ?? null ),
+	array( '2026-07-28', '2025-11-25', '2025-06-18' ) === ( $discover_data['result']['supportedVersions'] ?? null ),
 	'Discovery advertised an unexpected MCP protocol version.'
 );
 cmsa_native_mcp_assert(
@@ -425,5 +425,5 @@ $close_session->set_header( 'Mcp-Session-Id', $legacy_session_id );
 $close_session_response = rest_do_request( $close_session );
 cmsa_native_mcp_assert( 204 === $close_session_response->get_status(), 'Legacy MCP DELETE did not close the session.' );
 
-echo "cmsa-native-mcp: PASS version=1.2.37 protocol=2026-07-28 route=verified administrator_surface=bounded-public origin_guard=verified tools_list=bounded-deterministic oauth_scheme=verified read_call=verified header_validation=verified\n";
+echo "cmsa-native-mcp: PASS version=1.2.38 protocol=2026-07-28 route=verified administrator_surface=bounded-public origin_guard=verified tools_list=bounded-deterministic oauth_scheme=verified read_call=verified header_validation=verified\n";
 exit( 0 );

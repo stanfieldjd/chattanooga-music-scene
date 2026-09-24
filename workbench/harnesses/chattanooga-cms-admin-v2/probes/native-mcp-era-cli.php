@@ -59,7 +59,7 @@ $discover = cmsa_native_mcp_era_modern( 'server/discover' );
 $discover_data = $discover->get_data();
 $discover_headers = array_change_key_case( $discover->get_headers(), CASE_LOWER );
 cmsa_native_mcp_era_assert( 200 === $discover->get_status(), 'Modern MCP discovery failed.' );
-cmsa_native_mcp_era_assert( array( '2026-07-28', '2025-11-25' ) === ( $discover_data['result']['supportedVersions'] ?? null ), 'Discovery did not advertise both supported eras.' );
+cmsa_native_mcp_era_assert( array( '2026-07-28', '2025-11-25', '2025-06-18' ) === ( $discover_data['result']['supportedVersions'] ?? null ), 'Discovery did not advertise the supported protocol compatibility set.' );
 cmsa_native_mcp_era_assert( ! isset( $discover_headers['mcp-session-id'] ), 'Modern discovery emitted a session header.' );
 
 $list = cmsa_native_mcp_era_modern( 'tools/list', array(), 202, array( 'Mcp-Session-Id' => 'ignored-modern-session' ) );
@@ -115,100 +115,137 @@ $initialize->set_body(
 $initialize_response = rest_do_request( $initialize );
 cmsa_native_mcp_era_assert( 400 === $initialize_response->get_status() && -32022 === ( $initialize_response->get_data()['error']['code'] ?? null ), 'Modern initialize was accepted.' );
 
-$legacy = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
-$legacy->set_header( 'content-type', 'application/json' );
-$legacy->set_header( 'MCP-Protocol-Version', '2025-11-25' );
-$legacy->set_header( 'Mcp-Method', 'initialize' );
-$legacy->set_body(
-	wp_json_encode(
-		array(
-			'jsonrpc' => '2.0',
-			'id'      => 205,
-			'method'  => 'initialize',
-			'params'  => array(
-				'protocolVersion' => '2025-11-25',
+function cmsa_native_mcp_era_legacy_request( $version, $method, array $params, $id, $session_id = '' ) {
+	$request = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
+	$request->set_header( 'content-type', 'application/json' );
+	$request->set_header( 'accept', 'application/json, text/event-stream' );
+	$request->set_header( 'MCP-Protocol-Version', $version );
+	$request->set_header( 'Mcp-Method', $method );
+	if ( '' !== $session_id ) {
+		$request->set_header( 'Mcp-Session-Id', $session_id );
+	}
+	$request->set_body(
+		wp_json_encode(
+			array(
+				'jsonrpc' => '2.0',
+				'id'      => $id,
+				'method'  => $method,
+				'params'  => $params,
+			)
+		)
+	);
+	return rest_do_request( $request );
+}
+
+$legacy_versions = array( '2025-11-25', '2025-06-18' );
+$legacy_fingerprint = null;
+$id = 205;
+
+foreach ( $legacy_versions as $legacy_version ) {
+	for ( $iteration = 0; $iteration < 10; ++$iteration ) {
+		wp_cache_flush();
+		$legacy_response = cmsa_native_mcp_era_legacy_request(
+			$legacy_version,
+			'initialize',
+			array(
+				'protocolVersion' => $legacy_version,
 				'capabilities'    => array(),
-				'clientInfo'      => array( 'name' => 'cmsa-legacy-probe', 'version' => '1.0.0' ),
+				'clientInfo'      => array(
+					'name'    => 'cmsa-wordpress-compat-probe',
+					'version' => '1.0.0',
+				),
 			),
-		)
-	)
-);
-$legacy_response = rest_do_request( $legacy );
-$legacy_headers = array_change_key_case( $legacy_response->get_headers(), CASE_LOWER );
-$legacy_session = trim( (string) ( $legacy_headers['mcp-session-id'] ?? '' ) );
-cmsa_native_mcp_era_assert( 200 === $legacy_response->get_status(), 'Legacy initialize failed.' );
-$legacy_data = $legacy_response->get_data();
-cmsa_native_mcp_era_assert( '2025-11-25' === ( $legacy_data['result']['protocolVersion'] ?? '' ), 'Legacy initialize negotiated the wrong version.' );
-cmsa_native_mcp_era_assert( '' !== $legacy_session, 'Legacy initialize did not establish a session.' );
-cmsa_native_mcp_era_assert( ! array_key_exists( 'resultType', $legacy_data['result'] ?? array() ), 'Legacy initialize leaked the 2026 resultType.' );
-cmsa_native_mcp_era_assert( ! array_key_exists( 'ttlMs', $legacy_data['result'] ?? array() ), 'Legacy initialize leaked ttlMs.' );
-cmsa_native_mcp_era_assert( ! array_key_exists( 'cacheScope', $legacy_data['result'] ?? array() ), 'Legacy initialize leaked cacheScope.' );
-cmsa_native_mcp_era_assert( ! isset( $legacy_data['result']['_meta']['io.modelcontextprotocol/serverInfo'] ), 'Legacy initialize leaked 2026 serverInfo metadata.' );
+			$id++
+		);
+		$legacy_headers = array_change_key_case( $legacy_response->get_headers(), CASE_LOWER );
+		$legacy_session = trim( (string) ( $legacy_headers['mcp-session-id'] ?? '' ) );
+		$legacy_data = $legacy_response->get_data();
 
-$legacy_list = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
-$legacy_list->set_header( 'content-type', 'application/json' );
-$legacy_list->set_header( 'MCP-Protocol-Version', '2025-11-25' );
-$legacy_list->set_header( 'Mcp-Method', 'tools/list' );
-$legacy_list->set_header( 'Mcp-Session-Id', $legacy_session );
-$legacy_list->set_body(
-	wp_json_encode(
-		array(
-			'jsonrpc' => '2.0',
-			'id'      => 206,
-			'method'  => 'tools/list',
-			'params'  => array(),
-		)
-	)
-);
-$legacy_list_response = rest_do_request( $legacy_list );
-$legacy_list_headers = array_change_key_case( $legacy_list_response->get_headers(), CASE_LOWER );
-$legacy_list_data = $legacy_list_response->get_data();
-cmsa_native_mcp_era_assert( 200 === $legacy_list_response->get_status(), 'Legacy tools/list failed with a valid session.' );
-cmsa_native_mcp_era_assert( '2025-11-25' === ( $legacy_list_headers['mcp-protocol-version'] ?? '' ), 'Legacy tools/list emitted the wrong protocol-version header.' );
-cmsa_native_mcp_era_assert( is_array( $legacy_list_data['result']['tools'] ?? null ) && ! empty( $legacy_list_data['result']['tools'] ), 'Legacy tools/list returned no tools.' );
-cmsa_native_mcp_era_assert( ! array_key_exists( 'resultType', $legacy_list_data['result'] ?? array() ), 'Legacy tools/list leaked the 2026 resultType.' );
-cmsa_native_mcp_era_assert( ! array_key_exists( 'ttlMs', $legacy_list_data['result'] ?? array() ), 'Legacy tools/list leaked ttlMs.' );
-cmsa_native_mcp_era_assert( ! array_key_exists( 'cacheScope', $legacy_list_data['result'] ?? array() ), 'Legacy tools/list leaked cacheScope.' );
-cmsa_native_mcp_era_assert( ! isset( $legacy_list_data['result']['_meta']['io.modelcontextprotocol/serverInfo'] ), 'Legacy tools/list leaked 2026 serverInfo metadata.' );
+		cmsa_native_mcp_era_assert( 200 === $legacy_response->get_status(), $legacy_version . ' initialize failed.' );
+		cmsa_native_mcp_era_assert( $legacy_version === ( $legacy_data['result']['protocolVersion'] ?? '' ), $legacy_version . ' initialize was rewritten to a different version.' );
+		cmsa_native_mcp_era_assert( $legacy_version === ( $legacy_headers['mcp-protocol-version'] ?? '' ), $legacy_version . ' initialize emitted the wrong protocol header.' );
+		cmsa_native_mcp_era_assert( '' !== $legacy_session, $legacy_version . ' initialize did not establish a session.' );
+		cmsa_native_mcp_era_assert( ! array_key_exists( 'resultType', $legacy_data['result'] ?? array() ), $legacy_version . ' initialize leaked 2026 resultType.' );
+		cmsa_native_mcp_era_assert( ! array_key_exists( 'ttlMs', $legacy_data['result'] ?? array() ), $legacy_version . ' initialize leaked ttlMs.' );
+		cmsa_native_mcp_era_assert( ! array_key_exists( 'cacheScope', $legacy_data['result'] ?? array() ), $legacy_version . ' initialize leaked cacheScope.' );
 
-$legacy_list_without_session = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
-$legacy_list_without_session->set_header( 'content-type', 'application/json' );
-$legacy_list_without_session->set_header( 'MCP-Protocol-Version', '2025-11-25' );
-$legacy_list_without_session->set_header( 'Mcp-Method', 'tools/list' );
-$legacy_list_without_session->set_body(
-	wp_json_encode(
-		array(
-			'jsonrpc' => '2.0',
-			'id'      => 207,
-			'method'  => 'tools/list',
-			'params'  => array(),
-		)
-	)
-);
-$legacy_list_without_session_response = rest_do_request( $legacy_list_without_session );
-$legacy_list_without_session_headers = array_change_key_case( $legacy_list_without_session_response->get_headers(), CASE_LOWER );
-cmsa_native_mcp_era_assert( 400 === $legacy_list_without_session_response->get_status(), 'Legacy tools/list without a session was accepted.' );
-cmsa_native_mcp_era_assert( -32001 === ( $legacy_list_without_session_response->get_data()['error']['code'] ?? null ), 'Legacy tools/list without a session returned the wrong error.' );
-cmsa_native_mcp_era_assert( '2025-11-25' === ( $legacy_list_without_session_headers['mcp-protocol-version'] ?? '' ), 'Legacy session error emitted the wrong protocol-version header.' );
+		$initialized = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
+		$initialized->set_header( 'content-type', 'application/json' );
+		$initialized->set_header( 'accept', 'application/json, text/event-stream' );
+		$initialized->set_header( 'MCP-Protocol-Version', $legacy_version );
+		$initialized->set_header( 'Mcp-Method', 'notifications/initialized' );
+		$initialized->set_header( 'Mcp-Session-Id', $legacy_session );
+		$initialized->set_body(
+			wp_json_encode(
+				array(
+					'jsonrpc' => '2.0',
+					'method'  => 'notifications/initialized',
+					'params'  => array(),
+				)
+			)
+		);
+		$initialized_response = rest_do_request( $initialized );
+		cmsa_native_mcp_era_assert( 202 === $initialized_response->get_status(), $legacy_version . ' initialized notification failed.' );
 
-$legacy_discover = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
-$legacy_discover->set_header( 'content-type', 'application/json' );
-$legacy_discover->set_header( 'MCP-Protocol-Version', '2025-11-25' );
-$legacy_discover->set_header( 'Mcp-Method', 'server/discover' );
-$legacy_discover->set_header( 'Mcp-Session-Id', $legacy_session );
-$legacy_discover->set_body(
-	wp_json_encode(
-		array(
-			'jsonrpc' => '2.0',
-			'id'      => 208,
-			'method'  => 'server/discover',
-			'params'  => array(),
-		)
-	)
-);
-$legacy_discover_response = rest_do_request( $legacy_discover );
-cmsa_native_mcp_era_assert( 404 === $legacy_discover_response->get_status(), 'Legacy server/discover was accepted.' );
-cmsa_native_mcp_era_assert( -32601 === ( $legacy_discover_response->get_data()['error']['code'] ?? null ), 'Legacy server/discover returned the wrong protocol error.' );
+		wp_cache_flush();
+		$legacy_list_response = cmsa_native_mcp_era_legacy_request( $legacy_version, 'tools/list', array(), $id++, $legacy_session );
+		$legacy_list_headers = array_change_key_case( $legacy_list_response->get_headers(), CASE_LOWER );
+		$legacy_list_data = $legacy_list_response->get_data();
+		$legacy_tools = $legacy_list_data['result']['tools'] ?? null;
+		cmsa_native_mcp_era_assert( 200 === $legacy_list_response->get_status(), $legacy_version . ' tools/list failed after cache flush.' );
+		cmsa_native_mcp_era_assert( $legacy_version === ( $legacy_list_headers['mcp-protocol-version'] ?? '' ), $legacy_version . ' tools/list emitted the wrong protocol header.' );
+		cmsa_native_mcp_era_assert( is_array( $legacy_tools ) && 4 === count( $legacy_tools ), $legacy_version . ' tools/list did not expose the stable four-tool catalog.' );
+		cmsa_native_mcp_era_assert( ! array_key_exists( 'resultType', $legacy_list_data['result'] ?? array() ), $legacy_version . ' tools/list leaked 2026 resultType.' );
+		cmsa_native_mcp_era_assert( ! array_key_exists( 'ttlMs', $legacy_list_data['result'] ?? array() ), $legacy_version . ' tools/list leaked ttlMs.' );
+		cmsa_native_mcp_era_assert( ! array_key_exists( 'cacheScope', $legacy_list_data['result'] ?? array() ), $legacy_version . ' tools/list leaked cacheScope.' );
 
-echo "cmsa-native-mcp-era: PASS modern=stateless modern_headers=strict modern_projection=2026 legacy=session-required legacy_projection=2025 legacy_discover=blocked\n";
+		$fingerprint = hash( 'sha256', (string) wp_json_encode( $legacy_tools ) );
+		if ( null === $legacy_fingerprint ) {
+			$legacy_fingerprint = $fingerprint;
+		} else {
+			cmsa_native_mcp_era_assert( $legacy_fingerprint === $fingerprint, $legacy_version . ' produced a different startup tool fingerprint.' );
+		}
+	}
+}
+
+$compat_initialize = cmsa_native_mcp_era_legacy_request(
+	'2025-06-18',
+	'initialize',
+	array(
+		'protocolVersion' => '2025-06-18',
+		'capabilities'    => array(),
+		'clientInfo'      => array( 'name' => 'cmsa-version-mismatch-probe', 'version' => '1.0.0' ),
+	),
+	$id++
+);
+$compat_headers = array_change_key_case( $compat_initialize->get_headers(), CASE_LOWER );
+$compat_session = trim( (string) ( $compat_headers['mcp-session-id'] ?? '' ) );
+cmsa_native_mcp_era_assert( '' !== $compat_session, '2025-06-18 mismatch probe did not establish a session.' );
+
+$cross_version = cmsa_native_mcp_era_legacy_request( '2025-11-25', 'tools/list', array(), $id++, $compat_session );
+cmsa_native_mcp_era_assert( 400 === $cross_version->get_status(), 'A 2025-06-18 session accepted a 2025-11-25 follow-up.' );
+cmsa_native_mcp_era_assert( -32022 === ( $cross_version->get_data()['error']['code'] ?? null ), 'Cross-version legacy session mismatch returned the wrong error.' );
+
+$without_session = cmsa_native_mcp_era_legacy_request( '2025-06-18', 'tools/list', array(), $id++ );
+cmsa_native_mcp_era_assert( 400 === $without_session->get_status(), '2025-06-18 tools/list without a session was accepted.' );
+cmsa_native_mcp_era_assert( -32001 === ( $without_session->get_data()['error']['code'] ?? null ), '2025-06-18 missing-session request returned the wrong error.' );
+
+$legacy_discover = cmsa_native_mcp_era_legacy_request( '2025-06-18', 'server/discover', array(), $id++, $compat_session );
+cmsa_native_mcp_era_assert( 404 === $legacy_discover->get_status(), '2025-06-18 server/discover was accepted.' );
+cmsa_native_mcp_era_assert( -32601 === ( $legacy_discover->get_data()['error']['code'] ?? null ), '2025-06-18 server/discover returned the wrong protocol error.' );
+
+$unsupported = cmsa_native_mcp_era_legacy_request(
+	'2025-03-26',
+	'initialize',
+	array(
+		'protocolVersion' => '2025-03-26',
+		'capabilities'    => array(),
+		'clientInfo'      => array( 'name' => 'cmsa-unsupported-probe', 'version' => '1.0.0' ),
+	),
+	$id++
+);
+cmsa_native_mcp_era_assert( 400 === $unsupported->get_status(), 'Unsupported 2025-03-26 initialize was accepted.' );
+cmsa_native_mcp_era_assert( -32022 === ( $unsupported->get_data()['error']['code'] ?? null ), 'Unsupported protocol returned the wrong error.' );
+
+echo "cmsa-native-mcp-era: PASS modern=stateless legacy_2025_11=session-required legacy_2025_06=session-required reconnect_cycles=20 fingerprint=stable negotiation=exact cross_version=blocked unsupported_2025_03=blocked\n";
 exit( 0 );
