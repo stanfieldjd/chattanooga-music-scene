@@ -46,6 +46,31 @@ function cmsa_ingestion_modern_request( $route, $method, array $params = array()
 	return rest_do_request( $request );
 }
 
+function cmsa_ingestion_rejected_initialize_request() {
+	$request = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
+	$request->set_header( 'content-type', 'application/json' );
+	$request->set_header( 'user-agent', 'ChatGPT StandardProbe/1.0' );
+	$request->set_header( 'MCP-Protocol-Version', '2025-01-01' );
+	$request->set_header( 'Mcp-Method', 'initialize' );
+	$request->set_header( 'authorization', 'Bearer trace-secret-sentinel' );
+	$request->set_body(
+		wp_json_encode(
+			array(
+				'jsonrpc' => '2.0',
+				'id'      => 799,
+				'method'  => 'initialize',
+				'params'  => array(
+					'protocolVersion' => '2025-01-01',
+					'_meta' => array(
+						'io.modelcontextprotocol/clientInfo' => array( 'name' => 'standard-probe', 'version' => '9.9' ),
+					),
+				),
+			)
+		)
+	);
+	return rest_do_request( $request );
+}
+
 wp_set_current_user( 1 );
 
 cmsa_ingestion_assert( defined( 'CUA_VERSION' ) && '1.2.38' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.38 did not load.' );
@@ -79,7 +104,38 @@ cmsa_ingestion_assert( is_array( $stability ) && true === ( $stability['serverCa
 cmsa_ingestion_assert( (int) $catalog['toolCount'] === (int) ( $stability['serverToolCount'] ?? -1 ), 'Stability tool reported the wrong core tool count.' );
 cmsa_ingestion_assert( (string) $catalog['toolFingerprint'] === (string) ( $stability['serverToolFingerprint'] ?? '' ), 'Stability tool reported the wrong core tool fingerprint.' );
 cmsa_ingestion_assert( true === ( $stability['latestMainDiscoveryMatches'] ?? false ), 'Stability tool did not match the latest main tools/list observation.' );
-cmsa_ingestion_assert( false !== strpos( (string) ( $stability['scope'] ?? '' ), 'cannot prove that ChatGPT' ), 'Stability tool did not state its client-registry limitation.' );
+cmsa_ingestion_assert( false !== strpos( (string) ( $stability['scope'] ?? '' ), 'Presence proves the request reached this handler' ), 'Stability tool did not explain what request traces prove.' );
+
+$rejected_initialize = cmsa_ingestion_rejected_initialize_request();
+cmsa_ingestion_assert( 400 === $rejected_initialize->get_status(), 'Unsupported initialize request was not rejected as expected.' );
+$rejected_data = $rejected_initialize->get_data();
+cmsa_ingestion_assert( '-32022' === (string) ( $rejected_data['error']['code'] ?? '' ), 'Unsupported initialize request returned the wrong MCP error.' );
+$request_trace = CUA_Audit::read_mcp_request_trace( 20 );
+cmsa_ingestion_assert( ! is_wp_error( $request_trace ), 'MCP request trace could not be read.' );
+$request_entries = $request_trace['entries'] ?? array();
+$rejected_entry = null;
+foreach ( $request_entries as $entry ) {
+	if ( is_array( $entry ) && 'standard-probe' === ( $entry['client_info_name'] ?? '' ) ) {
+		$rejected_entry = $entry;
+		break;
+	}
+}
+cmsa_ingestion_assert( is_array( $rejected_entry ), 'Rejected initialize request is missing from the request trace.' );
+cmsa_ingestion_assert( 'initialize' === ( $rejected_entry['mcp_method'] ?? '' ), 'Trace did not capture the MCP method.' );
+cmsa_ingestion_assert( 'initialize' === ( $rejected_entry['mcp_method_header'] ?? '' ), 'Trace did not capture the MCP-Method header.' );
+cmsa_ingestion_assert( '2025-01-01' === ( $rejected_entry['protocol_version_header'] ?? '' ), 'Trace did not capture the protocol header.' );
+cmsa_ingestion_assert( '2025-01-01' === ( $rejected_entry['protocol_version_body'] ?? '' ), 'Trace did not capture the protocol body version.' );
+cmsa_ingestion_assert( 400 === (int) ( $rejected_entry['http_status'] ?? 0 ), 'Trace did not capture the rejected HTTP status.' );
+cmsa_ingestion_assert( '-32022' === (string) ( $rejected_entry['jsonrpc_error_code'] ?? '' ), 'Trace did not capture the MCP error code.' );
+cmsa_ingestion_assert( 'ChatGPT StandardProbe/1.0' === ( $rejected_entry['user_agent'] ?? '' ), 'Trace did not capture the client user-agent.' );
+cmsa_ingestion_assert( true === ( $rejected_entry['authorization_present'] ?? false ), 'Trace did not record that authorization was present.' );
+$serialized_trace = wp_json_encode( $request_entries );
+cmsa_ingestion_assert( false === strpos( (string) $serialized_trace, 'trace-secret-sentinel' ), 'Trace retained an authorization secret.' );
+cmsa_ingestion_assert( ! array_key_exists( 'request_body', $rejected_entry ) && ! array_key_exists( 'response_body', $rejected_entry ), 'Trace retained a raw request or response body.' );
+$request_stability = CUA_MCP_Diagnostics::stability_report( array( 'limit' => 20 ) );
+cmsa_ingestion_assert( true === ( $request_stability['requestTraceReadable'] ?? false ), 'Stability report cannot read the request trace.' );
+cmsa_ingestion_assert( (int) ( $request_stability['requestTraceCount'] ?? 0 ) > 0, 'Stability report omitted all request traces.' );
+cmsa_ingestion_assert( is_array( $request_stability['recentRequests'] ?? null ), 'Stability report omitted the recent request list.' );
 
 $canary_discover = cmsa_ingestion_modern_request( '/chattanooga-cms-admin/v1' . CUA_MCP_Diagnostics::CANARY_ROUTE, 'server/discover', array(), 703 );
 cmsa_ingestion_assert( 200 === $canary_discover->get_status(), 'Canary server/discover failed.' );
