@@ -632,7 +632,7 @@ final class CMS_Weekend_Posts {
 			return $content;
 		}
 
-		if ( false !== strpos( $content, '[cms_weekend_feature]' ) ) {
+		if ( false !== strpos( $content, '[cms_weekend_feature]' ) || false !== strpos( $content, 'cms-weekend-scene-feature' ) ) {
 			return $content;
 		}
 
