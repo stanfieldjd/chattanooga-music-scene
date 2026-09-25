@@ -277,6 +277,16 @@ cmsa_native_mcp_surface_assert(
 	! is_wp_error( $catalog_result ) && is_array( $catalog_result['items'] ?? null ) && ! empty( $catalog_result['items'] ),
 	'Universal capability catalog did not preserve access to hidden provider contracts.'
 );
+$catalog_targets = array();
+foreach ( $catalog_result['items'] as $catalog_item ) {
+	if ( is_array( $catalog_item ) && isset( $catalog_item['target'] ) ) {
+		$catalog_targets[] = (string) $catalog_item['target'];
+	}
+}
+cmsa_native_mcp_surface_assert(
+	in_array( 'chattanooga-cms-admin/authorize-plugin-package', $catalog_targets, true ),
+	'One-time plugin package authorization ability is not exposed through MCP discovery.'
+);
 
 echo 'cmsa-native-mcp-admin-surface: PASS registered=' . $registered_count . ' public_exposed=' . count( $names ) . ' hidden_facades=' . count( $hidden_facades ) . " administrator_surface=bounded catalog=available\n";
 exit( 0 );
