@@ -340,6 +340,39 @@ final class CMS_Weekend_Posts {
 		return $this->build_post_content( $events, $window );
 	}
 
+	private function scene_glimpse_events( array $events, array $window ) {
+		$days = array();
+
+		foreach ( $events as $event ) {
+			$start = $this->event_start( $event );
+			if ( ! $start || $start < $window['start'] || $start > $window['end'] ) {
+				continue;
+			}
+
+			$day = $start->format( 'Y-m-d' );
+			if ( ! isset( $days[ $day ] ) ) {
+				$days[ $day ] = $event;
+			}
+		}
+
+		ksort( $days, SORT_STRING );
+		return array_slice( array_values( $days ), 0, 3 );
+	}
+
+	private function scene_glimpse_content( array $window ) {
+		$events = $this->get_events( $window );
+		if ( is_wp_error( $events ) ) {
+			return $events;
+		}
+
+		$glimpse = $this->scene_glimpse_events( $events, $window );
+		if ( empty( $glimpse ) ) {
+			return '';
+		}
+
+		return $this->build_post_content( $glimpse, $window );
+	}
+
 	private function post_title( array $window ) {
 		$start = $window['start'];
 		$end   = $window['end'];
@@ -484,8 +517,8 @@ final class CMS_Weekend_Posts {
 
 		wp_enqueue_style( 'cms-weekend-guide', CMS_CORE_URL . 'assets/weekend-guide.css', array(), '0.2.0' );
 
-		$live_content = $this->live_weekend_content( $window );
-		$guide        = is_wp_error( $live_content ) ? do_shortcode( get_post_field( 'post_content', $post_id ) ) : $live_content;
+		$glimpse_content = $this->scene_glimpse_content( $window );
+		$guide           = is_wp_error( $glimpse_content ) || '' === $glimpse_content ? do_shortcode( get_post_field( 'post_content', $post_id ) ) : $glimpse_content;
 
 		return sprintf(
 			'<section class="cms-weekend-scene-feature" aria-labelledby="cms-weekend-feature-title"><header><p class="cms-weekend-feature-kicker">%1$s</p><h2 id="cms-weekend-feature-title"><a href="%2$s">%3$s</a></h2></header>%4$s</section>',
