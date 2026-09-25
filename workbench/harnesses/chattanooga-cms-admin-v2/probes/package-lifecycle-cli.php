@@ -8,11 +8,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 wp_set_current_user( 1 );
 
 $install_plugin         = wp_get_ability( 'chattanooga-cms-admin/install-plugin' );
+$authorize_plugin_package = wp_get_ability( 'chattanooga-cms-admin/authorize-plugin-package' );
 $install_plugin_package = wp_get_ability( 'chattanooga-cms-admin/install-plugin-package' );
 $install_theme          = wp_get_ability( 'chattanooga-cms-admin/install-theme' );
 $activate_plugin        = wp_get_ability( 'chattanooga-cms-admin/activate-plugin' );
 $deactivate_plugin      = wp_get_ability( 'chattanooga-cms-admin/deactivate-plugin' );
 if ( ! $install_plugin instanceof WP_Ability
+	|| ! $authorize_plugin_package instanceof WP_Ability
 	|| ! $install_plugin_package instanceof WP_Ability
 	|| ! $install_theme instanceof WP_Ability
 	|| ! $activate_plugin instanceof WP_Ability
@@ -137,14 +139,17 @@ if ( false === $plugin_bytes || '' === $plugin_bytes ) {
 	exit( 1 );
 }
 $plugin_sha256 = hash( 'sha256', $plugin_bytes );
-$trusted_package_filter = static function ( $allowlist, $plugin, $version ) use ( $plugin_file, $plugin_sha256 ) {
-	$identity = (string) $plugin . '@' . (string) $version;
-	if ( $identity === $plugin_file . '@3.2.1' ) {
-		$allowlist[ $identity ] = array( $plugin_sha256 );
-	}
-	return $allowlist;
-};
-add_filter( 'chattanooga_cms_admin_trusted_package_digests', $trusted_package_filter, 10, 3 );
+$trust = $authorize_plugin_package->execute(
+	array(
+		'plugin'  => $plugin_file,
+		'version' => '3.2.1',
+		'sha256'  => $plugin_sha256,
+	)
+);
+if ( is_wp_error( $trust ) || empty( $trust['trusted'] ) || 1 !== (int) ( $trust['uses_left'] ?? 0 ) ) {
+	fwrite( STDERR, "Exact plugin package trust authorization failed.\n" );
+	exit( 1 );
+}
 $custom_input = array(
 	'content_base64'   => base64_encode( $plugin_bytes ),
 	'expected_sha256'  => $plugin_sha256,
@@ -213,6 +218,7 @@ if ( ! is_wp_error( $theme_repeat ) || 'cmsa_theme_already_installed' !== $theme
 
 wp_set_current_user( 0 );
 if ( false !== $install_plugin->check_permissions( array( 'slug' => $plugin_slug ) )
+	|| false !== $authorize_plugin_package->check_permissions( array( 'plugin' => $plugin_file, 'version' => '3.2.1', 'sha256' => $plugin_sha256 ) )
 	|| false !== $install_plugin_package->check_permissions( $custom_input )
 	|| false !== $install_theme->check_permissions( array( 'slug' => $theme_slug ) )
 	|| false !== $activate_plugin->check_permissions( array( 'plugin' => $plugin_file ) )
@@ -224,7 +230,6 @@ wp_set_current_user( 1 );
 
 remove_filter( 'plugins_api', $plugin_api_filter, 10 );
 remove_filter( 'themes_api', $theme_api_filter, 10 );
-remove_filter( 'chattanooga_cms_admin_trusted_package_digests', $trusted_package_filter, 10 );
 
 $plugin_cleanup = delete_plugins( array( $plugin_file ) );
 $theme_cleanup = delete_theme( $theme_slug );
