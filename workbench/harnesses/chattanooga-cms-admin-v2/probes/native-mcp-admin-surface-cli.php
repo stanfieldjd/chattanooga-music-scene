@@ -161,6 +161,37 @@ if ( function_exists( 'unregister_setting' ) ) {
 	unregister_setting( 'general', $secret_setting );
 }
 
+// Optional REST arguments with null defaults must remain omitted when the caller
+// does not supply them. Injecting null before validation breaks valid collection reads.
+register_rest_route(
+	'cmsa-redteam/v1',
+	'/optional-null',
+	array(
+		'methods'             => 'GET',
+		'callback'            => static function ( WP_REST_Request $request ) {
+			return rest_ensure_response(
+				array(
+					'has_optional' => null !== $request->get_param( 'optional' ),
+				)
+			);
+		},
+		'permission_callback' => static function () { return true; },
+		'args'                => array(
+			'optional' => array(
+				'type'    => 'string',
+				'default' => null,
+			),
+		),
+	)
+);
+CUA_REST_Bridge::register_external_bridges();
+$optional_route = '/cmsa-redteam/v1/optional-null';
+$optional_bridge = 'chattanooga-cms-admin/rest-' . substr( hash( 'sha256', 'GET|' . $optional_route ), 0, 24 );
+$optional_result = CUA_REST_Bridge::execute_bridge( $optional_bridge, array( 'path' => $optional_route ) );
+cmsa_native_mcp_surface_assert( ! is_wp_error( $optional_result ), 'REST bridge rejected an omitted optional argument with a null default.' );
+cmsa_native_mcp_surface_assert( 200 === ( $optional_result['status'] ?? 0 ), 'REST bridge optional-null regression returned the wrong status.' );
+cmsa_native_mcp_surface_assert( false === ( $optional_result['data']['has_optional'] ?? null ), 'REST bridge injected an omitted null-default argument.' );
+
 $catalog = wp_get_ability( 'chattanooga-cms-admin/catalog' );
 cmsa_native_mcp_surface_assert( $catalog instanceof WP_Ability, 'Universal capability catalog is unavailable.' );
 $catalog_result = $catalog->execute( array() );
