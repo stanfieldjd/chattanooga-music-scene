@@ -69,7 +69,7 @@ function cmsa_v2_coverage_rest_route_is_bridgeable( $route_regex ) {
 	}
 
 	return true;
-
+}
 
 add_action(
 	'wp_abilities_api_init',
