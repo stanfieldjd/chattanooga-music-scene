@@ -10,6 +10,7 @@ final class CUA_Audit {
 	const MAX_READ = 500;
 	const MAX_OAUTH_TRACE_READ = 100;
 	const MAX_MCP_DIAGNOSTIC_READ = 100;
+	const MAX_MCP_REQUEST_TRACE = 100;
 
 	private static $pending = array();
 
@@ -211,6 +212,101 @@ final class CUA_Audit {
 		}
 
 		return self::append( $sanitized );
+	}
+
+	/**
+	 * Store a bounded MCP ingress trace without retaining request or response
+	 * bodies, authorization values, session identifiers, or raw request IDs.
+	 *
+	 * @param array $entry Allowlisted request/response metadata.
+	 * @return bool Whether the trace entry was written.
+	 */
+	public static function log_mcp_request_trace( array $entry ) {
+		$allowed = array(
+			'time', 'http_method', 'mcp_method', 'mcp_method_header', 'mcp_name_header',
+			'tool', 'protocol_version_header', 'protocol_version_body', 'protocol_version_meta',
+			'client_info_name', 'client_info_version', 'client_class', 'user_agent', 'origin',
+			'content_type', 'accept', 'authorization_present', 'auth_scheme', 'request_bytes',
+			'request_sha256', 'request_id_sha256', 'http_status', 'outcome', 'error_code',
+			'jsonrpc_error_code', 'duration_ms',
+		);
+		$sanitized = array( 'surface' => 'mcp_request_trace' );
+		foreach ( $allowed as $key ) {
+			if ( array_key_exists( $key, $entry ) ) {
+				$sanitized[ $key ] = $entry[ $key ];
+			}
+		}
+		$sanitized['time'] = isset( $sanitized['time'] ) ? sanitize_text_field( (string) $sanitized['time'] ) : gmdate( 'c' );
+		foreach ( array( 'http_method', 'mcp_method', 'mcp_method_header', 'mcp_name_header', 'tool', 'protocol_version_header', 'protocol_version_body', 'protocol_version_meta', 'client_info_name', 'client_info_version', 'client_class', 'user_agent', 'origin', 'content_type', 'accept', 'auth_scheme', 'outcome', 'error_code', 'jsonrpc_error_code' ) as $key ) {
+			if ( isset( $sanitized[ $key ] ) ) {
+				$sanitized[ $key ] = substr( sanitize_text_field( (string) $sanitized[ $key ] ), 0, 191 );
+			}
+		}
+		foreach ( array( 'request_bytes', 'http_status', 'duration_ms' ) as $key ) {
+			if ( isset( $sanitized[ $key ] ) ) {
+				$sanitized[ $key ] = max( 0, (int) $sanitized[ $key ] );
+			}
+		}
+		if ( isset( $sanitized['authorization_present'] ) ) {
+			$sanitized['authorization_present'] = (bool) $sanitized['authorization_present'];
+		}
+		foreach ( array( 'request_sha256', 'request_id_sha256' ) as $key ) {
+			if ( isset( $sanitized[ $key ] ) ) {
+				$sanitized[ $key ] = preg_match( '/^[a-f0-9]{64}$/', (string) $sanitized[ $key ] ) ? (string) $sanitized[ $key ] : '';
+			}
+		}
+
+		$path = CUA_Local_Storage::path( 'mcp-request-trace.jsonl', 'audit' );
+		if ( is_wp_error( $path ) ) {
+			return false;
+		}
+		$encoded = wp_json_encode( $sanitized, JSON_UNESCAPED_SLASHES );
+		if ( ! is_string( $encoded ) ) {
+			return false;
+		}
+		$handle = @fopen( $path, 'c+' );
+		if ( false === $handle || ! flock( $handle, LOCK_EX ) ) {
+			if ( is_resource( $handle ) ) { fclose( $handle ); }
+			return false;
+		}
+		$lines = array();
+		rewind( $handle );
+		while ( false !== ( $line = fgets( $handle ) ) ) {
+			$line = trim( $line );
+			if ( '' !== $line ) { $lines[] = $line; }
+		}
+		$lines[] = $encoded;
+		$lines = array_slice( $lines, -self::MAX_MCP_REQUEST_TRACE );
+		rewind( $handle );
+		ftruncate( $handle, 0 );
+		$written = false !== fwrite( $handle, implode( "\n", $lines ) . "\n" );
+		fflush( $handle );
+		flock( $handle, LOCK_UN );
+		fclose( $handle );
+		return $written;
+	}
+
+	/** Read newest-first bounded MCP ingress evidence. */
+	public static function read_mcp_request_trace( $limit = 25 ) {
+		$limit = max( 1, min( self::MAX_MCP_REQUEST_TRACE, (int) $limit ) );
+		$path = CUA_Local_Storage::path( 'mcp-request-trace.jsonl', 'audit' );
+		if ( is_wp_error( $path ) ) {
+			return $path;
+		}
+		if ( ! is_file( $path ) ) {
+			return array( 'entries' => array() );
+		}
+		$file = new SplFileObject( $path, 'rb' );
+		$entries = array();
+		while ( ! $file->eof() ) {
+			$line = trim( (string) $file->fgets() );
+			if ( '' === $line ) { continue; }
+			$entry = json_decode( $line, true );
+			if ( ! is_array( $entry ) || 'mcp_request_trace' !== ( $entry['surface'] ?? '' ) ) { continue; }
+			$entries[] = $entry;
+			if ( count( $entries ) > $limit ) { array_shift( $entries ); }
+		}
+		return array( 'entries' => array_reverse( $entries ) );
 	}
 
 	/**
