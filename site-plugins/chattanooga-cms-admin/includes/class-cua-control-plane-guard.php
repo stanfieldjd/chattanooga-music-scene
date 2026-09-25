@@ -11,6 +11,22 @@ final class CUA_Control_Plane_Guard {
 			return true;
 		}
 
+		$route = untrailingslashit( (string) $request->get_route() );
+		if ( 'DELETE' === $method && '/wp/v2/users/me' === $route ) {
+			return new WP_Error(
+				'cmsa_high_impact_route_blocked',
+				'The current WordPress account cannot be deleted through the MCP REST bridge.'
+			);
+		}
+		if ( in_array( $method, array( 'POST', 'DELETE' ), true )
+			&& preg_match( '#^/wp/v[0-9]+/users/(?:[0-9]+|me)/application-passwords(?:/[^/]+)?$#i', $route )
+		) {
+			return new WP_Error(
+				'cmsa_high_impact_route_blocked',
+				'WordPress application-password credentials cannot be created or revoked through the MCP REST bridge.'
+			);
+		}
+
 		$identity = self::identity();
 		$plugin = isset( $request['plugin'] ) ? self::normalize_plugin_file( $request['plugin'] ) : '';
 		$slug = isset( $request['slug'] ) ? sanitize_key( (string) $request['slug'] ) : '';
@@ -86,3 +102,4 @@ final class CUA_Control_Plane_Guard {
 		return $candidates;
 	}
 }
+

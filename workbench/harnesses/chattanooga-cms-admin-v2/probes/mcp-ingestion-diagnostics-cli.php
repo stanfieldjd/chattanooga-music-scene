@@ -73,10 +73,28 @@ function cmsa_ingestion_rejected_initialize_request() {
 
 wp_set_current_user( 1 );
 
-cmsa_ingestion_assert( defined( 'CUA_VERSION' ) && '1.2.38' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.38 did not load.' );
+cmsa_ingestion_assert( defined( 'CUA_VERSION' ) && '1.2.39' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.39 did not load.' );
 cmsa_ingestion_assert( class_exists( 'CUA_MCP_Diagnostics' ), 'MCP diagnostics class did not load.' );
 cmsa_ingestion_assert( class_exists( 'CUA_MCP_Server' ), 'MCP server class did not load.' );
 cmsa_ingestion_assert( class_exists( 'CUA_Audit' ), 'Audit class did not load.' );
+cmsa_ingestion_assert( class_exists( 'CUA_Control_Plane_Guard' ), 'Control-plane guard did not load.' );
+
+$blocked_routes = array(
+	array( 'POST', '/wp/v2/users/me/application-passwords' ),
+	array( 'POST', '/wp/v2/users/1/application-passwords' ),
+	array( 'DELETE', '/wp/v2/users/me/application-passwords/01234567-89ab-cdef-0123-456789abcdef' ),
+	array( 'DELETE', '/wp/v2/users/me' ),
+);
+foreach ( $blocked_routes as $blocked_route ) {
+	$request = new WP_REST_Request( $blocked_route[0], $blocked_route[1] );
+	$decision = CUA_Control_Plane_Guard::validate_rest_request( $request, $blocked_route[0] );
+	cmsa_ingestion_assert( is_wp_error( $decision ), 'High-impact REST route was not denied: ' . $blocked_route[0] . ' ' . $blocked_route[1] );
+	cmsa_ingestion_assert( 'cmsa_high_impact_route_blocked' === $decision->get_error_code(), 'High-impact REST route returned the wrong denial code.' );
+}
+$allowed_password_read = new WP_REST_Request( 'GET', '/wp/v2/users/me/application-passwords' );
+cmsa_ingestion_assert( true === CUA_Control_Plane_Guard::validate_rest_request( $allowed_password_read, 'GET' ), 'Read-only application-password listing was unexpectedly blocked.' );
+$allowed_post_write = new WP_REST_Request( 'POST', '/wp/v2/posts' );
+cmsa_ingestion_assert( true === CUA_Control_Plane_Guard::validate_rest_request( $allowed_post_write, 'POST' ), 'Ordinary REST writes were unexpectedly blocked by the high-impact policy.' );
 
 $catalog = CUA_MCP_Diagnostics::catalog_report( true );
 cmsa_ingestion_assert( (int) ( $catalog['toolCount'] ?? 0 ) > 0, 'Diagnostic catalog is empty.' );
@@ -134,10 +152,45 @@ cmsa_ingestion_assert( true === ( $rejected_entry['authorization_present'] ?? fa
 $serialized_trace = wp_json_encode( $request_entries );
 cmsa_ingestion_assert( false === strpos( (string) $serialized_trace, 'trace-secret-sentinel' ), 'Trace retained an authorization secret.' );
 cmsa_ingestion_assert( ! array_key_exists( 'request_body', $rejected_entry ) && ! array_key_exists( 'response_body', $rejected_entry ), 'Trace retained a raw request or response body.' );
+$gateway_discovery_call = cmsa_ingestion_modern_request(
+	'/chattanooga-cms-admin/v1/mcp',
+	'tools/call',
+	array( 'name' => 'cmsa.discovery', 'arguments' => array( 'cursor' => 0, 'limit' => 100 ) ),
+	707
+);
+cmsa_ingestion_assert( 200 === $gateway_discovery_call->get_status(), 'Gateway discovery tools/call failed.' );
+$gateway_discovery = $gateway_discovery_call->get_data()['result']['structuredContent'] ?? null;
+cmsa_ingestion_assert( is_array( $gateway_discovery ), 'Gateway discovery did not return structured catalog data.' );
+$environment_bridge = '';
+foreach ( $gateway_discovery['catalogGateway']['items'] ?? array() as $item ) {
+	if ( is_array( $item ) && 'core/get-environment-info' === ( $item['target'] ?? '' ) ) {
+		$environment_bridge = (string) ( $item['bridge'] ?? '' );
+		break;
+	}
+}
+cmsa_ingestion_assert( '' !== $environment_bridge, 'Read-only environment bridge was not found in gateway discovery.' );
+$gateway_read_call = cmsa_ingestion_modern_request(
+	'/chattanooga-cms-admin/v1/mcp',
+	'tools/call',
+	array( 'name' => 'cmsa.read-bridge', 'arguments' => array( 'bridge' => $environment_bridge, 'input' => array() ) ),
+	708
+);
+cmsa_ingestion_assert( 200 === $gateway_read_call->get_status(), 'Gateway read-bridge tools/call failed.' );
+cmsa_ingestion_assert( false === ( $gateway_read_call->get_data()['result']['isError'] ?? true ), 'Gateway read-bridge returned a tool error.' );
+
 $request_stability = CUA_MCP_Diagnostics::stability_report( array( 'limit' => 20 ) );
 cmsa_ingestion_assert( true === ( $request_stability['requestTraceReadable'] ?? false ), 'Stability report cannot read the request trace.' );
 cmsa_ingestion_assert( (int) ( $request_stability['requestTraceCount'] ?? 0 ) > 0, 'Stability report omitted all request traces.' );
 cmsa_ingestion_assert( is_array( $request_stability['recentRequests'] ?? null ), 'Stability report omitted the recent request list.' );
+$observation_counts = $request_stability['observationCounts'] ?? array();
+cmsa_ingestion_assert( (int) ( $observation_counts['mainToolsList'] ?? 0 ) >= 1, 'Main tools/list count omitted actual tools/list exchanges.' );
+cmsa_ingestion_assert( false !== strpos( (string) ( $request_stability['observationCountsScope'] ?? '' ), 'do not prove a client requested or ingested tools/list' ), 'Stability scope did not distinguish tool calls from tools/list ingestion.' );
+cmsa_ingestion_assert( (int) ( $request_stability['observationCountsWindow']['requestTraceEntries'] ?? 0 ) > 0, 'Stability report omitted the request-trace observation window.' );
+cmsa_ingestion_assert( 1 === (int) ( $observation_counts['mainDiscoveryCalls'] ?? 0 ), 'Main discovery tool call was not counted from the request trace.' );
+cmsa_ingestion_assert( 1 === (int) ( $observation_counts['mainReadBridgeCalls'] ?? 0 ), 'Main read-bridge tool call was not counted from the request trace.' );
+cmsa_ingestion_assert( (int) ( $observation_counts['mainStabilityCheckCalls'] ?? 0 ) >= 1, 'Main stability-check tool call was not counted from the request trace.' );
+cmsa_ingestion_assert( 0 === (int) ( $observation_counts['mainWriteBridgeCalls'] ?? -1 ), 'A write-bridge call was counted even though none was issued.' );
+cmsa_ingestion_assert( (int) ( $observation_counts['mainSuccessfulToolCalls'] ?? 0 ) >= 3, 'Successful MCP tool calls were not distinguished in the request trace.' );
 
 $canary_discover = cmsa_ingestion_modern_request( '/chattanooga-cms-admin/v1' . CUA_MCP_Diagnostics::CANARY_ROUTE, 'server/discover', array(), 703 );
 cmsa_ingestion_assert( 200 === $canary_discover->get_status(), 'Canary server/discover failed.' );
@@ -234,3 +287,4 @@ echo 'cmsa-mcp-ingestion-diagnostics: PASS tools=' . (int) $catalog['toolCount']
 	. ' trace=secret-free'
 	. "\n";
 exit( 0 );
+
