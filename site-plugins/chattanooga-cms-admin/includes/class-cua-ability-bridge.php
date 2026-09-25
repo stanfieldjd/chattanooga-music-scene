@@ -487,7 +487,7 @@ final class CUA_Ability_Bridge {
 
 	private static function is_bridgeable( WP_Ability $ability ) {
 		$name = $ability->get_name();
-		if ( 0 === strpos( $name, self::NAMESPACE_PREFIX ) ) {
+		if ( 0 === strpos( $name, self::NAMESPACE_PREFIX ) && ! in_array( $name, self::internal_admin_ability_names(), true ) ) {
 			return false;
 		}
 
@@ -497,6 +497,55 @@ final class CUA_Ability_Bridge {
 		}
 
 		return true === ( $meta['public'] ?? false );
+	}
+
+	/**
+	 * First-party administration abilities intentionally reachable through the
+	 * stable discovery/read-bridge/write-bridge gateway. MCP transport,
+	 * diagnostics, catalog, and adapter internals are deliberately excluded so
+	 * startup exposure stays fixed and bridge registration cannot recurse.
+	 *
+	 * @return string[]
+	 */
+	private static function internal_admin_ability_names() {
+		$short_names = array(
+			'activate-plugin',
+			'clear-cache',
+			'create-backup',
+			'deactivate-plugin',
+			'delete-plugin',
+			'delete-theme',
+			'get-audit-log',
+			'get-health',
+			'get-registered-setting',
+			'install-plugin',
+			'install-plugin-package',
+			'install-theme',
+			'list-backups',
+			'list-plugins',
+			'list-registered-settings',
+			'list-themes',
+			'list-updates',
+			'restore-component-backup',
+			'restore-core-backup',
+			'restore-database-backup',
+			'set-plugin-auto-update',
+			'set-theme-auto-update',
+			'switch-theme',
+			'uninstall-plugin',
+			'update-core',
+			'update-plugin',
+			'update-registered-setting',
+			'update-theme',
+			'verify-backup',
+		);
+
+		return array_map(
+			static function ( $short_name ) {
+				return self::NAMESPACE_PREFIX . $short_name;
+			},
+			$short_names
+		);
 	}
 
 	private static function bridge_name( $target_name ) {
