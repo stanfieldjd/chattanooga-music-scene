@@ -50,6 +50,27 @@ function cmsa_v2_coverage_rest_methods( $handler ) {
 	return $methods;
 }
 
+function cmsa_v2_coverage_rest_route_is_bridgeable( $route_regex ) {
+	$route_regex = untrailingslashit( (string) $route_regex );
+
+	if ( '/wp/v2/settings' === $route_regex ) {
+		return false;
+	}
+
+	if ( 0 === strpos( $route_regex, '/chattanooga-cms-admin/v1' )
+		|| 0 === strpos( $route_regex, '/mcp/' )
+		|| 0 === strpos( $route_regex, '/oauth/v1' )
+	) {
+		return false;
+	}
+
+	if ( 0 === strpos( $route_regex, '/wp/v' ) && false !== strpos( $route_regex, '/application-passwords' ) ) {
+		return false;
+	}
+
+	return true;
+
+
 add_action(
 	'wp_abilities_api_init',
 	static function () {
@@ -213,7 +234,7 @@ if ( ! $server instanceof WP_REST_Server ) {
 }
 $expected_rest_bridges = array();
 foreach ( $server->get_routes() as $route_regex => $handlers ) {
-	if ( ! is_string( $route_regex ) || ! is_array( $handlers ) ) {
+	if ( ! is_string( $route_regex ) || ! is_array( $handlers ) || ! cmsa_v2_coverage_rest_route_is_bridgeable( $route_regex ) ) {
 		continue;
 	}
 	foreach ( $handlers as $handler ) {
