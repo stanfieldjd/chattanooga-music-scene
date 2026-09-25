@@ -224,11 +224,11 @@ final class CUA_Audit {
 	public static function log_mcp_request_trace( array $entry ) {
 		$allowed = array(
 			'time', 'http_method', 'mcp_method', 'mcp_method_header', 'mcp_name_header',
-			'tool', 'protocol_version_header', 'protocol_version_body', 'protocol_version_meta',
+			'tool', 'protocol_version_header', 'protocol_version_body', 'protocol_version_meta', 'response_protocol_version',
 			'client_info_name', 'client_info_version', 'client_class', 'user_agent', 'origin',
 			'content_type', 'accept', 'authorization_present', 'auth_scheme', 'request_bytes',
 			'request_sha256', 'request_id_sha256', 'http_status', 'outcome', 'error_code',
-			'jsonrpc_error_code', 'duration_ms',
+			'jsonrpc_error_code', 'response_session_present', 'duration_ms',
 		);
 		$sanitized = array( 'surface' => 'mcp_request_trace' );
 		foreach ( $allowed as $key ) {
@@ -237,7 +237,7 @@ final class CUA_Audit {
 			}
 		}
 		$sanitized['time'] = isset( $sanitized['time'] ) ? sanitize_text_field( (string) $sanitized['time'] ) : gmdate( 'c' );
-		foreach ( array( 'http_method', 'mcp_method', 'mcp_method_header', 'mcp_name_header', 'tool', 'protocol_version_header', 'protocol_version_body', 'protocol_version_meta', 'client_info_name', 'client_info_version', 'client_class', 'user_agent', 'origin', 'content_type', 'accept', 'auth_scheme', 'outcome', 'error_code', 'jsonrpc_error_code' ) as $key ) {
+		foreach ( array( 'http_method', 'mcp_method', 'mcp_method_header', 'mcp_name_header', 'tool', 'protocol_version_header', 'protocol_version_body', 'protocol_version_meta', 'response_protocol_version', 'client_info_name', 'client_info_version', 'client_class', 'user_agent', 'origin', 'content_type', 'accept', 'auth_scheme', 'outcome', 'error_code', 'jsonrpc_error_code' ) as $key ) {
 			if ( isset( $sanitized[ $key ] ) ) {
 				$sanitized[ $key ] = substr( sanitize_text_field( (string) $sanitized[ $key ] ), 0, 191 );
 			}
@@ -247,8 +247,10 @@ final class CUA_Audit {
 				$sanitized[ $key ] = max( 0, (int) $sanitized[ $key ] );
 			}
 		}
-		if ( isset( $sanitized['authorization_present'] ) ) {
-			$sanitized['authorization_present'] = (bool) $sanitized['authorization_present'];
+		foreach ( array( 'authorization_present', 'response_session_present' ) as $key ) {
+			if ( isset( $sanitized[ $key ] ) ) {
+				$sanitized[ $key ] = (bool) $sanitized[ $key ];
+			}
 		}
 		foreach ( array( 'request_sha256', 'request_id_sha256' ) as $key ) {
 			if ( isset( $sanitized[ $key ] ) ) {
