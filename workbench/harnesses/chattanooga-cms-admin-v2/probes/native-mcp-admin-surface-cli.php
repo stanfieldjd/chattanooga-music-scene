@@ -156,6 +156,18 @@ $settings_result = $settings_ability->execute( array( 'setting' => $secret_setti
 cmsa_native_mcp_surface_assert( ! is_wp_error( $settings_result ), 'Registered-setting inspection failed.' );
 cmsa_native_mcp_surface_assert( ! array_key_exists( 'value', $settings_result ), 'Generic setting inspection disclosed a stored value.' );
 cmsa_native_mcp_surface_assert( false === ( $settings_result['value_exposed'] ?? null ), 'Generic setting inspection reported a stored value as exposed.' );
+
+// The raw core settings endpoint must not be bridged because it can expose
+// stored provider credentials that the dedicated settings abilities suppress.
+$raw_settings_route = '/wp/v2/settings';
+$raw_settings_bridge = 'chattanooga-cms-admin/rest-' . substr( hash( 'sha256', 'GET|' . $raw_settings_route ), 0, 24 );
+$raw_settings_result = CUA_REST_Bridge::execute_bridge( $raw_settings_bridge, array( 'path' => $raw_settings_route ) );
+cmsa_native_mcp_surface_assert( is_wp_error( $raw_settings_result ), 'Raw /wp/v2/settings remained executable through the generic REST bridge.' );
+cmsa_native_mcp_surface_assert(
+	'cua_rest_route_unavailable' === $raw_settings_result->get_error_code(),
+	'Raw /wp/v2/settings rejection returned the wrong error code.'
+);
+
 delete_option( $secret_setting );
 if ( function_exists( 'unregister_setting' ) ) {
 	unregister_setting( 'general', $secret_setting );
