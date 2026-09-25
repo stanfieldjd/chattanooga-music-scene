@@ -295,7 +295,7 @@ final class CUA_REST_Bridge {
 			return false;
 		}
 
-		if ( preg_match( '#^/wp/v[0-9]+/users/(?:[0-9]+|me)/application-passwords(?:/.*)?$#i', $route_regex ) ) {
+		if ( 0 === strpos( $route_regex, '/wp/v' ) && false !== strpos( $route_regex, '/application-passwords' ) ) {
 			return false;
 		}
 
