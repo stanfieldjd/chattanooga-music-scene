@@ -355,8 +355,8 @@ foreach ( array( 'get-health', 'list-plugins', 'list-backups' ) as $short_name )
 
 wp_set_current_user( 1 );
 
-register_post_type( 'cmsa_force_delete_fixture', array( 'public' => false, 'show_ui' => false, 'supports' => array( 'title' ) ) );
-$fixture_id = wp_insert_post( array( 'post_type' => 'cmsa_force_delete_fixture', 'post_status' => 'draft', 'post_title' => 'CMSA permanent delete fixture' ), true );
+register_post_type( 'cmsa_force_delete', array( 'public' => false, 'show_ui' => false, 'supports' => array( 'title' ) ) );
+$fixture_id = wp_insert_post( array( 'post_type' => 'cmsa_force_delete', 'post_status' => 'draft', 'post_title' => 'CMSA permanent delete fixture' ), true );
 if ( is_wp_error( $fixture_id ) || (int) $fixture_id < 1 ) {
 	cmsa_v2_coverage_fail( 'Could not create permanent-delete fixture post.' );
 }
