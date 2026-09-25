@@ -104,6 +104,19 @@ final class CUA_MCP_Server {
 	}
 
 	public static function handle_request( WP_REST_Request $request ) {
+		$trace_started = microtime( true );
+		$response = self::process_request( $request );
+		if ( class_exists( 'CUA_MCP_Diagnostics' ) ) {
+			CUA_MCP_Diagnostics::record_request_trace( $request, $response, $trace_started );
+		}
+		return $response;
+	}
+
+	/**
+	 * Process one MCP request. The public wrapper records its final result even
+	 * when transport, version, header, or authentication validation rejects it.
+	 */
+	private static function process_request( WP_REST_Request $request ) {
 		$started = microtime( true );
 		$http_method = strtoupper( $request->get_method() );
 		$session_id  = self::request_session_id( $request );
