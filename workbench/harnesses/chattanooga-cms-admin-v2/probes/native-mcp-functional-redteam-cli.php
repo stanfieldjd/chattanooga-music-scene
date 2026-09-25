@@ -178,7 +178,7 @@ wp_set_current_user( 1 );
 
 cmsa_mcp_redteam_assert( defined( 'CUA_VERSION' ) && '1.2.49' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.49 is not active.' );
 cmsa_mcp_redteam_assert( defined( 'EM_VERSION' ) && '7.4.3' === (string) EM_VERSION, 'Events Manager 7.4.3 is not active.' );
-cmsa_mcp_redteam_assert( defined( 'CMS_CORE_VERSION' ) && '0.2.4' === CMS_CORE_VERSION, 'Weekend Feature 0.2.4 is not active.' );
+cmsa_mcp_redteam_assert( defined( 'CMS_CORE_VERSION' ) && '0.2.5' === CMS_CORE_VERSION, 'Weekend Feature 0.2.5 is not active.' );
 cmsa_mcp_redteam_assert( class_exists( 'CMS_Weekend_Posts' ), 'Weekend Feature generator is unavailable.' );
 
 $tools = cmsa_mcp_redteam_all_tools();
