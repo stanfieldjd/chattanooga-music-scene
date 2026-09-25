@@ -93,8 +93,8 @@ if ( is_wp_error( $private ) || empty( $private['exists'] ) || ! empty( $private
 }
 
 $rest = $get->execute( array( 'setting' => 'nova_rest_setting' ) );
-if ( is_wp_error( $rest ) || empty( $rest['show_in_rest'] ) || empty( $rest['value_exposed'] ) || 'visible rest value' !== ( $rest['value'] ?? null ) ) {
-	fwrite( STDERR, "REST-visible registered setting did not preserve its existing disclosure contract.\n" );
+if ( is_wp_error( $rest ) || empty( $rest['show_in_rest'] ) || ! empty( $rest['value_exposed'] ) || array_key_exists( 'value', $rest ) || ! preg_match( '/^[a-f0-9]{64}$/', (string) ( $rest['state_token'] ?? '' ) ) ) {
+	fwrite( STDERR, "REST-visible registered setting disclosure boundary failed.\n" );
 	exit( 1 );
 }
 
@@ -219,5 +219,5 @@ delete_option( 'nova_rest_setting' );
 delete_option( 'nova_absent_setting' );
 delete_option( 'nova_custom_setting' );
 
-echo "cmsa-v2-settings: PASS provider_ability=absent provider_rest=absent registry=discovered nonrest_value=protected rest_value=existing_contract absent_default=distinguished sanitizer=preserved state_token=verified stale_write=blocked unregistered_option=blocked readback_failure=rolled_back group_capability=preserved inventory_capability=filtered admin_boundary=verified\n";
+echo "cmsa-v2-settings: PASS provider_ability=absent provider_rest=absent registry=discovered nonrest_value=protected rest_value=protected absent_default=distinguished sanitizer=preserved state_token=verified stale_write=blocked unregistered_option=blocked readback_failure=rolled_back group_capability=preserved inventory_capability=filtered admin_boundary=verified\n";
 exit( 0 );
