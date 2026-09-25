@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 10082)
+Total output lines: 900
+
 <?php
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -196,7 +199,18 @@ final class CUA_MCP_Diagnostics {
 		$request_entries = $request_trace_readable && is_array( $request_trace['entries'] ?? null ) ? $request_trace['entries'] : array();
 		$latest_main_list = null;
 		$latest_canary_list = null;
-		$counts = array( 'mainToolsList' => 0, 'canaryToolsList' => 0, 'mainDiscover' => 0, 'canaryDiscover' => 0 );
+		$counts = array(
+			'mainToolsList' => 0,
+			'canaryToolsList' => 0,
+			'mainDiscover' => 0,
+			'canaryDiscover' => 0,
+			'mainToolCalls' => 0,
+			'mainSuccessfulToolCalls' => 0,
+			'mainDiscoveryCalls' => 0,
+			'mainReadBridgeCalls' => 0,
+			'mainWriteBridgeCalls' => 0,
+			'mainStabilityCheckCalls' => 0,
+		);
 		foreach ( $entries as $entry ) {
 			if ( ! is_array( $entry ) ) { continue; }
 			$surface = (string) ( $entry['mcp_surface'] ?? '' );
@@ -204,6 +218,36 @@ final class CUA_MCP_Diagnostics {
 			if ( 'main' === $surface && 'tools/list' === $method ) { ++$counts['mainToolsList']; if ( null === $latest_main_list ) { $latest_main_list = $entry; } }
 			elseif ( 'canary' === $surface && 'tools/list' === $method ) { ++$counts['canaryToolsList']; if ( null === $latest_canary_list ) { $latest_canary_list = $entry; } }
 			if ( 'server/discover' === $method ) { if ( 'main' === $surface ) { ++$counts['mainDiscover']; } elseif ( 'canary' === $surface ) { ++$counts['canaryDiscover']; } }
+		}
+		/*
+		 * The main MCP handler stores tools/call terminal observations in the
+		 * request-trace stream. They are intentionally separate from
+		 * record_exchange() entries, which only describe server/discover and
+		 * tools/list. Count calls here without treating a call as proof that the
+		 * client requested or ingested tools/list.
+		 */
+		foreach ( $request_entries as $entry ) {
+			if ( ! is_array( $entry ) || 'tools/call' !== ( $entry['mcp_method'] ?? '' ) ) {
+				continue;
+			}
+			++$counts['mainToolCalls'];
+			if ( 200 === (int) ( $entry['http_status'] ?? 0 ) && 'response' === ( $entry['outcome'] ?? '' ) ) {
+				++$counts['mainSuccessfulToolCalls'];
+			}
+			$tool = (string) ( $entry['tool'] ?? '' );
+			$namespace = 'chattanooga_music_scene.';
+			if ( 0 === strpos( $tool, $namespace ) ) {
+				$tool = substr( $tool, strlen( $namespace ) );
+			}
+			if ( 'cmsa.discovery' === $tool ) {
+				++$counts['mainDiscoveryCalls'];
+			} elseif ( 'cmsa.read-bridge' === $tool ) {
+				++$counts['mainReadBridgeCalls'];
+			} elseif ( 'cmsa.write-bridge' === $tool ) {
+				++$counts['mainWriteBridgeCalls'];
+			} elseif ( 'cmsa.stability-check' === $tool ) {
+				++$counts['mainStabilityCheckCalls'];
+			}
 		}
 		$tool_count = (int) ( $catalog['toolCount'] ?? 0 );
 		$descriptor_pass = (int) ( $catalog['descriptorSummary']['pass'] ?? 0 );
@@ -257,6 +301,12 @@ final class CUA_MCP_Diagnostics {
 			'latestCanaryDiscoveryHealthy' => $latest_canary_healthy,
 			'historyState' => $history_state,
 			'observationCounts' => $counts,
+			'observationCountsWindow' => array(
+				'maxEntriesPerStream' => $limit,
+				'diagnosticEntries' => count( $entries ),
+				'requestTraceEntries' => count( $request_entries ),
+			),
+			'observationCountsScope' => 'tools/list and server/discover counts come only from MCP exchange diagnostics; tool-call counts come from terminal MCP request traces. Tool calls prove requests reached the main handler but do not prove a client requested or ingested tools/list. Each count covers only the newest entries retained from its own stream.',
 			'latestMainToolsList' => $latest_main_list,
 			'latestCanaryToolsList' => $latest_canary_list,
 			'recentDiagnostics' => $entries,
@@ -338,15 +388,7 @@ final class CUA_MCP_Diagnostics {
 		return CUA_Audit::log_mcp_request_trace( $entry );
 	}
 
-	public static function rest_report( WP_REST_Request $request ) {
-		$authorization = CUA_MCP_Server::authorize_request( $request );
-		if ( is_wp_error( $authorization ) ) {
-			return $authorization;
-		}
-
-		$response = new WP_REST_Response( self::admin_report(), 200 );
-		$response->header( 'Cache-Control', 'no-store' );
-		$response->header( 'Pragma', 'no-cache' );
+	public static fu…82 tokens truncated…Pragma', 'no-cache' );
 		return $response;
 	}
 
@@ -850,3 +892,4 @@ final class CUA_MCP_Diagnostics {
 		return true;
 	}
 }
+
