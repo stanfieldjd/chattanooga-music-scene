@@ -522,6 +522,7 @@ final class CUA_Ability_Bridge {
 			'install-plugin-package',
 			'install-theme',
 			'list-backups',
+			'list-cron-events',
 			'list-plugins',
 			'list-registered-settings',
 			'list-themes',
