@@ -295,9 +295,14 @@ final class CUA_MCP_Diagnostics {
 		}
 		$response_error = is_array( $response_data ) && isset( $response_data['error'] ) && is_array( $response_data['error'] ) ? $response_data['error'] : array();
 		$jsonrpc_error_code = isset( $response_error['code'] ) && is_scalar( $response_error['code'] ) ? (string) $response_error['code'] : '';
+		$response_result = is_array( $response_data ) && isset( $response_data['result'] ) && is_array( $response_data['result'] ) ? $response_data['result'] : array();
+		$mcp_tool_error = true === ( $response_result['isError'] ?? false );
 		if ( '' === $error_code && '' !== $jsonrpc_error_code ) {
 			$error_code = 'mcp_jsonrpc_error';
+		} elseif ( '' === $error_code && $mcp_tool_error ) {
+			$error_code = 'mcp_tool_error';
 		}
+		$response_headers = is_object( $response ) && method_exists( $response, 'get_headers' ) ? array_change_key_case( (array) $response->get_headers(), CASE_LOWER ) : array();
 		$authorization = trim( (string) $request->get_header( 'authorization' ) );
 		$auth_scheme = '' === $authorization ? 'none' : ( preg_match( '/^Bearer\s/i', $authorization ) ? 'bearer' : ( preg_match( '/^Basic\s/i', $authorization ) ? 'basic' : 'other' ) );
 		$entry = array(
@@ -310,6 +315,8 @@ final class CUA_MCP_Diagnostics {
 			'protocol_version_header' => trim( (string) $request->get_header( 'mcp-protocol-version' ) ),
 			'protocol_version_body' => isset( $params['protocolVersion'] ) && is_scalar( $params['protocolVersion'] ) ? (string) $params['protocolVersion'] : '',
 			'protocol_version_meta' => $meta_protocol,
+			'response_protocol_version' => isset( $response_headers['mcp-protocol-version'] ) ? (string) $response_headers['mcp-protocol-version'] : '',
+			'response_session_present' => isset( $response_headers[ strtolower( CUA_MCP_Server::SESSION_HEADER ) ] ) && '' !== trim( (string) $response_headers[ strtolower( CUA_MCP_Server::SESSION_HEADER ) ] ),
 			'client_info_name' => isset( $client_info['name'] ) && is_scalar( $client_info['name'] ) ? (string) $client_info['name'] : '',
 			'client_info_version' => isset( $client_info['version'] ) && is_scalar( $client_info['version'] ) ? (string) $client_info['version'] : '',
 			'client_class' => self::client_class( (string) $request->get_header( 'user-agent' ) ),
@@ -323,7 +330,7 @@ final class CUA_MCP_Diagnostics {
 			'request_sha256' => hash( 'sha256', $body ),
 			'request_id_sha256' => array_key_exists( 'id', $payload ) && is_scalar( $payload['id'] ) ? hash( 'sha256', (string) $payload['id'] ) : '',
 			'http_status' => $status,
-			'outcome' => $status >= 400 ? 'http_error' : ( '' !== $jsonrpc_error_code ? 'mcp_error' : 'response'),
+			'outcome' => $status >= 400 ? 'http_error' : ( '' !== $jsonrpc_error_code ? 'jsonrpc_error' : ( $mcp_tool_error ? 'tool_error' : 'response' ) ),
 			'error_code' => $error_code,
 			'jsonrpc_error_code' => $jsonrpc_error_code,
 			'duration_ms' => max( 0, (int) round( ( microtime( true ) - (float) $started ) * 1000 ) ),
