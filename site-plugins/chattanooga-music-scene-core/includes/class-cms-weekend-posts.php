@@ -359,6 +359,63 @@ final class CMS_Weekend_Posts {
 		return array_slice( array_values( $days ), 0, 3 );
 	}
 
+	private function feature_events( array $events, array $window ) {
+		$anchors   = array();
+		$remaining = array();
+
+		foreach ( $events as $event ) {
+			$start = $this->event_start( $event );
+			if ( ! $start || $start < $window['start'] || $start > $window['end'] ) {
+				continue;
+			}
+
+			$day = $start->format( 'Y-m-d' );
+			if ( ! isset( $anchors[ $day ] ) ) {
+				$anchors[ $day ] = $event;
+			} else {
+				$remaining[] = $event;
+			}
+		}
+
+		ksort( $anchors, SORT_STRING );
+		$selected = array_values( $anchors );
+
+		foreach ( $remaining as $event ) {
+			if ( count( $selected ) >= 5 ) {
+				break;
+			}
+			$selected[] = $event;
+		}
+
+		usort(
+			$selected,
+			function ( $left, $right ) {
+				$left_start  = $this->event_start( $left );
+				$right_start = $this->event_start( $right );
+				if ( ! $left_start || ! $right_start ) {
+					return 0;
+				}
+				return $left_start <=> $right_start;
+			}
+		);
+
+		return array_slice( $selected, 0, 5 );
+	}
+
+	private function feature_content( array $window ) {
+		$events = $this->get_events( $window );
+		if ( is_wp_error( $events ) ) {
+			return $events;
+		}
+
+		$selected = $this->feature_events( $events, $window );
+		if ( empty( $selected ) ) {
+			return '';
+		}
+
+		return $this->build_post_content( $selected, $window );
+	}
+
 	private function scene_glimpse_content( array $window ) {
 		$events = $this->get_events( $window );
 		if ( is_wp_error( $events ) ) {
@@ -543,8 +600,8 @@ final class CMS_Weekend_Posts {
 				return $content;
 			}
 
-			$live_content = $this->live_weekend_content( $window );
-			return is_wp_error( $live_content ) ? $content : $live_content;
+			$feature_content = $this->feature_content( $window );
+			return is_wp_error( $feature_content ) || '' === $feature_content ? $content : $feature_content;
 		}
 
 		if ( ! is_page( 'scene' ) ) {
