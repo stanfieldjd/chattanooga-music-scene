@@ -190,8 +190,8 @@ if ( $plugin_file !== ( $custom_install['plugin'] ?? '' )
 	exit( 1 );
 }
 $custom_repeat = $install_plugin_package->execute( $custom_input );
-if ( ! is_wp_error( $custom_repeat ) || 'cmsa_plugin_already_installed' !== $custom_repeat->get_error_code() ) {
-	fwrite( STDERR, "Custom plugin package re-install did not fail closed.\n" );
+if ( ! is_wp_error( $custom_repeat ) || 'cmsa_plugin_package_untrusted' !== $custom_repeat->get_error_code() ) {
+	fwrite( STDERR, "Consumed one-time package trust did not fail closed on reuse.\n" );
 	exit( 1 );
 }
 
