@@ -18,8 +18,8 @@ final class CUA_MCP_Server {
 	const TOOL_PAGE_SIZE = 50;
 	/**
 	 * Immutable MCP-facing gateway ABI. The complete admin operation catalog is
-	 * discovered through these gateways and remains executable by name for
-	 * backward compatibility, but it is not expanded into tools/list.
+	 * discovered and executed only through these gateways; unadvertised legacy
+	 * tool names are not callable at the MCP boundary.
 	 */
 	const STABLE_GATEWAY_TOOL_NAMES = array(
 		'cmsa.discovery',
@@ -1242,10 +1242,8 @@ final class CUA_MCP_Server {
 			return new WP_Error( 'cmsa_mcp_tool_name_required', 'A tool name is required.' );
 		}
 
-		if ( in_array( $name, array( 'cmsa.discover-abilities', 'cmsa.get-ability-info', 'cmsa.execute-ability' ), true ) ) {
-			$arguments = isset( $params['arguments'] ) && is_array( $params['arguments'] ) ? $params['arguments'] : array();
-			if ( ! current_user_can( 'manage_options' ) ) { return new WP_Error( 'cmsa_mcp_tool_forbidden', 'Administrator authority is required to call this tool.' ); }
-			return self::call_adapter_tool( $name, $arguments );
+		if ( ! in_array( $name, self::STABLE_GATEWAY_TOOL_NAMES, true ) ) {
+			return new WP_Error( 'cmsa_mcp_tool_not_found', 'The requested MCP tool is not part of the advertised gateway ABI.' );
 		}
 
 		try {
