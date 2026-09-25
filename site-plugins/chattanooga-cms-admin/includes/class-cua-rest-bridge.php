@@ -284,6 +284,21 @@ final class CUA_REST_Bridge {
 			return false;
 		}
 
+		// Protocol and credential control planes are not website-administration
+		// surfaces. Bridging them would create recursive MCP/OAuth execution paths
+		// around the four-tool gateway and could expose credential lifecycle APIs
+		// through the generic write bridge.
+		if ( 0 === strpos( $route_regex, '/chattanooga-cms-admin/v1' )
+			|| 0 === strpos( $route_regex, '/mcp/' )
+			|| 0 === strpos( $route_regex, '/oauth/v1' )
+		) {
+			return false;
+		}
+
+		if ( preg_match( '#^/wp/v[0-9]+/users/(?:[0-9]+|me)/application-passwords(?:/.*)?$#i', $route_regex ) ) {
+			return false;
+		}
+
 		return true;
 	}
 
