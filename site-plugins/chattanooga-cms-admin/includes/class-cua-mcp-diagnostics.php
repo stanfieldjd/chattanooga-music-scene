@@ -189,8 +189,11 @@ final class CUA_MCP_Diagnostics {
 		$limit = max( 1, min( self::MAX_RECENT, $limit ) );
 		$catalog = self::catalog_report( false );
 		$recent = class_exists( 'CUA_Audit' ) ? CUA_Audit::read_mcp_diagnostics( $limit ) : new WP_Error( 'cmsa_stability_audit_unavailable', 'MCP diagnostic audit storage is unavailable.' );
+		$request_trace = class_exists( 'CUA_Audit' ) ? CUA_Audit::read_mcp_request_trace( $limit ) : new WP_Error( 'cmsa_request_trace_unavailable', 'MCP request trace storage is unavailable.' );
 		$audit_readable = ! is_wp_error( $recent );
 		$entries = $audit_readable && is_array( $recent['entries'] ?? null ) ? $recent['entries'] : array();
+		$request_trace_readable = ! is_wp_error( $request_trace );
+		$request_entries = $request_trace_readable && is_array( $request_trace['entries'] ?? null ) ? $request_trace['entries'] : array();
 		$latest_main_list = null;
 		$latest_canary_list = null;
 		$counts = array( 'mainToolsList' => 0, 'canaryToolsList' => 0, 'mainDiscover' => 0, 'canaryDiscover' => 0 );
@@ -257,8 +260,75 @@ final class CUA_MCP_Diagnostics {
 			'latestMainToolsList' => $latest_main_list,
 			'latestCanaryToolsList' => $latest_canary_list,
 			'recentDiagnostics' => $entries,
-			'scope' => 'Server-side only. A successful result proves the WordPress MCP endpoint and advertised catalog at call time; it cannot prove that ChatGPT will keep this tool namespace loaded after the call.',
+			'requestTraceReadable' => $request_trace_readable,
+			'requestTraceCount' => count( $request_entries ),
+			'recentRequests' => $request_entries,
+			'scope' => 'Each recentRequests entry is recorded at the WordPress MCP handler after it returns, including rejected requests. Presence proves the request reached this handler; absence does not distinguish host registry behavior from network, proxy, or earlier server-layer rejection.',
 		);
+	}
+
+	/** Record one secret-free terminal trace for every request reaching the MCP handler. */
+	public static function record_request_trace( WP_REST_Request $request, $response, $started ) {
+		if ( ! class_exists( 'CUA_Audit' ) ) {
+			return false;
+		}
+		$body = (string) $request->get_body();
+		$payload = json_decode( $body, true );
+		$payload = is_array( $payload ) ? $payload : array();
+		$params = isset( $payload['params'] ) && is_array( $payload['params'] ) ? $payload['params'] : array();
+		$meta = isset( $params['_meta'] ) && is_array( $params['_meta'] ) ? $params['_meta'] : array();
+		$client_info = isset( $meta['io.modelcontextprotocol/clientInfo'] ) && is_array( $meta['io.modelcontextprotocol/clientInfo'] )
+			? $meta['io.modelcontextprotocol/clientInfo']
+			: ( isset( $params['clientInfo'] ) && is_array( $params['clientInfo'] ) ? $params['clientInfo'] : array() );
+		$meta_protocol = isset( $meta['io.modelcontextprotocol/protocolVersion'] ) && is_scalar( $meta['io.modelcontextprotocol/protocolVersion'] )
+			? (string) $meta['io.modelcontextprotocol/protocolVersion']
+			: '';
+		$response_data = array();
+		if ( is_wp_error( $response ) ) {
+			$error_code = (string) $response->get_error_code();
+			$error_data = $response->get_error_data();
+			$status = is_array( $error_data ) && isset( $error_data['status'] ) ? (int) $error_data['status'] : 500;
+		} else {
+			$error_code = '';
+			$status = is_object( $response ) && method_exists( $response, 'get_status' ) ? (int) $response->get_status() : 500;
+			$response_data = is_object( $response ) && method_exists( $response, 'get_data' ) ? $response->get_data() : array();
+		}
+		$response_error = is_array( $response_data ) && isset( $response_data['error'] ) && is_array( $response_data['error'] ) ? $response_data['error'] : array();
+		$jsonrpc_error_code = isset( $response_error['code'] ) && is_scalar( $response_error['code'] ) ? (string) $response_error['code'] : '';
+		if ( '' === $error_code && '' !== $jsonrpc_error_code ) {
+			$error_code = 'mcp_jsonrpc_error';
+		}
+		$authorization = trim( (string) $request->get_header( 'authorization' ) );
+		$auth_scheme = '' === $authorization ? 'none' : ( preg_match( '/^Bearer\s/i', $authorization ) ? 'bearer' : ( preg_match( '/^Basic\s/i', $authorization ) ? 'basic' : 'other' ) );
+		$entry = array(
+			'time' => gmdate( 'c' ),
+			'http_method' => strtoupper( (string) $request->get_method() ),
+			'mcp_method' => isset( $payload['method'] ) && is_scalar( $payload['method'] ) ? (string) $payload['method'] : '',
+			'mcp_method_header' => (string) $request->get_header( 'mcp-method' ),
+			'mcp_name_header' => (string) $request->get_header( 'mcp-name' ),
+			'tool' => 'tools/call' === ( $payload['method'] ?? '' ) && isset( $params['name'] ) && is_scalar( $params['name'] ) ? (string) $params['name'] : '',
+			'protocol_version_header' => trim( (string) $request->get_header( 'mcp-protocol-version' ) ),
+			'protocol_version_body' => isset( $params['protocolVersion'] ) && is_scalar( $params['protocolVersion'] ) ? (string) $params['protocolVersion'] : '',
+			'protocol_version_meta' => $meta_protocol,
+			'client_info_name' => isset( $client_info['name'] ) && is_scalar( $client_info['name'] ) ? (string) $client_info['name'] : '',
+			'client_info_version' => isset( $client_info['version'] ) && is_scalar( $client_info['version'] ) ? (string) $client_info['version'] : '',
+			'client_class' => self::client_class( (string) $request->get_header( 'user-agent' ) ),
+			'user_agent' => (string) $request->get_header( 'user-agent' ),
+			'origin' => (string) $request->get_header( 'origin' ),
+			'content_type' => (string) $request->get_header( 'content-type' ),
+			'accept' => (string) $request->get_header( 'accept' ),
+			'authorization_present' => '' !== $authorization,
+			'auth_scheme' => $auth_scheme,
+			'request_bytes' => strlen( $body ),
+			'request_sha256' => hash( 'sha256', $body ),
+			'request_id_sha256' => array_key_exists( 'id', $payload ) && is_scalar( $payload['id'] ) ? hash( 'sha256', (string) $payload['id'] ) : '',
+			'http_status' => $status,
+			'outcome' => $status >= 400 ? 'http_error' : ( '' !== $jsonrpc_error_code ? 'mcp_error' : 'response'),
+			'error_code' => $error_code,
+			'jsonrpc_error_code' => $jsonrpc_error_code,
+			'duration_ms' => max( 0, (int) round( ( microtime( true ) - (float) $started ) * 1000 ) ),
+		);
+		return CUA_Audit::log_mcp_request_trace( $entry );
 	}
 
 	public static function rest_report( WP_REST_Request $request ) {
