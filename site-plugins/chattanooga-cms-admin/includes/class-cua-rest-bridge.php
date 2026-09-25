@@ -145,7 +145,11 @@ final class CUA_REST_Bridge {
 				return false;
 			}
 
-			return call_user_func( $handler['permission_callback'], $request );
+			return self::without_transport_authorization(
+				static function () use ( $handler, $request ) {
+					return call_user_func( $handler['permission_callback'], $request );
+				}
+			);
 		} catch ( Throwable $error ) {
 			return new WP_Error( 'cua_rest_permission_exception', 'The discovered REST permission check failed.' );
 		}
@@ -180,7 +184,11 @@ final class CUA_REST_Bridge {
 				return new WP_Error( 'cua_rest_forbidden', 'The control-plane guard denied the current REST request.' );
 			}
 
-			$response = rest_do_request( $request );
+			$response = self::without_transport_authorization(
+				static function () use ( $request ) {
+					return rest_do_request( $request );
+				}
+			);
 			if ( ! $response instanceof WP_REST_Response ) {
 				return new WP_Error( 'cua_rest_invalid_response', 'The registered REST endpoint did not return a WordPress REST response.' );
 			}
@@ -373,6 +381,34 @@ final class CUA_REST_Bridge {
 		}
 
 		return $request;
+	}
+
+	/**
+	 * Prevent the outer MCP transport credential from leaking into a nested
+	 * provider REST callback. The authenticated WordPress user is already
+	 * established before bridge execution, so provider routes must not parse
+	 * the MCP Bearer token as if it were their own Authorization scheme.
+	 */
+	private static function without_transport_authorization( callable $callback ) {
+		$keys = array( 'HTTP_AUTHORIZATION', 'REDIRECT_HTTP_AUTHORIZATION', 'Authorization' );
+		$saved = array();
+		foreach ( $keys as $key ) {
+			if ( array_key_exists( $key, $_SERVER ) ) {
+				$saved[ $key ] = $_SERVER[ $key ];
+				unset( $_SERVER[ $key ] );
+			}
+		}
+
+		try {
+			return $callback();
+		} finally {
+			foreach ( $keys as $key ) {
+				unset( $_SERVER[ $key ] );
+			}
+			foreach ( $saved as $key => $value ) {
+				$_SERVER[ $key ] = $value;
+			}
+		}
 	}
 
 	private static function bridge_name( $method, $route_regex ) {
