@@ -232,11 +232,35 @@ final class CMS_Weekend_Posts {
 
 		$unique = array();
 		foreach ( $events as $event ) {
+			if ( ! $this->event_is_weekend_eligible( $event ) ) {
+				continue;
+			}
+
 			$key = ! empty( $event->event_id ) ? 'event-' . absint( $event->event_id ) : 'post-' . absint( $event->post_id );
 			$unique[ $key ] = $event;
 		}
 
 		return array_values( $unique );
+	}
+
+	private function event_is_weekend_eligible( $event ) {
+		$post_id = isset( $event->post_id ) ? absint( $event->post_id ) : 0;
+		if ( ! $post_id ) {
+			return false;
+		}
+
+		$terms = get_the_terms( $post_id, 'event-categories' );
+		if ( is_wp_error( $terms ) || empty( $terms ) ) {
+			return false;
+		}
+
+		$slugs = wp_list_pluck( $terms, 'slug' );
+
+		if ( in_array( 'music-festivals', $slugs, true ) || in_array( 'festival', $slugs, true ) ) {
+			return true;
+		}
+
+		return in_array( 'live-music', $slugs, true ) && ! in_array( 'dj-night', $slugs, true );
 	}
 
 	private function event_value( $event, $placeholder, $fallback = '' ) {
