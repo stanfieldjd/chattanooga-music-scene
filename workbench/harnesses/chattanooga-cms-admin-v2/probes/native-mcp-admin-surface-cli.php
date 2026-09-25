@@ -192,6 +192,38 @@ cmsa_native_mcp_surface_assert( ! is_wp_error( $optional_result ), 'REST bridge 
 cmsa_native_mcp_surface_assert( 200 === ( $optional_result['status'] ?? 0 ), 'REST bridge optional-null regression returned the wrong status.' );
 cmsa_native_mcp_surface_assert( false === ( $optional_result['data']['has_optional'] ?? null ), 'REST bridge injected an omitted null-default argument.' );
 
+// The MCP transport Authorization header must not leak into nested provider REST routes.
+register_rest_route(
+	'cmsa-redteam/v1',
+	'/auth-isolation',
+	array(
+		'methods'             => 'GET',
+		'permission_callback' => static function () {
+			return empty( $_SERVER['HTTP_AUTHORIZATION'] ) && empty( $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ) && empty( $_SERVER['Authorization'] );
+		},
+		'callback'            => static function () {
+			return rest_ensure_response(
+				array(
+					'authorization_present' => ! empty( $_SERVER['HTTP_AUTHORIZATION'] ) || ! empty( $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ) || ! empty( $_SERVER['Authorization'] ),
+					'user_id' => get_current_user_id(),
+				)
+			);
+		},
+	)
+);
+CUA_REST_Bridge::register_external_bridges();
+$auth_route = '/cmsa-redteam/v1/auth-isolation';
+$auth_bridge = 'chattanooga-cms-admin/rest-' . substr( hash( 'sha256', 'GET|' . $auth_route ), 0, 24 );
+$_SERVER['HTTP_AUTHORIZATION'] = 'Bearer cmsa-redteam-outer-token';
+$auth_user_before = get_current_user_id();
+$auth_result = CUA_REST_Bridge::execute_bridge( $auth_bridge, array( 'path' => $auth_route ) );
+cmsa_native_mcp_surface_assert( ! is_wp_error( $auth_result ), 'REST bridge failed Authorization-isolation regression.' );
+cmsa_native_mcp_surface_assert( 200 === ( $auth_result['status'] ?? 0 ), 'Authorization-isolation regression returned the wrong status.' );
+cmsa_native_mcp_surface_assert( false === ( $auth_result['data']['authorization_present'] ?? true ), 'Nested REST callback saw the outer MCP Authorization header.' );
+cmsa_native_mcp_surface_assert( $auth_user_before === ( $auth_result['data']['user_id'] ?? -1 ), 'Authorization isolation changed the authenticated WordPress user.' );
+cmsa_native_mcp_surface_assert( 'Bearer cmsa-redteam-outer-token' === ( $_SERVER['HTTP_AUTHORIZATION'] ?? '' ), 'Outer Authorization header was not restored after nested REST execution.' );
+unset( $_SERVER['HTTP_AUTHORIZATION'] );
+
 $cron_ability = wp_get_ability( 'chattanooga-cms-admin/list-cron-events' );
 cmsa_native_mcp_surface_assert( $cron_ability instanceof WP_Ability, 'Cron inventory ability is unavailable.' );
 $cron_result = $cron_ability->execute( array( 'limit' => 5 ) );
