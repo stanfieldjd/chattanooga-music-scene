@@ -128,6 +128,7 @@ $required_platform = array(
 	'list-themes',
 	'list-backups',
 	'get-audit-log',
+	'permanently-delete-post',
 	'create-backup',
 	'verify-backup',
 	'update-plugin',
@@ -353,5 +354,22 @@ foreach ( array( 'get-health', 'list-plugins', 'list-backups' ) as $short_name )
 }
 
 wp_set_current_user( 1 );
-echo 'cmsa-v2-replacement-coverage: PASS system_parity=24 intrinsic=verified live_public_abilities=' . count( $expected_ability_bridges ) . ' live_rest_contracts=' . count( $expected_rest_bridges ) . " dynamic_gateway_execution=verified settings_contract=present admin_boundary=verified\n";
+
+register_post_type( 'cmsa_force_delete_fixture', array( 'public' => false, 'show_ui' => false, 'supports' => array( 'title' ) ) );
+$fixture_id = wp_insert_post( array( 'post_type' => 'cmsa_force_delete_fixture', 'post_status' => 'draft', 'post_title' => 'CMSA permanent delete fixture' ), true );
+if ( is_wp_error( $fixture_id ) || (int) $fixture_id < 1 ) {
+	cmsa_v2_coverage_fail( 'Could not create permanent-delete fixture post.' );
+}
+$delete_ability = wp_get_ability( 'chattanooga-cms-admin/permanently-delete-post' );
+if ( ! $delete_ability instanceof WP_Ability ) {
+	wp_delete_post( (int) $fixture_id, true );
+	cmsa_v2_coverage_fail( 'Permanent post deletion ability is missing.' );
+}
+$delete_result = $delete_ability->execute( array( 'id' => (int) $fixture_id ) );
+if ( is_wp_error( $delete_result ) || true !== ( $delete_result['deleted'] ?? false ) || true !== ( $delete_result['permanent'] ?? false ) || null !== get_post( (int) $fixture_id ) ) {
+	if ( null !== get_post( (int) $fixture_id ) ) { wp_delete_post( (int) $fixture_id, true ); }
+	cmsa_v2_coverage_fail( 'Permanent post deletion did not remove the disposable custom post type record.' );
+}
+
+echo 'cmsa-v2-replacement-coverage: PASS system_parity=25 intrinsic=verified live_public_abilities=' . count( $expected_ability_bridges ) . ' live_rest_contracts=' . count( $expected_rest_bridges ) . " dynamic_gateway_execution=verified settings_contract=present admin_boundary=verified\n";
 exit( 0 );
