@@ -352,9 +352,17 @@ final class CUA_REST_Bridge {
 
 		$defaults = array();
 		foreach ( isset( $handler['args'] ) && is_array( $handler['args'] ) ? $handler['args'] : array() as $arg => $options ) {
-			if ( is_array( $options ) && array_key_exists( 'default', $options ) ) {
-				$defaults[ $arg ] = $options['default'];
+			if ( ! is_array( $options ) || ! array_key_exists( 'default', $options ) ) {
+				continue;
 			}
+			// WordPress core and plugins sometimes declare optional REST arguments with
+			// a null default even when their validation schema does not accept null.
+			// Native REST dispatch leaves those omitted arguments absent. Injecting the
+			// null default here turns an omitted optional argument into an invalid one.
+			if ( null === $options['default'] ) {
+				continue;
+			}
+			$defaults[ $arg ] = $options['default'];
 		}
 		$request->set_default_params( $defaults );
 
