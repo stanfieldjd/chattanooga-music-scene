@@ -40,7 +40,7 @@ foreach ( $required_plugins as $plugin_file ) {
 
 cms_site_plugins_assert( defined( 'CUA_VERSION' ) && '1.2.47' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.47 did not load.' );
 cms_site_plugins_assert( defined( 'CMS_MARKETPLACE_VERSION' ) && '0.1.1' === CMS_MARKETPLACE_VERSION, 'Marketplace 0.1.1 did not load.' );
-cms_site_plugins_assert( defined( 'CMS_CORE_VERSION' ) && '0.2.2' === CMS_CORE_VERSION, 'Weekend Feature 0.2.2 did not load.' );
+cms_site_plugins_assert( defined( 'CMS_CORE_VERSION' ) && '0.2.3' === CMS_CORE_VERSION, 'Weekend Feature 0.2.3 did not load.' );
 cms_site_plugins_assert( class_exists( 'WC_Product_Simple' ), 'WooCommerce product API is unavailable.' );
 cms_site_plugins_assert( class_exists( 'EM_Events' ), 'Events Manager API is unavailable.' );
 
@@ -81,6 +81,18 @@ cms_site_plugins_assert( '2026-09-11' === $window['start']->format( 'Y-m-d' ), '
 cms_site_plugins_assert( '2026-09-13' === $window['end']->format( 'Y-m-d' ), 'Weekend Feature window does not end Sunday.' );
 $events = cms_site_plugins_private( $weekend, 'get_events', array( $window ) );
 cms_site_plugins_assert( ! is_wp_error( $events ) && is_array( $events ), 'Weekend Feature could not query Events Manager.' );
+
+$glimpse_fixture = array(
+	(object) array( 'event_start_date' => '2026-09-11', 'event_start_time' => '18:00:00', 'event_name' => 'Friday Early' ),
+	(object) array( 'event_start_date' => '2026-09-11', 'event_start_time' => '20:00:00', 'event_name' => 'Friday Late' ),
+	(object) array( 'event_start_date' => '2026-09-12', 'event_start_time' => '19:00:00', 'event_name' => 'Saturday Pick' ),
+	(object) array( 'event_start_date' => '2026-09-13', 'event_start_time' => '17:00:00', 'event_name' => 'Sunday Pick' ),
+);
+$glimpse = cms_site_plugins_private( $weekend, 'scene_glimpse_events', array( $glimpse_fixture, $window ) );
+cms_site_plugins_assert( 3 === count( $glimpse ), 'Scene Weekend Feature glimpse must be limited to three representative events.' );
+cms_site_plugins_assert( 'Friday Early' === ( $glimpse[0]->event_name ?? '' ), 'Scene Weekend Feature did not keep the first Friday event.' );
+cms_site_plugins_assert( 'Saturday Pick' === ( $glimpse[1]->event_name ?? '' ), 'Scene Weekend Feature did not include a Saturday event.' );
+cms_site_plugins_assert( 'Sunday Pick' === ( $glimpse[2]->event_name ?? '' ), 'Scene Weekend Feature did not include a Sunday event.' );
 
 $next_run = cms_site_plugins_private( $weekend, 'next_thursday_timestamp', array( '08:00' ) );
 cms_site_plugins_assert( $next_run > time(), 'Weekend Feature next Thursday schedule is not in the future.' );
@@ -200,6 +212,6 @@ wp_set_current_user( 0 );
 cms_site_plugins_assert( false === $health->check_permissions( array() ), 'Anonymous CMS Admin access was not denied.' );
 wp_set_current_user( 1 );
 
-echo "cms-site-plugins-integration: PASS cms_admin=1.2.47 marketplace=0.1.1 weekend_feature=0.2.2 wordpress_native_install=verified coexistence=verified marketplace_awp=verified marketplace_woocommerce=verified marketplace_search=verified marketplace_truncation=verified woocommerce_label=absent location_filter=preserved weekend_events_manager=verified weekend_schedule=verified cms_admin_health=verified database=verified admin_boundary=verified\n";
+echo "cms-site-plugins-integration: PASS cms_admin=1.2.47 marketplace=0.1.1 weekend_feature=0.2.3 wordpress_native_install=verified coexistence=verified marketplace_awp=verified marketplace_woocommerce=verified marketplace_search=verified marketplace_truncation=verified woocommerce_label=absent location_filter=preserved weekend_events_manager=verified weekend_schedule=verified cms_admin_health=verified database=verified admin_boundary=verified\n";
 exit( 0 );
 
