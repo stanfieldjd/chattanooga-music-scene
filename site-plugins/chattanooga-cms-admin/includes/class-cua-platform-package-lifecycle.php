@@ -51,7 +51,7 @@ final class CUA_Platform_Package_Lifecycle {
 			self::PREFIX . 'install-plugin-package',
 			array(
 				'label'               => __( 'Install verified plugin package', 'chattanooga-cms-admin' ),
-				'description'         => __( 'Installs one exact ZIP plugin package only after byte, identity, version, archive-structure, and independently trusted digest verification. The plugin is left inactive and failed verification is rolled back.', 'chattanooga-cms-admin' ),
+				'description'         => __( 'Installs one exact ZIP plugin package only after byte, identity, version, archive-structure, and trusted digest verification. Trust may come from a short-lived one-time authorization or the legacy site filter. The plugin is left inactive and failed verification is rolled back.', 'chattanooga-cms-admin' ),
 				'category'            => self::CATEGORY,
 				'input_schema'        => self::plugin_package_schema(),
 				'output_schema'       => array( 'type' => 'object' ),
@@ -460,11 +460,11 @@ final class CUA_Platform_Package_Lifecycle {
 	}
 
 	/**
-	 * Require an independently configured package digest before accepting a
-	 * caller-supplied ZIP. The filter is intentionally empty by default so a
-	 * caller cannot promote its own expected hash into a trust decision.
+	 * Require an exact trusted package digest before accepting caller-supplied
+	 * ZIP bytes. A short-lived one-time authorization is checked first; the
+	 * legacy site filter remains supported for externally managed trust.
 	 *
-	 * Expected format:
+	 * Legacy filter format:
 	 * array( 'plugin/file.php@1.2.3' => array( 'sha256hex...' ) )
 	 */
 	private static function trusted_package_digest_allowed( $sha256, $plugin, $version ) {
