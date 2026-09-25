@@ -125,6 +125,8 @@ cmsa_ingestion_assert( 'initialize' === ( $rejected_entry['mcp_method'] ?? '' ),
 cmsa_ingestion_assert( 'initialize' === ( $rejected_entry['mcp_method_header'] ?? '' ), 'Trace did not capture the MCP-Method header.' );
 cmsa_ingestion_assert( '2025-01-01' === ( $rejected_entry['protocol_version_header'] ?? '' ), 'Trace did not capture the protocol header.' );
 cmsa_ingestion_assert( '2025-01-01' === ( $rejected_entry['protocol_version_body'] ?? '' ), 'Trace did not capture the protocol body version.' );
+cmsa_ingestion_assert( CUA_MCP_Server::PROTOCOL_VERSION === ( $rejected_entry['response_protocol_version'] ?? '' ), 'Trace did not capture the server protocol response version.' );
+cmsa_ingestion_assert( false === ( $rejected_entry['response_session_present'] ?? true ), 'Rejected initialize request incorrectly appeared to establish a session.' );
 cmsa_ingestion_assert( 400 === (int) ( $rejected_entry['http_status'] ?? 0 ), 'Trace did not capture the rejected HTTP status.' );
 cmsa_ingestion_assert( '-32022' === (string) ( $rejected_entry['jsonrpc_error_code'] ?? '' ), 'Trace did not capture the MCP error code.' );
 cmsa_ingestion_assert( 'ChatGPT StandardProbe/1.0' === ( $rejected_entry['user_agent'] ?? '' ), 'Trace did not capture the client user-agent.' );
