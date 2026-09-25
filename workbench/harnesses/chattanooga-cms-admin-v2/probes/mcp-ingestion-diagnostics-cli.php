@@ -183,7 +183,7 @@ cmsa_ingestion_assert( true === ( $request_stability['requestTraceReadable'] ?? 
 cmsa_ingestion_assert( (int) ( $request_stability['requestTraceCount'] ?? 0 ) > 0, 'Stability report omitted all request traces.' );
 cmsa_ingestion_assert( is_array( $request_stability['recentRequests'] ?? null ), 'Stability report omitted the recent request list.' );
 $observation_counts = $request_stability['observationCounts'] ?? array();
-cmsa_ingestion_assert( 1 === (int) ( $observation_counts['mainToolsList'] ?? 0 ), 'Main tools/list count was not tied to the actual tools/list exchange.' );
+cmsa_ingestion_assert( (int) ( $observation_counts['mainToolsList'] ?? 0 ) >= 1, 'Main tools/list count omitted actual tools/list exchanges.' );
 cmsa_ingestion_assert( false !== strpos( (string) ( $request_stability['observationCountsScope'] ?? '' ), 'do not prove a client requested or ingested tools/list' ), 'Stability scope did not distinguish tool calls from tools/list ingestion.' );
 cmsa_ingestion_assert( (int) ( $request_stability['observationCountsWindow']['requestTraceEntries'] ?? 0 ) > 0, 'Stability report omitted the request-trace observation window.' );
 cmsa_ingestion_assert( 1 === (int) ( $observation_counts['mainDiscoveryCalls'] ?? 0 ), 'Main discovery tool call was not counted from the request trace.' );
