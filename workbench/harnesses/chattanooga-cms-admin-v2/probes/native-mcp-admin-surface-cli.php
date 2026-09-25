@@ -175,14 +175,15 @@ foreach (
 		array( 'GET', '/chattanooga-cms-admin/v1/mcp' ),
 		array( 'POST', '/mcp/mcp-adapter-default-server' ),
 		array( 'POST', '/oauth/v1/token' ),
-		array( 'POST', '/wp/v2/users/1/application-passwords' ),
+		array( 'POST', '/wp/v2/users/(?P<user_id>(?:[\\d]+|me))/application-passwords', '/wp/v2/users/1/application-passwords' ),
 	)
 	as $blocked_control_route
 ) {
 	$blocked_method = $blocked_control_route[0];
 	$blocked_route  = $blocked_control_route[1];
+	$blocked_path   = $blocked_control_route[2] ?? $blocked_route;
 	$blocked_bridge = 'chattanooga-cms-admin/rest-' . substr( hash( 'sha256', $blocked_method . '|' . $blocked_route ), 0, 24 );
-	$blocked_result = CUA_REST_Bridge::execute_bridge( $blocked_bridge, array( 'path' => $blocked_route ) );
+	$blocked_result = CUA_REST_Bridge::execute_bridge( $blocked_bridge, array( 'path' => $blocked_path ) );
 	cmsa_native_mcp_surface_assert( is_wp_error( $blocked_result ), 'Control-plane REST route remained executable: ' . $blocked_method . ' ' . $blocked_route );
 	cmsa_native_mcp_surface_assert(
 		'cua_rest_route_unavailable' === $blocked_result->get_error_code(),
