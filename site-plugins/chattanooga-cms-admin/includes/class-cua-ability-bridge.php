@@ -527,6 +527,7 @@ final class CUA_Ability_Bridge {
 			'list-registered-settings',
 			'list-themes',
 			'list-updates',
+			'permanently-delete-post',
 			'restore-component-backup',
 			'restore-core-backup',
 			'restore-database-backup',
