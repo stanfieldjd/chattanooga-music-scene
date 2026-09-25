@@ -31,7 +31,7 @@ final class CUA_Platform_Settings {
 			self::PREFIX . 'get-registered-setting',
 			array(
 				'label'               => __( 'Inspect registered WordPress setting', 'chattanooga-cms-admin' ),
-				'description'         => __( 'Returns registration metadata, existence and an opaque conflict token for one Settings API option. The stored value is returned only when the setting is already declared show_in_rest.', 'chattanooga-cms-admin' ),
+				'description'         => __( 'Returns registration metadata, existence and an opaque conflict token for one Settings API option without disclosing the stored setting value.', 'chattanooga-cms-admin' ),
 				'category'            => self::CATEGORY,
 				'input_schema'        => self::name_schema(),
 				'output_schema'       => array( 'type' => 'object' ),
@@ -242,7 +242,7 @@ final class CUA_Platform_Settings {
 
 	private static function public_state( $name, array $registration, array $snapshot, $include_value ) {
 		$show_in_rest = ! empty( $registration['show_in_rest'] );
-		$result = array(
+		return array(
 			'setting'       => (string) $name,
 			'group'         => (string) ( $registration['group'] ?? '' ),
 			'type'          => (string) ( $registration['type'] ?? '' ),
@@ -253,11 +253,6 @@ final class CUA_Platform_Settings {
 			'state_token'   => (string) $snapshot['state_token'],
 			'value_exposed' => false,
 		);
-		if ( $include_value && $show_in_rest ) {
-			$result['value'] = $snapshot['value'];
-			$result['value_exposed'] = true;
-		}
-		return $result;
 	}
 
 	private static function values_equal( $a, $b ) {
