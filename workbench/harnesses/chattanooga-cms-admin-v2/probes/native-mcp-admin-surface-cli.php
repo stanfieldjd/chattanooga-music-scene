@@ -168,6 +168,28 @@ cmsa_native_mcp_surface_assert(
 	'Raw /wp/v2/settings rejection returned the wrong error code.'
 );
 
+// MCP/OAuth/application-password control planes must never be re-exposed
+// through the generic REST bridge.
+foreach (
+	array(
+		array( 'GET', '/chattanooga-cms-admin/v1/mcp' ),
+		array( 'POST', '/mcp/mcp-adapter-default-server' ),
+		array( 'POST', '/oauth/v1/token' ),
+		array( 'POST', '/wp/v2/users/1/application-passwords' ),
+	)
+	as $blocked_control_route
+) {
+	$blocked_method = $blocked_control_route[0];
+	$blocked_route  = $blocked_control_route[1];
+	$blocked_bridge = 'chattanooga-cms-admin/rest-' . substr( hash( 'sha256', $blocked_method . '|' . $blocked_route ), 0, 24 );
+	$blocked_result = CUA_REST_Bridge::execute_bridge( $blocked_bridge, array( 'path' => $blocked_route ) );
+	cmsa_native_mcp_surface_assert( is_wp_error( $blocked_result ), 'Control-plane REST route remained executable: ' . $blocked_method . ' ' . $blocked_route );
+	cmsa_native_mcp_surface_assert(
+		'cua_rest_route_unavailable' === $blocked_result->get_error_code(),
+		'Control-plane REST exclusion returned the wrong error code: ' . $blocked_method . ' ' . $blocked_route
+	);
+}
+
 delete_option( $secret_setting );
 if ( function_exists( 'unregister_setting' ) ) {
 	unregister_setting( 'general', $secret_setting );
