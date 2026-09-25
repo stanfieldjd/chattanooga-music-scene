@@ -7,6 +7,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class CUA_Platform_Package_Lifecycle {
 	const CATEGORY = 'chattanooga-cms-admin';
 	const PREFIX = 'chattanooga-cms-admin/';
+	const OPTION_TRUSTED_PACKAGES = 'chattanooga_cms_admin_trusted_package_digests';
+	const TRUST_TTL = 3600;
 
 	public static function register_abilities() {
 		if ( ! function_exists( 'wp_register_ability' ) ) {
@@ -26,6 +28,22 @@ final class CUA_Platform_Package_Lifecycle {
 					return current_user_can( 'install_plugins' ) && current_user_can( 'delete_plugins' );
 				},
 				'meta'                => self::mutation_meta( true ),
+			)
+		);
+
+		wp_register_ability(
+			self::PREFIX . 'authorize-plugin-package',
+			array(
+				'label'               => __( 'Authorize exact plugin package', 'chattanooga-cms-admin' ),
+				'description'         => __( 'Creates a short-lived one-time trust authorization for one exact plugin file, version, and SHA-256 package digest. Successful verified installation consumes the authorization.', 'chattanooga-cms-admin' ),
+				'category'            => self::CATEGORY,
+				'input_schema'        => self::plugin_package_trust_schema(),
+				'output_schema'       => array( 'type' => 'object' ),
+				'execute_callback'    => array( __CLASS__, 'authorize_plugin_package' ),
+				'permission_callback' => static function () {
+					return current_user_can( 'install_plugins' ) && current_user_can( 'manage_options' );
+				},
+				'meta'                => self::mutation_meta( false ),
 			)
 		);
 
@@ -155,6 +173,42 @@ final class CUA_Platform_Package_Lifecycle {
 		);
 	}
 
+	public static function authorize_plugin_package( $input ) {
+		$trust = self::read_plugin_package_trust( $input );
+		if ( is_wp_error( $trust ) ) {
+			return $trust;
+		}
+
+		$self = plugin_basename( CUA_DIR . 'chattanooga-cms-admin.php' );
+		if ( $trust['plugin'] === $self ) {
+			return new WP_Error( 'cmsa_self_package_trust_forbidden', 'Chattanooga CMS Admin cannot authorize replacement of its own running control-plane package.' );
+		}
+
+		$registry = get_option( self::OPTION_TRUSTED_PACKAGES, array() );
+		if ( ! is_array( $registry ) ) {
+			$registry = array();
+		}
+		self::prune_trusted_package_registry( $registry );
+
+		$identity = $trust['plugin'] . '@' . $trust['version'];
+		$expires  = time() + self::TRUST_TTL;
+		$registry[ $identity ] = array(
+			'sha256'     => $trust['sha256'],
+			'expires_at' => $expires,
+			'uses_left'  => 1,
+		);
+		update_option( self::OPTION_TRUSTED_PACKAGES, $registry, false );
+
+		return array(
+			'plugin'     => $trust['plugin'],
+			'version'    => $trust['version'],
+			'sha256'     => $trust['sha256'],
+			'trusted'    => true,
+			'expires_at' => gmdate( 'c', $expires ),
+			'uses_left'  => 1,
+		);
+	}
+
 	public static function install_plugin_package( $input ) {
 		$package = self::read_plugin_package( $input );
 		if ( is_wp_error( $package ) ) {
@@ -223,6 +277,8 @@ final class CUA_Platform_Package_Lifecycle {
 			}
 			return new WP_Error( 'cmsa_plugin_package_install_verification_failed', 'The installed package did not match the expected plugin identity/version or was unexpectedly activated; the installation was removed.' );
 		}
+
+		self::consume_trusted_package_digest( $expected_sha256, $expected_plugin, $expected_version );
 
 		return array(
 			'plugin'    => $expected_plugin,
@@ -412,12 +468,24 @@ final class CUA_Platform_Package_Lifecycle {
 	 * array( 'plugin/file.php@1.2.3' => array( 'sha256hex...' ) )
 	 */
 	private static function trusted_package_digest_allowed( $sha256, $plugin, $version ) {
+		$identity = (string) $plugin . '@' . (string) $version;
+		$registry = get_option( self::OPTION_TRUSTED_PACKAGES, array() );
+		if ( is_array( $registry ) ) {
+			self::prune_trusted_package_registry( $registry );
+			$entry = isset( $registry[ $identity ] ) && is_array( $registry[ $identity ] ) ? $registry[ $identity ] : array();
+			if ( ! empty( $entry['sha256'] )
+				&& ! empty( $entry['expires_at'] )
+				&& ! empty( $entry['uses_left'] )
+				&& (int) $entry['expires_at'] >= time()
+				&& hash_equals( strtolower( (string) $entry['sha256'] ), strtolower( (string) $sha256 ) ) ) {
+				return true;
+			}
+		}
+
 		$allowlist = apply_filters( 'chattanooga_cms_admin_trusted_package_digests', array(), $plugin, $version );
 		if ( ! is_array( $allowlist ) ) {
 			return false;
 		}
-
-		$identity = (string) $plugin . '@' . (string) $version;
 		$digests = isset( $allowlist[ $identity ] ) ? $allowlist[ $identity ] : array();
 		if ( is_string( $digests ) ) {
 			$digests = array( $digests );
@@ -425,7 +493,6 @@ final class CUA_Platform_Package_Lifecycle {
 		if ( ! is_array( $digests ) ) {
 			return false;
 		}
-
 		foreach ( $digests as $trusted_digest ) {
 			$trusted_digest = strtolower( trim( (string) $trusted_digest ) );
 			if ( preg_match( '/^[a-f0-9]{64}$/', $trusted_digest ) && hash_equals( $trusted_digest, strtolower( (string) $sha256 ) ) ) {
@@ -433,6 +500,35 @@ final class CUA_Platform_Package_Lifecycle {
 			}
 		}
 		return false;
+	}
+
+	private static function consume_trusted_package_digest( $sha256, $plugin, $version ) {
+		$registry = get_option( self::OPTION_TRUSTED_PACKAGES, array() );
+		if ( ! is_array( $registry ) ) {
+			return;
+		}
+		$identity = (string) $plugin . '@' . (string) $version;
+		if ( ! isset( $registry[ $identity ] ) || ! is_array( $registry[ $identity ] ) ) {
+			return;
+		}
+		$entry = $registry[ $identity ];
+		if ( ! empty( $entry['sha256'] ) && hash_equals( strtolower( (string) $entry['sha256'] ), strtolower( (string) $sha256 ) ) ) {
+			unset( $registry[ $identity ] );
+			update_option( self::OPTION_TRUSTED_PACKAGES, $registry, false );
+		}
+	}
+
+	private static function prune_trusted_package_registry( &$registry ) {
+		$changed = false;
+		foreach ( $registry as $identity => $entry ) {
+			if ( ! is_array( $entry ) || empty( $entry['sha256'] ) || empty( $entry['expires_at'] ) || empty( $entry['uses_left'] ) || (int) $entry['expires_at'] < time() ) {
+				unset( $registry[ $identity ] );
+				$changed = true;
+			}
+		}
+		if ( $changed ) {
+			update_option( self::OPTION_TRUSTED_PACKAGES, $registry, false );
+		}
 	}
 
 	private static function verify_plugin_package_archive( $path, $expected_plugin ) {
@@ -518,6 +614,65 @@ final class CUA_Platform_Package_Lifecycle {
 			'type'                 => 'object',
 			'properties'           => array( 'slug' => array( 'type' => 'string', 'minLength' => 1, 'maxLength' => 191 ) ),
 			'required'             => array( 'slug' ),
+			'additionalProperties' => false,
+		);
+	}
+
+	private static function read_plugin_package_trust( $input ) {
+		if ( ! is_array( $input ) ) {
+			return new WP_Error( 'cmsa_invalid_plugin_package_trust', 'Exact plugin package trust input must be an object.' );
+		}
+		$plugin  = isset( $input['plugin'] ) ? trim( (string) $input['plugin'] ) : '';
+		$version = isset( $input['version'] ) ? trim( (string) $input['version'] ) : '';
+		$sha256  = isset( $input['sha256'] ) ? strtolower( trim( (string) $input['sha256'] ) ) : '';
+		if ( '' === $plugin || 0 !== validate_file( $plugin ) || '.php' !== substr( $plugin, -4 ) || '.' === dirname( $plugin )
+			|| '' === $version || strlen( $version ) > 64 || ! preg_match( '/^[a-f0-9]{64}$/', $sha256 ) ) {
+			return new WP_Error( 'cmsa_invalid_plugin_package_trust', 'Exact plugin file, version, and SHA-256 are required.' );
+		}
+		return array( 'plugin' => $plugin, 'version' => $version, 'sha256' => $sha256 );
+	}
+
+	private static function plugin_package_trust_schema() {
+		return array(
+			'type'                 => 'object',
+			'properties'           => array(
+				'plugin'  => array( 'type' => 'string', 'minLength' => 3, 'maxLength' => 255 ),
+				'version' => array( 'type' => 'string', 'minLength' => 1, 'maxLength' => 64 ),
+				'sha256'  => array( 'type' => 'string', 'pattern' => '^[A-Fa-f0-9]{64}
+		return array(
+			'type'                 => 'object',
+			'properties'           => array(
+				'content_base64' => array( 'type' => 'string', 'minLength' => 4 ),
+				'expected_sha256' => array( 'type' => 'string', 'pattern' => '^[A-Fa-f0-9]{64}$' ),
+				'expected_plugin' => array( 'type' => 'string', 'minLength' => 3, 'maxLength' => 255 ),
+				'expected_version' => array( 'type' => 'string', 'minLength' => 1, 'maxLength' => 64 ),
+			),
+			'required'             => array( 'content_base64', 'expected_sha256', 'expected_plugin', 'expected_version' ),
+			'additionalProperties' => false,
+		);
+	}
+
+	private static function plugin_schema() {
+		return array(
+			'type'                 => 'object',
+			'properties'           => array( 'plugin' => array( 'type' => 'string', 'minLength' => 1, 'maxLength' => 255 ) ),
+			'required'             => array( 'plugin' ),
+			'additionalProperties' => false,
+		);
+	}
+
+	private static function mutation_meta( $open_world ) {
+		return array(
+			'public'       => true,
+			'show_in_rest' => false,
+			'mcp'          => array( 'public' => true ),
+			'annotations'  => array( 'readonly' => false, 'destructive' => false, 'idempotent' => false, 'open_world' => (bool) $open_world ),
+		);
+	}
+}
+ ),
+			),
+			'required'             => array( 'plugin', 'version', 'sha256' ),
 			'additionalProperties' => false,
 		);
 	}
