@@ -62,6 +62,29 @@ $weekend_type = get_post_type_object( CMS_Weekend_Posts::POST_TYPE );
 cms_site_plugins_assert( $weekend_type && ! empty( $weekend_type->show_in_rest ), 'Weekend Feature post type is not REST-visible.' );
 cms_site_plugins_assert( shortcode_exists( 'cms_weekend_feature' ), 'Weekend Feature shortcode is not registered.' );
 
+$scene_page = wp_insert_post(
+	array(
+		'post_type'    => 'page',
+		'post_status'  => 'publish',
+		'post_title'   => 'Scene',
+		'post_name'    => 'scene',
+		'post_content' => '[cms_weekend_feature]',
+	),
+	true
+);
+cms_site_plugins_assert( ! is_wp_error( $scene_page ) && $scene_page > 0, 'Could not create disposable Scene page for duplicate-injection regression.' );
+$prior_wp_query = isset( $GLOBALS['wp_query'] ) ? $GLOBALS['wp_query'] : null;
+$GLOBALS['wp_query'] = new WP_Query( array( 'page_id' => $scene_page, 'post_type' => 'page' ) );
+$GLOBALS['wp_query']->in_the_loop = true;
+$already_rendered = '<section class="cms-weekend-scene-feature">Existing rendered Weekend Feature</section>';
+$deduped = $weekend->inject_scene_feature( $already_rendered );
+cms_site_plugins_assert( $already_rendered === $deduped, 'Scene Weekend Feature injector duplicated an already-rendered shortcode result.' );
+if ( null !== $prior_wp_query ) {
+	$GLOBALS['wp_query'] = $prior_wp_query;
+}
+wp_delete_post( $scene_page, true );
+
+
 $schedules = apply_filters( 'cron_schedules', array() );
 cms_site_plugins_assert( isset( $schedules['cms_weekly'] ), 'Weekend Feature weekly cron interval is missing.' );
 cms_site_plugins_assert( WEEK_IN_SECONDS === (int) $schedules['cms_weekly']['interval'], 'Weekend Feature weekly cron interval is incorrect.' );
