@@ -24,7 +24,7 @@ final class CUA_REST_Bridge {
 			return;
 		}
 		foreach ( $routes as $route_regex => $handlers ) {
-			if ( ! is_string( $route_regex ) || ! is_array( $handlers ) ) {
+			if ( ! is_string( $route_regex ) || ! is_array( $handlers ) || ! self::route_is_bridgeable( $route_regex ) ) {
 				continue;
 			}
 
@@ -218,7 +218,7 @@ final class CUA_REST_Bridge {
 			return $bridges;
 		}
 		foreach ( $routes as $route_regex => $handlers ) {
-			if ( ! is_string( $route_regex ) || ! is_array( $handlers ) ) {
+			if ( ! is_string( $route_regex ) || ! is_array( $handlers ) || ! self::route_is_bridgeable( $route_regex ) ) {
 				continue;
 			}
 
@@ -269,6 +269,22 @@ final class CUA_REST_Bridge {
 		}
 
 		return CUA_Control_Plane_Guard::validate_rest_request( $request, $method );
+	}
+
+	private static function route_is_bridgeable( $route_regex ) {
+		$route_regex = untrailingslashit( (string) $route_regex );
+
+		// WordPress core's settings endpoint returns stored values for every
+		// show_in_rest setting the administrator can access. That can include
+		// provider credentials. Chattanooga CMS Admin exposes registered settings
+		// through dedicated metadata/state-token abilities that intentionally do
+		// not disclose stored values, so the raw settings route must not create a
+		// second path around that non-disclosure boundary.
+		if ( '/wp/v2/settings' === $route_regex ) {
+			return false;
+		}
+
+		return true;
 	}
 
 	private static function handler_is_bridgeable( $handler ) {
