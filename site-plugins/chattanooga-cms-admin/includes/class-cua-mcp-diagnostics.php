@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 10082)
-Total output lines: 900
-
 <?php
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -388,7 +385,15 @@ final class CUA_MCP_Diagnostics {
 		return CUA_Audit::log_mcp_request_trace( $entry );
 	}
 
-	public static fu…82 tokens truncated…Pragma', 'no-cache' );
+	public static function rest_report( WP_REST_Request $request ) {
+		$authorization = CUA_MCP_Server::authorize_request( $request );
+		if ( is_wp_error( $authorization ) ) {
+			return $authorization;
+		}
+
+		$response = new WP_REST_Response( self::admin_report(), 200 );
+		$response->header( 'Cache-Control', 'no-store' );
+		$response->header( 'Pragma', 'no-cache' );
 		return $response;
 	}
 
