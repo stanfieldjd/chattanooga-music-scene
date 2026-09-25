@@ -638,7 +638,14 @@ final class CUA_Platform_Package_Lifecycle {
 			'properties'           => array(
 				'plugin'  => array( 'type' => 'string', 'minLength' => 3, 'maxLength' => 255 ),
 				'version' => array( 'type' => 'string', 'minLength' => 1, 'maxLength' => 64 ),
-				'sha256'  => array( 'type' => 'string', 'pattern' => '^[A-Fa-f0-9]{64}
+				'sha256'  => array( 'type' => 'string', 'pattern' => '^[A-Fa-f0-9]{64}$' ),
+			),
+			'required'             => array( 'plugin', 'version', 'sha256' ),
+			'additionalProperties' => false,
+		);
+	}
+
+	private static function plugin_package_schema() {
 		return array(
 			'type'                 => 'object',
 			'properties'           => array(
