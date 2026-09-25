@@ -192,6 +192,17 @@ cmsa_native_mcp_surface_assert( ! is_wp_error( $optional_result ), 'REST bridge 
 cmsa_native_mcp_surface_assert( 200 === ( $optional_result['status'] ?? 0 ), 'REST bridge optional-null regression returned the wrong status.' );
 cmsa_native_mcp_surface_assert( false === ( $optional_result['data']['has_optional'] ?? null ), 'REST bridge injected an omitted null-default argument.' );
 
+$cron_ability = wp_get_ability( 'chattanooga-cms-admin/list-cron-events' );
+cmsa_native_mcp_surface_assert( $cron_ability instanceof WP_Ability, 'Cron inventory ability is unavailable.' );
+$cron_result = $cron_ability->execute( array( 'limit' => 5 ) );
+cmsa_native_mcp_surface_assert( ! is_wp_error( $cron_result ), 'Cron inventory ability failed.' );
+cmsa_native_mcp_surface_assert( is_array( $cron_result['items'] ?? null ), 'Cron inventory ability did not return an items array.' );
+foreach ( $cron_result['items'] as $cron_item ) {
+	cmsa_native_mcp_surface_assert( is_array( $cron_item ), 'Cron inventory returned a malformed item.' );
+	cmsa_native_mcp_surface_assert( ! array_key_exists( 'args', $cron_item ), 'Cron inventory disclosed raw hook arguments.' );
+	cmsa_native_mcp_surface_assert( isset( $cron_item['args_sha256'] ), 'Cron inventory omitted the argument conflict fingerprint.' );
+}
+
 $catalog = wp_get_ability( 'chattanooga-cms-admin/catalog' );
 cmsa_native_mcp_surface_assert( $catalog instanceof WP_Ability, 'Universal capability catalog is unavailable.' );
 $catalog_result = $catalog->execute( array() );
