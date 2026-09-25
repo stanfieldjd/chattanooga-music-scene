@@ -176,7 +176,7 @@ function cmsa_mcp_redteam_extract_id( $value ) {
 
 wp_set_current_user( 1 );
 
-cmsa_mcp_redteam_assert( defined( 'CUA_VERSION' ) && '1.2.38' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.38 is not active.' );
+cmsa_mcp_redteam_assert( defined( 'CUA_VERSION' ) && '1.2.39' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.39 is not active.' );
 cmsa_mcp_redteam_assert( defined( 'EM_VERSION' ) && '7.4.3' === (string) EM_VERSION, 'Events Manager 7.4.3 is not active.' );
 cmsa_mcp_redteam_assert( defined( 'CMS_CORE_VERSION' ) && '0.2.2' === CMS_CORE_VERSION, 'Weekend Feature 0.2.2 is not active.' );
 cmsa_mcp_redteam_assert( class_exists( 'CMS_Weekend_Posts' ), 'Weekend Feature generator is unavailable.' );
@@ -363,3 +363,4 @@ cmsa_mcp_redteam_assert( $anonymous_resource_response instanceof WP_REST_Respons
 
 echo "cmsa-native-mcp-functional-redteam: PASS event_create=verified event_read=verified event_update=verified seo_read=verified seo_write=verified seo_rollback=verified weekend_generation=verified weekend_mcp_readback=verified content_cleanup=verified anonymous_discovery=verified tool_oauth_trigger=verified protected_resources=blocked\n";
 exit( 0 );
+
