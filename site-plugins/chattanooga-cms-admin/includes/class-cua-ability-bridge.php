@@ -510,6 +510,7 @@ final class CUA_Ability_Bridge {
 	private static function internal_admin_ability_names() {
 		$short_names = array(
 			'activate-plugin',
+			'authorize-plugin-package',
 			'clear-cache',
 			'create-backup',
 			'deactivate-plugin',
