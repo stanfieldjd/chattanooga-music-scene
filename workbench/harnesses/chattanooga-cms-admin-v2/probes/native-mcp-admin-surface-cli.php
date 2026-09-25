@@ -106,6 +106,61 @@ cmsa_native_mcp_surface_assert( empty( $unexpected ), 'MCP surface contains tool
 cmsa_native_mcp_surface_assert( empty( $leaked_facades ), 'MCP surface leaked generated internal facade tools: ' . implode( ', ', $leaked_facades ) );
 cmsa_native_mcp_surface_assert( $names === $expected, 'MCP tool list does not exactly match the bounded deterministic core set.' );
 
+// Unadvertised legacy admin tool names must not remain callable directly.
+$legacy_call = new WP_REST_Request( 'POST', '/chattanooga-cms-admin/v1/mcp' );
+$legacy_call->set_header( 'content-type', 'application/json' );
+$legacy_call->set_header( 'MCP-Protocol-Version', '2026-07-28' );
+$legacy_call->set_header( 'Mcp-Method', 'tools/call' );
+$legacy_call->set_header( 'Mcp-Name', 'cmsa.list-plugins' );
+$legacy_call->set_body(
+	wp_json_encode(
+		array(
+			'jsonrpc' => '2.0',
+			'id'      => 350,
+			'method'  => 'tools/call',
+			'params'  => array(
+				'name'      => 'cmsa.list-plugins',
+				'arguments' => array(),
+				'_meta'     => array(
+					'io.modelcontextprotocol/protocolVersion'    => '2026-07-28',
+					'io.modelcontextprotocol/clientCapabilities' => array(),
+					'io.modelcontextprotocol/clientInfo'         => array( 'name' => 'cmsa-admin-surface-probe', 'version' => '1.0.0' ),
+				),
+			),
+		)
+	)
+);
+$legacy_response = rest_do_request( $legacy_call );
+cmsa_native_mcp_surface_assert( 200 === $legacy_response->get_status(), 'Unadvertised legacy tool rejection did not return an MCP tool result.' );
+$legacy_data = $legacy_response->get_data();
+cmsa_native_mcp_surface_assert( true === ( $legacy_data['result']['isError'] ?? false ), 'Unadvertised legacy tool name remained directly callable.' );
+cmsa_native_mcp_surface_assert(
+	'cmsa_mcp_tool_not_found' === ( $legacy_data['result']['_meta']['chattanooga-cms-admin/errorCode'] ?? '' ),
+	'Unadvertised legacy tool rejection returned the wrong error code.'
+);
+
+// Generic Settings API inspection must never disclose stored values, even for show_in_rest settings.
+$secret_setting = 'cmsa_redteam_secret';
+register_setting(
+	'general',
+	$secret_setting,
+	array(
+		'type'         => 'string',
+		'show_in_rest' => true,
+	)
+);
+update_option( $secret_setting, 'redteam-secret-must-not-escape' );
+$settings_ability = wp_get_ability( 'chattanooga-cms-admin/get-registered-setting' );
+cmsa_native_mcp_surface_assert( $settings_ability instanceof WP_Ability, 'Registered-setting inspection ability is unavailable.' );
+$settings_result = $settings_ability->execute( array( 'setting' => $secret_setting ) );
+cmsa_native_mcp_surface_assert( ! is_wp_error( $settings_result ), 'Registered-setting inspection failed.' );
+cmsa_native_mcp_surface_assert( ! array_key_exists( 'value', $settings_result ), 'Generic setting inspection disclosed a stored value.' );
+cmsa_native_mcp_surface_assert( false === ( $settings_result['value_exposed'] ?? null ), 'Generic setting inspection reported a stored value as exposed.' );
+delete_option( $secret_setting );
+if ( function_exists( 'unregister_setting' ) ) {
+	unregister_setting( 'general', $secret_setting );
+}
+
 $catalog = wp_get_ability( 'chattanooga-cms-admin/catalog' );
 cmsa_native_mcp_surface_assert( $catalog instanceof WP_Ability, 'Universal capability catalog is unavailable.' );
 $catalog_result = $catalog->execute( array() );
