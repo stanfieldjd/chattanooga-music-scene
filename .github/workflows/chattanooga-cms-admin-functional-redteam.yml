@@ -82,7 +82,7 @@ jobs:
 
           test "$(php /tmp/wp-cli.phar plugin get events-manager --field=version --path=/tmp/wordpress)" = "7.4.3"
           test "$(php /tmp/wp-cli.phar plugin get seo-by-rank-math --field=version --path=/tmp/wordpress)" = "1.0.278"
-          test "$(php /tmp/wp-cli.phar plugin get chattanooga-music-scene-core --field=version --path=/tmp/wordpress)" = "0.2.3"
+          test "$(php /tmp/wp-cli.phar plugin get chattanooga-music-scene-core --field=version --path=/tmp/wordpress)" = "0.2.4"
           test "$(php /tmp/wp-cli.phar plugin get chattanooga-cms-admin --field=version --path=/tmp/wordpress)" = "1.2.47"
 
       - name: Run native MCP functional red team
