@@ -100,9 +100,12 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          trap 'if [ -f /tmp/admin-mcp-visual-http.pid ]; then kill "$(cat /tmp/admin-mcp-visual-http.pid)" 2>/dev/null || true; fi; if [ -f /tmp/admin-mcp-direct-chromium.pid ]; then kill "$(cat /tmp/admin-mcp-direct-chromium.pid)" 2>/dev/null || true; fi' EXIT
+          trap 'if [ -f /tmp/admin-mcp-visual-http.pid ]; then kill "$(cat /tmp/admin-mcp-visual-http.pid)" 2>/dev/null || true; fi; if [ -f /tmp/admin-mcp-direct-chromium.pid ]; then kill "$(cat /tmp/admin-mcp-direct-chromium.pid)" 2>/dev/null || true; fi; if [ -f /tmp/admin-mcp-control-chromium.pid ]; then kill "$(cat /tmp/admin-mcp-control-chromium.pid)" 2>/dev/null || true; fi' EXIT
           {
-            echo '=== Direct Chromium DevTools probe ==='
+            echo '=== Runtime identity ==='
+            id
+            uname -a
+            echo '=== Direct Chromium DevTools probe with production flags ==='
             direct_profile="$(mktemp -d /tmp/admin-mcp-direct-chromium.XXXXXX)"
             "$CMSA_BROWSER_EXECUTABLE" --headless=new --disable-gpu --no-first-run --no-default-browser-check --hide-scrollbars --remote-debugging-address=127.0.0.1 --remote-debugging-port=9333 --remote-allow-origins=http://127.0.0.1 --user-data-dir="$direct_profile" --window-size=900,600 about:blank >/tmp/admin-mcp-direct-chromium.log 2>&1 &
             echo $! >/tmp/admin-mcp-direct-chromium.pid
@@ -114,11 +117,36 @@ jobs:
               fi
               sleep 0.1
             done
-            echo "curl_ready=$direct_ready"
+            echo "production_flags_ready=$direct_ready"
             if [ -f /tmp/admin-mcp-direct-chromium-version.json ]; then cat /tmp/admin-mcp-direct-chromium-version.json; fi
-            echo '=== WordPress HTTP access to same DevTools endpoint ==='
-            php /tmp/wp-cli.phar eval '$r = wp_remote_get( "http://127.0.0.1:9333/json/version", array( "timeout" => 2, "redirection" => 0 ) ); if ( is_wp_error( $r ) ) { echo "WP_HTTP_ERROR: ", $r->get_error_code(), ": ", $r->get_error_message(), PHP_EOL; } else { echo "WP_HTTP_STATUS=", wp_remote_retrieve_response_code( $r ), PHP_EOL; echo wp_remote_retrieve_body( $r ), PHP_EOL; }' --path=/tmp/wordpress
+            if [ "$direct_ready" != '1' ]; then
+              echo '--- production-flag Chromium log ---'
+              cat /tmp/admin-mcp-direct-chromium.log 2>/dev/null || true
+            fi
             if [ -f /tmp/admin-mcp-direct-chromium.pid ]; then kill "$(cat /tmp/admin-mcp-direct-chromium.pid)" 2>/dev/null || true; rm -f /tmp/admin-mcp-direct-chromium.pid; fi
+
+            echo '=== CI sandbox-control probe (diagnostic only) ==='
+            control_profile="$(mktemp -d /tmp/admin-mcp-control-chromium.XXXXXX)"
+            "$CMSA_BROWSER_EXECUTABLE" --headless=new --disable-gpu --disable-dev-shm-usage --no-sandbox --no-first-run --no-default-browser-check --hide-scrollbars --remote-debugging-address=127.0.0.1 --remote-debugging-port=9334 --remote-allow-origins=http://127.0.0.1 --user-data-dir="$control_profile" --window-size=900,600 about:blank >/tmp/admin-mcp-control-chromium.log 2>&1 &
+            echo $! >/tmp/admin-mcp-control-chromium.pid
+            control_ready=0
+            for attempt in $(seq 1 40); do
+              if curl -fsS http://127.0.0.1:9334/json/version >/tmp/admin-mcp-control-chromium-version.json 2>/dev/null; then
+                control_ready=1
+                break
+              fi
+              sleep 0.1
+            done
+            echo "ci_no_sandbox_control_ready=$control_ready"
+            if [ -f /tmp/admin-mcp-control-chromium-version.json ]; then cat /tmp/admin-mcp-control-chromium-version.json; fi
+            if [ "$control_ready" != '1' ]; then
+              echo '--- CI-control Chromium log ---'
+              cat /tmp/admin-mcp-control-chromium.log 2>/dev/null || true
+            fi
+            if [ -f /tmp/admin-mcp-control-chromium.pid ]; then kill "$(cat /tmp/admin-mcp-control-chromium.pid)" 2>/dev/null || true; rm -f /tmp/admin-mcp-control-chromium.pid; fi
+
+            echo '=== WordPress HTTP access to production-flag DevTools endpoint ==='
+            php /tmp/wp-cli.phar eval '$r = wp_remote_get( "http://127.0.0.1:9333/json/version", array( "timeout" => 2, "redirection" => 0 ) ); if ( is_wp_error( $r ) ) { echo "WP_HTTP_ERROR: ", $r->get_error_code(), ": ", $r->get_error_message(), PHP_EOL; } else { echo "WP_HTTP_STATUS=", wp_remote_retrieve_response_code( $r ), PHP_EOL; echo wp_remote_retrieve_body( $r ), PHP_EOL; }' --path=/tmp/wordpress
             echo '=== Registered first-party abilities ==='
             php /tmp/wp-cli.phar eval '$abilities = class_exists("WP_Abilities_Registry") ? WP_Abilities_Registry::get_instance()->get_all_registered() : wp_get_abilities(); foreach ( $abilities as $ability ) { if ( $ability instanceof WP_Ability && 0 === strpos( $ability->get_name(), "admin-mcp/" ) ) { echo $ability->get_name(), PHP_EOL; } }' --path=/tmp/wordpress
             echo '=== Catalog first-party targets ==='
@@ -137,5 +165,7 @@ jobs:
             /tmp/admin-mcp-visual-http.log
             /tmp/admin-mcp-direct-chromium.log
             /tmp/admin-mcp-direct-chromium-version.json
+            /tmp/admin-mcp-control-chromium.log
+            /tmp/admin-mcp-control-chromium-version.json
           if-no-files-found: warn
           retention-days: 7
