@@ -1,7 +1,7 @@
 <?php
 /**
- * Plugin Name: admin mCP
- * Description: Universal admin mCP replacement using plugin-agnostic public WordPress contracts and verified intrinsic platform services.
+ * Plugin Name: ADMIN MCP
+ * Description: Universal ADMIN MCP replacement using plugin-agnostic public WordPress contracts and verified intrinsic platform services.
  * Version: 1.2.52
  * Author: Chattanooga Music Scene
  * Requires at least: 7.1
