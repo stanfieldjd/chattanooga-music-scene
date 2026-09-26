@@ -29,10 +29,16 @@ final class CUA_Visual_Browser_Runtime {
 		return $url;
 	}
 
-	public static function start( $width, $height ) {
+	public static function start( $width, $height, $only_binary = '' ) {
 		if ( ! function_exists( 'exec' ) || self::function_disabled( 'exec' ) ) { return new WP_Error( 'cmsa_visual_exec_unavailable', 'The host does not permit the process execution required for headless browser inspection.' ); }
-		$binaries = self::browser_candidates();
-		if ( is_wp_error( $binaries ) ) { return $binaries; }
+		if ( '' !== trim( (string) $only_binary ) ) {
+			$resolved_only = realpath( trim( (string) $only_binary ) );
+			if ( false === $resolved_only || ! is_file( $resolved_only ) || ! is_executable( $resolved_only ) ) { return new WP_Error( 'cmsa_visual_browser_config_invalid', 'The requested browser executable is not valid.' ); }
+			$binaries = array( $resolved_only );
+		} else {
+			$binaries = self::browser_candidates();
+			if ( is_wp_error( $binaries ) ) { return $binaries; }
+		}
 		$root = self::root();
 		if ( is_wp_error( $root ) ) { return $root; }
 		$last_error = null;
@@ -59,7 +65,7 @@ final class CUA_Visual_Browser_Runtime {
 			}
 			$session = array( 'session_id' => $id, 'pid' => $pid, 'port' => (int) $port, 'profile_dir' => $profile, 'browser_binary' => $binary, 'width' => (int) $width, 'height' => (int) $height, 'created_at' => time(), 'updated_at' => time() );
 			$ready = CUA_Visual_CDP::wait_until_ready( $session );
-			if ( is_wp_error( $ready ) ) { $last_error = $ready; self::close( $session ); continue; }
+			if ( is_wp_error( $ready ) ) { $last_error = self::classify_launch_failure( $log, $ready ); self::close( $session ); continue; }
 			$target = CUA_Visual_CDP::page_target( $session );
 			if ( is_wp_error( $target ) ) { $last_error = $target; self::close( $session ); continue; }
 			$session['target_id'] = (string) $target['id'];
@@ -152,6 +158,10 @@ final class CUA_Visual_Browser_Runtime {
 
 		$names = array( 'google-chrome', 'google-chrome-stable', 'chrome', 'chromium', 'chromium-browser', 'chrome-headless-shell', 'chromium-headless-shell' );
 		$candidates = array();
+		if ( class_exists( 'CUA_Visual_Browser_Runtime_Manager' ) ) {
+			$managed = CUA_Visual_Browser_Runtime_Manager::installed_binary();
+			if ( '' !== $managed ) { $candidates[] = $managed; }
+		}
 		$path = trim( (string) getenv( 'PATH' ) );
 		if ( '' !== $path ) {
 			foreach ( explode( PATH_SEPARATOR, $path ) as $dir ) {
@@ -185,7 +195,14 @@ final class CUA_Visual_Browser_Runtime {
 			if ( false !== $resolved && @is_file( $resolved ) && @is_executable( $resolved ) ) { $resolved_candidates[ $resolved ] = true; }
 		}
 		if ( $resolved_candidates ) { return array_keys( $resolved_candidates ); }
-		return new WP_Error( 'cmsa_visual_browser_unavailable', 'No usable local Chromium executable was found after checking the PHP process PATH, supported system locations, and common user-local browser caches.' );
+		return new WP_Error( 'cmsa_visual_browser_unavailable', 'No usable local Chromium executable was found after checking the managed ADMIN MCP runtime, PHP process PATH, supported system locations, and common user-local browser caches. Install the verified managed runtime with admin-mcp/install-browser-runtime if this host does not provide Chromium.' );
+	}
+
+	private static function classify_launch_failure( $log, $fallback ) {
+		$text = is_file( $log ) ? (string) @file_get_contents( $log, false, null, 0, 32768 ) : '';
+		if ( false !== stripos( $text, 'No usable sandbox' ) ) { return new WP_Error( 'cmsa_visual_browser_sandbox_unavailable', 'Chromium could not initialize a usable sandbox on this host. ADMIN MCP did not disable browser sandboxing.' ); }
+		if ( false !== stripos( $text, 'error while loading shared libraries' ) || false !== stripos( $text, 'cannot open shared object file' ) ) { return new WP_Error( 'cmsa_visual_browser_dependency_missing', 'Chromium could not start because a required shared library is unavailable on this host.' ); }
+		return $fallback;
 	}
 
 	private static function root() {
