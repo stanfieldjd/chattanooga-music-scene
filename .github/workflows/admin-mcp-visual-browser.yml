@@ -1,0 +1,104 @@
+name: Admin MCP Visual Browser Acceptance
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "site-plugins/chattanooga-cms-admin/**"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-visual-browser-cli.php"
+      - ".github/workflows/admin-mcp-visual-browser.yml"
+  pull_request:
+    paths:
+      - "site-plugins/chattanooga-cms-admin/**"
+      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-visual-browser-cli.php"
+      - ".github/workflows/admin-mcp-visual-browser.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  visual-browser:
+    name: Chromium pixel delivery and live session
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: mysqli, zip, gd, fileinfo
+
+      - name: Validate visual browser source
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l site-plugins/chattanooga-cms-admin/includes/class-cua-visual-cdp.php >/dev/null
+          php -l site-plugins/chattanooga-cms-admin/includes/class-cua-visual-browser-runtime.php >/dev/null
+          php -l site-plugins/chattanooga-cms-admin/includes/class-cua-visual-browser.php >/dev/null
+          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-visual-browser-cli.php >/dev/null
+          grep -q '^ \* Plugin Name: Admin MCP$' site-plugins/chattanooga-cms-admin/chattanooga-cms-admin.php
+          grep -q '^ \* Version: 1.2.51$' site-plugins/chattanooga-cms-admin/chattanooga-cms-admin.php
+
+      - name: Resolve Chromium executable
+        shell: bash
+        run: |
+          set -euo pipefail
+          browser="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          if [ -z "$browser" ]; then
+            echo "No Chromium-compatible browser is installed on the runner." >&2
+            exit 1
+          fi
+          echo "CMSA_BROWSER_EXECUTABLE=$browser" >> "$GITHUB_ENV"
+          "$browser" --version
+
+      - name: Install disposable WordPress 7.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+          php /tmp/wp-cli.phar core download --version=7.1 --path=/tmp/wordpress --force
+          php /tmp/wp-cli.phar config create --path=/tmp/wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
+          php /tmp/wp-cli.phar config set WP_ENVIRONMENT_TYPE local --type=constant --path=/tmp/wordpress
+          password="$(php -r 'echo bin2hex(random_bytes(20));')"
+          php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://127.0.0.1:8090 --title="Admin MCP Visual Browser Acceptance" --admin_user=admin --admin_password="$password" --admin_email=visual@example.invalid --skip-email
+          cp -R site-plugins/chattanooga-cms-admin /tmp/wordpress/wp-content/plugins/chattanooga-cms-admin
+          php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin --path=/tmp/wordpress
+          test "$(php /tmp/wp-cli.phar plugin get chattanooga-cms-admin --field=name --path=/tmp/wordpress)" = "Admin MCP"
+          test "$(php /tmp/wp-cli.phar plugin get chattanooga-cms-admin --field=version --path=/tmp/wordpress)" = "1.2.51"
+
+      - name: Start disposable web server
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -S 127.0.0.1:8090 -t /tmp/wordpress >/tmp/admin-mcp-visual-http.log 2>&1 &
+          echo $! >/tmp/admin-mcp-visual-http.pid
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8090/ >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/admin-mcp-visual-http.log >&2
+          exit 1
+
+      - name: Verify Chromium image delivery and browser session
+        shell: bash
+        run: |
+          set -euo pipefail
+          trap 'if [ -f /tmp/admin-mcp-visual-http.pid ]; then kill "$(cat /tmp/admin-mcp-visual-http.pid)" 2>/dev/null || true; fi' EXIT
+          CMSA_BROWSER_EXECUTABLE="$CMSA_BROWSER_EXECUTABLE" php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-visual-browser-cli.php" --path=/tmp/wordpress
