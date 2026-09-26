@@ -21,8 +21,8 @@ final class CUA_MCP_Settings_Page {
 
 	public static function register_menu() {
 		add_options_page(
-			__( 'Chattanooga MCP Settings', 'chattanooga-cms-admin' ),
-			__( 'Chattanooga MCP', 'chattanooga-cms-admin' ),
+			__( 'ADMIN MCP Settings', 'chattanooga-cms-admin' ),
+			__( 'ADMIN MCP', 'chattanooga-cms-admin' ),
 			'manage_options',
 			self::PAGE_SLUG,
 			array( __CLASS__, 'render_page' )
@@ -192,11 +192,11 @@ final class CUA_MCP_Settings_Page {
 
 	public static function render_page() {
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'You do not have permission to manage Chattanooga MCP settings.', 'chattanooga-cms-admin' ) );
+			wp_die( esc_html__( 'You do not have permission to manage ADMIN MCP settings.', 'chattanooga-cms-admin' ) );
 		}
 		?>
 		<div class="wrap">
-			<h1><?php echo esc_html__( 'Chattanooga MCP Settings', 'chattanooga-cms-admin' ); ?></h1>
+			<h1><?php echo esc_html__( 'ADMIN MCP Settings', 'chattanooga-cms-admin' ); ?></h1>
 			<p><?php echo esc_html__( 'Configure the native WordPress MCP endpoint without changing its authentication or administrator permission boundary.', 'chattanooga-cms-admin' ); ?></p>
 			<form action="options.php" method="post">
 				<?php
