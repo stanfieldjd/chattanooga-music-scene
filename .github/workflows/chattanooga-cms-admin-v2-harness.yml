@@ -1,4 +1,4 @@
-name: Chattanooga CMS Admin v2 Clean Harness
+name: Admin MCP v2 Clean Harness
 
 on:
   push:
@@ -54,8 +54,8 @@ jobs:
           test ! -e "$source/chattanooga-universal-admin.php"
           test ! -e workbench/labs/chattanooga-universal-admin/candidate
           test "$(grep -RIl '^ \* Plugin Name:' "$source" --include='*.php' | wc -l)" -eq 1
-          grep -q '^ \* Plugin Name: Chattanooga CMS Admin$' "$source/chattanooga-cms-admin.php"
-          grep -q '^ \* Version: 1.2.49$' "$source/chattanooga-cms-admin.php"
+          grep -q '^ \* Plugin Name: Admin MCP$' "$source/chattanooga-cms-admin.php"
+          grep -q '^ \* Version: 1.2.51$' "$source/chattanooga-cms-admin.php"
           if grep -REiq 'orbit-fixture|comet-fixture|asteroid-private|saturn-lifecycle|meteor-lifecycle|neptune-install|aurora-install|quasar-audit|pulsar-core-loopback|nova-settings|nova_private_setting|nova_rest_setting|nova_custom_setting|nova_absent_setting|cmsa_v2_snapshot_fixture|cmsa_v2_extra_after_backup|cmsa_v2_core_restore_marker|cmsa_v2_core_update_db_marker|wp-cmsa-v2-extra|cmsa-v2\.invalid' "$source"; then
             echo "Replacement contains v2 fixture-specific logic." >&2
             exit 1
@@ -73,7 +73,7 @@ jobs:
           php /tmp/wp-cli.phar core download --version=7.1 --path=/tmp/wordpress --force
           php /tmp/wp-cli.phar config create --path=/tmp/wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
           password="$(php -r 'echo bin2hex(random_bytes(20));')"
-          php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://cmsa-v2.test --title="CMS Admin v2 Harness" --admin_user=admin --admin_password="$password" --admin_email=lab@example.invalid --skip-email
+          php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://cmsa-v2.test --title="Admin MCP v2 Harness" --admin_user=admin --admin_password="$password" --admin_email=lab@example.invalid --skip-email
 
       - name: Activate replacement and fresh providers
         shell: bash
@@ -173,4 +173,3 @@ jobs:
 
           CMSA_V2_CORE_UPDATE_STATE="$state" \
             php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/core-update-final-cli.php" --path=/tmp/wordpress
-
