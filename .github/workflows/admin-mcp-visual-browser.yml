@@ -101,7 +101,14 @@ jobs:
         run: |
           set -o pipefail
           trap 'if [ -f /tmp/admin-mcp-visual-http.pid ]; then kill "$(cat /tmp/admin-mcp-visual-http.pid)" 2>/dev/null || true; fi' EXIT
-          CMSA_BROWSER_EXECUTABLE="$CMSA_BROWSER_EXECUTABLE" php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-visual-browser-cli.php" --path=/tmp/wordpress 2>&1 | tee /tmp/admin-mcp-visual-acceptance.log
+          {
+            echo '=== Registered first-party abilities ==='
+            php /tmp/wp-cli.phar eval '$abilities = class_exists("WP_Abilities_Registry") ? WP_Abilities_Registry::get_instance()->get_all_registered() : wp_get_abilities(); foreach ( $abilities as $ability ) { if ( $ability instanceof WP_Ability && 0 === strpos( $ability->get_name(), "chattanooga-cms-admin/" ) ) { echo $ability->get_name(), PHP_EOL; } }' --path=/tmp/wordpress
+            echo '=== Catalog first-party targets ==='
+            php /tmp/wp-cli.phar eval '$catalog = CUA_Ability_Bridge::catalog( array( "cursor" => 0, "limit" => 1000 ) ); if ( is_wp_error( $catalog ) ) { echo "CATALOG_ERROR: ", $catalog->get_error_code(), ": ", $catalog->get_error_message(), PHP_EOL; } else { foreach ( $catalog["items"] ?? array() as $item ) { $target = (string) ( $item["target"] ?? "" ); if ( 0 === strpos( $target, "chattanooga-cms-admin/" ) ) { echo $target, " => ", (string) ( $item["bridge"] ?? "" ), PHP_EOL; } } }' --path=/tmp/wordpress
+            echo '=== Acceptance probe ==='
+            CMSA_BROWSER_EXECUTABLE="$CMSA_BROWSER_EXECUTABLE" php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-visual-browser-cli.php" --path=/tmp/wordpress
+          } 2>&1 | tee /tmp/admin-mcp-visual-acceptance.log
 
       - name: Upload visual acceptance evidence
         if: always()
