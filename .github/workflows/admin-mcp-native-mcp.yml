@@ -72,7 +72,7 @@ jobs:
           php -l workbench/harnesses/admin-mcp-v2/probes/mcp-ingestion-diagnostics-cli.php >/dev/null
           python3 -m py_compile workbench/harnesses/admin-mcp-v2/probes/mcp-jsonschema-2020-report.py
           grep -q '^ \* Plugin Name: ADMIN MCP$' "$source/admin-mcp.php"
-          grep -q '^ \* Version: 1.2.55$' "$source/admin-mcp.php"
+          grep -q '^ \* Version: 1.2.56$' "$source/admin-mcp.php"
           grep -Fq "add_action( 'rest_api_init', array( 'CUA_MCP_Server', 'register_route' ) );" "$source/admin-mcp.php"
           test -f "$source/includes/class-cua-mcp-server.php"
           test -f "$source/includes/class-cua-mcp-diagnostics.php"
@@ -126,7 +126,7 @@ jobs:
       - name: Upload MCP ingestion diagnostic report
         uses: actions/upload-artifact@v4
         with:
-          name: admin-mcp-ingestion-report-1.2.55
+          name: admin-mcp-ingestion-report-1.2.56
           path: /tmp/cmsa-mcp-ingestion-diagnostics-report.json
           if-no-files-found: error
           retention-days: 30
@@ -458,17 +458,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          package="/tmp/admin-mcp-1.2.55.zip"
+          package="/tmp/admin-mcp-1.2.56.zip"
           (cd site-plugins && zip -qr "$package" admin-mcp)
           unzip -t "$package"
-          sha256sum "$package" | tee /tmp/admin-mcp-1.2.55.sha256
+          sha256sum "$package" | tee /tmp/admin-mcp-1.2.56.sha256
 
       - name: Upload verified install package
         uses: actions/upload-artifact@v4
         with:
-          name: admin-mcp-1.2.55
+          name: admin-mcp-1.2.56
           path: |
-            /tmp/admin-mcp-1.2.55.zip
-            /tmp/admin-mcp-1.2.55.sha256
+            /tmp/admin-mcp-1.2.56.zip
+            /tmp/admin-mcp-1.2.56.sha256
           if-no-files-found: error
           retention-days: 30

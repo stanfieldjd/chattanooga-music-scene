@@ -127,7 +127,7 @@ function cmsa_visual_result( WP_REST_Response $response, $label, $expect_image =
 
 wp_set_current_user( 1 );
 
-cmsa_visual_assert( defined( 'CUA_VERSION' ) && '1.2.55' === CUA_VERSION, 'ADMIN MCP 1.2.55 did not load.' );
+cmsa_visual_assert( defined( 'CUA_VERSION' ) && '1.2.56' === CUA_VERSION, 'ADMIN MCP 1.2.56 did not load.' );
 cmsa_visual_assert( class_exists( 'CUA_Visual_Browser' ), 'Visual browser ability layer did not load.' );
 cmsa_visual_assert( class_exists( 'CUA_Visual_Browser_Runtime' ), 'Visual browser runtime did not load.' );
 cmsa_visual_assert( class_exists( 'CUA_Visual_CDP' ), 'Visual CDP transport did not load.' );

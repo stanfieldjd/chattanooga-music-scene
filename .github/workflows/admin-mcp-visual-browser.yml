@@ -52,7 +52,7 @@ jobs:
           php -l site-plugins/admin-mcp/includes/class-cua-visual-browser.php >/dev/null
           php -l workbench/harnesses/admin-mcp-v2/probes/native-mcp-visual-browser-cli.php >/dev/null
           grep -q '^ \* Plugin Name: ADMIN MCP$' site-plugins/admin-mcp/admin-mcp.php
-          grep -q '^ \* Version: 1.2.55$' site-plugins/admin-mcp/admin-mcp.php
+          grep -q '^ \* Version: 1.2.56$' site-plugins/admin-mcp/admin-mcp.php
 
       - name: Resolve Chromium executable
         shell: bash
@@ -78,8 +78,8 @@ jobs:
           php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://127.0.0.1:8090 --title="ADMIN MCP Visual Browser Acceptance" --admin_user=admin --admin_password="$password" --admin_email=visual@example.invalid --skip-email
           cp -R site-plugins/admin-mcp /tmp/wordpress/wp-content/plugins/admin-mcp
           php /tmp/wp-cli.phar plugin activate admin-mcp --path=/tmp/wordpress
-          test "$(php /tmp/wp-cli.phar eval 'echo CUA_VERSION;' --path=/tmp/wordpress)" = "1.2.55"
-          test "$(php /tmp/wp-cli.phar plugin get admin-mcp --field=version --path=/tmp/wordpress)" = "1.2.55"
+          test "$(php /tmp/wp-cli.phar eval 'echo CUA_VERSION;' --path=/tmp/wordpress)" = "1.2.56"
+          test "$(php /tmp/wp-cli.phar plugin get admin-mcp --field=version --path=/tmp/wordpress)" = "1.2.56"
 
       - name: Start disposable web server
         shell: bash
@@ -99,61 +99,9 @@ jobs:
       - name: Verify Chromium image delivery and browser session
         shell: bash
         run: |
-          set -o pipefail
-          trap 'if [ -f /tmp/admin-mcp-visual-http.pid ]; then kill "$(cat /tmp/admin-mcp-visual-http.pid)" 2>/dev/null || true; fi; if [ -f /tmp/admin-mcp-direct-chromium.pid ]; then kill "$(cat /tmp/admin-mcp-direct-chromium.pid)" 2>/dev/null || true; fi; if [ -f /tmp/admin-mcp-control-chromium.pid ]; then kill "$(cat /tmp/admin-mcp-control-chromium.pid)" 2>/dev/null || true; fi' EXIT
-          {
-            echo '=== Runtime identity ==='
-            id
-            uname -a
-            echo '=== Direct Chromium DevTools probe with production flags ==='
-            direct_profile="$(mktemp -d /tmp/admin-mcp-direct-chromium.XXXXXX)"
-            "$CMSA_BROWSER_EXECUTABLE" --headless=new --disable-gpu --no-first-run --no-default-browser-check --hide-scrollbars --remote-debugging-address=127.0.0.1 --remote-debugging-port=9333 --remote-allow-origins=http://127.0.0.1 --user-data-dir="$direct_profile" --window-size=900,600 about:blank >/tmp/admin-mcp-direct-chromium.log 2>&1 &
-            echo $! >/tmp/admin-mcp-direct-chromium.pid
-            direct_ready=0
-            for attempt in $(seq 1 40); do
-              if curl -fsS http://127.0.0.1:9333/json/version >/tmp/admin-mcp-direct-chromium-version.json 2>/dev/null; then
-                direct_ready=1
-                break
-              fi
-              sleep 0.1
-            done
-            echo "production_flags_ready=$direct_ready"
-            if [ -f /tmp/admin-mcp-direct-chromium-version.json ]; then cat /tmp/admin-mcp-direct-chromium-version.json; fi
-            if [ "$direct_ready" != '1' ]; then
-              echo '--- production-flag Chromium log ---'
-              cat /tmp/admin-mcp-direct-chromium.log 2>/dev/null || true
-            fi
-            if [ -f /tmp/admin-mcp-direct-chromium.pid ]; then kill "$(cat /tmp/admin-mcp-direct-chromium.pid)" 2>/dev/null || true; rm -f /tmp/admin-mcp-direct-chromium.pid; fi
-
-            echo '=== CI sandbox-control probe (diagnostic only) ==='
-            control_profile="$(mktemp -d /tmp/admin-mcp-control-chromium.XXXXXX)"
-            "$CMSA_BROWSER_EXECUTABLE" --headless=new --disable-gpu --disable-dev-shm-usage --no-sandbox --no-first-run --no-default-browser-check --hide-scrollbars --remote-debugging-address=127.0.0.1 --remote-debugging-port=9334 --remote-allow-origins=http://127.0.0.1 --user-data-dir="$control_profile" --window-size=900,600 about:blank >/tmp/admin-mcp-control-chromium.log 2>&1 &
-            echo $! >/tmp/admin-mcp-control-chromium.pid
-            control_ready=0
-            for attempt in $(seq 1 40); do
-              if curl -fsS http://127.0.0.1:9334/json/version >/tmp/admin-mcp-control-chromium-version.json 2>/dev/null; then
-                control_ready=1
-                break
-              fi
-              sleep 0.1
-            done
-            echo "ci_no_sandbox_control_ready=$control_ready"
-            if [ -f /tmp/admin-mcp-control-chromium-version.json ]; then cat /tmp/admin-mcp-control-chromium-version.json; fi
-            if [ "$control_ready" != '1' ]; then
-              echo '--- CI-control Chromium log ---'
-              cat /tmp/admin-mcp-control-chromium.log 2>/dev/null || true
-            fi
-            if [ -f /tmp/admin-mcp-control-chromium.pid ]; then kill "$(cat /tmp/admin-mcp-control-chromium.pid)" 2>/dev/null || true; rm -f /tmp/admin-mcp-control-chromium.pid; fi
-
-            echo '=== WordPress HTTP access to production-flag DevTools endpoint ==='
-            php /tmp/wp-cli.phar eval '$r = wp_remote_get( "http://127.0.0.1:9333/json/version", array( "timeout" => 2, "redirection" => 0 ) ); if ( is_wp_error( $r ) ) { echo "WP_HTTP_ERROR: ", $r->get_error_code(), ": ", $r->get_error_message(), PHP_EOL; } else { echo "WP_HTTP_STATUS=", wp_remote_retrieve_response_code( $r ), PHP_EOL; echo wp_remote_retrieve_body( $r ), PHP_EOL; }' --path=/tmp/wordpress
-            echo '=== Registered first-party abilities ==='
-            php /tmp/wp-cli.phar eval '$abilities = class_exists("WP_Abilities_Registry") ? WP_Abilities_Registry::get_instance()->get_all_registered() : wp_get_abilities(); foreach ( $abilities as $ability ) { if ( $ability instanceof WP_Ability && 0 === strpos( $ability->get_name(), "admin-mcp/" ) ) { echo $ability->get_name(), PHP_EOL; } }' --path=/tmp/wordpress
-            echo '=== Catalog first-party targets ==='
-            php /tmp/wp-cli.phar eval '$catalog = CUA_Ability_Bridge::catalog( array( "cursor" => 0, "limit" => 1000 ) ); if ( is_wp_error( $catalog ) ) { echo "CATALOG_ERROR: ", $catalog->get_error_code(), ": ", $catalog->get_error_message(), PHP_EOL; } else { foreach ( $catalog["items"] ?? array() as $item ) { $target = (string) ( $item["target"] ?? "" ); if ( 0 === strpos( $target, "admin-mcp/" ) ) { echo $target, " => ", (string) ( $item["bridge"] ?? "" ), PHP_EOL; } } }' --path=/tmp/wordpress
-            echo '=== Acceptance probe ==='
-            CMSA_BROWSER_EXECUTABLE="$CMSA_BROWSER_EXECUTABLE" php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/admin-mcp-v2/probes/native-mcp-visual-browser-cli.php" --path=/tmp/wordpress
-          } 2>&1 | tee /tmp/admin-mcp-visual-acceptance.log
+          set -euo pipefail
+          trap 'if [ -f /tmp/admin-mcp-visual-http.pid ]; then kill "$(cat /tmp/admin-mcp-visual-http.pid)" 2>/dev/null || true; fi' EXIT
+          CMSA_BROWSER_EXECUTABLE="$CMSA_BROWSER_EXECUTABLE" php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/admin-mcp-v2/probes/native-mcp-visual-browser-cli.php" --path=/tmp/wordpress 2>&1 | tee /tmp/admin-mcp-visual-acceptance.log
 
       - name: Upload visual acceptance evidence
         if: always()
@@ -163,9 +111,5 @@ jobs:
           path: |
             /tmp/admin-mcp-visual-acceptance.log
             /tmp/admin-mcp-visual-http.log
-            /tmp/admin-mcp-direct-chromium.log
-            /tmp/admin-mcp-direct-chromium-version.json
-            /tmp/admin-mcp-control-chromium.log
-            /tmp/admin-mcp-control-chromium-version.json
           if-no-files-found: warn
           retention-days: 7
