@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   diagnose:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Download and inspect pinned runtime
         shell: bash
