@@ -149,6 +149,14 @@ if ( $now > $sunday ) {
 	$friday = $friday->modify( '+1 week' );
 }
 
+$live_music_term = term_exists( 'live-music', 'event-categories' );
+if ( ! $live_music_term ) {
+	$live_music_term = wp_insert_term( 'Live Music', 'event-categories', array( 'slug' => 'live-music' ) );
+}
+cmsa_weekend_mcp_assert( ! is_wp_error( $live_music_term ), 'Live Music event category fixture could not be created.' );
+$live_music_term_id = is_array( $live_music_term ) ? (int) ( $live_music_term['term_id'] ?? 0 ) : (int) $live_music_term;
+cmsa_weekend_mcp_assert( $live_music_term_id > 0, 'Live Music event category fixture returned no term ID.' );
+
 $event_name = 'CMSA MCP Weekend Ability ' . substr( hash( 'sha256', wp_generate_uuid4() ), 0, 10 );
 $create_item = cmsa_weekend_mcp_find_rest( $catalog, 'POST', '/events-manager/v1/events' );
 $created = cmsa_weekend_mcp_gateway(
@@ -165,6 +173,7 @@ $created = cmsa_weekend_mcp_gateway(
 			'event_start_time' => '20:00:00',
 			'event_end_time'   => '22:00:00',
 			'event_timezone'   => wp_timezone_string() ?: 'UTC',
+			'event_categories' => array( $live_music_term_id ),
 		),
 	)
 );
