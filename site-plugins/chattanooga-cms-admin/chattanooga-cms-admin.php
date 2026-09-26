@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Chattanooga CMS Admin
  * Description: Universal Chattanooga CMS Admin replacement using plugin-agnostic public WordPress contracts and verified intrinsic platform services.
- * Version: 1.2.49
+ * Version: 1.2.50
  * Author: Chattanooga Music Scene
  * Requires at least: 7.1
  * Requires PHP: 8.0
@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CUA_VERSION', '1.2.49' );
+define( 'CUA_VERSION', '1.2.50' );
 define( 'CUA_DIR', plugin_dir_path( __FILE__ ) );
 
 require_once CUA_DIR . 'includes/class-cua-local-storage.php';
@@ -31,6 +31,9 @@ require_once CUA_DIR . 'includes/class-cua-platform-core-maintenance.php';
 require_once CUA_DIR . 'includes/class-cua-platform-settings.php';
 require_once CUA_DIR . 'includes/class-cua-platform-cron.php';
 require_once CUA_DIR . 'includes/class-cua-platform-post-lifecycle.php';
+require_once CUA_DIR . 'includes/class-cua-visual-cdp.php';
+require_once CUA_DIR . 'includes/class-cua-visual-browser-runtime.php';
+require_once CUA_DIR . 'includes/class-cua-visual-browser.php';
 require_once CUA_DIR . 'includes/class-cua-mcp-settings-page.php';
 require_once CUA_DIR . 'includes/class-cua-rest-bridge.php';
 require_once CUA_DIR . 'includes/class-cua-ability-bridge.php';
@@ -40,6 +43,7 @@ require_once CUA_DIR . 'includes/class-cua-mcp-server.php';
 require_once CUA_DIR . 'includes/class-cua-mcp-diagnostics.php';
 
 CUA_Audit::bootstrap();
+CUA_Visual_Browser::bootstrap();
 CUA_MCP_Settings_Page::register_admin_hooks();
 CUA_OAuth_Server::bootstrap();
 
@@ -61,6 +65,7 @@ add_action( 'wp_abilities_api_init', array( 'CUA_Platform_Core_Maintenance', 're
 add_action( 'wp_abilities_api_init', array( 'CUA_Platform_Settings', 'register_abilities' ), 20 );
 add_action( 'wp_abilities_api_init', array( 'CUA_Platform_Cron', 'register_abilities' ), 21 );
 add_action( 'wp_abilities_api_init', array( 'CUA_Platform_Post_Lifecycle', 'register_ability' ), 22 );
+add_action( 'wp_abilities_api_init', array( 'CUA_Visual_Browser', 'register_abilities' ), 23 );
 add_action( 'wp_abilities_api_init', array( 'CUA_MCP_Server', 'register_adapter_abilities' ), 9997 );
 add_action( 'wp_abilities_api_init', array( 'CUA_REST_Bridge', 'register_external_bridges' ), 999999 );
 add_action( 'wp_abilities_api_init', array( 'CUA_Ability_Bridge', 'register_external_bridges' ), 1000000 );
@@ -72,4 +77,3 @@ add_action( 'rest_api_init', array( 'CUA_MCP_Diagnostics', 'register_routes' ), 
 // the REST registry is fully assembled, before MCP calls can arrive.
 add_action( 'rest_api_init', array( 'CUA_REST_Bridge', 'register_external_bridges' ), 1000 );
 add_action( 'rest_api_init', array( 'CUA_Ability_Bridge', 'register_external_bridges' ), 1001 );
-
