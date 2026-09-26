@@ -27,7 +27,7 @@ wp_set_current_user( 1 );
 require_once ABSPATH . 'wp-admin/includes/plugin.php';
 
 $required_plugins = array(
-	'chattanooga-cms-admin/chattanooga-cms-admin.php',
+	'admin-mcp/admin-mcp.php',
 	'chattanooga-music-marketplace/chattanooga-music-marketplace.php',
 	'chattanooga-music-scene-core/chattanooga-music-scene-core.php',
 	'woocommerce/woocommerce.php',
@@ -46,7 +46,7 @@ cms_site_plugins_assert( class_exists( 'EM_Events' ), 'Events Manager API is una
 
 // ADMIN MCP must remain functional with the other two site plugins active.
 cms_site_plugins_assert( function_exists( 'wp_get_ability' ), 'WordPress Abilities API is unavailable.' );
-$health = wp_get_ability( 'chattanooga-cms-admin/get-health' );
+$health = wp_get_ability( 'admin-mcp/get-health' );
 cms_site_plugins_assert( $health instanceof WP_Ability, 'ADMIN MCP health ability is missing.' );
 cms_site_plugins_assert( true === $health->check_permissions( array() ), 'ADMIN MCP health permission failed for administrator.' );
 $health_result = $health->execute( array() );

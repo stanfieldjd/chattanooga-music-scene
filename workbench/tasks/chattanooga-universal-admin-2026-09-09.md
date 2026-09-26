@@ -1,4 +1,4 @@
-# Chattanooga CMS Admin — universal replacement engineering record
+# ADMIN MCP — universal replacement engineering record
 
 Date opened: 2026-09-09
 Engineering state: SOURCE_ENGINEERING_ACCEPTED
@@ -8,17 +8,17 @@ Production state: NOT_DEPLOYED
 
 ## Objective
 
-Replace the existing Chattanooga CMS Admin implementation with one provider-agnostic Chattanooga CMS Admin plugin that administers WordPress and compatible active plugins through public WordPress contracts, while retaining bounded intrinsic WordPress platform administration for functions WordPress itself owns.
+Replace the existing ADMIN MCP implementation with one provider-agnostic ADMIN MCP plugin that administers WordPress and compatible active plugins through public WordPress contracts, while retaining bounded intrinsic WordPress platform administration for functions WordPress itself owns.
 
 This is a replacement of the existing plugin slot, not an additional production plugin.
 
 ## Canonical replacement identity
 
-- Plugin name: `Chattanooga CMS Admin`
+- Plugin name: `ADMIN MCP`
 - Version: `1.0.0`
-- Canonical source: `site-plugins/chattanooga-cms-admin/`
-- Entrypoint: `site-plugins/chattanooga-cms-admin/chattanooga-cms-admin.php`
-- Ability namespace: `chattanooga-cms-admin/`
+- Canonical source: `site-plugins/admin-mcp/`
+- Entrypoint: `site-plugins/admin-mcp/admin-mcp.php`
+- Ability namespace: `admin-mcp/`
 - Separate `Chattanooga Universal Admin` production plugin: ABSENT
 - Obsolete `workbench/labs/chattanooga-universal-admin` tree: DELETED
 
@@ -35,7 +35,7 @@ The plugin dynamically discovers and preserves provider contracts exposed throug
 1. public WordPress Abilities API registrations; and
 2. indexed registered WordPress REST routes.
 
-The bridge does not contain provider identities. Provider permission callbacks remain authoritative. Explicit MCP exposure metadata is honored when present; otherwise the WordPress `public` contract is used. Explicitly private abilities are not promoted into the Chattanooga CMS Admin namespace.
+The bridge does not contain provider identities. Provider permission callbacks remain authoritative. Explicit MCP exposure metadata is honored when present; otherwise the WordPress `public` contract is used. Explicitly private abilities are not promoted into the ADMIN MCP namespace.
 
 ### Intrinsic WordPress platform layer
 
@@ -65,7 +65,7 @@ VERIFIED:
 
 ## Replacement coverage
 
-The replacement acceptance probe requires all 24 intrinsic system/maintenance functions represented by the old Chattanooga CMS Admin system surface:
+The replacement acceptance probe requires all 24 intrinsic system/maintenance functions represented by the old ADMIN MCP system surface:
 
 - health and update inventory;
 - plugin and theme inventory;
@@ -89,7 +89,7 @@ Registered Settings API administration is provided through bounded intrinsic abi
 
 ### Events Manager 7.4.3 — VERIFIED E3
 
-The real plugin was installed in disposable WordPress. Chattanooga CMS Admin dynamically bridged its public native Ability/REST contracts without provider-specific replacement code. Event administration and provider permission behavior were exercised successfully.
+The real plugin was installed in disposable WordPress. ADMIN MCP dynamically bridged its public native Ability/REST contracts without provider-specific replacement code. Event administration and provider permission behavior were exercised successfully.
 
 ### WooCommerce 11.0.1 — VERIFIED E3
 
@@ -115,7 +115,7 @@ No Rank Math-specific replacement source was added.
 
 AWP registers the `awpcp_listing` post type. miniOrange registers its generic `mosmcp/cpt-list-types` Ability in the disposable environment, but its WordPress Ability metadata explicitly declares `public:false` and `show_in_rest:false`, with no `mcp.public:true` override.
 
-Chattanooga CMS Admin therefore correctly does not re-expose that provider-private Ability. This is required by the replacement's private-interface exclusion rule. The live miniOrange MCP server may expose its own tools under its own policy; that does not authorize Chattanooga CMS Admin to promote a private WordPress Ability into its namespace.
+ADMIN MCP therefore correctly does not re-expose that provider-private Ability. This is required by the replacement's private-interface exclusion rule. The live miniOrange MCP server may expose its own tools under its own policy; that does not authorize ADMIN MCP to promote a private WordPress Ability into its namespace.
 
 No AWP-specific adapter was added.
 
@@ -123,7 +123,7 @@ No AWP-specific adapter was added.
 
 ### Final post-cleanup full v2 harness
 
-Workflow: `Chattanooga CMS Admin v2 Clean Harness`
+Workflow: `ADMIN MCP v2 Clean Harness`
 Run: `34504939807`
 Result: SUCCESS
 
@@ -145,7 +145,7 @@ The same run passed:
 
 ### Final real-provider compatibility suite
 
-Workflow: `Chattanooga CMS Admin v2 Provider Compatibility`
+Workflow: `ADMIN MCP v2 Provider Compatibility`
 Run: `34505114334`
 Result: SUCCESS
 
@@ -158,13 +158,13 @@ Jobs:
 
 ### Hardened replacement acceptance
 
-Workflow: `Chattanooga CMS Admin v2 Replacement Acceptance`
+Workflow: `ADMIN MCP v2 Replacement Acceptance`
 Run: `34504837023`
 Result: SUCCESS
 
 The acceptance gate verifies:
 
-- exactly one Chattanooga CMS Admin plugin identity;
+- exactly one ADMIN MCP plugin identity;
 - version `1.0.0`;
 - no old lab tree;
 - no production-provider identifiers in canonical implementation source;
@@ -175,7 +175,7 @@ The acceptance gate verifies:
 
 ## Repository conformance
 
-A branch-to-`main` comparison after lab cleanup showed the branch is based directly on `main` at `f1c4c128f29215698a2408880a010e49faccac58` with no unrelated existing site-file modifications. The branch changes are confined to the Chattanooga CMS Admin replacement source, its v2 workflows/harness, and this engineering record.
+A branch-to-`main` comparison after lab cleanup showed the branch is based directly on `main` at `f1c4c128f29215698a2408880a010e49faccac58` with no unrelated existing site-file modifications. The branch changes are confined to the ADMIN MCP replacement source, its v2 workflows/harness, and this engineering record.
 
 The obsolete Phase-1 `workbench/labs/chattanooga-universal-admin` probes/providers/theme fixtures were deleted after the v2 harness superseded them. They are not retained as fallback code.
 
@@ -189,6 +189,6 @@ This decision applies to source engineering only.
 
 ## Production transition boundary
 
-Production is still running the existing Chattanooga CMS Admin 0.1.0 implementation. No production replacement, deletion, activation, permission change, or deployment is authorized by this engineering record.
+Production is still running the existing ADMIN MCP 0.1.0 implementation. No production replacement, deletion, activation, permission change, or deployment is authorized by this engineering record.
 
-A production transition remains a separate A3 operation. It must use the one-for-one Chattanooga CMS Admin slot, preserve rollback capability, validate the replacement in the target environment, and only then remove the old implementation rather than retaining it as a fallback.
+A production transition remains a separate A3 operation. It must use the one-for-one ADMIN MCP slot, preserve rollback capability, validate the replacement in the target environment, and only then remove the old implementation rather than retaining it as a fallback.

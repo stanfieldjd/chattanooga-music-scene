@@ -1,0 +1,331 @@
+<?php
+
+if ( ! defined( 'ABSPATH' ) ) {
+	fwrite( STDERR, "WordPress must be loaded.\n" );
+	exit( 1 );
+}
+
+function cmsa_mcp_settings_fail( $message ) {
+	fwrite( STDERR, 'FAIL: ' . (string) $message . "\n" );
+	exit( 1 );
+}
+
+function cmsa_mcp_settings_assert( $condition, $message ) {
+	if ( ! $condition ) {
+		cmsa_mcp_settings_fail( $message );
+	}
+}
+
+wp_set_current_user( 1 );
+cmsa_mcp_settings_assert( class_exists( 'CUA_MCP_Settings_Page' ), 'MCP settings page class did not load.' );
+CUA_MCP_Settings_Page::register_settings();
+cmsa_mcp_settings_assert( true === CUA_MCP_Settings_Page::is_enabled(), 'MCP endpoint is not enabled by default.' );
+
+$default_origins = CUA_MCP_Settings_Page::allowed_origins();
+cmsa_mcp_settings_assert( ! empty( $default_origins ), 'No default MCP origins were generated.' );
+cmsa_mcp_settings_assert( CUA_MCP_Settings_Page::is_origin_allowed( home_url( '/' ) ), 'The site origin is not allowed by default.' );
+
+$sanitized = CUA_MCP_Settings_Page::sanitize_origins(
+	array(
+		'https://EXAMPLE.com/path',
+		'https://example.com',
+		'not-an-origin',
+	)
+);
+cmsa_mcp_settings_assert( array( 'https://example.com' ) === $sanitized, 'Origin sanitization accepted an invalid or duplicate entry.' );
+
+ob_start();
+CUA_MCP_Settings_Page::render_page();
+$page = ob_get_clean();
+cmsa_mcp_settings_assert( false !== strpos( $page, 'ADMIN MCP Settings' ), 'MCP settings page title is missing.' );
+cmsa_mcp_settings_assert( false !== strpos( $page, esc_url( rest_url( CUA_MCP_Server::REST_NAMESPACE . CUA_MCP_Server::REST_ROUTE ) ) ), 'MCP endpoint is missing from the settings page.' );
+cmsa_mcp_settings_assert( false !== strpos( $page, CUA_MCP_Server::PROTOCOL_VERSION ), 'MCP protocol version is missing from the settings page.' );
+cmsa_mcp_settings_assert( false !== strpos( $page, 'Allowed browser origins' ), 'MCP origin setting is missing from the settings page.' );
+
+cmsa_mcp_settings_assert( false !== strpos( $page, 'Authorization trace' ), 'Authorization trace panel is missing from the settings page.' );
+cmsa_mcp_settings_assert( false !== strpos( $page, 'Clear authorization trace' ), 'Authorization trace clear control is missing from the settings page.' );
+cmsa_mcp_settings_assert( false !== strpos( $page, esc_html( rest_url( CUA_OAuth_Server::REST_NAMESPACE . '/oauth/diagnostics' ) ) ), 'OAuth diagnostics URL is missing from the trace panel.' );
+
+cmsa_mcp_settings_assert( class_exists( 'CUA_MCP_Diagnostics' ), 'MCP ingestion diagnostics service is unavailable.' );
+cmsa_mcp_settings_assert( false !== strpos( $page, 'MCP ingestion diagnostics' ), 'MCP ingestion diagnostics panel is missing from the settings page.' );
+cmsa_mcp_settings_assert( false !== strpos( $page, esc_html( rest_url( CUA_MCP_Server::REST_NAMESPACE . CUA_MCP_Diagnostics::REPORT_ROUTE ) ) ), 'MCP diagnostics JSON URL is missing from the settings page.' );
+cmsa_mcp_settings_assert( false !== strpos( $page, esc_html( rest_url( CUA_MCP_Server::REST_NAMESPACE . CUA_MCP_Diagnostics::CANARY_ROUTE ) ) ), 'MCP canary endpoint is missing from the settings page.' );
+$ingestion_summary = CUA_MCP_Diagnostics::public_summary();
+cmsa_mcp_settings_assert( (int) ( $ingestion_summary['toolCount'] ?? 0 ) > 0, 'MCP ingestion summary reports no tools.' );
+cmsa_mcp_settings_assert( 0 === (int) ( $ingestion_summary['descriptorFail'] ?? -1 ), 'MCP ingestion summary reports descriptor failures.' );
+cmsa_mcp_settings_assert( preg_match( '/^[a-f0-9]{64}$/', (string) ( $ingestion_summary['catalogSha256'] ?? '' ) ), 'MCP ingestion summary catalog fingerprint is invalid.' );
+
+cmsa_mcp_settings_assert( class_exists( 'CUA_Audit' ), 'Audit service required for authorization tracing is unavailable.' );
+$trace_clear = CUA_Audit::clear_oauth_trace();
+cmsa_mcp_settings_assert( true === $trace_clear, 'Authorization trace could not be cleared before probe.' );
+CUA_Audit::log_oauth_trace(
+	array(
+		'stage'            => 'probe_stage',
+		'outcome'          => 'accepted',
+		'http_status'      => 200,
+		'grant_type'       => 'authorization_code',
+		'client_mode'      => 'cimd',
+		'client_host'      => 'chatgpt.com',
+		'protocol_version' => '2026-07-28',
+		'mcp_method'       => 'tools/list',
+		'token'            => 'must-not-be-retained',
+		'code'             => 'must-not-be-retained',
+		'state'            => 'must-not-be-retained',
+		'redirect_uri'     => 'https://must-not-be-retained.invalid/callback',
+	)
+);
+$trace = CUA_Audit::read_oauth_trace( 10 );
+cmsa_mcp_settings_assert( is_array( $trace['entries'] ?? null ) && 1 === count( $trace['entries'] ), 'Authorization trace did not return the recorded probe entry.' );
+$trace_entry = $trace['entries'][0];
+cmsa_mcp_settings_assert( 'probe_stage' === ( $trace_entry['stage'] ?? '' ) && 'chatgpt.com' === ( $trace_entry['client_host'] ?? '' ), 'Authorization trace omitted safe handshake metadata.' );
+foreach ( array( 'token', 'code', 'state', 'redirect_uri' ) as $forbidden_trace_key ) {
+	cmsa_mcp_settings_assert( ! array_key_exists( $forbidden_trace_key, $trace_entry ), 'Authorization trace retained forbidden sensitive field: ' . $forbidden_trace_key );
+}
+ob_start();
+CUA_MCP_Settings_Page::render_oauth_trace_panel();
+$trace_panel = ob_get_clean();
+cmsa_mcp_settings_assert( false !== strpos( $trace_panel, 'probe_stage' ) && false !== strpos( $trace_panel, 'chatgpt.com' ), 'Authorization trace panel did not display recorded handshake metadata.' );
+$trace_clear = CUA_Audit::clear_oauth_trace();
+cmsa_mcp_settings_assert( true === $trace_clear && empty( ( CUA_Audit::read_oauth_trace( 10 )['entries'] ?? array() ) ), 'Authorization trace clear operation did not remove trace entries.' );
+
+for ( $trace_index = 0; $trace_index < CUA_Audit::MAX_OAUTH_TRACE_READ + 5; ++$trace_index ) {
+	CUA_Audit::log_oauth_trace( array( 'stage' => 'bounded_probe', 'outcome' => 'accepted', 'http_status' => 200 ) );
+}
+$trace_path = CUA_Local_Storage::path( 'audit.jsonl', 'audit' );
+cmsa_mcp_settings_assert( ! is_wp_error( $trace_path ) && is_file( $trace_path ), 'Authorization trace storage file is unavailable for bound verification.' );
+$stored_oauth_trace_count = 0;
+foreach ( file( $trace_path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES ) as $trace_line ) {
+	$trace_row = json_decode( (string) $trace_line, true );
+	if ( is_array( $trace_row ) && 'oauth_trace' === ( $trace_row['surface'] ?? '' ) ) {
+		++$stored_oauth_trace_count;
+	}
+}
+cmsa_mcp_settings_assert( CUA_Audit::MAX_OAUTH_TRACE_READ === $stored_oauth_trace_count, 'Stored authorization trace exceeded its rolling history bound.' );
+cmsa_mcp_settings_assert( true === CUA_Audit::clear_oauth_trace(), 'Bounded authorization trace cleanup failed.' );
+
+$oauth_metadata = CUA_OAuth_Server::authorization_server_metadata();
+$resource_metadata = CUA_OAuth_Server::protected_resource_metadata();
+cmsa_mcp_settings_assert( in_array( CUA_OAuth_Server::OFFLINE_SCOPE, $oauth_metadata['scopes_supported'] ?? array(), true ), 'OAuth discovery does not advertise offline_access.' );
+cmsa_mcp_settings_assert( ! in_array( CUA_OAuth_Server::OFFLINE_SCOPE, $resource_metadata['scopes_supported'] ?? array(), true ), 'Protected-resource metadata incorrectly advertises offline_access as a resource requirement.' );
+cmsa_mcp_settings_assert( in_array( CUA_OAuth_Server::SCOPE, $resource_metadata['scopes_supported'] ?? array(), true ), 'Protected-resource metadata does not advertise the administrator scope.' );
+cmsa_mcp_settings_assert( true === ( $oauth_metadata['authorization_response_iss_parameter_supported'] ?? false ), 'OAuth discovery does not advertise authorization response issuer identification.' );
+cmsa_mcp_settings_assert( true === ( $oauth_metadata['client_id_metadata_document_supported'] ?? false ), 'OAuth discovery does not advertise CIMD support.' );
+cmsa_mcp_settings_assert( in_array( 'refresh_token', $oauth_metadata['grant_types_supported'] ?? array(), true ), 'OAuth discovery does not advertise refresh_token.' );
+
+$original_auth_mode = get_option( CUA_MCP_Settings_Page::OPTION_AUTH_MODE, CUA_MCP_Settings_Page::AUTH_MODE_OAUTH );
+update_option( CUA_MCP_Settings_Page::OPTION_AUTH_MODE, CUA_MCP_Settings_Page::AUTH_MODE_MANUAL, false );
+cmsa_mcp_settings_assert( true === CUA_OAuth_Server::is_oauth_enabled(), 'Manual bearer fallback mode disabled the OAuth authorization server.' );
+$challenge = CUA_OAuth_Server::resource_challenge();
+cmsa_mcp_settings_assert( false !== strpos( $challenge, 'resource_metadata=' ), 'Authorization challenge does not advertise protected-resource metadata.' );
+cmsa_mcp_settings_assert( false !== strpos( $challenge, 'scope="' . CUA_OAuth_Server::SCOPE . '"' ), 'Authorization challenge does not advertise the administrator scope.' );
+cmsa_mcp_settings_assert( false !== strpos( $challenge, esc_url_raw( CUA_OAuth_Server::protected_resource_metadata_url() ) ), 'Authorization challenge does not use the REST metadata fallback.' );
+cmsa_mcp_settings_assert( false === strpos( $challenge, 'error="invalid_token"' ), 'Missing-token challenge is incorrectly labeled invalid_token.' );
+$invalid_challenge = CUA_OAuth_Server::resource_challenge( 'cmsa_oauth_token_invalid' );
+cmsa_mcp_settings_assert( false !== strpos( $invalid_challenge, 'error="invalid_token"' ), 'Invalid-token challenge omits invalid_token.' );
+$scope_challenge = CUA_OAuth_Server::resource_challenge( 'cmsa_oauth_insufficient_scope' );
+cmsa_mcp_settings_assert( false !== strpos( $scope_challenge, 'error="insufficient_scope"' ), 'Insufficient-scope challenge omits insufficient_scope.' );
+$tool_missing_challenge = CUA_OAuth_Server::tool_resource_challenge( 'cmsa_oauth_token_missing' );
+cmsa_mcp_settings_assert( false !== strpos( $tool_missing_challenge, 'resource_metadata=' ), 'Tool OAuth challenge omits protected-resource metadata.' );
+cmsa_mcp_settings_assert( false !== strpos( $tool_missing_challenge, 'error=' ), 'Tool OAuth challenge omits OAuth error.' );
+cmsa_mcp_settings_assert( false !== strpos( $tool_missing_challenge, 'error_description=' ), 'Tool OAuth challenge omits OAuth error_description.' );
+cmsa_mcp_settings_assert( false !== strpos( $tool_missing_challenge, 'scope="' . CUA_OAuth_Server::SCOPE . '"' ), 'Tool OAuth challenge omits the administrator scope.' );
+
+$rewrite_rules = CUA_OAuth_Server::inject_well_known_rewrite_rules( "ORIGINAL-WORDPRESS-RULES\n" );
+cmsa_mcp_settings_assert( false !== strpos( $rewrite_rules, '^\\.well-known/oauth-protected-resource/?$' ), 'Root protected-resource rewrite rule is missing.' );
+$expected_resource_rewrite_path = preg_quote( ltrim( (string) wp_parse_url( rest_url( CUA_MCP_Server::REST_NAMESPACE . CUA_MCP_Server::REST_ROUTE ), PHP_URL_PATH ), '/' ), '#' );
+cmsa_mcp_settings_assert( false !== strpos( $rewrite_rules, 'oauth-protected-resource/' . $expected_resource_rewrite_path ), 'Path-aware protected-resource rewrite rule is missing.' );
+cmsa_mcp_settings_assert( false !== strpos( $rewrite_rules, '^\\.well-known/oauth-authorization-server/?$' ), 'Authorization-server rewrite rule is missing.' );
+cmsa_mcp_settings_assert( strpos( $rewrite_rules, 'oauth-protected-resource' ) < strpos( $rewrite_rules, 'ORIGINAL-WORDPRESS-RULES' ), 'OAuth discovery rewrites are not ahead of WordPress file/directory bypass rules.' );
+
+$routes = rest_get_server()->get_routes();
+cmsa_mcp_settings_assert( isset( $routes['/admin-mcp/v1/oauth/protected-resource'] ), 'REST protected-resource metadata route is missing.' );
+cmsa_mcp_settings_assert( isset( $routes['/admin-mcp/v1/oauth/authorization-server'] ), 'REST authorization-server metadata route is missing.' );
+cmsa_mcp_settings_assert( isset( $routes['/admin-mcp/v1/oauth/diagnostics'] ), 'OAuth diagnostics route is missing.' );
+
+$original_clients = get_option( CUA_OAuth_Server::CLIENT_OPTION, array() );
+$loopback_registration = new WP_REST_Request( 'POST', '/admin-mcp/v1/oauth/register' );
+$loopback_registration->set_header( 'Content-Type', 'application/json' );
+$loopback_registration->set_body(
+	wp_json_encode(
+		array(
+			'redirect_uris'              => array( 'http://127.0.0.1:49152/callback' ),
+			'client_name'                => 'Native MCP test',
+			'token_endpoint_auth_method' => 'none',
+		)
+	)
+);
+$loopback_response = CUA_OAuth_Server::register_client( $loopback_registration );
+cmsa_mcp_settings_assert( 201 === $loopback_response->get_status(), 'Standards-compliant native loopback redirect was rejected.' );
+update_option( CUA_OAuth_Server::CLIENT_OPTION, is_array( $original_clients ) ? $original_clients : array(), false );
+
+$scope_token = 'cmsa-scope-test-' . wp_generate_password( 40, false, false );
+$scope_key = 'cua_oauth_access_' . hash_hmac( 'sha256', $scope_token, wp_salt( 'auth' ) );
+set_transient(
+	$scope_key,
+	array(
+		'client_id' => 'cmsa-scope-test',
+		'user_id'   => get_current_user_id(),
+		'scope'     => CUA_OAuth_Server::OFFLINE_SCOPE,
+		'resource'  => rest_url( CUA_MCP_Server::REST_NAMESPACE . CUA_MCP_Server::REST_ROUTE ),
+	),
+	300
+);
+$scope_request = new WP_REST_Request( 'POST', '/admin-mcp/v1/mcp' );
+$scope_request->set_header( 'Authorization', 'Bearer ' . $scope_token );
+$scope_result = CUA_OAuth_Server::authenticate_bearer( $scope_request );
+cmsa_mcp_settings_assert( is_wp_error( $scope_result ) && 'cmsa_oauth_insufficient_scope' === $scope_result->get_error_code(), 'Underscoped OAuth token was not distinguished from an invalid token.' );
+delete_transient( $scope_key );
+
+
+$oauth_fallback_token = 'cmsa-oauth-fallback-' . wp_generate_password( 40, false, false );
+$oauth_fallback_key = 'cua_oauth_access_' . hash_hmac( 'sha256', $oauth_fallback_token, wp_salt( 'auth' ) );
+set_transient(
+	$oauth_fallback_key,
+	array(
+		'client_id' => 'cmsa-oauth-fallback-client',
+		'user_id'   => get_current_user_id(),
+		'scope'     => CUA_OAuth_Server::SCOPE,
+		'resource'  => rest_url( CUA_MCP_Server::REST_NAMESPACE . CUA_MCP_Server::REST_ROUTE ),
+	),
+	300
+);
+$oauth_fallback_request = new WP_REST_Request( 'POST', '/admin-mcp/v1/mcp' );
+$oauth_fallback_request->set_header( 'Authorization', 'Bearer ' . $oauth_fallback_token );
+cmsa_mcp_settings_assert( true === CUA_OAuth_Server::authenticate_bearer( $oauth_fallback_request ), 'Manual bearer fallback mode rejected a valid OAuth access token.' );
+delete_transient( $oauth_fallback_key );
+update_option( CUA_MCP_Settings_Page::OPTION_AUTH_MODE, $original_auth_mode, false );
+
+function cmsa_oauth_test_key( $type, $token ) {
+	return 'cua_oauth_' . $type . '_' . hash_hmac( 'sha256', (string) $token, wp_salt( 'auth' ) );
+}
+
+function cmsa_oauth_refresh_digest( $token ) {
+	return hash_hmac( 'sha256', (string) $token, wp_salt( 'auth' ) );
+}
+
+function cmsa_oauth_refresh_record( $token ) {
+	$records = get_option( CUA_OAuth_Server::REFRESH_OPTION, array() );
+	$key = cmsa_oauth_refresh_digest( $token );
+	return is_array( $records ) && isset( $records[ $key ] ) && is_array( $records[ $key ] ) ? $records[ $key ] : null;
+}
+
+function cmsa_oauth_store_test_refresh( $token, array $record, $ttl = 300 ) {
+	$records = get_option( CUA_OAuth_Server::REFRESH_OPTION, array() );
+	$records = is_array( $records ) ? $records : array();
+	$now = time();
+	$record['issued_at'] = $now;
+	$record['expires_at'] = $now + (int) $ttl;
+	$records[ cmsa_oauth_refresh_digest( $token ) ] = $record;
+	update_option( CUA_OAuth_Server::REFRESH_OPTION, $records, false );
+}
+
+function cmsa_oauth_delete_test_refresh( $token ) {
+	$records = get_option( CUA_OAuth_Server::REFRESH_OPTION, array() );
+	if ( ! is_array( $records ) ) {
+		return;
+	}
+	unset( $records[ cmsa_oauth_refresh_digest( $token ) ] );
+	update_option( CUA_OAuth_Server::REFRESH_OPTION, $records, false );
+}
+
+function cmsa_oauth_refresh_request( $refresh_token, $client_id, $resource ) {
+	$request = new WP_REST_Request( 'POST', '/admin-mcp/v1/oauth/token' );
+	$request->set_param( 'grant_type', 'refresh_token' );
+	$request->set_param( 'refresh_token', $refresh_token );
+	$request->set_param( 'client_id', $client_id );
+	$request->set_param( 'resource', $resource );
+	return CUA_OAuth_Server::token( $request );
+}
+
+$oauth_resource = rest_url( CUA_MCP_Server::REST_NAMESPACE . CUA_MCP_Server::REST_ROUTE );
+$base_scope_refresh = 'cmsa-base-scope-refresh-' . wp_generate_password( 40, false, false );
+$base_scope_key = cmsa_oauth_test_key( 'refresh', $base_scope_refresh );
+set_transient(
+	$base_scope_key,
+	array(
+		'client_id' => 'cmsa-base-scope-client',
+		'user_id'   => get_current_user_id(),
+		'scope'     => CUA_OAuth_Server::SCOPE,
+		'resource'  => $oauth_resource,
+	),
+	300
+);
+$base_scope_response = cmsa_oauth_refresh_request( $base_scope_refresh, 'cmsa-base-scope-client', $oauth_resource );
+$base_scope_data = $base_scope_response->get_data();
+cmsa_mcp_settings_assert( 200 === $base_scope_response->get_status(), 'Base-scope refresh-token rotation failed.' );
+cmsa_mcp_settings_assert( ! empty( $base_scope_data['access_token'] ), 'Base-scope refresh-token rotation returned no access token.' );
+cmsa_mcp_settings_assert( ! empty( $base_scope_data['refresh_token'] ) && $base_scope_refresh !== $base_scope_data['refresh_token'], 'Base-scope refresh token was not rotated.' );
+cmsa_mcp_settings_assert( false === get_transient( $base_scope_key ), 'Rotated base-scope refresh token left the old token active.' );
+$new_base_scope_token = (string) ( $base_scope_data['refresh_token'] ?? '' );
+cmsa_mcp_settings_assert( is_array( cmsa_oauth_refresh_record( $new_base_scope_token ) ), 'Rotated base-scope refresh token was not persisted.' );
+if ( ! empty( $base_scope_data['access_token'] ) ) {
+	delete_transient( cmsa_oauth_test_key( 'access', $base_scope_data['access_token'] ) );
+}
+cmsa_oauth_delete_test_refresh( $new_base_scope_token );
+
+$authorization_code = 'cmsa-code-' . wp_generate_password( 40, false, false );
+$authorization_verifier = str_repeat( 'A', 43 );
+$authorization_challenge = rtrim( strtr( base64_encode( hash( 'sha256', $authorization_verifier, true ) ), '+/', '-_' ), '=' );
+$authorization_redirect = 'https://chatgpt.com/connector_platform_oauth_redirect';
+set_transient(
+	cmsa_oauth_test_key( 'code', $authorization_code ),
+	array(
+		'client_id'      => 'https://chatgpt.com/oauth/client.json',
+		'redirect_uri'   => $authorization_redirect,
+		'user_id'        => get_current_user_id(),
+		'scope'          => CUA_OAuth_Server::SCOPE,
+		'resource'       => $oauth_resource,
+		'code_challenge' => $authorization_challenge,
+	),
+	300
+);
+$authorization_exchange = new WP_REST_Request( 'POST', '/admin-mcp/v1/oauth/token' );
+$authorization_exchange->set_param( 'grant_type', 'authorization_code' );
+$authorization_exchange->set_param( 'code', $authorization_code );
+$authorization_exchange->set_param( 'client_id', 'https://chatgpt.com/oauth/client.json' );
+$authorization_exchange->set_param( 'redirect_uri', $authorization_redirect );
+$authorization_exchange->set_param( 'code_verifier', $authorization_verifier );
+$authorization_exchange->set_param( 'resource', $oauth_resource );
+$authorization_response = CUA_OAuth_Server::token( $authorization_exchange );
+$authorization_data = $authorization_response->get_data();
+cmsa_mcp_settings_assert( 200 === $authorization_response->get_status(), 'Base mcp:admin authorization-code exchange failed.' );
+cmsa_mcp_settings_assert( ! empty( $authorization_data['access_token'] ), 'Authorization-code exchange returned no access token.' );
+cmsa_mcp_settings_assert( ! empty( $authorization_data['refresh_token'] ), 'Authorization-code exchange did not issue a refresh token for mcp:admin.' );
+cmsa_mcp_settings_assert( CUA_OAuth_Server::SCOPE === ( $authorization_data['scope'] ?? '' ), 'Refresh-token issuance changed the granted resource scope.' );
+if ( ! empty( $authorization_data['access_token'] ) ) {
+	delete_transient( cmsa_oauth_test_key( 'access', $authorization_data['access_token'] ) );
+}
+if ( ! empty( $authorization_data['refresh_token'] ) ) {
+	cmsa_oauth_delete_test_refresh( $authorization_data['refresh_token'] );
+}
+
+$modern_refresh = 'cmsa-modern-refresh-' . wp_generate_password( 40, false, false );
+cmsa_oauth_store_test_refresh(
+	$modern_refresh,
+	array(
+		'client_id' => 'cmsa-modern-client',
+		'user_id'   => get_current_user_id(),
+		'scope'     => CUA_OAuth_Server::SCOPE . ' ' . CUA_OAuth_Server::OFFLINE_SCOPE,
+		'resource'  => $oauth_resource,
+	),
+	300
+);
+$invalid_response = cmsa_oauth_refresh_request( $modern_refresh, 'wrong-client', $oauth_resource );
+cmsa_mcp_settings_assert( 400 === $invalid_response->get_status(), 'Invalid refresh-token client binding was accepted.' );
+cmsa_mcp_settings_assert( is_array( cmsa_oauth_refresh_record( $modern_refresh ) ), 'Invalid refresh attempt consumed a valid refresh token.' );
+
+$modern_response = cmsa_oauth_refresh_request( $modern_refresh, 'cmsa-modern-client', $oauth_resource );
+$modern_data = $modern_response->get_data();
+cmsa_mcp_settings_assert( 200 === $modern_response->get_status(), 'Modern offline refresh-token rotation failed.' );
+cmsa_mcp_settings_assert( ! empty( $modern_data['access_token'] ), 'Modern refresh-token rotation returned no access token.' );
+cmsa_mcp_settings_assert( ! empty( $modern_data['refresh_token'] ) && $modern_refresh !== $modern_data['refresh_token'], 'Modern refresh token was not rotated.' );
+cmsa_mcp_settings_assert( null === cmsa_oauth_refresh_record( $modern_refresh ), 'Rotated modern refresh token left the old token active.' );
+$new_modern_token = (string) ( $modern_data['refresh_token'] ?? '' );
+cmsa_mcp_settings_assert( is_array( cmsa_oauth_refresh_record( $new_modern_token ) ), 'Rotated modern refresh token was not persisted.' );
+if ( ! empty( $modern_data['access_token'] ) ) {
+	delete_transient( cmsa_oauth_test_key( 'access', $modern_data['access_token'] ) );
+}
+cmsa_oauth_delete_test_refresh( $new_modern_token );
+
+echo "cmsa-mcp-settings-page: PASS enabled=default origin_sanitization=verified endpoint=visible protocol=visible oauth_metadata=chatgpt-compatible authorization_trace=secret-free-bounded-panel-and-clear discovery_rewrite=verified rest_metadata_fallback=verified native_loopback=verified scope_semantics=verified manual_fallback=nonexclusive refresh_rotation=base-and-offline-scopes authorization_code_refresh=verified ingestion_diagnostics=panel-summary-canary\n";
+exit( 0 );
