@@ -1,0 +1,86 @@
+name: ADMIN MCP browser path repair
+
+on:
+  push:
+    paths:
+      - '.github/workflows/admin-mcp-browser-path-repair.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Repair browser executable discovery and roll version
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          runtime = Path('site-plugins/admin-mcp/includes/class-cua-visual-browser-runtime.php')
+          text = runtime.read_text()
+          old_start = "\tpublic static function start( $width, $height ) {\n\t\t$binary = self::browser_binary();\n\t\tif ( is_wp_error( $binary ) ) { return $binary; }\n\t\tif ( ! function_exists( 'exec' ) || self::function_disabled( 'exec' ) ) { return new WP_Error( 'cmsa_visual_exec_unavailable', 'The host does not permit the process execution required for headless browser inspection.' ); }"
+          new_start = "\tpublic static function start( $width, $height ) {\n\t\tif ( ! function_exists( 'exec' ) || self::function_disabled( 'exec' ) ) { return new WP_Error( 'cmsa_visual_exec_unavailable', 'The host does not permit the process execution required for headless browser inspection.' ); }\n\t\t$binary = self::browser_binary();\n\t\tif ( is_wp_error( $binary ) ) { return $binary; }"
+          if old_start in text:
+              text = text.replace(old_start, new_start, 1)
+          elif new_start not in text:
+              raise SystemExit('start() precondition block not found')
+
+          old_browser = "\tprivate static function browser_binary() {\n\t\t$configured = defined( 'CMSA_BROWSER_EXECUTABLE' ) ? trim( (string) CMSA_BROWSER_EXECUTABLE ) : trim( (string) getenv( 'CMSA_BROWSER_EXECUTABLE' ) );\n\t\t$candidates = array_filter( array( $configured, '/usr/bin/chromium', '/usr/bin/chromium-browser', '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/local/bin/chromium', '/usr/local/bin/google-chrome' ) );\n\t\tforeach ( array_unique( $candidates ) as $candidate ) { if ( is_file( $candidate ) && is_executable( $candidate ) ) { return $candidate; } }\n\t\treturn new WP_Error( 'cmsa_visual_browser_unavailable', 'No supported local Chromium executable was found. Set CMSA_BROWSER_EXECUTABLE to its absolute path.' );\n\t}"
+          new_browser = "\tprivate static function browser_binary() {\n\t\t$configured = defined( 'CMSA_BROWSER_EXECUTABLE' ) ? trim( (string) CMSA_BROWSER_EXECUTABLE ) : trim( (string) getenv( 'CMSA_BROWSER_EXECUTABLE' ) );\n\t\t$names = array( 'chromium', 'chromium-browser', 'google-chrome', 'google-chrome-stable', 'chrome', 'chrome-headless-shell', 'chromium-headless-shell' );\n\t\t$candidates = array();\n\t\tif ( '' !== $configured ) { $candidates[] = $configured; }\n\t\t$path = trim( (string) getenv( 'PATH' ) );\n\t\tif ( '' !== $path ) {\n\t\t\tforeach ( explode( PATH_SEPARATOR, $path ) as $dir ) {\n\t\t\t\t$dir = rtrim( trim( (string) $dir ), DIRECTORY_SEPARATOR );\n\t\t\t\tif ( '' === $dir || DIRECTORY_SEPARATOR !== substr( $dir, 0, 1 ) ) { continue; }\n\t\t\t\tforeach ( $names as $name ) { $candidates[] = $dir . DIRECTORY_SEPARATOR . $name; }\n\t\t\t}\n\t\t}\n\t\t$candidates = array_merge(\n\t\t\t$candidates,\n\t\t\tarray(\n\t\t\t\t'/usr/bin/chromium', '/usr/bin/chromium-browser', '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable',\n\t\t\t\t'/usr/bin/chrome-headless-shell', '/usr/bin/chromium-headless-shell', '/usr/local/bin/chromium', '/usr/local/bin/google-chrome',\n\t\t\t\t'/usr/local/bin/google-chrome-stable', '/opt/google/chrome/google-chrome', '/opt/chromium/chrome', '/snap/bin/chromium'\n\t\t\t)\n\t\t);\n\t\t$home = trim( (string) getenv( 'HOME' ) );\n\t\tif ( '' !== $home && DIRECTORY_SEPARATOR === substr( $home, 0, 1 ) ) {\n\t\t\tforeach ( array(\n\t\t\t\t$home . '/.cache/ms-playwright/*/chrome-linux*/chrome',\n\t\t\t\t$home . '/.cache/puppeteer/chrome/*/chrome-linux*/chrome',\n\t\t\t\t$home . '/.local/bin/chromium', $home . '/.local/bin/google-chrome'\n\t\t\t) as $pattern ) {\n\t\t\t\t$matches = str_contains( $pattern, '*' ) ? ( glob( $pattern ) ?: array() ) : array( $pattern );\n\t\t\t\tforeach ( $matches as $match ) { $candidates[] = $match; }\n\t\t\t}\n\t\t}\n\t\tforeach ( array_unique( $candidates ) as $candidate ) {\n\t\t\t$resolved = realpath( (string) $candidate );\n\t\t\tif ( false !== $resolved && @is_file( $resolved ) && @is_executable( $resolved ) ) { return $resolved; }\n\t\t}\n\t\treturn new WP_Error( 'cmsa_visual_browser_unavailable', 'No usable local Chromium executable was found after checking CMSA_BROWSER_EXECUTABLE, the PHP process PATH, supported system locations, and common user-local browser caches.' );\n\t}"
+          if old_browser in text:
+              text = text.replace(old_browser, new_browser, 1)
+          elif new_browser not in text:
+              raise SystemExit('browser_binary() block not found')
+          runtime.write_text(text)
+
+          active_version_files = [
+              Path('site-plugins/admin-mcp/admin-mcp.php'),
+              Path('workbench/harnesses/chattanooga-site-plugins/integration-cli.php'),
+              Path('workbench/harnesses/admin-mcp-v2/probes/native-mcp-cli.php'),
+              Path('workbench/harnesses/admin-mcp-v2/probes/native-mcp-visual-browser-cli.php'),
+              Path('workbench/harnesses/admin-mcp-v2/probes/mcp-ingestion-diagnostics-cli.php'),
+              Path('workbench/harnesses/admin-mcp-v2/probes/native-mcp-functional-redteam-cli.php'),
+          ]
+          for path in active_version_files:
+              value = path.read_text()
+              if '1.2.56' not in value and '1.2.57' not in value:
+                  raise SystemExit(f'Expected active version marker missing: {path}')
+              path.write_text(value.replace('1.2.56', '1.2.57'))
+          PY
+
+      - name: Validate repaired source
+        shell: bash
+        run: |
+          php -l site-plugins/admin-mcp/admin-mcp.php
+          php -l site-plugins/admin-mcp/includes/class-cua-visual-browser-runtime.php
+          php -l workbench/harnesses/admin-mcp-v2/probes/native-mcp-visual-browser-cli.php
+          grep -q '^ \* Version: 1.2.57$' site-plugins/admin-mcp/admin-mcp.php
+          grep -q "define( 'CUA_VERSION', '1.2.57' );" site-plugins/admin-mcp/admin-mcp.php
+          grep -q "getenv( 'PATH' )" site-plugins/admin-mcp/includes/class-cua-visual-browser-runtime.php
+          grep -q "ms-playwright" site-plugins/admin-mcp/includes/class-cua-visual-browser-runtime.php
+
+      - name: Commit repaired non-workflow source
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo 'No source changes required.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add site-plugins/admin-mcp/admin-mcp.php \
+                  site-plugins/admin-mcp/includes/class-cua-visual-browser-runtime.php \
+                  workbench/harnesses/chattanooga-site-plugins/integration-cli.php \
+                  workbench/harnesses/admin-mcp-v2/probes/native-mcp-cli.php \
+                  workbench/harnesses/admin-mcp-v2/probes/native-mcp-visual-browser-cli.php \
+                  workbench/harnesses/admin-mcp-v2/probes/mcp-ingestion-diagnostics-cli.php \
+                  workbench/harnesses/admin-mcp-v2/probes/native-mcp-functional-redteam-cli.php
+          git commit -m 'Harden ADMIN MCP browser executable discovery for 1.2.57'
+          git push origin HEAD:main
