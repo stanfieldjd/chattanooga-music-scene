@@ -3,7 +3,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class CUA_Visual_Browser {
 	const CATEGORY = 'chattanooga-cms-admin';
-	const PREFIX = 'chattanooga-cms-admin/';
+	const PREFIX = 'admin-mcp-visual/';
 	const DEFAULT_WIDTH = 1440;
 	const DEFAULT_HEIGHT = 900;
 	const MAX_WAIT_MS = 5000;
