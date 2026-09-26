@@ -52,7 +52,7 @@ jobs:
           php -l site-plugins/admin-mcp/includes/class-cua-visual-browser.php >/dev/null
           php -l workbench/harnesses/admin-mcp-v2/probes/native-mcp-visual-browser-cli.php >/dev/null
           grep -q '^ \* Plugin Name: ADMIN MCP$' site-plugins/admin-mcp/admin-mcp.php
-          grep -q '^ \* Version: 1.2.56$' site-plugins/admin-mcp/admin-mcp.php
+          grep -q '^ \* Version: 1.2.57$' site-plugins/admin-mcp/admin-mcp.php
 
       - name: Resolve Chromium executable
         shell: bash
@@ -78,8 +78,8 @@ jobs:
           php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://127.0.0.1:8090 --title="ADMIN MCP Visual Browser Acceptance" --admin_user=admin --admin_password="$password" --admin_email=visual@example.invalid --skip-email
           cp -R site-plugins/admin-mcp /tmp/wordpress/wp-content/plugins/admin-mcp
           php /tmp/wp-cli.phar plugin activate admin-mcp --path=/tmp/wordpress
-          test "$(php /tmp/wp-cli.phar eval 'echo CUA_VERSION;' --path=/tmp/wordpress)" = "1.2.56"
-          test "$(php /tmp/wp-cli.phar plugin get admin-mcp --field=version --path=/tmp/wordpress)" = "1.2.56"
+          test "$(php /tmp/wp-cli.phar eval 'echo CUA_VERSION;' --path=/tmp/wordpress)" = "1.2.57"
+          test "$(php /tmp/wp-cli.phar plugin get admin-mcp --field=version --path=/tmp/wordpress)" = "1.2.57"
 
       - name: Start disposable web server
         shell: bash
