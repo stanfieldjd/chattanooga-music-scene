@@ -584,7 +584,7 @@ final class CMS_Weekend_Posts {
 			return;
 		}
 
-		wp_enqueue_style( 'cms-weekend-guide', CMS_CORE_URL . 'assets/weekend-guide.css', array(), '0.2.0' );
+		wp_enqueue_style( 'cms-weekend-guide', CMS_CORE_URL . 'assets/weekend-guide.css', array(), CMS_CORE_VERSION );
 	}
 
 	public function render_scene_feature() {
@@ -596,7 +596,7 @@ final class CMS_Weekend_Posts {
 			return '';
 		}
 
-		wp_enqueue_style( 'cms-weekend-guide', CMS_CORE_URL . 'assets/weekend-guide.css', array(), '0.2.0' );
+		wp_enqueue_style( 'cms-weekend-guide', CMS_CORE_URL . 'assets/weekend-guide.css', array(), CMS_CORE_VERSION );
 
 		$url     = get_permalink( $post_id );
 		$excerpt = get_the_excerpt( $post_id );
