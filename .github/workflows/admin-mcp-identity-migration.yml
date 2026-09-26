@@ -17,28 +17,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Rename ADMIN MCP identity everywhere
+      - name: Rename ADMIN MCP identity in source
         shell: bash
         run: |
           set -euo pipefail
 
-          # Rename identity-bearing paths first.
           git mv site-plugins/chattanooga-cms-admin site-plugins/admin-mcp
           git mv site-plugins/admin-mcp/chattanooga-cms-admin.php site-plugins/admin-mcp/admin-mcp.php
           git mv workbench/harnesses/chattanooga-cms-admin-v2 workbench/harnesses/admin-mcp-v2
 
-          for name in \
-            chattanooga-cms-admin-functional-redteam.yml \
-            chattanooga-cms-admin-native-mcp.yml \
-            chattanooga-cms-admin-v2-acceptance.yml \
-            chattanooga-cms-admin-v2-harness.yml \
-            chattanooga-cms-admin-v2-provider-compat.yml; do
-            if [ -f ".github/workflows/$name" ]; then
-              git mv ".github/workflows/$name" ".github/workflows/${name/chattanooga-cms-admin/admin-mcp}"
-            fi
-          done
-
-          # Replace the old identity in every tracked text file. Binary files are left untouched.
           python3 - <<'PY'
           import subprocess
           from pathlib import Path
@@ -54,7 +41,7 @@ jobs:
               if not raw:
                   continue
               path = Path(raw.decode('utf-8'))
-              if not path.is_file():
+              if str(path).startswith('.github/workflows/') or not path.is_file():
                   continue
               data = path.read_bytes()
               if b'\0' in data:
@@ -72,16 +59,12 @@ jobs:
           main.write_text(text, encoding='utf-8')
           PY
 
-          # Remove this one-time migration workflow from the final tree.
-          git rm -f .github/workflows/admin-mcp-identity-migration.yml
-
-          # Acceptance gates: old identity absent from both paths and text.
-          if git ls-files | grep -F 'chattanooga-cms-admin'; then
-            echo 'Old plugin identity remains in a tracked path.' >&2
+          if git ls-files | grep -F 'chattanooga-cms-admin' | grep -v '^.github/workflows/'; then
+            echo 'Old plugin identity remains in a non-workflow tracked path.' >&2
             exit 1
           fi
-          if git grep -n -I -e 'chattanooga-cms-admin' -e 'Chattanooga CMS Admin' -e 'Chattanooga CMS admin'; then
-            echo 'Old plugin identity remains in tracked text.' >&2
+          if git grep -n -I -e 'chattanooga-cms-admin' -e 'Chattanooga CMS Admin' -e 'Chattanooga CMS admin' -- ':!.github/workflows/*'; then
+            echo 'Old plugin identity remains in non-workflow tracked text.' >&2
             exit 1
           fi
 
@@ -93,13 +76,13 @@ jobs:
             php -l "$file"
           done < <(find site-plugins/admin-mcp -type f -name '*.php' -print0)
 
-      - name: Commit atomic identity migration
+      - name: Commit non-workflow identity migration
         shell: bash
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
+          git add -A -- ':!.github/workflows/*'
           git diff --cached --check
-          git commit -m 'Rename plugin identity to ADMIN MCP everywhere'
+          git commit -m 'Rename plugin identity to ADMIN MCP across source'
           git push origin HEAD:main
