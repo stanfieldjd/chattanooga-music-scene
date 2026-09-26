@@ -3,7 +3,7 @@ Contributors: chattanoogamusicscene
 Tags: events, weekend, publishing
 Requires at least: 6.4
 Requires PHP: 7.4
-Stable tag: 0.2.5
+Stable tag: 0.2.6
 License: GPLv2 or later
 
 Site-specific publishing tools for Chattanooga Music Scene.
@@ -42,3 +42,4 @@ Open Tools > Weekend Posts to:
 * A draft is updated in place when regenerated.
 * Empty weekends do not create empty posts.
 * Only published Events Manager events are included.
+

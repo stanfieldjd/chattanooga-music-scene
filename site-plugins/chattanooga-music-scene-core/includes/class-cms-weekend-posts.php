@@ -598,15 +598,20 @@ final class CMS_Weekend_Posts {
 
 		wp_enqueue_style( 'cms-weekend-guide', CMS_CORE_URL . 'assets/weekend-guide.css', array(), '0.2.0' );
 
-		$glimpse_content = $this->scene_glimpse_content( $window );
-		$guide           = is_wp_error( $glimpse_content ) || '' === $glimpse_content ? do_shortcode( get_post_field( 'post_content', $post_id ) ) : $glimpse_content;
+		$url     = get_permalink( $post_id );
+		$excerpt = get_the_excerpt( $post_id );
+
+		if ( '' === trim( $excerpt ) ) {
+			$excerpt = __( 'Find live music happening across Chattanooga this weekend.', 'chattanooga-music-scene-core' );
+		}
 
 		return sprintf(
-			'<section class="cms-weekend-scene-feature" aria-labelledby="cms-weekend-feature-title"><header><p class="cms-weekend-feature-kicker">%1$s</p><h2 id="cms-weekend-feature-title"><a href="%2$s">%3$s</a></h2></header>%4$s</section>',
+			'<section class="cms-weekend-scene-feature" aria-labelledby="cms-weekend-feature-title"><p class="cms-weekend-feature-kicker">%1$s</p><h2 id="cms-weekend-feature-title"><a href="%2$s">%3$s</a></h2><p class="cms-weekend-feature-deck">%4$s</p><a class="cms-weekend-feature-link" href="%2$s">%5$s <span aria-hidden="true">→</span></a></section>',
 			esc_html__( 'Weekend Feature', 'chattanooga-music-scene-core' ),
-			esc_url( get_permalink( $post_id ) ),
+			esc_url( $url ),
 			esc_html( get_the_title( $post_id ) ),
-			$guide
+			esc_html( $excerpt ),
+			esc_html__( 'Read the full weekend guide', 'chattanooga-music-scene-core' )
 		);
 	}
 
@@ -769,3 +774,4 @@ final class CMS_Weekend_Posts {
 		<?php
 	}
 }
+

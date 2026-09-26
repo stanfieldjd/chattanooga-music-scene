@@ -7,30 +7,45 @@
 }
 
 .cms-weekend-scene-feature {
-	margin: 2.5rem 0;
-	padding: clamp(1.25rem, 3vw, 2.5rem);
-	background: #f7efd9;
-	border-top: 8px solid #9f3320;
-	border-bottom: 2px solid #142f2d;
+	margin: clamp(2rem, 5vw, 4rem) 0;
+	padding: clamp(1.25rem, 3vw, 2rem) 0;
+	border-top: 3px solid #9f3320;
+	border-bottom: 1px solid rgba(20, 47, 45, .35);
 }
 
 .cms-weekend-feature-kicker {
-	margin: 0 0 .35rem;
+	margin: 0 0 .5rem;
 	color: #9f3320;
-	font-size: .78rem;
+	font-size: .82rem;
 	font-weight: 900;
 	letter-spacing: .14em;
 	text-transform: uppercase;
 }
 
-.cms-weekend-scene-feature > header h2 {
-	margin: 0 0 1.5rem;
-	font: 800 clamp(1.8rem, 4vw, 3.2rem)/1.05 Georgia, serif;
+.cms-weekend-scene-feature h2 {
+	max-width: 18ch;
+	margin: 0 0 .65rem;
+	font: 800 clamp(1.65rem, 3.4vw, 2.5rem)/1.08 Georgia, serif;
 }
 
-.cms-weekend-scene-feature > header h2 a {
+.cms-weekend-scene-feature h2 a {
 	color: #142f2d;
 	text-decoration: none;
+}
+
+.cms-weekend-feature-deck {
+	max-width: 62ch;
+	margin: 0 0 1rem;
+	font-size: 1.05rem;
+	line-height: 1.6;
+}
+
+.cms-weekend-feature-link {
+	color: #9f3320;
+	font-size: 1rem;
+	font-weight: 800;
+	text-decoration-thickness: 2px;
+	text-underline-offset: .2em;
 }
 
 .cms-weekend-introduction {
@@ -118,3 +133,4 @@
 .cms-weekend-calendar-link {
 	font-size: 1.05rem;
 }
+
