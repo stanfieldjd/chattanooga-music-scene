@@ -1,0 +1,61 @@
+name: ADMIN MCP Headless Shell Launch Diagnostic
+
+on:
+  push:
+    paths:
+      - '.github/workflows/admin-mcp-headless-shell-launch-diag.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download and inspect pinned runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          url='https://storage.googleapis.com/chrome-for-testing-public/154.0.8037.57/linux64/chrome-headless-shell-linux64.zip'
+          curl -fL --retry 3 -o /tmp/runtime.zip "$url"
+          echo '5a6979d0ab7cf952ea575d35164e7bdce4872b2ced8f8a215c8f8e8eda00ee09  /tmp/runtime.zip' | sha256sum -c -
+          unzip -q /tmp/runtime.zip -d /tmp/runtime
+          bin='/tmp/runtime/chrome-headless-shell-linux64/chrome-headless-shell'
+          chmod 755 "$bin"
+          "$bin" --version || true
+          echo '--- missing shared libraries ---'
+          ldd "$bin" | grep -i 'not found' || true
+          echo '--- sandbox/user namespace context ---'
+          id
+          sysctl kernel.unprivileged_userns_clone 2>/dev/null || true
+          cat /proc/sys/user/max_user_namespaces 2>/dev/null || true
+
+          run_variant() {
+            name="$1"; shift
+            port="$1"; shift
+            profile="/tmp/profile-$name"
+            log="/tmp/$name.log"
+            rm -rf "$profile"; mkdir -p "$profile"
+            echo "=== VARIANT $name ==="
+            "$bin" "$@" --disable-gpu --no-first-run --no-default-browser-check --hide-scrollbars \
+              --remote-debugging-address=127.0.0.1 --remote-debugging-port="$port" \
+              --remote-allow-origins=http://127.0.0.1 --user-data-dir="$profile" \
+              --window-size=800,600 about:blank >"$log" 2>&1 &
+            pid=$!
+            ready=0
+            for i in $(seq 1 30); do
+              if curl -fsS "http://127.0.0.1:$port/json/version" >/tmp/$name.json 2>/dev/null; then ready=1; break; fi
+              if ! kill -0 "$pid" 2>/dev/null; then break; fi
+              sleep 0.2
+            done
+            echo "ready=$ready pid=$pid"
+            cat "$log" || true
+            [ -f /tmp/$name.json ] && cat /tmp/$name.json || true
+            kill "$pid" 2>/dev/null || true
+            wait "$pid" 2>/dev/null || true
+          }
+
+          run_variant current 9222 --headless=new
+          run_variant shell-native 9223
+          run_variant namespace-sandbox 9224 --disable-setuid-sandbox
