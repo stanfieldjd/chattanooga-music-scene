@@ -30,9 +30,9 @@ final class CUA_Visual_Browser_Runtime {
 	}
 
 	public static function start( $width, $height ) {
+		if ( ! function_exists( 'exec' ) || self::function_disabled( 'exec' ) ) { return new WP_Error( 'cmsa_visual_exec_unavailable', 'The host does not permit the process execution required for headless browser inspection.' ); }
 		$binary = self::browser_binary();
 		if ( is_wp_error( $binary ) ) { return $binary; }
-		if ( ! function_exists( 'exec' ) || self::function_disabled( 'exec' ) ) { return new WP_Error( 'cmsa_visual_exec_unavailable', 'The host does not permit the process execution required for headless browser inspection.' ); }
 		$root = self::root();
 		if ( is_wp_error( $root ) ) { return $root; }
 		$id = bin2hex( random_bytes( 16 ) );
@@ -135,9 +135,41 @@ final class CUA_Visual_Browser_Runtime {
 
 	private static function browser_binary() {
 		$configured = defined( 'CMSA_BROWSER_EXECUTABLE' ) ? trim( (string) CMSA_BROWSER_EXECUTABLE ) : trim( (string) getenv( 'CMSA_BROWSER_EXECUTABLE' ) );
-		$candidates = array_filter( array( $configured, '/usr/bin/chromium', '/usr/bin/chromium-browser', '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/local/bin/chromium', '/usr/local/bin/google-chrome' ) );
-		foreach ( array_unique( $candidates ) as $candidate ) { if ( is_file( $candidate ) && is_executable( $candidate ) ) { return $candidate; } }
-		return new WP_Error( 'cmsa_visual_browser_unavailable', 'No supported local Chromium executable was found. Set CMSA_BROWSER_EXECUTABLE to its absolute path.' );
+		$names = array( 'chromium', 'chromium-browser', 'google-chrome', 'google-chrome-stable', 'chrome', 'chrome-headless-shell', 'chromium-headless-shell' );
+		$candidates = array();
+		if ( '' !== $configured ) { $candidates[] = $configured; }
+		$path = trim( (string) getenv( 'PATH' ) );
+		if ( '' !== $path ) {
+			foreach ( explode( PATH_SEPARATOR, $path ) as $dir ) {
+				$dir = rtrim( trim( (string) $dir ), DIRECTORY_SEPARATOR );
+				if ( '' === $dir || DIRECTORY_SEPARATOR !== substr( $dir, 0, 1 ) ) { continue; }
+				foreach ( $names as $name ) { $candidates[] = $dir . DIRECTORY_SEPARATOR . $name; }
+			}
+		}
+		$candidates = array_merge(
+			$candidates,
+			array(
+				'/usr/bin/chromium', '/usr/bin/chromium-browser', '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable',
+				'/usr/bin/chrome-headless-shell', '/usr/bin/chromium-headless-shell', '/usr/local/bin/chromium', '/usr/local/bin/google-chrome',
+				'/usr/local/bin/google-chrome-stable', '/opt/google/chrome/google-chrome', '/opt/chromium/chrome', '/snap/bin/chromium'
+			)
+		);
+		$home = trim( (string) getenv( 'HOME' ) );
+		if ( '' !== $home && DIRECTORY_SEPARATOR === substr( $home, 0, 1 ) ) {
+			foreach ( array(
+				$home . '/.cache/ms-playwright/*/chrome-linux*/chrome',
+				$home . '/.cache/puppeteer/chrome/*/chrome-linux*/chrome',
+				$home . '/.local/bin/chromium', $home . '/.local/bin/google-chrome'
+			) as $pattern ) {
+				$matches = str_contains( $pattern, '*' ) ? ( glob( $pattern ) ?: array() ) : array( $pattern );
+				foreach ( $matches as $match ) { $candidates[] = $match; }
+			}
+		}
+		foreach ( array_unique( $candidates ) as $candidate ) {
+			$resolved = realpath( (string) $candidate );
+			if ( false !== $resolved && @is_file( $resolved ) && @is_executable( $resolved ) ) { return $resolved; }
+		}
+		return new WP_Error( 'cmsa_visual_browser_unavailable', 'No usable local Chromium executable was found after checking CMSA_BROWSER_EXECUTABLE, the PHP process PATH, supported system locations, and common user-local browser caches.' );
 	}
 
 	private static function root() {
