@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: ADMIN MCP
- * Description: Universal ADMIN MCP administration bridge with plugin-agnostic WordPress contracts and verified live visual inspection.
+ * Description: Universal ADMIN MCP administration bridge with plugin-agnostic WordPress contracts, live visual inspection, and screenshot fallback.
  * Version: 1.2.55
  * Author: Chattanooga Music Scene
  * Requires at least: 7.1
