@@ -22,105 +22,20 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-
+          from base64 import b64decode
           runtime = Path('site-plugins/admin-mcp/includes/class-cua-visual-browser-runtime.php')
           text = runtime.read_text()
-
+          start_b64 = 'CXB1YmxpYyBzdGF0aWMgZnVuY3Rpb24gc3RhcnQoICR3aWR0aCwgJGhlaWdodCApIHsKCQlpZiAoICEgZnVuY3Rpb25fZXhpc3RzKCAnZXhlYycgKSB8fCBzZWxmOjpmdW5jdGlvbl9kaXNhYmxlZCggJ2V4ZWMnICkgKSB7IHJldHVybiBuZXcgV1BfRXJyb3IoICdjbXNhX3Zpc3VhbF9leGVjX3VuYXZhaWxhYmxlJywgJ1RoZSBob3N0IGRvZXMgbm90IHBlcm1pdCB0aGUgcHJvY2VzcyBleGVjdXRpb24gcmVxdWlyZWQgZm9yIGhlYWRsZXNzIGJyb3dzZXIgaW5zcGVjdGlvbi4nICk7IH0KCQkkYmluYXJpZXMgPSBzZWxmOjpicm93c2VyX2NhbmRpZGF0ZXMoKTsKCQlpZiAoIGlzX3dwX2Vycm9yKCAkYmluYXJpZXMgKSApIHsgcmV0dXJuICRiaW5hcmllczsgfQoJCSRyb290ID0gc2VsZjo6cm9vdCgpOwoJCWlmICggaXNfd3BfZXJyb3IoICRyb290ICkgKSB7IHJldHVybiAkcm9vdDsgfQoJCSRsYXN0X2Vycm9yID0gbnVsbDsKCQlmb3JlYWNoICggJGJpbmFyaWVzIGFzICRiaW5hcnkgKSB7CgkJCSRpZCA9IGJpbjJoZXgoIHJhbmRvbV9ieXRlcyggMTYgKSApOwoJCQkkcHJvZmlsZSA9IHRyYWlsaW5nc2xhc2hpdCggJHJvb3QgKSAuICRpZDsKCQkJaWYgKCAhIHdwX21rZGlyX3AoICRwcm9maWxlICkgKSB7IHJldHVybiBuZXcgV1BfRXJyb3IoICdjbXNhX3Zpc3VhbF9zZXNzaW9uX2Rpcl9mYWlsZWQnLCAnVGhlIGJyb3dzZXIgc2Vzc2lvbiBkaXJlY3RvcnkgY291bGQgbm90IGJlIGNyZWF0ZWQuJyApOyB9CgkJCSRwb3J0ID0gc2VsZjo6ZnJlZV9wb3J0KCk7CgkJCWlmICggaXNfd3BfZXJyb3IoICRwb3J0ICkgKSB7IHNlbGY6OmRlbGV0ZV90cmVlKCAkcHJvZmlsZSApOyByZXR1cm4gJHBvcnQ7IH0KCQkJJGxvZyA9IHRyYWlsaW5nc2xhc2hpdCggJHByb2ZpbGUgKSAuICdicm93c2VyLmxvZyc7CgkJCSRjbWQgPSAnbm9odXAgJyAuIGVzY2FwZXNoZWxsYXJnKCAkYmluYXJ5ICkKCQkJCS4gJyAtLWhlYWRsZXNzPW5ldyAtLWRpc2FibGUtZ3B1IC0tbm8tZmlyc3QtcnVuIC0tbm8tZGVmYXVsdC1icm93c2VyLWNoZWNrIC0taGlkZS1zY3JvbGxiYXJzJwoJCQkJLiAnIC0tcmVtb3RlLWRlYnVnZ2luZy1hZGRyZXNzPTEyNy4wLjAuMSAtLXJlbW90ZS1kZWJ1Z2dpbmctcG9ydD0nIC4gKGludCkgJHBvcnQKCQkJCS4gJyAtLXJlbW90ZS1hbGxvdy1vcmlnaW5zPWh0dHA6Ly8xMjcuMC4wLjEnCgkJCQkuICcgLS11c2VyLWRhdGEtZGlyPScgLiBlc2NhcGVzaGVsbGFyZyggJHByb2ZpbGUgKQoJCQkJLiAnIC0td2luZG93LXNpemU9JyAuIChpbnQpICR3aWR0aCAuICcsJyAuIChpbnQpICRoZWlnaHQKCQkJCS4gJyBhYm91dDpibGFuayA+JyAuIGVzY2FwZXNoZWxsYXJnKCAkbG9nICkgLiAnIDI+JjEgJiBlY2hvICQhJzsKCQkJJG91dCA9IGFycmF5KCk7ICRzdGF0dXMgPSAwOyBleGVjKCAkY21kLCAkb3V0LCAkc3RhdHVzICk7CgkJCSRwaWQgPSBpc3NldCggJG91dFswXSApID8gYWJzaW50KCB0cmltKCAoc3RyaW5nKSAkb3V0WzBdICkgKSA6IDA7CgkJCWlmICggMCAhPT0gJHN0YXR1cyB8fCAkcGlkIDwgMSApIHsKCQkJCXNlbGY6OmRlbGV0ZV90cmVlKCAkcHJvZmlsZSApOwoJCQkJJGxhc3RfZXJyb3IgPSBuZXcgV1BfRXJyb3IoICdjbXNhX3Zpc3VhbF9icm93c2VyX3N0YXJ0X2ZhaWxlZCcsICdBIGRpc2NvdmVyZWQgQ2hyb21pdW0gZXhlY3V0YWJsZSBjb3VsZCBub3QgYmUgc3RhcnRlZC4nICk7CgkJCQljb250aW51ZTsKCQkJfQoJCQkkc2Vzc2lvbiA9IGFycmF5KCAnc2Vzc2lvbl9pZCcgPT4gJGlkLCAncGlkJyA9PiAkcGlkLCAncG9ydCcgPT4gKGludCkgJHBvcnQsICdwcm9maWxlX2RpcicgPT4gJHByb2ZpbGUsICdicm93c2VyX2JpbmFyeScgPT4gJGJpbmFyeSwgJ3dpZHRoJyA9PiAoaW50KSAkd2lkdGgsICdoZWlnaHQnID0+IChpbnQpICRoZWlnaHQsICdjcmVhdGVkX2F0JyA9PiB0aW1lKCksICd1cGRhdGVkX2F0JyA9PiB0aW1lKCkgKTsKCQkJJHJlYWR5ID0gQ1VBX1Zpc3VhbF9DRFA6OndhaXRfdW50aWxfcmVhZHkoICRzZXNzaW9uICk7CgkJCWlmICggaXNfd3BfZXJyb3IoICRyZWFkeSApICkgeyAkbGFzdF9lcnJvciA9ICRyZWFkeTsgc2VsZjo6Y2xvc2UoICRzZXNzaW9uICk7IGNvbnRpbnVlOyB9CgkJCSR0YXJnZXQgPSBDVUFfVmlzdWFsX0NEUDo6cGFnZV90YXJnZXQoICRzZXNzaW9uICk7CgkJCWlmICggaXNfd3BfZXJyb3IoICR0YXJnZXQgKSApIHsgJGxhc3RfZXJyb3IgPSAkdGFyZ2V0OyBzZWxmOjpjbG9zZSggJHNlc3Npb24gKTsgY29udGludWU7IH0KCQkJJHNlc3Npb25bJ3RhcmdldF9pZCddID0gKHN0cmluZykgJHRhcmdldFsnaWQnXTsKCQkJcmV0dXJuICRzZXNzaW9uOwoJCX0KCQlpZiAoIGlzX3dwX2Vycm9yKCAkbGFzdF9lcnJvciApICkgeyByZXR1cm4gJGxhc3RfZXJyb3I7IH0KCQlyZXR1cm4gbmV3IFdQX0Vycm9yKCAnY21zYV92aXN1YWxfYnJvd3Nlcl9zdGFydF9mYWlsZWQnLCAnTm8gZGlzY292ZXJlZCBsb2NhbCBDaHJvbWl1bSBleGVjdXRhYmxlIGNvdWxkIHJlYWNoIGl0cyBsb2NhbCBEZXZUb29scyBlbmRwb2ludC4nICk7Cgl9Cg=='
+          browser_b64 = 'CXByaXZhdGUgc3RhdGljIGZ1bmN0aW9uIGJyb3dzZXJfY2FuZGlkYXRlcygpIHsKCQkkY29uZmlndXJlZCA9IGRlZmluZWQoICdDTVNBX0JST1dTRVJfRVhFQ1VUQUJMRScgKSA/IHRyaW0oIChzdHJpbmcpIENNU0FfQlJPV1NFUl9FWEVDVVRBQkxFICkgOiB0cmltKCAoc3RyaW5nKSBnZXRlbnYoICdDTVNBX0JST1dTRVJfRVhFQ1VUQUJMRScgKSApOwoJCWlmICggJycgIT09ICRjb25maWd1cmVkICkgewoJCQkkcmVzb2x2ZWQgPSByZWFscGF0aCggJGNvbmZpZ3VyZWQgKTsKCQkJaWYgKCBmYWxzZSAhPT0gJHJlc29sdmVkICYmIEBpc19maWxlKCAkcmVzb2x2ZWQgKSAmJiBAaXNfZXhlY3V0YWJsZSggJHJlc29sdmVkICkgKSB7IHJldHVybiBhcnJheSggJHJlc29sdmVkICk7IH0KCQkJcmV0dXJuIG5ldyBXUF9FcnJvciggJ2Ntc2FfdmlzdWFsX2Jyb3dzZXJfY29uZmlnX2ludmFsaWQnLCAnQ01TQV9CUk9XU0VSX0VYRUNVVEFCTEUgZG9lcyBub3QgcmVzb2x2ZSB0byBhbiBleGVjdXRhYmxlIGxvY2FsIGJyb3dzZXIuJyApOwoJCX0KCgkJJG5hbWVzID0gYXJyYXkoICdnb29nbGUtY2hyb21lJywgJ2dvb2dsZS1jaHJvbWUtc3RhYmxlJywgJ2Nocm9tZScsICdjaHJvbWl1bScsICdjaHJvbWl1bS1icm93c2VyJywgJ2Nocm9tZS1oZWFkbGVzcy1zaGVsbCcsICdjaHJvbWl1bS1oZWFkbGVzcy1zaGVsbCcgKTsKCQkkY2FuZGlkYXRlcyA9IGFycmF5KCk7CgkJJHBhdGggPSB0cmltKCAoc3RyaW5nKSBnZXRlbnYoICdQQVRIJyApICk7CgkJaWYgKCAnJyAhPT0gJHBhdGggKSB7CgkJCWZvcmVhY2ggKCBleHBsb2RlKCBQQVRIX1NFUEFSQVRPUiwgJHBhdGggKSBhcyAkZGlyICkgewoJCQkJJGRpciA9IHJ0cmltKCB0cmltKCAoc3RyaW5nKSAkZGlyICksIERJUkVDVE9SWV9TRVBBUkFUT1IgKTsKCQkJCWlmICggJycgPT09ICRkaXIgfHwgRElSRUNUT1JZX1NFUEFSQVRPUiAhPT0gc3Vic3RyKCAkZGlyLCAwLCAxICkgKSB7IGNvbnRpbnVlOyB9CgkJCQlmb3JlYWNoICggJG5hbWVzIGFzICRuYW1lICkgeyAkY2FuZGlkYXRlc1tdID0gJGRpciAuIERJUkVDVE9SWV9TRVBBUkFUT1IgLiAkbmFtZTsgfQoJCQl9CgkJfQoJCSRjYW5kaWRhdGVzID0gYXJyYXlfbWVyZ2UoCgkJCSRjYW5kaWRhdGVzLAoJCQlhcnJheSgKCQkJCScvdXNyL2Jpbi9nb29nbGUtY2hyb21lJywgJy91c3IvYmluL2dvb2dsZS1jaHJvbWUtc3RhYmxlJywgJy91c3IvbG9jYWwvYmluL2dvb2dsZS1jaHJvbWUnLCAnL3Vzci9sb2NhbC9iaW4vZ29vZ2xlLWNocm9tZS1zdGFibGUnLAoJCQkJJy9vcHQvZ29vZ2xlL2Nocm9tZS9nb29nbGUtY2hyb21lJywgJy91c3IvYmluL2Nocm9taXVtJywgJy91c3IvYmluL2Nocm9taXVtLWJyb3dzZXInLCAnL3Vzci9sb2NhbC9iaW4vY2hyb21pdW0nLAoJCQkJJy91c3IvYmluL2Nocm9tZS1oZWFkbGVzcy1zaGVsbCcsICcvdXNyL2Jpbi9jaHJvbWl1bS1oZWFkbGVzcy1zaGVsbCcsICcvb3B0L2Nocm9taXVtL2Nocm9tZScsICcvc25hcC9iaW4vY2hyb21pdW0nCgkJCSkKCQkpOwoJCSRob21lID0gdHJpbSggKHN0cmluZykgZ2V0ZW52KCAnSE9NRScgKSApOwoJCWlmICggJycgIT09ICRob21lICYmIERJUkVDVE9SWV9TRVBBUkFUT1IgPT09IHN1YnN0ciggJGhvbWUsIDAsIDEgKSApIHsKCQkJZm9yZWFjaCAoIGFycmF5KAoJCQkJJGhvbWUgLiAnLy5sb2NhbC9iaW4vZ29vZ2xlLWNocm9tZScsICRob21lIC4gJy8ubG9jYWwvYmluL2Nocm9taXVtJywKCQkJCSRob21lIC4gJy8uY2FjaGUvbXMtcGxheXdyaWdodC8qL2Nocm9tZS1saW51eCovY2hyb21lJywKCQkJCSRob21lIC4gJy8uY2FjaGUvcHVwcGV0ZWVyL2Nocm9tZS8qL2Nocm9tZS1saW51eCovY2hyb21lJwoJCQkpIGFzICRwYXR0ZXJuICkgewoJCQkJJG1hdGNoZXMgPSBzdHJfY29udGFpbnMoICRwYXR0ZXJuLCAnKicgKSA/ICggZ2xvYiggJHBhdHRlcm4gKSA/OiBhcnJheSgpICkgOiBhcnJheSggJHBhdHRlcm4gKTsKCQkJCWZvcmVhY2ggKCAkbWF0Y2hlcyBhcyAkbWF0Y2ggKSB7ICRjYW5kaWRhdGVzW10gPSAkbWF0Y2g7IH0KCQkJfQoJCX0KCQkkcmVzb2x2ZWRfY2FuZGlkYXRlcyA9IGFycmF5KCk7CgkJZm9yZWFjaCAoICRjYW5kaWRhdGVzIGFzICRjYW5kaWRhdGUgKSB7CgkJCSRyZXNvbHZlZCA9IHJlYWxwYXRoKCAoc3RyaW5nKSAkY2FuZGlkYXRlICk7CgkJCWlmICggZmFsc2UgIT09ICRyZXNvbHZlZCAmJiBAaXNfZmlsZSggJHJlc29sdmVkICkgJiYgQGlzX2V4ZWN1dGFibGUoICRyZXNvbHZlZCApICkgeyAkcmVzb2x2ZWRfY2FuZGlkYXRlc1sgJHJlc29sdmVkIF0gPSB0cnVlOyB9CgkJfQoJCWlmICggJHJlc29sdmVkX2NhbmRpZGF0ZXMgKSB7IHJldHVybiBhcnJheV9rZXlzKCAkcmVzb2x2ZWRfY2FuZGlkYXRlcyApOyB9CgkJcmV0dXJuIG5ldyBXUF9FcnJvciggJ2Ntc2FfdmlzdWFsX2Jyb3dzZXJfdW5hdmFpbGFibGUnLCAnTm8gdXNhYmxlIGxvY2FsIENocm9taXVtIGV4ZWN1dGFibGUgd2FzIGZvdW5kIGFmdGVyIGNoZWNraW5nIHRoZSBQSFAgcHJvY2VzcyBQQVRILCBzdXBwb3J0ZWQgc3lzdGVtIGxvY2F0aW9ucywgYW5kIGNvbW1vbiB1c2VyLWxvY2FsIGJyb3dzZXIgY2FjaGVzLicgKTsKCX0K'
+          start_new = b64decode(start_b64).decode()
+          browser_new = b64decode(browser_b64).decode()
           start_begin = text.index('\tpublic static function start( $width, $height ) {')
           nav_begin = text.index('\n\tpublic static function navigate(', start_begin)
-          new_start = r'''	public static function start( $width, $height ) {
-		if ( ! function_exists( 'exec' ) || self::function_disabled( 'exec' ) ) { return new WP_Error( 'cmsa_visual_exec_unavailable', 'The host does not permit the process execution required for headless browser inspection.' ); }
-		$binaries = self::browser_candidates();
-		if ( is_wp_error( $binaries ) ) { return $binaries; }
-		$root = self::root();
-		if ( is_wp_error( $root ) ) { return $root; }
-		$last_error = null;
-		foreach ( $binaries as $binary ) {
-			$id = bin2hex( random_bytes( 16 ) );
-			$profile = trailingslashit( $root ) . $id;
-			if ( ! wp_mkdir_p( $profile ) ) { return new WP_Error( 'cmsa_visual_session_dir_failed', 'The browser session directory could not be created.' ); }
-			$port = self::free_port();
-			if ( is_wp_error( $port ) ) { self::delete_tree( $profile ); return $port; }
-			$log = trailingslashit( $profile ) . 'browser.log';
-			$cmd = 'nohup ' . escapeshellarg( $binary )
-				. ' --headless=new --disable-gpu --no-first-run --no-default-browser-check --hide-scrollbars'
-				. ' --remote-debugging-address=127.0.0.1 --remote-debugging-port=' . (int) $port
-				. ' --remote-allow-origins=http://127.0.0.1'
-				. ' --user-data-dir=' . escapeshellarg( $profile )
-				. ' --window-size=' . (int) $width . ',' . (int) $height
-				. ' about:blank >' . escapeshellarg( $log ) . ' 2>&1 & echo $!';
-			$out = array(); $status = 0; exec( $cmd, $out, $status );
-			$pid = isset( $out[0] ) ? absint( trim( (string) $out[0] ) ) : 0;
-			if ( 0 !== $status || $pid < 1 ) {
-				self::delete_tree( $profile );
-				$last_error = new WP_Error( 'cmsa_visual_browser_start_failed', 'A discovered Chromium executable could not be started.' );
-				continue;
-			}
-			$session = array( 'session_id' => $id, 'pid' => $pid, 'port' => (int) $port, 'profile_dir' => $profile, 'browser_binary' => $binary, 'width' => (int) $width, 'height' => (int) $height, 'created_at' => time(), 'updated_at' => time() );
-			$ready = CUA_Visual_CDP::wait_until_ready( $session );
-			if ( is_wp_error( $ready ) ) { $last_error = $ready; self::close( $session ); continue; }
-			$target = CUA_Visual_CDP::page_target( $session );
-			if ( is_wp_error( $target ) ) { $last_error = $target; self::close( $session ); continue; }
-			$session['target_id'] = (string) $target['id'];
-			return $session;
-		}
-		if ( is_wp_error( $last_error ) ) { return $last_error; }
-		return new WP_Error( 'cmsa_visual_browser_start_failed', 'No discovered local Chromium executable could reach its local DevTools endpoint.' );
-	}
-'''
-          text = text[:start_begin] + new_start + text[nav_begin:]
-
+          text = text[:start_begin] + start_new + text[nav_begin:]
           browser_begin = text.index('\tprivate static function browser_binary() {')
           root_begin = text.index('\n\tprivate static function root()', browser_begin)
-          new_browser = r'''	private static function browser_candidates() {
-		$configured = defined( 'CMSA_BROWSER_EXECUTABLE' ) ? trim( (string) CMSA_BROWSER_EXECUTABLE ) : trim( (string) getenv( 'CMSA_BROWSER_EXECUTABLE' ) );
-		if ( '' !== $configured ) {
-			$resolved = realpath( $configured );
-			if ( false !== $resolved && @is_file( $resolved ) && @is_executable( $resolved ) ) { return array( $resolved ); }
-			return new WP_Error( 'cmsa_visual_browser_config_invalid', 'CMSA_BROWSER_EXECUTABLE does not resolve to an executable local browser.' );
-		}
-
-		$names = array( 'google-chrome', 'google-chrome-stable', 'chrome', 'chromium', 'chromium-browser', 'chrome-headless-shell', 'chromium-headless-shell' );
-		$candidates = array();
-		$path = trim( (string) getenv( 'PATH' ) );
-		if ( '' !== $path ) {
-			foreach ( explode( PATH_SEPARATOR, $path ) as $dir ) {
-				$dir = rtrim( trim( (string) $dir ), DIRECTORY_SEPARATOR );
-				if ( '' === $dir || DIRECTORY_SEPARATOR !== substr( $dir, 0, 1 ) ) { continue; }
-				foreach ( $names as $name ) { $candidates[] = $dir . DIRECTORY_SEPARATOR . $name; }
-			}
-		}
-		$candidates = array_merge(
-			$candidates,
-			array(
-				'/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/local/bin/google-chrome', '/usr/local/bin/google-chrome-stable',
-				'/opt/google/chrome/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser', '/usr/local/bin/chromium',
-				'/usr/bin/chrome-headless-shell', '/usr/bin/chromium-headless-shell', '/opt/chromium/chrome', '/snap/bin/chromium'
-			)
-		);
-		$home = trim( (string) getenv( 'HOME' ) );
-		if ( '' !== $home && DIRECTORY_SEPARATOR === substr( $home, 0, 1 ) ) {
-			foreach ( array(
-				$home . '/.local/bin/google-chrome', $home . '/.local/bin/chromium',
-				$home . '/.cache/ms-playwright/*/chrome-linux*/chrome',
-				$home . '/.cache/puppeteer/chrome/*/chrome-linux*/chrome'
-			) as $pattern ) {
-				$matches = str_contains( $pattern, '*' ) ? ( glob( $pattern ) ?: array() ) : array( $pattern );
-				foreach ( $matches as $match ) { $candidates[] = $match; }
-			}
-		}
-		$resolved_candidates = array();
-		foreach ( $candidates as $candidate ) {
-			$resolved = realpath( (string) $candidate );
-			if ( false !== $resolved && @is_file( $resolved ) && @is_executable( $resolved ) ) { $resolved_candidates[ $resolved ] = true; }
-		}
-		if ( $resolved_candidates ) { return array_keys( $resolved_candidates ); }
-		return new WP_Error( 'cmsa_visual_browser_unavailable', 'No usable local Chromium executable was found after checking the PHP process PATH, supported system locations, and common user-local browser caches.' );
-	}
-'''
-          text = text[:browser_begin] + new_browser + text[root_begin:]
+          text = text[:browser_begin] + browser_new + text[root_begin:]
           runtime.write_text(text)
-
           active = [
               Path('site-plugins/admin-mcp/admin-mcp.php'),
               Path('workbench/harnesses/chattanooga-site-plugins/integration-cli.php'),
@@ -147,7 +62,7 @@ jobs:
           grep -q "define( 'CUA_VERSION', '1.2.58' );" site-plugins/admin-mcp/admin-mcp.php
           grep -q 'browser_candidates' site-plugins/admin-mcp/includes/class-cua-visual-browser-runtime.php
           grep -q 'foreach ( \$binaries as \$binary )' site-plugins/admin-mcp/includes/class-cua-visual-browser-runtime.php
-          ! grep -q 'private static function browser_binary' site-plugins/admin-mcp/includes/class-cua-visual-browser-runtime.php
+          if grep -q 'private static function browser_binary' site-plugins/admin-mcp/includes/class-cua-visual-browser-runtime.php; then exit 1; fi
 
       - name: Commit repaired source
         shell: bash
