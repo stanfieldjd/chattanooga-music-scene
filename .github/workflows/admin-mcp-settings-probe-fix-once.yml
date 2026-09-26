@@ -1,0 +1,39 @@
+name: ADMIN MCP One-Time Settings Probe Fix
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/admin-mcp-settings-probe-fix-once.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Align settings probe with ADMIN MCP display identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          file='workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-settings-page-cli.php'
+          grep -Fq "Chattanooga MCP Settings" "$file"
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-settings-page-cli.php')
+          s=p.read_text()
+          s=s.replace('Chattanooga MCP Settings','ADMIN MCP Settings')
+          p.write_text(s)
+          PY
+          grep -Fq "ADMIN MCP Settings" "$file"
+          ! grep -Fq "Chattanooga MCP Settings" "$file"
+          php -l "$file"
+          git diff --check
+          git config user.name "ADMIN MCP Source Normalizer"
+          git config user.email "actions@users.noreply.github.com"
+          git add "$file"
+          git commit -m "Align ADMIN MCP settings-page probe identity"
+          git push origin HEAD:main
