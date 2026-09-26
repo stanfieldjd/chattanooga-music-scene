@@ -1,0 +1,165 @@
+name: ADMIN MCP browser candidate fallback repair
+
+on:
+  push:
+    paths:
+      - '.github/workflows/admin-mcp-browser-fallback-repair.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Repair automatic browser candidate selection
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          runtime = Path('site-plugins/admin-mcp/includes/class-cua-visual-browser-runtime.php')
+          text = runtime.read_text()
+
+          start_begin = text.index('\tpublic static function start( $width, $height ) {')
+          nav_begin = text.index('\n\tpublic static function navigate(', start_begin)
+          new_start = r'''	public static function start( $width, $height ) {
+		if ( ! function_exists( 'exec' ) || self::function_disabled( 'exec' ) ) { return new WP_Error( 'cmsa_visual_exec_unavailable', 'The host does not permit the process execution required for headless browser inspection.' ); }
+		$binaries = self::browser_candidates();
+		if ( is_wp_error( $binaries ) ) { return $binaries; }
+		$root = self::root();
+		if ( is_wp_error( $root ) ) { return $root; }
+		$last_error = null;
+		foreach ( $binaries as $binary ) {
+			$id = bin2hex( random_bytes( 16 ) );
+			$profile = trailingslashit( $root ) . $id;
+			if ( ! wp_mkdir_p( $profile ) ) { return new WP_Error( 'cmsa_visual_session_dir_failed', 'The browser session directory could not be created.' ); }
+			$port = self::free_port();
+			if ( is_wp_error( $port ) ) { self::delete_tree( $profile ); return $port; }
+			$log = trailingslashit( $profile ) . 'browser.log';
+			$cmd = 'nohup ' . escapeshellarg( $binary )
+				. ' --headless=new --disable-gpu --no-first-run --no-default-browser-check --hide-scrollbars'
+				. ' --remote-debugging-address=127.0.0.1 --remote-debugging-port=' . (int) $port
+				. ' --remote-allow-origins=http://127.0.0.1'
+				. ' --user-data-dir=' . escapeshellarg( $profile )
+				. ' --window-size=' . (int) $width . ',' . (int) $height
+				. ' about:blank >' . escapeshellarg( $log ) . ' 2>&1 & echo $!';
+			$out = array(); $status = 0; exec( $cmd, $out, $status );
+			$pid = isset( $out[0] ) ? absint( trim( (string) $out[0] ) ) : 0;
+			if ( 0 !== $status || $pid < 1 ) {
+				self::delete_tree( $profile );
+				$last_error = new WP_Error( 'cmsa_visual_browser_start_failed', 'A discovered Chromium executable could not be started.' );
+				continue;
+			}
+			$session = array( 'session_id' => $id, 'pid' => $pid, 'port' => (int) $port, 'profile_dir' => $profile, 'browser_binary' => $binary, 'width' => (int) $width, 'height' => (int) $height, 'created_at' => time(), 'updated_at' => time() );
+			$ready = CUA_Visual_CDP::wait_until_ready( $session );
+			if ( is_wp_error( $ready ) ) { $last_error = $ready; self::close( $session ); continue; }
+			$target = CUA_Visual_CDP::page_target( $session );
+			if ( is_wp_error( $target ) ) { $last_error = $target; self::close( $session ); continue; }
+			$session['target_id'] = (string) $target['id'];
+			return $session;
+		}
+		if ( is_wp_error( $last_error ) ) { return $last_error; }
+		return new WP_Error( 'cmsa_visual_browser_start_failed', 'No discovered local Chromium executable could reach its local DevTools endpoint.' );
+	}
+'''
+          text = text[:start_begin] + new_start + text[nav_begin:]
+
+          browser_begin = text.index('\tprivate static function browser_binary() {')
+          root_begin = text.index('\n\tprivate static function root()', browser_begin)
+          new_browser = r'''	private static function browser_candidates() {
+		$configured = defined( 'CMSA_BROWSER_EXECUTABLE' ) ? trim( (string) CMSA_BROWSER_EXECUTABLE ) : trim( (string) getenv( 'CMSA_BROWSER_EXECUTABLE' ) );
+		if ( '' !== $configured ) {
+			$resolved = realpath( $configured );
+			if ( false !== $resolved && @is_file( $resolved ) && @is_executable( $resolved ) ) { return array( $resolved ); }
+			return new WP_Error( 'cmsa_visual_browser_config_invalid', 'CMSA_BROWSER_EXECUTABLE does not resolve to an executable local browser.' );
+		}
+
+		$names = array( 'google-chrome', 'google-chrome-stable', 'chrome', 'chromium', 'chromium-browser', 'chrome-headless-shell', 'chromium-headless-shell' );
+		$candidates = array();
+		$path = trim( (string) getenv( 'PATH' ) );
+		if ( '' !== $path ) {
+			foreach ( explode( PATH_SEPARATOR, $path ) as $dir ) {
+				$dir = rtrim( trim( (string) $dir ), DIRECTORY_SEPARATOR );
+				if ( '' === $dir || DIRECTORY_SEPARATOR !== substr( $dir, 0, 1 ) ) { continue; }
+				foreach ( $names as $name ) { $candidates[] = $dir . DIRECTORY_SEPARATOR . $name; }
+			}
+		}
+		$candidates = array_merge(
+			$candidates,
+			array(
+				'/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/local/bin/google-chrome', '/usr/local/bin/google-chrome-stable',
+				'/opt/google/chrome/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser', '/usr/local/bin/chromium',
+				'/usr/bin/chrome-headless-shell', '/usr/bin/chromium-headless-shell', '/opt/chromium/chrome', '/snap/bin/chromium'
+			)
+		);
+		$home = trim( (string) getenv( 'HOME' ) );
+		if ( '' !== $home && DIRECTORY_SEPARATOR === substr( $home, 0, 1 ) ) {
+			foreach ( array(
+				$home . '/.local/bin/google-chrome', $home . '/.local/bin/chromium',
+				$home . '/.cache/ms-playwright/*/chrome-linux*/chrome',
+				$home . '/.cache/puppeteer/chrome/*/chrome-linux*/chrome'
+			) as $pattern ) {
+				$matches = str_contains( $pattern, '*' ) ? ( glob( $pattern ) ?: array() ) : array( $pattern );
+				foreach ( $matches as $match ) { $candidates[] = $match; }
+			}
+		}
+		$resolved_candidates = array();
+		foreach ( $candidates as $candidate ) {
+			$resolved = realpath( (string) $candidate );
+			if ( false !== $resolved && @is_file( $resolved ) && @is_executable( $resolved ) ) { $resolved_candidates[ $resolved ] = true; }
+		}
+		if ( $resolved_candidates ) { return array_keys( $resolved_candidates ); }
+		return new WP_Error( 'cmsa_visual_browser_unavailable', 'No usable local Chromium executable was found after checking the PHP process PATH, supported system locations, and common user-local browser caches.' );
+	}
+'''
+          text = text[:browser_begin] + new_browser + text[root_begin:]
+          runtime.write_text(text)
+
+          active = [
+              Path('site-plugins/admin-mcp/admin-mcp.php'),
+              Path('workbench/harnesses/chattanooga-site-plugins/integration-cli.php'),
+              Path('workbench/harnesses/admin-mcp-v2/probes/native-mcp-cli.php'),
+              Path('workbench/harnesses/admin-mcp-v2/probes/native-mcp-visual-browser-cli.php'),
+              Path('workbench/harnesses/admin-mcp-v2/probes/mcp-ingestion-diagnostics-cli.php'),
+              Path('workbench/harnesses/admin-mcp-v2/probes/native-mcp-functional-redteam-cli.php'),
+          ]
+          for p in active:
+              s = p.read_text()
+              if '1.2.57' not in s and '1.2.58' not in s:
+                  raise SystemExit(f'Expected version marker missing in {p}')
+              p.write_text(s.replace('1.2.57', '1.2.58'))
+          PY
+
+      - name: Validate repaired source
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -l site-plugins/admin-mcp/admin-mcp.php
+          php -l site-plugins/admin-mcp/includes/class-cua-visual-browser-runtime.php
+          php -l workbench/harnesses/admin-mcp-v2/probes/native-mcp-visual-browser-cli.php
+          grep -q '^ \* Version: 1.2.58$' site-plugins/admin-mcp/admin-mcp.php
+          grep -q "define( 'CUA_VERSION', '1.2.58' );" site-plugins/admin-mcp/admin-mcp.php
+          grep -q 'browser_candidates' site-plugins/admin-mcp/includes/class-cua-visual-browser-runtime.php
+          grep -q 'foreach ( \$binaries as \$binary )' site-plugins/admin-mcp/includes/class-cua-visual-browser-runtime.php
+          ! grep -q 'private static function browser_binary' site-plugins/admin-mcp/includes/class-cua-visual-browser-runtime.php
+
+      - name: Commit repaired source
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add site-plugins/admin-mcp/admin-mcp.php \
+                  site-plugins/admin-mcp/includes/class-cua-visual-browser-runtime.php \
+                  workbench/harnesses/chattanooga-site-plugins/integration-cli.php \
+                  workbench/harnesses/admin-mcp-v2/probes/native-mcp-cli.php \
+                  workbench/harnesses/admin-mcp-v2/probes/native-mcp-visual-browser-cli.php \
+                  workbench/harnesses/admin-mcp-v2/probes/mcp-ingestion-diagnostics-cli.php \
+                  workbench/harnesses/admin-mcp-v2/probes/native-mcp-functional-redteam-cli.php
+          git commit -m 'Retry discovered Chromium candidates in ADMIN MCP 1.2.58'
+          git push origin HEAD:main
