@@ -38,21 +38,21 @@ foreach ( $required_plugins as $plugin_file ) {
 	cms_site_plugins_assert( is_plugin_active( $plugin_file ), 'Required plugin is not active: ' . $plugin_file );
 }
 
-cms_site_plugins_assert( defined( 'CUA_VERSION' ) && '1.2.49' === CUA_VERSION, 'Chattanooga CMS Admin 1.2.49 did not load.' );
+cms_site_plugins_assert( defined( 'CUA_VERSION' ) && '1.2.51' === CUA_VERSION, 'Admin MCP 1.2.51 did not load.' );
 cms_site_plugins_assert( defined( 'CMS_MARKETPLACE_VERSION' ) && '0.1.1' === CMS_MARKETPLACE_VERSION, 'Marketplace 0.1.1 did not load.' );
 cms_site_plugins_assert( defined( 'CMS_CORE_VERSION' ) && '0.2.7' === CMS_CORE_VERSION, 'Weekend Feature 0.2.7 did not load.' );
 cms_site_plugins_assert( class_exists( 'WC_Product_Simple' ), 'WooCommerce product API is unavailable.' );
 cms_site_plugins_assert( class_exists( 'EM_Events' ), 'Events Manager API is unavailable.' );
 
-// Chattanooga CMS Admin must remain functional with the other two site plugins active.
+// Admin MCP must remain functional with the other two site plugins active.
 cms_site_plugins_assert( function_exists( 'wp_get_ability' ), 'WordPress Abilities API is unavailable.' );
 $health = wp_get_ability( 'chattanooga-cms-admin/get-health' );
-cms_site_plugins_assert( $health instanceof WP_Ability, 'Chattanooga CMS Admin health ability is missing.' );
-cms_site_plugins_assert( true === $health->check_permissions( array() ), 'Chattanooga CMS Admin health permission failed for administrator.' );
+cms_site_plugins_assert( $health instanceof WP_Ability, 'Admin MCP health ability is missing.' );
+cms_site_plugins_assert( true === $health->check_permissions( array() ), 'Admin MCP health permission failed for administrator.' );
 $health_result = $health->execute( array() );
-cms_site_plugins_assert( ! is_wp_error( $health_result ), 'Chattanooga CMS Admin health execution failed.' );
-cms_site_plugins_assert( get_bloginfo( 'version' ) === ( $health_result['wordpress_version'] ?? '' ), 'Chattanooga CMS Admin health returned the wrong WordPress version.' );
-cms_site_plugins_assert( array_key_exists( 'plugin_dir_writable', $health_result ), 'Chattanooga CMS Admin health omitted plugin-directory state.' );
+cms_site_plugins_assert( ! is_wp_error( $health_result ), 'Admin MCP health execution failed.' );
+cms_site_plugins_assert( get_bloginfo( 'version' ) === ( $health_result['wordpress_version'] ?? '' ), 'Admin MCP health returned the wrong WordPress version.' );
+cms_site_plugins_assert( array_key_exists( 'plugin_dir_writable', $health_result ), 'Admin MCP health omitted plugin-directory state.' );
 global $wpdb;
 cms_site_plugins_assert( '1' === (string) $wpdb->get_var( 'SELECT 1' ), 'WordPress database verification failed.' );
 
@@ -85,7 +85,6 @@ if ( null !== $prior_wp_query ) {
 	unset( $GLOBALS['wp_query'] );
 }
 wp_delete_post( $scene_page, true );
-
 
 $schedules = apply_filters( 'cron_schedules', array() );
 cms_site_plugins_assert( isset( $schedules['cms_weekly'] ), 'Weekend Feature weekly cron interval is missing.' );
@@ -268,10 +267,10 @@ if ( null !== $prior_wp_query ) {
 }
 
 wp_set_current_user( 0 );
-cms_site_plugins_assert( false === $health->check_permissions( array() ), 'Anonymous CMS Admin access was not denied.' );
+cms_site_plugins_assert( false === $health->check_permissions( array() ), 'Anonymous Admin MCP access was not denied.' );
 wp_set_current_user( 1 );
 
-echo "cms-site-plugins-integration: PASS cms_admin=1.2.49 marketplace=0.1.1 weekend_feature=0.2.7 wordpress_native_install=verified coexistence=verified marketplace_awp=verified marketplace_woocommerce=verified marketplace_search=verified marketplace_truncation=verified woocommerce_label=absent location_filter=preserved weekend_events_manager=verified weekend_schedule=verified cms_admin_health=verified database=verified admin_boundary=verified\n";
+echo "cms-site-plugins-integration: PASS admin_mcp=1.2.51 marketplace=0.1.1 weekend_feature=0.2.7 wordpress_native_install=verified coexistence=verified marketplace_awp=verified marketplace_woocommerce=verified marketplace_search=verified marketplace_truncation=verified woocommerce_label=absent location_filter=preserved weekend_events_manager=verified weekend_schedule=verified admin_mcp_health=verified database=verified admin_boundary=verified\n";
 exit( 0 );
 
 
