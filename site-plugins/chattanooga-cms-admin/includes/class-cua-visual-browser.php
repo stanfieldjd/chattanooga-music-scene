@@ -9,7 +9,7 @@ final class CUA_Visual_Browser {
 	const MAX_WAIT_MS = 5000;
 
 	public static function bootstrap() {
-		add_filter( 'rest_post_dispatch', array( __CLASS__, 'inject_mcp_image_content' ), 50, 3 );
+		add_filter( 'rest_request_after_callbacks', array( __CLASS__, 'inject_mcp_image_content' ), 50, 3 );
 	}
 
 	public static function register_abilities() {
