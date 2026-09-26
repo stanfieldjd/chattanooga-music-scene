@@ -1,4 +1,4 @@
-name: Admin MCP Visual Browser Acceptance
+name: ADMIN MCP Visual Browser Acceptance
 
 on:
   push:
@@ -51,8 +51,8 @@ jobs:
           php -l site-plugins/chattanooga-cms-admin/includes/class-cua-visual-browser-runtime.php >/dev/null
           php -l site-plugins/chattanooga-cms-admin/includes/class-cua-visual-browser.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-visual-browser-cli.php >/dev/null
-          grep -q '^ \* Plugin Name: Admin MCP$' site-plugins/chattanooga-cms-admin/chattanooga-cms-admin.php
-          grep -q '^ \* Version: 1.2.51$' site-plugins/chattanooga-cms-admin/chattanooga-cms-admin.php
+          grep -q '^ \* Plugin Name: ADMIN MCP$' site-plugins/chattanooga-cms-admin/chattanooga-cms-admin.php
+          grep -q '^ \* Version: 1.2.52$' site-plugins/chattanooga-cms-admin/chattanooga-cms-admin.php
 
       - name: Resolve Chromium executable
         shell: bash
@@ -75,11 +75,11 @@ jobs:
           php /tmp/wp-cli.phar config create --path=/tmp/wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
           php /tmp/wp-cli.phar config set WP_ENVIRONMENT_TYPE local --type=constant --path=/tmp/wordpress
           password="$(php -r 'echo bin2hex(random_bytes(20));')"
-          php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://127.0.0.1:8090 --title="Admin MCP Visual Browser Acceptance" --admin_user=admin --admin_password="$password" --admin_email=visual@example.invalid --skip-email
+          php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://127.0.0.1:8090 --title="ADMIN MCP Visual Browser Acceptance" --admin_user=admin --admin_password="$password" --admin_email=visual@example.invalid --skip-email
           cp -R site-plugins/chattanooga-cms-admin /tmp/wordpress/wp-content/plugins/chattanooga-cms-admin
           php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin --path=/tmp/wordpress
-          test "$(php /tmp/wp-cli.phar eval 'echo CUA_VERSION;' --path=/tmp/wordpress)" = "1.2.51"
-          test "$(php /tmp/wp-cli.phar plugin get chattanooga-cms-admin --field=version --path=/tmp/wordpress)" = "1.2.51"
+          test "$(php /tmp/wp-cli.phar eval 'echo CUA_VERSION;' --path=/tmp/wordpress)" = "1.2.52"
+          test "$(php /tmp/wp-cli.phar plugin get chattanooga-cms-admin --field=version --path=/tmp/wordpress)" = "1.2.52"
 
       - name: Start disposable web server
         shell: bash
