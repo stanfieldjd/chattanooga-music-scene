@@ -72,21 +72,51 @@ final class CUA_Visual_CDP {
 		$key = base64_encode( random_bytes( 16 ) );
 		$path = (string) $parts['path'] . ( isset( $parts['query'] ) ? '?' . $parts['query'] : '' );
 		$request = "GET {$path} HTTP/1.1\r\nHost: 127.0.0.1:{$parts['port']}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: {$key}\r\nSec-WebSocket-Version: 13\r\nOrigin: http://127.0.0.1\r\n\r\n";
-		fwrite( $socket, $request );
+		if ( ! self::write_all( $socket, $request ) ) { fclose( $socket ); return new WP_Error( 'cmsa_visual_ws_handshake_write_failed', 'The DevTools WebSocket handshake could not be sent.' ); }
 		$headers = '';
 		while ( ! feof( $socket ) && false === strpos( $headers, "\r\n\r\n" ) && strlen( $headers ) < 16384 ) { $headers .= (string) fgets( $socket, 2048 ); }
 		if ( ! preg_match( '#^HTTP/1\.[01] 101 #', $headers ) ) { fclose( $socket ); return new WP_Error( 'cmsa_visual_ws_handshake_failed', 'Chromium rejected the DevTools WebSocket handshake.' ); }
+		$expected_accept = base64_encode( sha1( $key . '258EAFA5-E914-47DA-95CA-C5AB0DC85B11', true ) );
+		if ( ! preg_match( '/^Sec-WebSocket-Accept:\s*([^\r\n]+)$/mi', $headers, $matches ) || ! hash_equals( $expected_accept, trim( (string) $matches[1] ) ) ) {
+			fclose( $socket );
+			return new WP_Error( 'cmsa_visual_ws_handshake_invalid', 'Chromium returned an invalid DevTools WebSocket handshake.' );
+		}
 		return $socket;
 	}
 
 	private static function send( $socket, $payload ) {
-		$payload = (string) $payload; $length = strlen( $payload ); $mask = random_bytes( 4 ); $header = chr( 0x81 );
+		return self::send_frame( $socket, 0x1, (string) $payload );
+	}
+
+	private static function send_frame( $socket, $opcode, $payload ) {
+		$payload = (string) $payload;
+		$length = strlen( $payload );
+		$mask = random_bytes( 4 );
+		$header = chr( 0x80 | ( (int) $opcode & 0x0f ) );
 		if ( $length <= 125 ) { $header .= chr( 0x80 | $length ); }
 		elseif ( $length <= 65535 ) { $header .= chr( 0x80 | 126 ) . pack( 'n', $length ); }
 		else { $header .= chr( 0x80 | 127 ) . pack( 'NN', 0, $length ); }
 		$masked = '';
 		for ( $i = 0; $i < $length; ++$i ) { $masked .= $payload[ $i ] ^ $mask[ $i % 4 ]; }
-		return false !== fwrite( $socket, $header . $mask . $masked );
+		return self::write_all( $socket, $header . $mask . $masked );
+	}
+
+	private static function write_all( $socket, $data ) {
+		$data = (string) $data;
+		$length = strlen( $data );
+		$offset = 0;
+		while ( $offset < $length && ! feof( $socket ) ) {
+			$written = fwrite( $socket, substr( $data, $offset ) );
+			if ( false === $written ) { return false; }
+			if ( 0 === $written ) {
+				$meta = stream_get_meta_data( $socket );
+				if ( ! empty( $meta['timed_out'] ) ) { return false; }
+				usleep( 10000 );
+				continue;
+			}
+			$offset += $written;
+		}
+		return $offset === $length;
 	}
 
 	private static function receive( $socket ) {
@@ -96,7 +126,11 @@ final class CUA_Visual_CDP {
 			if ( null === $frame || is_wp_error( $frame ) ) { return $frame; }
 			$opcode = (int) $frame['opcode'];
 			if ( 0x8 === $opcode ) { return new WP_Error( 'cmsa_visual_ws_closed', 'Chromium closed the DevTools WebSocket.' ); }
-			if ( 0x9 === $opcode || 0xA === $opcode ) { continue; }
+			if ( 0x9 === $opcode ) {
+				if ( ! self::send_frame( $socket, 0xA, (string) $frame['payload'] ) ) { return new WP_Error( 'cmsa_visual_ws_pong_failed', 'The DevTools WebSocket ping could not be acknowledged.' ); }
+				continue;
+			}
+			if ( 0xA === $opcode ) { continue; }
 			if ( 0x1 === $opcode ) { $message = (string) $frame['payload']; $started = true; }
 			elseif ( 0x0 === $opcode && $started ) { $message .= (string) $frame['payload']; }
 			else { continue; }
