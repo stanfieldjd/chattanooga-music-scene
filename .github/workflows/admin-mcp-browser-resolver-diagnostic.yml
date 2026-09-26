@@ -1,0 +1,68 @@
+name: ADMIN MCP browser resolver diagnostic
+
+on:
+  push:
+    paths:
+      - '.github/workflows/admin-mcp-browser-resolver-diagnostic.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+      - name: Compare automatic and explicit browser executables
+        shell: bash
+        run: |
+          set -euo pipefail
+          explicit="$(command -v google-chrome)"
+          echo "explicit=$explicit"
+          echo "explicit_real=$(realpath "$explicit")"
+          echo "PATH=$PATH"
+          php -r '
+            define("ABSPATH", "/tmp/");
+            class WP_Error { public function __construct(...$args) {} }
+            require "site-plugins/admin-mcp/includes/class-cua-visual-browser-runtime.php";
+            $m = new ReflectionMethod("CUA_Visual_Browser_Runtime", "browser_binary");
+            $m->setAccessible(true);
+            $v = $m->invoke(null);
+            if ($v instanceof WP_Error) { fwrite(STDERR, "resolver_error\n"); exit(2); }
+            echo "resolved=" . $v . PHP_EOL;
+          ' | tee /tmp/resolver.txt
+          resolved="$(sed -n 's/^resolved=//p' /tmp/resolver.txt)"
+          test -n "$resolved"
+          "$explicit" --version
+          "$resolved" --version
+
+          probe_browser() {
+            label="$1"; binary="$2"; port="$3"; profile="/tmp/admin-mcp-$label"
+            rm -rf "$profile"
+            mkdir -p "$profile"
+            log="/tmp/$label.log"
+            nohup "$binary" --headless=new --disable-gpu --no-first-run --no-default-browser-check --hide-scrollbars \
+              --remote-debugging-address=127.0.0.1 --remote-debugging-port="$port" \
+              --remote-allow-origins=http://127.0.0.1 --user-data-dir="$profile" \
+              --window-size=900,600 about:blank >"$log" 2>&1 &
+            pid=$!
+            ok=0
+            for i in $(seq 1 50); do
+              if curl -fsS "http://127.0.0.1:$port/json/version" >/tmp/$label-version.json 2>/dev/null; then ok=1; break; fi
+              if ! kill -0 "$pid" 2>/dev/null; then break; fi
+              sleep 0.2
+            done
+            echo "$label ready=$ok pid=$pid binary=$binary"
+            cat "$log" || true
+            if [ -f /tmp/$label-version.json ]; then cat /tmp/$label-version.json; fi
+            kill "$pid" 2>/dev/null || true
+            rm -rf "$profile"
+            return $((1-ok))
+          }
+
+          probe_browser explicit "$explicit" 19222
+          probe_browser resolved "$resolved" 19223
