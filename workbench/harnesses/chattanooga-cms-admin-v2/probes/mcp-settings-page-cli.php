@@ -37,7 +37,7 @@ cmsa_mcp_settings_assert( array( 'https://example.com' ) === $sanitized, 'Origin
 ob_start();
 CUA_MCP_Settings_Page::render_page();
 $page = ob_get_clean();
-cmsa_mcp_settings_assert( false !== strpos( $page, 'Chattanooga MCP Settings' ), 'MCP settings page title is missing.' );
+cmsa_mcp_settings_assert( false !== strpos( $page, 'ADMIN MCP Settings' ), 'MCP settings page title is missing.' );
 cmsa_mcp_settings_assert( false !== strpos( $page, esc_url( rest_url( CUA_MCP_Server::REST_NAMESPACE . CUA_MCP_Server::REST_ROUTE ) ) ), 'MCP endpoint is missing from the settings page.' );
 cmsa_mcp_settings_assert( false !== strpos( $page, CUA_MCP_Server::PROTOCOL_VERSION ), 'MCP protocol version is missing from the settings page.' );
 cmsa_mcp_settings_assert( false !== strpos( $page, 'Allowed browser origins' ), 'MCP origin setting is missing from the settings page.' );
