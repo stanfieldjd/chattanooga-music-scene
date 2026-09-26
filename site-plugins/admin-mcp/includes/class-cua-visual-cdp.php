@@ -77,7 +77,7 @@ final class CUA_Visual_CDP {
 		while ( ! feof( $socket ) && false === strpos( $headers, "\r\n\r\n" ) && strlen( $headers ) < 16384 ) { $headers .= (string) fgets( $socket, 2048 ); }
 		if ( ! preg_match( '#^HTTP/1\.[01] 101 #', $headers ) ) { fclose( $socket ); return new WP_Error( 'cmsa_visual_ws_handshake_failed', 'Chromium rejected the DevTools WebSocket handshake.' ); }
 		$expected_accept = base64_encode( sha1( $key . '258EAFA5-E914-47DA-95CA-C5AB0DC85B11', true ) );
-		if ( ! preg_match( '/^Sec-WebSocket-Accept:\s*([^\r\n]+)$/mi', $headers, $matches ) || ! hash_equals( $expected_accept, trim( (string) $matches[1] ) ) ) {
+		if ( ! preg_match( '/^Sec-WebSocket-Accept:\s*([^\r\n]+)\r?$/mi', $headers, $matches ) || ! hash_equals( $expected_accept, trim( (string) $matches[1] ) ) ) {
 			fclose( $socket );
 			return new WP_Error( 'cmsa_visual_ws_handshake_invalid', 'Chromium returned an invalid DevTools WebSocket handshake.' );
 		}
