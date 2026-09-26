@@ -1,0 +1,42 @@
+name: ADMIN MCP One-Time Refresh Transport Fix
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/admin-mcp-refresh-fix-once.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Replace fragile Page.reload with verified same-URL navigation
+        shell: bash
+        run: |
+          set -euo pipefail
+          file='site-plugins/chattanooga-cms-admin/includes/class-cua-visual-browser.php'
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('site-plugins/chattanooga-cms-admin/includes/class-cua-visual-browser.php')
+          s=p.read_text()
+          old="""\t\t} elseif ( 'refresh' === $action ) {\n\t\t\t$result = CUA_Visual_CDP::command( $session, 'Page.reload', array( 'ignoreCache' => false ) );\n\t\t\tif ( is_wp_error( $result ) ) { return $result; }\n\t\t\tCUA_Visual_Browser_Runtime::sleep_ms( self::number( $input, 'wait_ms', 750, 0, self::MAX_WAIT_MS ) );\n"""
+          new="""\t\t} elseif ( 'refresh' === $action ) {\n\t\t\t$current_url = trim( (string) ( $session['url'] ?? '' ) );\n\t\t\tif ( '' === $current_url ) { return new WP_Error( 'cmsa_visual_refresh_url_missing', 'The live browser session has no current URL to refresh.' ); }\n\t\t\t$result = CUA_Visual_Browser_Runtime::navigate( $session, $current_url, self::number( $input, 'wait_ms', 750, 0, self::MAX_WAIT_MS ) );\n\t\t\tif ( is_wp_error( $result ) ) { return $result; }\n"""
+          if old not in s:
+              raise SystemExit('expected Page.reload refresh block not found')
+          s=s.replace(old,new,1)
+          p.write_text(s)
+          PY
+          ! grep -Fq "Page.reload" "$file"
+          grep -Fq "cmsa_visual_refresh_url_missing" "$file"
+          php -l "$file"
+          git diff --check
+          git config user.name "ADMIN MCP Source Normalizer"
+          git config user.email "actions@users.noreply.github.com"
+          git add "$file"
+          git commit -m "Make ADMIN MCP live refresh use verified navigation"
+          git push origin HEAD:main
