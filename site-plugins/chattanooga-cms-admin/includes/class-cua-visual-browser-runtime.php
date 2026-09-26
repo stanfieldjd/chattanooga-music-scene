@@ -3,6 +3,8 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class CUA_Visual_Browser_Runtime {
 	const TTL = 1800;
+	const MAX_FULL_PAGE_DIMENSION = 16384;
+	const MAX_FULL_PAGE_PIXELS = 50000000;
 
 	public static function resolve_url( array $input ) {
 		$has_path = isset( $input['path'] ) && '' !== trim( (string) $input['path'] );
@@ -42,6 +44,7 @@ final class CUA_Visual_Browser_Runtime {
 		$cmd = 'nohup ' . escapeshellarg( $binary )
 			. ' --headless=new --disable-gpu --no-first-run --no-default-browser-check --hide-scrollbars'
 			. ' --remote-debugging-address=127.0.0.1 --remote-debugging-port=' . (int) $port
+			. ' --remote-allow-origins=http://127.0.0.1'
 			. ' --user-data-dir=' . escapeshellarg( $profile )
 			. ' --window-size=' . (int) $width . ',' . (int) $height
 			. ' about:blank >' . escapeshellarg( $log ) . ' 2>&1 & echo $!';
@@ -72,12 +75,25 @@ final class CUA_Visual_Browser_Runtime {
 	}
 
 	public static function capture( array $session, $full_page, $mode ) {
-		$result = CUA_Visual_CDP::command( $session, 'Page.captureScreenshot', array( 'format' => 'png', 'fromSurface' => true, 'captureBeyondViewport' => (bool) $full_page ) );
+		$params = array( 'format' => 'png', 'fromSurface' => true, 'captureBeyondViewport' => (bool) $full_page );
+		$capture_width = (int) $session['width'];
+		$capture_height = (int) $session['height'];
+		if ( $full_page ) {
+			$metrics = CUA_Visual_CDP::command( $session, 'Page.getLayoutMetrics' );
+			if ( is_wp_error( $metrics ) ) { return $metrics; }
+			$size = isset( $metrics['cssContentSize'] ) && is_array( $metrics['cssContentSize'] ) ? $metrics['cssContentSize'] : ( isset( $metrics['contentSize'] ) && is_array( $metrics['contentSize'] ) ? $metrics['contentSize'] : array() );
+			$capture_width = (int) ceil( (float) ( $size['width'] ?? 0 ) );
+			$capture_height = (int) ceil( (float) ( $size['height'] ?? 0 ) );
+			if ( $capture_width < 1 || $capture_height < 1 ) { return new WP_Error( 'cmsa_visual_layout_invalid', 'Chromium did not return valid full-page dimensions.' ); }
+			if ( $capture_width > self::MAX_FULL_PAGE_DIMENSION || $capture_height > self::MAX_FULL_PAGE_DIMENSION || ( $capture_width * $capture_height ) > self::MAX_FULL_PAGE_PIXELS ) { return new WP_Error( 'cmsa_visual_full_page_too_large', 'The rendered page exceeds the full-page screenshot safety limit.' ); }
+			$params['clip'] = array( 'x' => 0, 'y' => 0, 'width' => $capture_width, 'height' => $capture_height, 'scale' => 1 );
+		}
+		$result = CUA_Visual_CDP::command( $session, 'Page.captureScreenshot', $params );
 		if ( is_wp_error( $result ) ) { return $result; }
 		$data = (string) ( $result['data'] ?? '' );
 		$bytes = base64_decode( $data, true );
 		if ( false === $bytes || 8 > strlen( $bytes ) || "\x89PNG\r\n\x1a\n" !== substr( $bytes, 0, 8 ) ) { return new WP_Error( 'cmsa_visual_capture_invalid', 'Chromium did not return a valid PNG screenshot.' ); }
-		$meta = array( 'mode' => $mode, 'session_id' => (string) $session['session_id'], 'url' => (string) ( $session['url'] ?? '' ), 'width' => (int) $session['width'], 'height' => (int) $session['height'], 'full_page' => (bool) $full_page, 'captured_at_gmt' => gmdate( 'c' ) );
+		$meta = array( 'mode' => $mode, 'session_id' => (string) $session['session_id'], 'url' => (string) ( $session['url'] ?? '' ), 'width' => (int) $session['width'], 'height' => (int) $session['height'], 'capture_width' => $capture_width, 'capture_height' => $capture_height, 'full_page' => (bool) $full_page, 'captured_at_gmt' => gmdate( 'c' ) );
 		return array( '__mcp_visual' => array( 'mimeType' => 'image/png', 'data' => $data ), 'metadata' => $meta );
 	}
 
