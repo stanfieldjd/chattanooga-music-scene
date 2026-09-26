@@ -1,0 +1,61 @@
+name: ADMIN MCP workflow blob builder
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create transformed workflow blobs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64, json, os, subprocess
+          from pathlib import Path
+
+          repo = os.environ['REPO']
+          token = os.environ['GH_TOKEN']
+          specs = [
+              ('.github/workflows/chattanooga-cms-admin-functional-redteam.yml', '.github/workflows/admin-mcp-functional-redteam.yml'),
+              ('.github/workflows/chattanooga-cms-admin-native-mcp.yml', '.github/workflows/admin-mcp-native-mcp.yml'),
+              ('.github/workflows/chattanooga-cms-admin-v2-acceptance.yml', '.github/workflows/admin-mcp-v2-acceptance.yml'),
+              ('.github/workflows/chattanooga-cms-admin-v2-harness.yml', '.github/workflows/admin-mcp-v2-harness.yml'),
+              ('.github/workflows/chattanooga-cms-admin-v2-provider-compat.yml', '.github/workflows/admin-mcp-v2-provider-compat.yml'),
+              ('.github/workflows/admin-mcp-visual-browser.yml', '.github/workflows/admin-mcp-visual-browser.yml'),
+              ('.github/workflows/chattanooga-site-plugins-integration.yml', '.github/workflows/chattanooga-site-plugins-integration.yml'),
+          ]
+          replacements = (
+              (b'chattanooga-cms-admin', b'admin-mcp'),
+              (b'Chattanooga CMS Admin', b'ADMIN MCP'),
+              (b'Chattanooga CMS admin', b'ADMIN MCP'),
+              (b'1.2.53', b'1.2.55'),
+              (b'1.2.54', b'1.2.55'),
+          )
+
+          for old_path, new_path in specs:
+              data = Path(old_path).read_bytes()
+              for old, new in replacements:
+                  data = data.replace(old, new)
+              payload = json.dumps({'content': base64.b64encode(data).decode(), 'encoding': 'base64'})
+              proc = subprocess.run([
+                  'curl','-fsS','-X','POST',
+                  '-H',f'Authorization: Bearer {token}',
+                  '-H','Accept: application/vnd.github+json',
+                  '-H','X-GitHub-Api-Version: 2022-11-28',
+                  f'https://api.github.com/repos/{repo}/git/blobs',
+                  '-d',payload,
+              ], check=True, text=True, capture_output=True)
+              sha = json.loads(proc.stdout)['sha']
+              print(f'ADMIN_MCP_BLOB|{old_path}|{new_path}|{sha}')
+          PY
