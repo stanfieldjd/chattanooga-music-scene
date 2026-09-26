@@ -31,33 +31,42 @@ final class CUA_Visual_Browser_Runtime {
 
 	public static function start( $width, $height ) {
 		if ( ! function_exists( 'exec' ) || self::function_disabled( 'exec' ) ) { return new WP_Error( 'cmsa_visual_exec_unavailable', 'The host does not permit the process execution required for headless browser inspection.' ); }
-		$binary = self::browser_binary();
-		if ( is_wp_error( $binary ) ) { return $binary; }
+		$binaries = self::browser_candidates();
+		if ( is_wp_error( $binaries ) ) { return $binaries; }
 		$root = self::root();
 		if ( is_wp_error( $root ) ) { return $root; }
-		$id = bin2hex( random_bytes( 16 ) );
-		$profile = trailingslashit( $root ) . $id;
-		if ( ! wp_mkdir_p( $profile ) ) { return new WP_Error( 'cmsa_visual_session_dir_failed', 'The browser session directory could not be created.' ); }
-		$port = self::free_port();
-		if ( is_wp_error( $port ) ) { self::delete_tree( $profile ); return $port; }
-		$log = trailingslashit( $profile ) . 'browser.log';
-		$cmd = 'nohup ' . escapeshellarg( $binary )
-			. ' --headless=new --disable-gpu --no-first-run --no-default-browser-check --hide-scrollbars'
-			. ' --remote-debugging-address=127.0.0.1 --remote-debugging-port=' . (int) $port
-			. ' --remote-allow-origins=http://127.0.0.1'
-			. ' --user-data-dir=' . escapeshellarg( $profile )
-			. ' --window-size=' . (int) $width . ',' . (int) $height
-			. ' about:blank >' . escapeshellarg( $log ) . ' 2>&1 & echo $!';
-		$out = array(); $status = 0; exec( $cmd, $out, $status );
-		$pid = isset( $out[0] ) ? absint( trim( (string) $out[0] ) ) : 0;
-		if ( 0 !== $status || $pid < 1 ) { self::delete_tree( $profile ); return new WP_Error( 'cmsa_visual_browser_start_failed', 'Headless Chromium could not be started.' ); }
-		$session = array( 'session_id' => $id, 'pid' => $pid, 'port' => (int) $port, 'profile_dir' => $profile, 'width' => (int) $width, 'height' => (int) $height, 'created_at' => time(), 'updated_at' => time() );
-		$ready = CUA_Visual_CDP::wait_until_ready( $session );
-		if ( is_wp_error( $ready ) ) { self::close( $session ); return $ready; }
-		$target = CUA_Visual_CDP::page_target( $session );
-		if ( is_wp_error( $target ) ) { self::close( $session ); return $target; }
-		$session['target_id'] = (string) $target['id'];
-		return $session;
+		$last_error = null;
+		foreach ( $binaries as $binary ) {
+			$id = bin2hex( random_bytes( 16 ) );
+			$profile = trailingslashit( $root ) . $id;
+			if ( ! wp_mkdir_p( $profile ) ) { return new WP_Error( 'cmsa_visual_session_dir_failed', 'The browser session directory could not be created.' ); }
+			$port = self::free_port();
+			if ( is_wp_error( $port ) ) { self::delete_tree( $profile ); return $port; }
+			$log = trailingslashit( $profile ) . 'browser.log';
+			$cmd = 'nohup ' . escapeshellarg( $binary )
+				. ' --headless=new --disable-gpu --no-first-run --no-default-browser-check --hide-scrollbars'
+				. ' --remote-debugging-address=127.0.0.1 --remote-debugging-port=' . (int) $port
+				. ' --remote-allow-origins=http://127.0.0.1'
+				. ' --user-data-dir=' . escapeshellarg( $profile )
+				. ' --window-size=' . (int) $width . ',' . (int) $height
+				. ' about:blank >' . escapeshellarg( $log ) . ' 2>&1 & echo $!';
+			$out = array(); $status = 0; exec( $cmd, $out, $status );
+			$pid = isset( $out[0] ) ? absint( trim( (string) $out[0] ) ) : 0;
+			if ( 0 !== $status || $pid < 1 ) {
+				self::delete_tree( $profile );
+				$last_error = new WP_Error( 'cmsa_visual_browser_start_failed', 'A discovered Chromium executable could not be started.' );
+				continue;
+			}
+			$session = array( 'session_id' => $id, 'pid' => $pid, 'port' => (int) $port, 'profile_dir' => $profile, 'browser_binary' => $binary, 'width' => (int) $width, 'height' => (int) $height, 'created_at' => time(), 'updated_at' => time() );
+			$ready = CUA_Visual_CDP::wait_until_ready( $session );
+			if ( is_wp_error( $ready ) ) { $last_error = $ready; self::close( $session ); continue; }
+			$target = CUA_Visual_CDP::page_target( $session );
+			if ( is_wp_error( $target ) ) { $last_error = $target; self::close( $session ); continue; }
+			$session['target_id'] = (string) $target['id'];
+			return $session;
+		}
+		if ( is_wp_error( $last_error ) ) { return $last_error; }
+		return new WP_Error( 'cmsa_visual_browser_start_failed', 'No discovered local Chromium executable could reach its local DevTools endpoint.' );
 	}
 
 	public static function navigate( array &$session, $url, $wait_ms ) {
@@ -133,11 +142,16 @@ final class CUA_Visual_Browser_Runtime {
 
 	public static function sleep_ms( $ms ) { $ms = max( 0, min( 5000, (int) $ms ) ); if ( $ms ) { usleep( $ms * 1000 ); } }
 
-	private static function browser_binary() {
+	private static function browser_candidates() {
 		$configured = defined( 'CMSA_BROWSER_EXECUTABLE' ) ? trim( (string) CMSA_BROWSER_EXECUTABLE ) : trim( (string) getenv( 'CMSA_BROWSER_EXECUTABLE' ) );
-		$names = array( 'chromium', 'chromium-browser', 'google-chrome', 'google-chrome-stable', 'chrome', 'chrome-headless-shell', 'chromium-headless-shell' );
+		if ( '' !== $configured ) {
+			$resolved = realpath( $configured );
+			if ( false !== $resolved && @is_file( $resolved ) && @is_executable( $resolved ) ) { return array( $resolved ); }
+			return new WP_Error( 'cmsa_visual_browser_config_invalid', 'CMSA_BROWSER_EXECUTABLE does not resolve to an executable local browser.' );
+		}
+
+		$names = array( 'google-chrome', 'google-chrome-stable', 'chrome', 'chromium', 'chromium-browser', 'chrome-headless-shell', 'chromium-headless-shell' );
 		$candidates = array();
-		if ( '' !== $configured ) { $candidates[] = $configured; }
 		$path = trim( (string) getenv( 'PATH' ) );
 		if ( '' !== $path ) {
 			foreach ( explode( PATH_SEPARATOR, $path ) as $dir ) {
@@ -149,27 +163,29 @@ final class CUA_Visual_Browser_Runtime {
 		$candidates = array_merge(
 			$candidates,
 			array(
-				'/usr/bin/chromium', '/usr/bin/chromium-browser', '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable',
-				'/usr/bin/chrome-headless-shell', '/usr/bin/chromium-headless-shell', '/usr/local/bin/chromium', '/usr/local/bin/google-chrome',
-				'/usr/local/bin/google-chrome-stable', '/opt/google/chrome/google-chrome', '/opt/chromium/chrome', '/snap/bin/chromium'
+				'/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/local/bin/google-chrome', '/usr/local/bin/google-chrome-stable',
+				'/opt/google/chrome/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser', '/usr/local/bin/chromium',
+				'/usr/bin/chrome-headless-shell', '/usr/bin/chromium-headless-shell', '/opt/chromium/chrome', '/snap/bin/chromium'
 			)
 		);
 		$home = trim( (string) getenv( 'HOME' ) );
 		if ( '' !== $home && DIRECTORY_SEPARATOR === substr( $home, 0, 1 ) ) {
 			foreach ( array(
+				$home . '/.local/bin/google-chrome', $home . '/.local/bin/chromium',
 				$home . '/.cache/ms-playwright/*/chrome-linux*/chrome',
-				$home . '/.cache/puppeteer/chrome/*/chrome-linux*/chrome',
-				$home . '/.local/bin/chromium', $home . '/.local/bin/google-chrome'
+				$home . '/.cache/puppeteer/chrome/*/chrome-linux*/chrome'
 			) as $pattern ) {
 				$matches = str_contains( $pattern, '*' ) ? ( glob( $pattern ) ?: array() ) : array( $pattern );
 				foreach ( $matches as $match ) { $candidates[] = $match; }
 			}
 		}
-		foreach ( array_unique( $candidates ) as $candidate ) {
+		$resolved_candidates = array();
+		foreach ( $candidates as $candidate ) {
 			$resolved = realpath( (string) $candidate );
-			if ( false !== $resolved && @is_file( $resolved ) && @is_executable( $resolved ) ) { return $resolved; }
+			if ( false !== $resolved && @is_file( $resolved ) && @is_executable( $resolved ) ) { $resolved_candidates[ $resolved ] = true; }
 		}
-		return new WP_Error( 'cmsa_visual_browser_unavailable', 'No usable local Chromium executable was found after checking CMSA_BROWSER_EXECUTABLE, the PHP process PATH, supported system locations, and common user-local browser caches.' );
+		if ( $resolved_candidates ) { return array_keys( $resolved_candidates ); }
+		return new WP_Error( 'cmsa_visual_browser_unavailable', 'No usable local Chromium executable was found after checking the PHP process PATH, supported system locations, and common user-local browser caches.' );
 	}
 
 	private static function root() {
