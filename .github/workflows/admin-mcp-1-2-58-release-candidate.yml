@@ -1,5 +1,5 @@
 name: ADMIN MCP 1.2.58 Release Candidate
-# Rerun after aligning both Weekend Feature test fixtures with live-music eligibility.
+# Final rerun after aligning all Weekend Feature fixtures with live-music eligibility.
 
 on:
   push:
