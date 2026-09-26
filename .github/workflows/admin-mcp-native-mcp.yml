@@ -6,28 +6,28 @@ on:
       - main
       - work/chattanooga-native-mcp
     paths:
-      - "site-plugins/chattanooga-cms-admin/**"
-      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php"
-      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php"
-      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-persistence-cli.php"
-      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php"
-      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-settings-page-cli.php"
-      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-ingestion-diagnostics-cli.php"
-      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-jsonschema-2020-report.py"
-      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/replacement-coverage-cli.php"
-      - ".github/workflows/chattanooga-cms-admin-native-mcp.yml"
+      - "site-plugins/admin-mcp/**"
+      - "workbench/harnesses/admin-mcp-v2/probes/native-mcp-cli.php"
+      - "workbench/harnesses/admin-mcp-v2/probes/native-mcp-era-cli.php"
+      - "workbench/harnesses/admin-mcp-v2/probes/native-mcp-persistence-cli.php"
+      - "workbench/harnesses/admin-mcp-v2/probes/native-mcp-admin-surface-cli.php"
+      - "workbench/harnesses/admin-mcp-v2/probes/mcp-settings-page-cli.php"
+      - "workbench/harnesses/admin-mcp-v2/probes/mcp-ingestion-diagnostics-cli.php"
+      - "workbench/harnesses/admin-mcp-v2/probes/mcp-jsonschema-2020-report.py"
+      - "workbench/harnesses/admin-mcp-v2/probes/replacement-coverage-cli.php"
+      - ".github/workflows/admin-mcp-native-mcp.yml"
   pull_request:
     paths:
-      - "site-plugins/chattanooga-cms-admin/**"
-      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php"
-      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php"
-      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-persistence-cli.php"
-      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php"
-      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-settings-page-cli.php"
-      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-ingestion-diagnostics-cli.php"
-      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-jsonschema-2020-report.py"
-      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/replacement-coverage-cli.php"
-      - ".github/workflows/chattanooga-cms-admin-native-mcp.yml"
+      - "site-plugins/admin-mcp/**"
+      - "workbench/harnesses/admin-mcp-v2/probes/native-mcp-cli.php"
+      - "workbench/harnesses/admin-mcp-v2/probes/native-mcp-era-cli.php"
+      - "workbench/harnesses/admin-mcp-v2/probes/native-mcp-persistence-cli.php"
+      - "workbench/harnesses/admin-mcp-v2/probes/native-mcp-admin-surface-cli.php"
+      - "workbench/harnesses/admin-mcp-v2/probes/mcp-settings-page-cli.php"
+      - "workbench/harnesses/admin-mcp-v2/probes/mcp-ingestion-diagnostics-cli.php"
+      - "workbench/harnesses/admin-mcp-v2/probes/mcp-jsonschema-2020-report.py"
+      - "workbench/harnesses/admin-mcp-v2/probes/replacement-coverage-cli.php"
+      - ".github/workflows/admin-mcp-native-mcp.yml"
 
 permissions:
   contents: read
@@ -62,18 +62,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          source="site-plugins/chattanooga-cms-admin"
+          source="site-plugins/admin-mcp"
           find "$source" -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
-          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php >/dev/null
-          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php >/dev/null
-          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-persistence-cli.php >/dev/null
-          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php >/dev/null
-          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-settings-page-cli.php >/dev/null
-          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-ingestion-diagnostics-cli.php >/dev/null
-          python3 -m py_compile workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-jsonschema-2020-report.py
-          grep -q '^ \* Plugin Name: ADMIN MCP$' "$source/chattanooga-cms-admin.php"
-          grep -q '^ \* Version: 1.2.53$' "$source/chattanooga-cms-admin.php"
-          grep -Fq "add_action( 'rest_api_init', array( 'CUA_MCP_Server', 'register_route' ) );" "$source/chattanooga-cms-admin.php"
+          php -l workbench/harnesses/admin-mcp-v2/probes/native-mcp-cli.php >/dev/null
+          php -l workbench/harnesses/admin-mcp-v2/probes/native-mcp-era-cli.php >/dev/null
+          php -l workbench/harnesses/admin-mcp-v2/probes/native-mcp-persistence-cli.php >/dev/null
+          php -l workbench/harnesses/admin-mcp-v2/probes/native-mcp-admin-surface-cli.php >/dev/null
+          php -l workbench/harnesses/admin-mcp-v2/probes/mcp-settings-page-cli.php >/dev/null
+          php -l workbench/harnesses/admin-mcp-v2/probes/mcp-ingestion-diagnostics-cli.php >/dev/null
+          python3 -m py_compile workbench/harnesses/admin-mcp-v2/probes/mcp-jsonschema-2020-report.py
+          grep -q '^ \* Plugin Name: ADMIN MCP$' "$source/admin-mcp.php"
+          grep -q '^ \* Version: 1.2.55$' "$source/admin-mcp.php"
+          grep -Fq "add_action( 'rest_api_init', array( 'CUA_MCP_Server', 'register_route' ) );" "$source/admin-mcp.php"
           test -f "$source/includes/class-cua-mcp-server.php"
           test -f "$source/includes/class-cua-mcp-diagnostics.php"
           if grep -REiq 'WooCommerce|WC_Product|wc_get_product|Events_Manager|events-manager|EM_Event|EM_Location|BuddyBoss|Marketplace|Weekend_Feature|Rank_Math|rank-math|seo-by-rank-math|awpcp|another-wordpress-classifieds-plugin|miniOrange|miniorange' "$source"; then
@@ -91,24 +91,24 @@ jobs:
           php /tmp/wp-cli.phar config set WP_ENVIRONMENT_TYPE local --type=constant --path=/tmp/wordpress
           password="$(php -r 'echo bin2hex(random_bytes(20));')"
           php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://127.0.0.1:8090 --title="ADMIN MCP Native Protocol" --admin_user=admin --admin_password="$password" --admin_email=lab@example.invalid --skip-email
-          cp -R site-plugins/chattanooga-cms-admin /tmp/wordpress/wp-content/plugins/chattanooga-cms-admin
-          php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin --path=/tmp/wordpress
-          php /tmp/wp-cli.phar plugin is-active chattanooga-cms-admin --path=/tmp/wordpress
+          cp -R site-plugins/admin-mcp /tmp/wordpress/wp-content/plugins/admin-mcp
+          php /tmp/wp-cli.phar plugin activate admin-mcp --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin is-active admin-mcp --path=/tmp/wordpress
 
       - name: Verify native MCP transport
-        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php" --path=/tmp/wordpress
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/admin-mcp-v2/probes/native-mcp-cli.php" --path=/tmp/wordpress
 
       - name: Verify single MCP protocol boundary
-        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-era-cli.php" --path=/tmp/wordpress
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/admin-mcp-v2/probes/native-mcp-era-cli.php" --path=/tmp/wordpress
 
       - name: Verify MCP persistence fault handling
-        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-persistence-cli.php" --path=/tmp/wordpress
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/admin-mcp-v2/probes/native-mcp-persistence-cli.php" --path=/tmp/wordpress
 
       - name: Verify complete MCP administrator ability exposure
-        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-admin-surface-cli.php" --path=/tmp/wordpress
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/admin-mcp-v2/probes/native-mcp-admin-surface-cli.php" --path=/tmp/wordpress
 
       - name: Verify MCP settings page and configuration sanitization
-        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-settings-page-cli.php" --path=/tmp/wordpress
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/admin-mcp-v2/probes/mcp-settings-page-cli.php" --path=/tmp/wordpress
 
       - name: Install JSON Schema 2020-12 diagnostic validator
         run: python3 -m pip install --disable-pip-version-check 'jsonschema==4.25.1'
@@ -119,14 +119,14 @@ jobs:
           CMSA_DIAGNOSTIC_REPORT: /tmp/cmsa-mcp-ingestion-diagnostics-report.json
         run: |
           set -euo pipefail
-          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-ingestion-diagnostics-cli.php" --path=/tmp/wordpress
-          python3 "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-jsonschema-2020-report.py" "$CMSA_DIAGNOSTIC_REPORT"
+          php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/admin-mcp-v2/probes/mcp-ingestion-diagnostics-cli.php" --path=/tmp/wordpress
+          python3 "$GITHUB_WORKSPACE/workbench/harnesses/admin-mcp-v2/probes/mcp-jsonschema-2020-report.py" "$CMSA_DIAGNOSTIC_REPORT"
           php -r '$d=json_decode(file_get_contents(getenv("CMSA_DIAGNOSTIC_REPORT")),true); if (($d["jsonSchema202012"]["fail"]??-1)!==0 || ($d["catalog"]["descriptorSummary"]["fail"]??-1)!==0) exit(1);'
 
       - name: Upload MCP ingestion diagnostic report
         uses: actions/upload-artifact@v4
         with:
-          name: admin-mcp-ingestion-report-1.2.53
+          name: admin-mcp-ingestion-report-1.2.55
           path: /tmp/cmsa-mcp-ingestion-diagnostics-report.json
           if-no-files-found: error
           retention-days: 30
@@ -135,7 +135,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          endpoint='http://127.0.0.1:8090/index.php?rest_route=%2Fchattanooga-cms-admin%2Fv1%2Fmcp'
+          endpoint='http://127.0.0.1:8090/index.php?rest_route=%2Fadmin-mcp%2Fv1%2Fmcp'
           app_password="$(php /tmp/wp-cli.phar user application-password create admin cmsa-native-mcp-ci --porcelain --path=/tmp/wordpress)"
 
           php -S 127.0.0.1:8090 -t /tmp/wordpress >/tmp/cmsa-native-mcp-http.log 2>&1 &
@@ -451,23 +451,23 @@ jobs:
           php /tmp/wp-cli.phar post delete "$post_id" --force --path=/tmp/wordpress >/dev/null
 
       - name: Verify existing replacement coverage
-        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/replacement-coverage-cli.php" --path=/tmp/wordpress
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/admin-mcp-v2/probes/replacement-coverage-cli.php" --path=/tmp/wordpress
 
       - name: Build verified install package
         shell: bash
         run: |
           set -euo pipefail
-          package="/tmp/admin-mcp-1.2.53.zip"
-          (cd site-plugins && zip -qr "$package" chattanooga-cms-admin)
+          package="/tmp/admin-mcp-1.2.55.zip"
+          (cd site-plugins && zip -qr "$package" admin-mcp)
           unzip -t "$package"
-          sha256sum "$package" | tee /tmp/admin-mcp-1.2.53.sha256
+          sha256sum "$package" | tee /tmp/admin-mcp-1.2.55.sha256
 
       - name: Upload verified install package
         uses: actions/upload-artifact@v4
         with:
-          name: admin-mcp-1.2.53
+          name: admin-mcp-1.2.55
           path: |
-            /tmp/admin-mcp-1.2.53.zip
-            /tmp/admin-mcp-1.2.53.sha256
+            /tmp/admin-mcp-1.2.55.zip
+            /tmp/admin-mcp-1.2.55.sha256
           if-no-files-found: error
           retention-days: 30

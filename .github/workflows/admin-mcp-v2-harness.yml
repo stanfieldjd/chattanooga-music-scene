@@ -7,14 +7,14 @@ on:
       - main
       - work/custom-plugin-integration
     paths:
-      - "site-plugins/chattanooga-cms-admin/**"
-      - "workbench/harnesses/chattanooga-cms-admin-v2/**"
-      - ".github/workflows/chattanooga-cms-admin-v2-harness.yml"
+      - "site-plugins/admin-mcp/**"
+      - "workbench/harnesses/admin-mcp-v2/**"
+      - ".github/workflows/admin-mcp-v2-harness.yml"
   pull_request:
     paths:
-      - "site-plugins/chattanooga-cms-admin/**"
-      - "workbench/harnesses/chattanooga-cms-admin-v2/**"
-      - ".github/workflows/chattanooga-cms-admin-v2-harness.yml"
+      - "site-plugins/admin-mcp/**"
+      - "workbench/harnesses/admin-mcp-v2/**"
+      - ".github/workflows/admin-mcp-v2-harness.yml"
 
 permissions:
   contents: read
@@ -47,15 +47,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          source="site-plugins/chattanooga-cms-admin"
-          harness="workbench/harnesses/chattanooga-cms-admin-v2"
+          source="site-plugins/admin-mcp"
+          harness="workbench/harnesses/admin-mcp-v2"
           find "$source" "$harness" -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
-          test -f "$source/chattanooga-cms-admin.php"
+          test -f "$source/admin-mcp.php"
           test ! -e "$source/chattanooga-universal-admin.php"
           test ! -e workbench/labs/chattanooga-universal-admin/candidate
           test "$(grep -RIl '^ \* Plugin Name:' "$source" --include='*.php' | wc -l)" -eq 1
-          grep -q '^ \* Plugin Name: ADMIN MCP$' "$source/chattanooga-cms-admin.php"
-          grep -q '^ \* Version: 1.2.53$' "$source/chattanooga-cms-admin.php"
+          grep -q '^ \* Plugin Name: ADMIN MCP$' "$source/admin-mcp.php"
+          grep -q '^ \* Version: 1.2.55$' "$source/admin-mcp.php"
           if grep -REiq 'orbit-fixture|comet-fixture|asteroid-private|saturn-lifecycle|meteor-lifecycle|neptune-install|aurora-install|quasar-audit|pulsar-core-loopback|nova-settings|nova_private_setting|nova_rest_setting|nova_custom_setting|nova_absent_setting|cmsa_v2_snapshot_fixture|cmsa_v2_extra_after_backup|cmsa_v2_core_restore_marker|cmsa_v2_core_update_db_marker|wp-cmsa-v2-extra|cmsa-v2\.invalid' "$source"; then
             echo "Replacement contains v2 fixture-specific logic." >&2
             exit 1
@@ -79,17 +79,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cp -R site-plugins/chattanooga-cms-admin /tmp/wordpress/wp-content/plugins/chattanooga-cms-admin
-          cp -R workbench/harnesses/chattanooga-cms-admin-v2/fixtures/orbit-ability /tmp/wordpress/wp-content/plugins/orbit-ability
-          cp -R workbench/harnesses/chattanooga-cms-admin-v2/fixtures/comet-rest /tmp/wordpress/wp-content/plugins/comet-rest
-          cp -R workbench/harnesses/chattanooga-cms-admin-v2/fixtures/asteroid-private /tmp/wordpress/wp-content/plugins/asteroid-private
-          cp -R workbench/harnesses/chattanooga-cms-admin-v2/fixtures/saturn-lifecycle /tmp/wordpress/wp-content/plugins/saturn-lifecycle
-          cp -R workbench/harnesses/chattanooga-cms-admin-v2/fixtures/quasar-audit /tmp/wordpress/wp-content/plugins/quasar-audit
-          cp -R workbench/harnesses/chattanooga-cms-admin-v2/fixtures/pulsar-core-loopback /tmp/wordpress/wp-content/plugins/pulsar-core-loopback
-          cp -R workbench/harnesses/chattanooga-cms-admin-v2/fixtures/nova-settings /tmp/wordpress/wp-content/plugins/nova-settings
-          cp -R workbench/harnesses/chattanooga-cms-admin-v2/themes/meteor-lifecycle /tmp/wordpress/wp-content/themes/meteor-lifecycle
-          php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin orbit-ability comet-rest asteroid-private saturn-lifecycle quasar-audit pulsar-core-loopback nova-settings --path=/tmp/wordpress
-          php /tmp/wp-cli.phar plugin is-active chattanooga-cms-admin --path=/tmp/wordpress
+          cp -R site-plugins/admin-mcp /tmp/wordpress/wp-content/plugins/admin-mcp
+          cp -R workbench/harnesses/admin-mcp-v2/fixtures/orbit-ability /tmp/wordpress/wp-content/plugins/orbit-ability
+          cp -R workbench/harnesses/admin-mcp-v2/fixtures/comet-rest /tmp/wordpress/wp-content/plugins/comet-rest
+          cp -R workbench/harnesses/admin-mcp-v2/fixtures/asteroid-private /tmp/wordpress/wp-content/plugins/asteroid-private
+          cp -R workbench/harnesses/admin-mcp-v2/fixtures/saturn-lifecycle /tmp/wordpress/wp-content/plugins/saturn-lifecycle
+          cp -R workbench/harnesses/admin-mcp-v2/fixtures/quasar-audit /tmp/wordpress/wp-content/plugins/quasar-audit
+          cp -R workbench/harnesses/admin-mcp-v2/fixtures/pulsar-core-loopback /tmp/wordpress/wp-content/plugins/pulsar-core-loopback
+          cp -R workbench/harnesses/admin-mcp-v2/fixtures/nova-settings /tmp/wordpress/wp-content/plugins/nova-settings
+          cp -R workbench/harnesses/admin-mcp-v2/themes/meteor-lifecycle /tmp/wordpress/wp-content/themes/meteor-lifecycle
+          php /tmp/wp-cli.phar plugin activate admin-mcp orbit-ability comet-rest asteroid-private saturn-lifecycle quasar-audit pulsar-core-loopback nova-settings --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin is-active admin-mcp --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin is-active saturn-lifecycle --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin is-active quasar-audit --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin is-active pulsar-core-loopback --path=/tmp/wordpress
@@ -101,13 +101,13 @@ jobs:
           fi
 
       - name: Run clean universal baseline
-        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/baseline-cli.php" --path=/tmp/wordpress
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/admin-mcp-v2/probes/baseline-cli.php" --path=/tmp/wordpress
 
       - name: Verify bounded auto-update policy
-        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/update-policy-cli.php" --path=/tmp/wordpress
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/admin-mcp-v2/probes/update-policy-cli.php" --path=/tmp/wordpress
 
       - name: Verify reversible component lifecycle
-        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/component-lifecycle-cli.php" --path=/tmp/wordpress
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/admin-mcp-v2/probes/component-lifecycle-cli.php" --path=/tmp/wordpress
 
       - name: Verify package installation and plugin state lifecycle
         shell: bash
@@ -115,27 +115,27 @@ jobs:
           set -euo pipefail
           packages=/tmp/cmsa-v2-packages
           mkdir -p "$packages"
-          (cd workbench/harnesses/chattanooga-cms-admin-v2/packages && zip -qr "$packages/neptune-install.zip" neptune-install)
-          (cd workbench/harnesses/chattanooga-cms-admin-v2/packages && zip -qr "$packages/aurora-install.zip" aurora-install)
-          CMSA_V2_PACKAGE_DIR="$packages" php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/package-lifecycle-cli.php" --path=/tmp/wordpress
+          (cd workbench/harnesses/admin-mcp-v2/packages && zip -qr "$packages/neptune-install.zip" neptune-install)
+          (cd workbench/harnesses/admin-mcp-v2/packages && zip -qr "$packages/aurora-install.zip" aurora-install)
+          CMSA_V2_PACKAGE_DIR="$packages" php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/admin-mcp-v2/probes/package-lifecycle-cli.php" --path=/tmp/wordpress
 
       - name: Verify generic administration audit
-        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/audit-cli.php" --path=/tmp/wordpress
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/admin-mcp-v2/probes/audit-cli.php" --path=/tmp/wordpress
 
       - name: Verify registered Settings API administration
-        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/settings-cli.php" --path=/tmp/wordpress
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/admin-mcp-v2/probes/settings-cli.php" --path=/tmp/wordpress
 
       - name: Verify WordPress core content REST parity
-        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/core-content-rest-parity-cli.php" --path=/tmp/wordpress
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/admin-mcp-v2/probes/core-content-rest-parity-cli.php" --path=/tmp/wordpress
 
       - name: Verify WordPress core users REST parity
-        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/core-users-rest-parity-cli.php" --path=/tmp/wordpress
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/admin-mcp-v2/probes/core-users-rest-parity-cli.php" --path=/tmp/wordpress
 
       - name: Verify local backups and database rollback
-        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/backups-cli.php" --path=/tmp/wordpress
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/admin-mcp-v2/probes/backups-cli.php" --path=/tmp/wordpress
 
       - name: Verify core and database rollback
-        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/core-rollback-cli.php" --path=/tmp/wordpress
+        run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/admin-mcp-v2/probes/core-rollback-cli.php" --path=/tmp/wordpress
 
       - name: Verify actual Core Upgrader transition and rollback
         shell: bash
@@ -163,13 +163,13 @@ jobs:
           (cd "$package_base" && zip -qr "$package_zip" wordpress)
 
           CMSA_V2_CORE_PACKAGE="$package_zip" CMSA_V2_CORE_PACKAGE_ROOT="$package_root" CMSA_V2_CORE_UPDATE_STATE="$state" \
-            php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/core-update-cli.php" --path=/tmp/wordpress
+            php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/admin-mcp-v2/probes/core-update-cli.php" --path=/tmp/wordpress
 
           loopback_count="$(php /tmp/wp-cli.phar option get cmsa_v2_core_db_loopback_seen --path=/tmp/wordpress)"
           test "$loopback_count" -ge 1
 
           CMSA_V2_CORE_UPDATE_STATE="$state" \
-            php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/core-update-post-cli.php" --path=/tmp/wordpress
+            php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/admin-mcp-v2/probes/core-update-post-cli.php" --path=/tmp/wordpress
 
           CMSA_V2_CORE_UPDATE_STATE="$state" \
-            php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/core-update-final-cli.php" --path=/tmp/wordpress
+            php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/admin-mcp-v2/probes/core-update-final-cli.php" --path=/tmp/wordpress

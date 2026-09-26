@@ -5,13 +5,13 @@ on:
     branches:
       - main
     paths:
-      - "site-plugins/chattanooga-cms-admin/**"
-      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-visual-browser-cli.php"
+      - "site-plugins/admin-mcp/**"
+      - "workbench/harnesses/admin-mcp-v2/probes/native-mcp-visual-browser-cli.php"
       - ".github/workflows/admin-mcp-visual-browser.yml"
   pull_request:
     paths:
-      - "site-plugins/chattanooga-cms-admin/**"
-      - "workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-visual-browser-cli.php"
+      - "site-plugins/admin-mcp/**"
+      - "workbench/harnesses/admin-mcp-v2/probes/native-mcp-visual-browser-cli.php"
       - ".github/workflows/admin-mcp-visual-browser.yml"
 
 permissions:
@@ -47,12 +47,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          php -l site-plugins/chattanooga-cms-admin/includes/class-cua-visual-cdp.php >/dev/null
-          php -l site-plugins/chattanooga-cms-admin/includes/class-cua-visual-browser-runtime.php >/dev/null
-          php -l site-plugins/chattanooga-cms-admin/includes/class-cua-visual-browser.php >/dev/null
-          php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-visual-browser-cli.php >/dev/null
-          grep -q '^ \* Plugin Name: ADMIN MCP$' site-plugins/chattanooga-cms-admin/chattanooga-cms-admin.php
-          grep -q '^ \* Version: 1.2.53$' site-plugins/chattanooga-cms-admin/chattanooga-cms-admin.php
+          php -l site-plugins/admin-mcp/includes/class-cua-visual-cdp.php >/dev/null
+          php -l site-plugins/admin-mcp/includes/class-cua-visual-browser-runtime.php >/dev/null
+          php -l site-plugins/admin-mcp/includes/class-cua-visual-browser.php >/dev/null
+          php -l workbench/harnesses/admin-mcp-v2/probes/native-mcp-visual-browser-cli.php >/dev/null
+          grep -q '^ \* Plugin Name: ADMIN MCP$' site-plugins/admin-mcp/admin-mcp.php
+          grep -q '^ \* Version: 1.2.55$' site-plugins/admin-mcp/admin-mcp.php
 
       - name: Resolve Chromium executable
         shell: bash
@@ -76,10 +76,10 @@ jobs:
           php /tmp/wp-cli.phar config set WP_ENVIRONMENT_TYPE local --type=constant --path=/tmp/wordpress
           password="$(php -r 'echo bin2hex(random_bytes(20));')"
           php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://127.0.0.1:8090 --title="ADMIN MCP Visual Browser Acceptance" --admin_user=admin --admin_password="$password" --admin_email=visual@example.invalid --skip-email
-          cp -R site-plugins/chattanooga-cms-admin /tmp/wordpress/wp-content/plugins/chattanooga-cms-admin
-          php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin --path=/tmp/wordpress
-          test "$(php /tmp/wp-cli.phar eval 'echo CUA_VERSION;' --path=/tmp/wordpress)" = "1.2.53"
-          test "$(php /tmp/wp-cli.phar plugin get chattanooga-cms-admin --field=version --path=/tmp/wordpress)" = "1.2.53"
+          cp -R site-plugins/admin-mcp /tmp/wordpress/wp-content/plugins/admin-mcp
+          php /tmp/wp-cli.phar plugin activate admin-mcp --path=/tmp/wordpress
+          test "$(php /tmp/wp-cli.phar eval 'echo CUA_VERSION;' --path=/tmp/wordpress)" = "1.2.55"
+          test "$(php /tmp/wp-cli.phar plugin get admin-mcp --field=version --path=/tmp/wordpress)" = "1.2.55"
 
       - name: Start disposable web server
         shell: bash
@@ -120,11 +120,11 @@ jobs:
             php /tmp/wp-cli.phar eval '$r = wp_remote_get( "http://127.0.0.1:9333/json/version", array( "timeout" => 2, "redirection" => 0 ) ); if ( is_wp_error( $r ) ) { echo "WP_HTTP_ERROR: ", $r->get_error_code(), ": ", $r->get_error_message(), PHP_EOL; } else { echo "WP_HTTP_STATUS=", wp_remote_retrieve_response_code( $r ), PHP_EOL; echo wp_remote_retrieve_body( $r ), PHP_EOL; }' --path=/tmp/wordpress
             if [ -f /tmp/admin-mcp-direct-chromium.pid ]; then kill "$(cat /tmp/admin-mcp-direct-chromium.pid)" 2>/dev/null || true; rm -f /tmp/admin-mcp-direct-chromium.pid; fi
             echo '=== Registered first-party abilities ==='
-            php /tmp/wp-cli.phar eval '$abilities = class_exists("WP_Abilities_Registry") ? WP_Abilities_Registry::get_instance()->get_all_registered() : wp_get_abilities(); foreach ( $abilities as $ability ) { if ( $ability instanceof WP_Ability && 0 === strpos( $ability->get_name(), "chattanooga-cms-admin/" ) ) { echo $ability->get_name(), PHP_EOL; } }' --path=/tmp/wordpress
+            php /tmp/wp-cli.phar eval '$abilities = class_exists("WP_Abilities_Registry") ? WP_Abilities_Registry::get_instance()->get_all_registered() : wp_get_abilities(); foreach ( $abilities as $ability ) { if ( $ability instanceof WP_Ability && 0 === strpos( $ability->get_name(), "admin-mcp/" ) ) { echo $ability->get_name(), PHP_EOL; } }' --path=/tmp/wordpress
             echo '=== Catalog first-party targets ==='
-            php /tmp/wp-cli.phar eval '$catalog = CUA_Ability_Bridge::catalog( array( "cursor" => 0, "limit" => 1000 ) ); if ( is_wp_error( $catalog ) ) { echo "CATALOG_ERROR: ", $catalog->get_error_code(), ": ", $catalog->get_error_message(), PHP_EOL; } else { foreach ( $catalog["items"] ?? array() as $item ) { $target = (string) ( $item["target"] ?? "" ); if ( 0 === strpos( $target, "chattanooga-cms-admin/" ) ) { echo $target, " => ", (string) ( $item["bridge"] ?? "" ), PHP_EOL; } } }' --path=/tmp/wordpress
+            php /tmp/wp-cli.phar eval '$catalog = CUA_Ability_Bridge::catalog( array( "cursor" => 0, "limit" => 1000 ) ); if ( is_wp_error( $catalog ) ) { echo "CATALOG_ERROR: ", $catalog->get_error_code(), ": ", $catalog->get_error_message(), PHP_EOL; } else { foreach ( $catalog["items"] ?? array() as $item ) { $target = (string) ( $item["target"] ?? "" ); if ( 0 === strpos( $target, "admin-mcp/" ) ) { echo $target, " => ", (string) ( $item["bridge"] ?? "" ), PHP_EOL; } } }' --path=/tmp/wordpress
             echo '=== Acceptance probe ==='
-            CMSA_BROWSER_EXECUTABLE="$CMSA_BROWSER_EXECUTABLE" php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-visual-browser-cli.php" --path=/tmp/wordpress
+            CMSA_BROWSER_EXECUTABLE="$CMSA_BROWSER_EXECUTABLE" php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/admin-mcp-v2/probes/native-mcp-visual-browser-cli.php" --path=/tmp/wordpress
           } 2>&1 | tee /tmp/admin-mcp-visual-acceptance.log
 
       - name: Upload visual acceptance evidence
