@@ -1,4 +1,4 @@
-name: ADMIN MCP One-Time Source Normalization
+name: ADMIN MCP One-Time Workflow Normalization
 
 on:
   push:
@@ -8,85 +8,63 @@ on:
       - ".github/workflows/admin-mcp-normalize-once.yml"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  normalize:
+  normalize-workflows:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
 
-      - name: Normalize non-workflow ADMIN MCP source
+      - name: Build normalized workflow files
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
 
-          stale_151 = [
-              Path('workbench/harnesses/chattanooga-site-plugins/integration-cli.php'),
-              Path('workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php'),
-              Path('workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-ingestion-diagnostics-cli.php'),
-              Path('workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-functional-redteam-cli.php'),
+          stale = [
+              Path('.github/workflows/chattanooga-site-plugins-integration.yml'),
+              Path('.github/workflows/chattanooga-cms-admin-native-mcp.yml'),
+              Path('.github/workflows/chattanooga-cms-admin-v2-acceptance.yml'),
+              Path('.github/workflows/chattanooga-cms-admin-functional-redteam.yml'),
+              Path('.github/workflows/chattanooga-cms-admin-v2-harness.yml'),
           ]
-          visual_152 = [
-              Path('workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-visual-browser-cli.php'),
-          ]
+          visual = Path('.github/workflows/admin-mcp-visual-browser.yml')
 
-          for path in stale_151:
+          for path in stale:
               text = path.read_text()
               if '1.2.51' not in text:
                   raise SystemExit(f'expected 1.2.51 not found in {path}')
               path.write_text(text.replace('1.2.51', '1.2.53').replace('Admin MCP', 'ADMIN MCP'))
 
-          for path in visual_152:
-              text = path.read_text()
-              if '1.2.52' not in text:
-                  raise SystemExit(f'expected 1.2.52 not found in {path}')
-              path.write_text(text.replace('1.2.52', '1.2.53').replace('Admin MCP', 'ADMIN MCP'))
+          text = visual.read_text()
+          if '1.2.52' not in text:
+              raise SystemExit('expected 1.2.52 not found in visual workflow')
+          visual.write_text(text.replace('1.2.52', '1.2.53').replace('Admin MCP', 'ADMIN MCP'))
 
-          settings = Path('site-plugins/chattanooga-cms-admin/includes/class-cua-mcp-settings-page.php')
-          text = settings.read_text()
-          if 'Chattanooga MCP' not in text:
-              raise SystemExit('expected Chattanooga MCP display text not found in settings page')
-          settings.write_text(text.replace('Chattanooga MCP', 'ADMIN MCP'))
-
-          # Internal transport/storage identity must remain untouched.
-          main = Path('site-plugins/chattanooga-cms-admin/chattanooga-cms-admin.php').read_text()
-          if "Text Domain: chattanooga-cms-admin" not in main or "'CUA_MCP_Server', 'register_route'" not in main:
-              raise SystemExit('main plugin internal identity changed unexpectedly')
-          settings_text = settings.read_text()
-          if "const PAGE_SLUG      = 'chattanooga-cms-admin-mcp';" not in settings_text or "'chattanooga_mcp'" not in settings_text:
-              raise SystemExit('settings internal identity changed unexpectedly')
-
-          for path in stale_151:
+          for path in stale:
               text = path.read_text()
               if '1.2.51' in text or 'Admin MCP' in text:
-                  raise SystemExit(f'stale identity/version remains in {path}')
-          text = visual_152[0].read_text()
+                  raise SystemExit(f'stale workflow identity/version remains in {path}')
+          text = visual.read_text()
           if '1.2.52' in text or 'Admin MCP' in text:
-              raise SystemExit('stale visual harness identity/version remains')
-          if 'Chattanooga MCP' in settings_text:
-              raise SystemExit('stale settings-page display identity remains')
+              raise SystemExit('stale visual workflow identity/version remains')
           PY
           git diff --check
-          git status --short
+          mkdir -p /tmp/admin-mcp-normalized-workflows
+          cp .github/workflows/chattanooga-site-plugins-integration.yml /tmp/admin-mcp-normalized-workflows/
+          cp .github/workflows/chattanooga-cms-admin-native-mcp.yml /tmp/admin-mcp-normalized-workflows/
+          cp .github/workflows/chattanooga-cms-admin-v2-acceptance.yml /tmp/admin-mcp-normalized-workflows/
+          cp .github/workflows/chattanooga-cms-admin-functional-redteam.yml /tmp/admin-mcp-normalized-workflows/
+          cp .github/workflows/chattanooga-cms-admin-v2-harness.yml /tmp/admin-mcp-normalized-workflows/
+          cp .github/workflows/admin-mcp-visual-browser.yml /tmp/admin-mcp-normalized-workflows/
+          sha256sum /tmp/admin-mcp-normalized-workflows/* > /tmp/admin-mcp-normalized-workflows/SHA256SUMS.txt
 
-      - name: Commit normalized source
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "ADMIN MCP Source Normalizer"
-          git config user.email "actions@users.noreply.github.com"
-          git add site-plugins/chattanooga-cms-admin/includes/class-cua-mcp-settings-page.php \
-            workbench/harnesses/chattanooga-site-plugins/integration-cli.php \
-            workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-cli.php \
-            workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-ingestion-diagnostics-cli.php \
-            workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-functional-redteam-cli.php \
-            workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-visual-browser-cli.php
-          git diff --cached --check
-          git diff --cached --quiet && { echo 'No normalization changes were produced.' >&2; exit 1; }
-          git commit -m "Normalize ADMIN MCP source labels and harness expectations"
-          git push origin HEAD:main
+      - name: Upload normalized workflows
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-mcp-normalized-workflows
+          path: /tmp/admin-mcp-normalized-workflows
+          if-no-files-found: error
+          retention-days: 1
