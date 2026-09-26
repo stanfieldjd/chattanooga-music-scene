@@ -99,6 +99,17 @@ jobs:
       - name: Verify Chromium image delivery and browser session
         shell: bash
         run: |
-          set -euo pipefail
+          set -o pipefail
           trap 'if [ -f /tmp/admin-mcp-visual-http.pid ]; then kill "$(cat /tmp/admin-mcp-visual-http.pid)" 2>/dev/null || true; fi' EXIT
-          CMSA_BROWSER_EXECUTABLE="$CMSA_BROWSER_EXECUTABLE" php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-visual-browser-cli.php" --path=/tmp/wordpress
+          CMSA_BROWSER_EXECUTABLE="$CMSA_BROWSER_EXECUTABLE" php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/native-mcp-visual-browser-cli.php" --path=/tmp/wordpress 2>&1 | tee /tmp/admin-mcp-visual-acceptance.log
+
+      - name: Upload visual acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-mcp-visual-browser-evidence
+          path: |
+            /tmp/admin-mcp-visual-acceptance.log
+            /tmp/admin-mcp-visual-http.log
+          if-no-files-found: warn
+          retention-days: 7
