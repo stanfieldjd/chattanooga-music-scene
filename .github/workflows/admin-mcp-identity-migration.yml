@@ -73,7 +73,7 @@ jobs:
           PY
 
           # Remove this one-time migration workflow from the final tree.
-          git rm .github/workflows/admin-mcp-identity-migration.yml
+          git rm -f .github/workflows/admin-mcp-identity-migration.yml
 
           # Acceptance gates: old identity absent from both paths and text.
           if git ls-files | grep -F 'chattanooga-cms-admin'; then
