@@ -511,6 +511,8 @@ final class CUA_Ability_Bridge {
 		$short_names = array(
 			'activate-plugin',
 			'authorize-plugin-package',
+			'browser-session',
+			'capture-page-screenshot',
 			'clear-cache',
 			'create-backup',
 			'deactivate-plugin',
