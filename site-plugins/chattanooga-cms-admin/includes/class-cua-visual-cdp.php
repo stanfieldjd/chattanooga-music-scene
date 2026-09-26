@@ -42,11 +42,12 @@ final class CUA_Visual_CDP {
 	}
 
 	public static function wait_until_ready( array $session ) {
-		for ( $i = 0; $i < 40; ++$i ) {
+		$deadline = microtime( true ) + 15.0;
+		do {
 			$result = self::json_get( (int) $session['port'], '/json/version', 0.5 );
 			if ( ! is_wp_error( $result ) ) { return true; }
 			usleep( 100000 );
-		}
+		} while ( microtime( true ) < $deadline );
 		return new WP_Error( 'cmsa_visual_browser_not_ready', 'Chromium started but its local DevTools endpoint did not become ready.' );
 	}
 
@@ -124,7 +125,11 @@ final class CUA_Visual_CDP {
 		while ( strlen( $data ) < $length && ! feof( $socket ) ) {
 			$chunk = fread( $socket, $length - strlen( $data ) );
 			if ( false === $chunk ) { return new WP_Error( 'cmsa_visual_ws_read_failed', 'The DevTools WebSocket could not be read.' ); }
-			if ( '' === $chunk ) { $meta = stream_get_meta_data( $socket ); if ( ! empty( $meta['timed_out'] ) ) { return null; } usleep( 10000 ); continue; }
+			if ( '' === $chunk ) {
+				$meta = stream_get_meta_data( $socket );
+				if ( ! empty( $meta['timed_out'] ) ) { return new WP_Error( 'cmsa_visual_ws_timeout', 'The DevTools WebSocket read timed out.' ); }
+				usleep( 10000 ); continue;
+			}
 			$data .= $chunk;
 		}
 		return strlen( $data ) === $length ? $data : null;
