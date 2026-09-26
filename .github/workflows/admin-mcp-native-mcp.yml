@@ -291,6 +291,7 @@ jobs:
           done
           echo "cmsa-http-reconnect: PASS reconnects=5 fingerprint=$fingerprint"
 
+          compat_fingerprint=''
           for compat_iteration in $(seq 1 5); do
             cat > /tmp/cmsa-compat-initialize.json <<'JSON'
           {"jsonrpc":"2.0","id":429,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"cmsa-compat-ci","version":"1.0.0"}}}
