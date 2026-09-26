@@ -1,0 +1,81 @@
+name: ADMIN MCP CDP Handshake Diagnostic
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Probe Chrome DevTools handshake
+        shell: bash
+        run: |
+          set -euo pipefail
+          browser="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser)"
+          profile="$(mktemp -d /tmp/admin-mcp-cdp.XXXXXX)"
+          "$browser" --headless=new --disable-gpu --no-first-run --no-default-browser-check --hide-scrollbars --remote-debugging-address=127.0.0.1 --remote-debugging-port=9335 --remote-allow-origins=http://127.0.0.1 --user-data-dir="$profile" --window-size=900,600 about:blank >/tmp/admin-mcp-cdp-chrome.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true; rm -rf "$profile"' EXIT
+
+          ready=0
+          for attempt in $(seq 1 150); do
+            if curl -fsS http://127.0.0.1:9335/json/list >/tmp/admin-mcp-cdp-list.json 2>/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 0.1
+          done
+          echo "devtools_ready=$ready"
+          if [ "$ready" != '1' ]; then
+            cat /tmp/admin-mcp-cdp-chrome.log || true
+            exit 1
+          fi
+
+          python3 - <<'PY'
+          import base64, hashlib, json, os, socket, urllib.parse
+
+          targets = json.load(open('/tmp/admin-mcp-cdp-list.json', encoding='utf-8'))
+          page = next(t for t in targets if t.get('type') == 'page')
+          ws = page['webSocketDebuggerUrl']
+          u = urllib.parse.urlsplit(ws)
+          key = base64.b64encode(os.urandom(16)).decode('ascii')
+          expected = base64.b64encode(hashlib.sha1((key + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11').encode('ascii')).digest()).decode('ascii')
+          path = u.path + (('?' + u.query) if u.query else '')
+          request = (
+              f'GET {path} HTTP/1.1\r\n'
+              f'Host: 127.0.0.1:{u.port}\r\n'
+              'Upgrade: websocket\r\n'
+              'Connection: Upgrade\r\n'
+              f'Sec-WebSocket-Key: {key}\r\n'
+              'Sec-WebSocket-Version: 13\r\n'
+              'Origin: http://127.0.0.1\r\n\r\n'
+          ).encode('ascii')
+          s = socket.create_connection(('127.0.0.1', u.port), timeout=3)
+          s.sendall(request)
+          data = b''
+          while b'\r\n\r\n' not in data and len(data) < 16384:
+              chunk = s.recv(2048)
+              if not chunk:
+                  break
+              data += chunk
+          s.close()
+          header = data.split(b'\r\n\r\n', 1)[0].decode('latin1')
+          print(header)
+          actual = ''
+          for line in header.split('\r\n')[1:]:
+              if ':' in line:
+                  k, v = line.split(':', 1)
+                  if k.lower() == 'sec-websocket-accept':
+                      actual = v.strip()
+          print('expected_accept=' + expected)
+          print('actual_accept=' + actual)
+          print('accept_matches=' + ('1' if actual == expected else '0'))
+          if not header.startswith('HTTP/1.1 101') or actual != expected:
+              raise SystemExit(1)
+          PY
