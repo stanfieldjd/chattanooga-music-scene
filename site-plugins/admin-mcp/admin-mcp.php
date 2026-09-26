@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ADMIN MCP
  * Description: Universal ADMIN MCP administration bridge with plugin-agnostic WordPress contracts, live visual inspection, and screenshot fallback.
- * Version: 1.2.58
+ * Version: 1.2.59
  * Author: Chattanooga Music Scene
  * Requires at least: 7.1
  * Requires PHP: 8.0
@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CUA_VERSION', '1.2.58' );
+define( 'CUA_VERSION', '1.2.59' );
 define( 'CUA_DIR', plugin_dir_path( __FILE__ ) );
 
 require_once CUA_DIR . 'includes/class-cua-local-storage.php';
@@ -32,6 +32,7 @@ require_once CUA_DIR . 'includes/class-cua-platform-settings.php';
 require_once CUA_DIR . 'includes/class-cua-platform-cron.php';
 require_once CUA_DIR . 'includes/class-cua-platform-post-lifecycle.php';
 require_once CUA_DIR . 'includes/class-cua-visual-cdp.php';
+require_once CUA_DIR . 'includes/class-cua-visual-browser-runtime-manager.php';
 require_once CUA_DIR . 'includes/class-cua-visual-browser-runtime.php';
 require_once CUA_DIR . 'includes/class-cua-visual-browser.php';
 require_once CUA_DIR . 'includes/class-cua-mcp-settings-page.php';
@@ -65,6 +66,7 @@ add_action( 'wp_abilities_api_init', array( 'CUA_Platform_Core_Maintenance', 're
 add_action( 'wp_abilities_api_init', array( 'CUA_Platform_Settings', 'register_abilities' ), 20 );
 add_action( 'wp_abilities_api_init', array( 'CUA_Platform_Cron', 'register_abilities' ), 21 );
 add_action( 'wp_abilities_api_init', array( 'CUA_Platform_Post_Lifecycle', 'register_ability' ), 22 );
+add_action( 'wp_abilities_api_init', array( 'CUA_Visual_Browser_Runtime_Manager', 'register_abilities' ), 22 );
 add_action( 'wp_abilities_api_init', array( 'CUA_Visual_Browser', 'register_abilities' ), 23 );
 add_action( 'wp_abilities_api_init', array( 'CUA_MCP_Server', 'register_adapter_abilities' ), 9997 );
 add_action( 'wp_abilities_api_init', array( 'CUA_REST_Bridge', 'register_external_bridges' ), 999999 );
