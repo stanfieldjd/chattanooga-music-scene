@@ -86,9 +86,10 @@ final class CUA_Visual_Browser {
 			$result = CUA_Visual_Browser_Runtime::navigate( $session, $url, self::number( $input, 'wait_ms', 750, 0, self::MAX_WAIT_MS ) );
 			if ( is_wp_error( $result ) ) { return $result; }
 		} elseif ( 'refresh' === $action ) {
-			$result = CUA_Visual_CDP::command( $session, 'Page.reload', array( 'ignoreCache' => false ) );
+			$current_url = trim( (string) ( $session['url'] ?? '' ) );
+			if ( '' === $current_url ) { return new WP_Error( 'cmsa_visual_refresh_url_missing', 'The live browser session has no current URL to refresh.' ); }
+			$result = CUA_Visual_Browser_Runtime::navigate( $session, $current_url, self::number( $input, 'wait_ms', 750, 0, self::MAX_WAIT_MS ) );
 			if ( is_wp_error( $result ) ) { return $result; }
-			CUA_Visual_Browser_Runtime::sleep_ms( self::number( $input, 'wait_ms', 750, 0, self::MAX_WAIT_MS ) );
 		} elseif ( 'scroll' === $action ) {
 			$x = self::number( $input, 'scroll_x', 0, -10000, 10000 ); $y = self::number( $input, 'scroll_y', 0, -100000, 100000 );
 			$result = CUA_Visual_CDP::command( $session, 'Runtime.evaluate', array( 'expression' => 'window.scrollBy(' . $x . ',' . $y . ');({x:window.scrollX,y:window.scrollY})', 'returnByValue' => true ) );
