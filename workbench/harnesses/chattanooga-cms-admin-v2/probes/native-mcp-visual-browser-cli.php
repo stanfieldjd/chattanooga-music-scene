@@ -127,7 +127,7 @@ function cmsa_visual_result( WP_REST_Response $response, $label, $expect_image =
 
 wp_set_current_user( 1 );
 
-cmsa_visual_assert( defined( 'CUA_VERSION' ) && '1.2.51' === CUA_VERSION, 'Admin MCP 1.2.51 did not load.' );
+cmsa_visual_assert( defined( 'CUA_VERSION' ) && '1.2.52' === CUA_VERSION, 'ADMIN MCP 1.2.52 did not load.' );
 cmsa_visual_assert( class_exists( 'CUA_Visual_Browser' ), 'Visual browser ability layer did not load.' );
 cmsa_visual_assert( class_exists( 'CUA_Visual_Browser_Runtime' ), 'Visual browser runtime did not load.' );
 cmsa_visual_assert( class_exists( 'CUA_Visual_CDP' ), 'Visual CDP transport did not load.' );
@@ -152,9 +152,9 @@ $page_id = wp_insert_post(
 	array(
 		'post_type'    => 'page',
 		'post_status'  => 'publish',
-		'post_title'   => 'Admin MCP Visual Probe',
+		'post_title'   => 'ADMIN MCP Visual Probe',
 		'post_name'    => 'admin-mcp-visual-probe',
-		'post_content' => '<div style="height:2600px"><h1>Admin MCP Visual Probe</h1><p>Rendered browser pixel acceptance fixture.</p></div>',
+		'post_content' => '<div style="height:2600px"><h1>ADMIN MCP Visual Probe</h1><p>Rendered browser pixel acceptance fixture.</p></div>',
 	),
 	true
 );
