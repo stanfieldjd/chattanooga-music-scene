@@ -54,16 +54,15 @@ jobs:
           grep -q '^ \* Plugin Name: ADMIN MCP$' site-plugins/admin-mcp/admin-mcp.php
           grep -q '^ \* Version: 1.2.57$' site-plugins/admin-mcp/admin-mcp.php
 
-      - name: Resolve Chromium executable
+      - name: Verify Chromium is discoverable on PATH
         shell: bash
         run: |
           set -euo pipefail
           browser="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
           if [ -z "$browser" ]; then
-            echo "No Chromium-compatible browser is installed on the runner." >&2
+            echo "No Chromium-compatible browser is installed on the runner PATH." >&2
             exit 1
           fi
-          echo "CMSA_BROWSER_EXECUTABLE=$browser" >> "$GITHUB_ENV"
           "$browser" --version
 
       - name: Install disposable WordPress 7.1
@@ -101,7 +100,7 @@ jobs:
         run: |
           set -euo pipefail
           trap 'if [ -f /tmp/admin-mcp-visual-http.pid ]; then kill "$(cat /tmp/admin-mcp-visual-http.pid)" 2>/dev/null || true; fi' EXIT
-          CMSA_BROWSER_EXECUTABLE="$CMSA_BROWSER_EXECUTABLE" php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/admin-mcp-v2/probes/native-mcp-visual-browser-cli.php" --path=/tmp/wordpress 2>&1 | tee /tmp/admin-mcp-visual-acceptance.log
+          env -u CMSA_BROWSER_EXECUTABLE php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/admin-mcp-v2/probes/native-mcp-visual-browser-cli.php" --path=/tmp/wordpress 2>&1 | tee /tmp/admin-mcp-visual-acceptance.log
 
       - name: Upload visual acceptance evidence
         if: always()
