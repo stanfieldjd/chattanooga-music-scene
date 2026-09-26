@@ -1,4 +1,5 @@
 name: ADMIN MCP 1.2.58 Release Candidate
+# Rerun after aligning the functional red-team event with Weekend Feature live-music eligibility.
 
 on:
   push:
