@@ -210,6 +210,14 @@ $event_post_id = 0;
 $event_id = 0;
 $feature_id = 0;
 
+$live_music_term = term_exists( 'live-music', 'event-categories' );
+if ( ! $live_music_term ) {
+	$live_music_term = wp_insert_term( 'Live Music', 'event-categories', array( 'slug' => 'live-music' ) );
+}
+cmsa_mcp_redteam_assert( ! is_wp_error( $live_music_term ), 'Live Music event category fixture could not be created.' );
+$live_music_term_id = is_array( $live_music_term ) ? (int) ( $live_music_term['term_id'] ?? 0 ) : (int) $live_music_term;
+cmsa_mcp_redteam_assert( $live_music_term_id > 0, 'Live Music event category fixture returned no term ID.' );
+
 $create_item = cmsa_mcp_redteam_find_rest( $catalog, 'POST', '/events-manager/v1/events' );
 $created = cmsa_mcp_redteam_gateway(
 	$create_item,
@@ -225,6 +233,7 @@ $created = cmsa_mcp_redteam_gateway(
 			'event_start_time' => '19:00:00',
 			'event_end_time'   => '21:00:00',
 			'event_timezone'   => wp_timezone_string() ?: 'UTC',
+			'event_categories' => array( $live_music_term_id ),
 		),
 	)
 );
