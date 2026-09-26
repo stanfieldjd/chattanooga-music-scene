@@ -1,4 +1,4 @@
-name: Chattanooga CMS Admin v2 Replacement Acceptance
+name: Admin MCP v2 Replacement Acceptance
 
 on:
   push:
@@ -51,8 +51,8 @@ jobs:
           test -f "$source/chattanooga-cms-admin.php"
           test ! -e "$source/chattanooga-universal-admin.php"
           test "$(grep -RIl '^ \* Plugin Name:' "$source" --include='*.php' | wc -l)" -eq 1
-          grep -q '^ \* Plugin Name: Chattanooga CMS Admin$' "$source/chattanooga-cms-admin.php"
-          grep -q '^ \* Version: 1.2.49$' "$source/chattanooga-cms-admin.php"
+          grep -q '^ \* Plugin Name: Admin MCP$' "$source/chattanooga-cms-admin.php"
+          grep -q '^ \* Version: 1.2.51$' "$source/chattanooga-cms-admin.php"
           if grep -REiq 'WooCommerce|WC_Product|wc_get_product|Events_Manager|events-manager|EM_Event|EM_Location|BuddyBoss|Marketplace|Weekend_Feature|Rank_Math|rank-math|seo-by-rank-math|awpcp|another-wordpress-classifieds-plugin|miniOrange|miniorange' "$source"; then
             echo "Replacement contains provider-specific implementation logic." >&2
             exit 1
@@ -66,9 +66,8 @@ jobs:
           php /tmp/wp-cli.phar core download --version=7.1 --path=/tmp/wordpress --force
           php /tmp/wp-cli.phar config create --path=/tmp/wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
           password="$(php -r 'echo bin2hex(random_bytes(20));')"
-          php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://cmsa-accept.test --title="CMSA Replacement Acceptance" --admin_user=admin --admin_password="$password" --admin_email=lab@example.invalid --skip-email
+          php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://cmsa-accept.test --title="Admin MCP Replacement Acceptance" --admin_user=admin --admin_password="$password" --admin_email=lab@example.invalid --skip-email
           cp -R site-plugins/chattanooga-cms-admin /tmp/wordpress/wp-content/plugins/chattanooga-cms-admin
           php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin --path=/tmp/wordpress
       - name: Verify replacement coverage
         run: php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/chattanooga-cms-admin-v2/probes/replacement-coverage-cli.php" --path=/tmp/wordpress
-
