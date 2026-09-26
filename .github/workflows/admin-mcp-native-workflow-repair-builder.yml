@@ -1,0 +1,46 @@
+name: ADMIN MCP native workflow repair builder
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build repaired native workflow blob
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64, json, os, subprocess
+          from pathlib import Path
+
+          path = Path('.github/workflows/admin-mcp-native-mcp.yml')
+          text = path.read_text(encoding='utf-8')
+          needle = "          for compat_iteration in $(seq 1 5); do"
+          replacement = "          compat_fingerprint=''\n" + needle
+          if text.count(needle) != 1:
+              raise SystemExit('Expected exactly one compatibility loop')
+          if "          compat_fingerprint=''\n" in text:
+              raise SystemExit('compat_fingerprint is already initialized')
+          text = text.replace(needle, replacement, 1)
+          payload = json.dumps({'content': base64.b64encode(text.encode()).decode(), 'encoding': 'base64'})
+          proc = subprocess.run([
+              'curl','-fsS','-X','POST',
+              '-H',f'Authorization: Bearer {os.environ["GH_TOKEN"]}',
+              '-H','Accept: application/vnd.github+json',
+              '-H','X-GitHub-Api-Version: 2022-11-28',
+              f'https://api.github.com/repos/{os.environ["REPO"]}/git/blobs',
+              '-d',payload,
+          ], check=True, text=True, capture_output=True)
+          sha = json.loads(proc.stdout)['sha']
+          print(f'ADMIN_MCP_NATIVE_REPAIR_BLOB={sha}')
+          PY
