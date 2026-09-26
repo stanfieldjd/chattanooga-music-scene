@@ -1,4 +1,4 @@
-name: Chattanooga CMS Admin Native MCP
+name: Admin MCP Native Protocol
 
 on:
   push:
@@ -71,8 +71,8 @@ jobs:
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-settings-page-cli.php >/dev/null
           php -l workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-ingestion-diagnostics-cli.php >/dev/null
           python3 -m py_compile workbench/harnesses/chattanooga-cms-admin-v2/probes/mcp-jsonschema-2020-report.py
-          grep -q '^ \* Plugin Name: Chattanooga CMS Admin$' "$source/chattanooga-cms-admin.php"
-          grep -q '^ \* Version: 1.2.49$' "$source/chattanooga-cms-admin.php"
+          grep -q '^ \* Plugin Name: Admin MCP$' "$source/chattanooga-cms-admin.php"
+          grep -q '^ \* Version: 1.2.51$' "$source/chattanooga-cms-admin.php"
           grep -Fq "add_action( 'rest_api_init', array( 'CUA_MCP_Server', 'register_route' ) );" "$source/chattanooga-cms-admin.php"
           test -f "$source/includes/class-cua-mcp-server.php"
           test -f "$source/includes/class-cua-mcp-diagnostics.php"
@@ -90,7 +90,7 @@ jobs:
           php /tmp/wp-cli.phar config create --path=/tmp/wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
           php /tmp/wp-cli.phar config set WP_ENVIRONMENT_TYPE local --type=constant --path=/tmp/wordpress
           password="$(php -r 'echo bin2hex(random_bytes(20));')"
-          php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://127.0.0.1:8090 --title="CMS Admin Native MCP" --admin_user=admin --admin_password="$password" --admin_email=lab@example.invalid --skip-email
+          php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://127.0.0.1:8090 --title="Admin MCP Native Protocol" --admin_user=admin --admin_password="$password" --admin_email=lab@example.invalid --skip-email
           cp -R site-plugins/chattanooga-cms-admin /tmp/wordpress/wp-content/plugins/chattanooga-cms-admin
           php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin is-active chattanooga-cms-admin --path=/tmp/wordpress
@@ -126,7 +126,7 @@ jobs:
       - name: Upload MCP ingestion diagnostic report
         uses: actions/upload-artifact@v4
         with:
-          name: chattanooga-cms-admin-mcp-ingestion-report-1.2.49
+          name: admin-mcp-ingestion-report-1.2.51
           path: /tmp/cmsa-mcp-ingestion-diagnostics-report.json
           if-no-files-found: error
           retention-days: 30
@@ -240,8 +240,6 @@ jobs:
           fi
           php -r '$d=json_decode(file_get_contents("/tmp/cmsa-initialize-response.json"),true); if (($d["error"]["code"]??null)!==-32022) exit(1);'
 
-          # Emulate the conventional WordPress MCP client lifecycle:
-          # initialize -> notifications/initialized -> tools/list.
           compat_fingerprint=''
           for compat_iteration in $(seq 1 5); do
             cat > /tmp/cmsa-compat-initialize.json <<JSON
@@ -409,18 +407,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          package="/tmp/chattanooga-cms-admin-1.2.49.zip"
+          package="/tmp/admin-mcp-1.2.51.zip"
           (cd site-plugins && zip -qr "$package" chattanooga-cms-admin)
           unzip -t "$package"
-          sha256sum "$package" | tee /tmp/chattanooga-cms-admin-1.2.49.sha256
+          sha256sum "$package" | tee /tmp/admin-mcp-1.2.51.sha256
 
       - name: Upload verified install package
         uses: actions/upload-artifact@v4
         with:
-          name: chattanooga-cms-admin-1.2.49
+          name: admin-mcp-1.2.51
           path: |
-            /tmp/chattanooga-cms-admin-1.2.49.zip
-            /tmp/chattanooga-cms-admin-1.2.49.sha256
+            /tmp/admin-mcp-1.2.51.zip
+            /tmp/admin-mcp-1.2.51.sha256
           if-no-files-found: error
           retention-days: 30
-
