@@ -78,7 +78,7 @@ jobs:
           php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://127.0.0.1:8090 --title="Admin MCP Visual Browser Acceptance" --admin_user=admin --admin_password="$password" --admin_email=visual@example.invalid --skip-email
           cp -R site-plugins/chattanooga-cms-admin /tmp/wordpress/wp-content/plugins/chattanooga-cms-admin
           php /tmp/wp-cli.phar plugin activate chattanooga-cms-admin --path=/tmp/wordpress
-          test "$(php /tmp/wp-cli.phar plugin get chattanooga-cms-admin --field=name --path=/tmp/wordpress)" = "Admin MCP"
+          test "$(php /tmp/wp-cli.phar eval 'echo CUA_VERSION;' --path=/tmp/wordpress)" = "1.2.51"
           test "$(php /tmp/wp-cli.phar plugin get chattanooga-cms-admin --field=version --path=/tmp/wordpress)" = "1.2.51"
 
       - name: Start disposable web server
