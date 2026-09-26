@@ -21,7 +21,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 - <<'PY'
-          import base64, json, os, re, subprocess
+          import base64, json, os, subprocess
           from pathlib import Path
 
           scopes = (
@@ -46,8 +46,7 @@ jobs:
               data = path.read_bytes()
               if b'\0' in data or b'1.2.55' not in data:
                   continue
-              updated = data.replace(b'1.2.55', b'1.2.56')
-              path.write_bytes(updated)
+              path.write_bytes(data.replace(b'1.2.55', b'1.2.56'))
               changed.append(name)
 
           main = Path('site-plugins/admin-mcp/admin-mcp.php')
@@ -59,19 +58,23 @@ jobs:
           text = visual.read_text(encoding='utf-8')
           start = text.index('      - name: Verify Chromium image delivery and browser session\n')
           end = text.index('      - name: Upload visual acceptance evidence\n', start)
-          durable = '''      - name: Verify Chromium image delivery and browser session
-        shell: bash
-        run: |
-          set -euo pipefail
-          trap 'if [ -f /tmp/admin-mcp-visual-http.pid ]; then kill "$(cat /tmp/admin-mcp-visual-http.pid)" 2>/dev/null || true; fi' EXIT
-          CMSA_BROWSER_EXECUTABLE="$CMSA_BROWSER_EXECUTABLE" php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/admin-mcp-v2/probes/native-mcp-visual-browser-cli.php" --path=/tmp/wordpress 2>&1 | tee /tmp/admin-mcp-visual-acceptance.log
-
-'''
-          text = text[:start] + durable + text[end:]
-          text = text.replace('            /tmp/admin-mcp-direct-chromium.log\n', '')
-          text = text.replace('            /tmp/admin-mcp-direct-chromium-version.json\n', '')
-          text = text.replace('            /tmp/admin-mcp-control-chromium.log\n', '')
-          text = text.replace('            /tmp/admin-mcp-control-chromium-version.json\n', '')
+          durable_lines = [
+              '      - name: Verify Chromium image delivery and browser session',
+              '        shell: bash',
+              '        run: |',
+              '          set -euo pipefail',
+              '          trap \'if [ -f /tmp/admin-mcp-visual-http.pid ]; then kill "$(cat /tmp/admin-mcp-visual-http.pid)" 2>/dev/null || true; fi\' EXIT',
+              '          CMSA_BROWSER_EXECUTABLE="$CMSA_BROWSER_EXECUTABLE" php /tmp/wp-cli.phar eval-file "$GITHUB_WORKSPACE/workbench/harnesses/admin-mcp-v2/probes/native-mcp-visual-browser-cli.php" --path=/tmp/wordpress 2>&1 | tee /tmp/admin-mcp-visual-acceptance.log',
+              '',
+          ]
+          text = text[:start] + '\n'.join(durable_lines) + '\n' + text[end:]
+          for line in (
+              '            /tmp/admin-mcp-direct-chromium.log\n',
+              '            /tmp/admin-mcp-direct-chromium-version.json\n',
+              '            /tmp/admin-mcp-control-chromium.log\n',
+              '            /tmp/admin-mcp-control-chromium-version.json\n',
+          ):
+              text = text.replace(line, '')
           visual.write_text(text, encoding='utf-8')
           if str(visual) not in changed:
               changed.append(str(visual))
