@@ -60,7 +60,7 @@ cms_site_plugins_assert( '1' === (string) $wpdb->get_var( 'SELECT 1' ), 'WordPre
 cms_site_plugins_assert( post_type_exists( CMS_Weekend_Posts::POST_TYPE ), 'Weekend Feature post type is not registered.' );
 $weekend_type = get_post_type_object( CMS_Weekend_Posts::POST_TYPE );
 cms_site_plugins_assert( $weekend_type && ! empty( $weekend_type->show_in_rest ), 'Weekend Feature post type is not REST-visible.' );
-cms_site_plugins_assert( shortcode_exists( 'cms_weekend_feature' ), 'Weekend Feature shortcode is not registered.' );
+cms_site_plugins_assert( ! shortcode_exists( 'cms_weekend_feature' ), 'Weekend Feature still registers the removed Scene shortcode.' );
 
 $scene_page = wp_insert_post(
 	array(
@@ -68,7 +68,7 @@ $scene_page = wp_insert_post(
 		'post_status'  => 'publish',
 		'post_title'   => 'Scene',
 		'post_name'    => 'scene',
-		'post_content' => '[cms_weekend_feature]',
+		'post_content' => '<section class="cms-hero">Scene hero</section><section class="cms-stories">Stories</section>',
 	),
 	true
 );
@@ -78,7 +78,7 @@ $GLOBALS['wp_query'] = new WP_Query( array( 'page_id' => $scene_page, 'post_type
 $GLOBALS['wp_query']->in_the_loop = true;
 $already_rendered = '<section class="cms-weekend-scene-feature">Existing rendered Weekend Feature</section>';
 $deduped = CMS_Weekend_Posts::instance()->inject_scene_feature( $already_rendered );
-cms_site_plugins_assert( $already_rendered === $deduped, 'Scene Weekend Feature injector duplicated an already-rendered shortcode result.' );
+cms_site_plugins_assert( $already_rendered === $deduped, 'Scene Weekend Feature injector duplicated an already-rendered feature.' );
 if ( null !== $prior_wp_query ) {
 	$GLOBALS['wp_query'] = $prior_wp_query;
 } else {
@@ -272,5 +272,4 @@ wp_set_current_user( 1 );
 
 echo "cms-site-plugins-integration: PASS admin_mcp=1.2.60 marketplace=0.1.1 weekend_feature=0.2.10 wordpress_native_install=verified coexistence=verified marketplace_awp=verified marketplace_woocommerce=verified marketplace_search=verified marketplace_truncation=verified woocommerce_label=absent location_filter=preserved weekend_events_manager=verified weekend_schedule=verified admin_mcp_health=verified database=verified admin_boundary=verified\n";
 exit( 0 );
-
 
