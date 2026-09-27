@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ADMIN MCP
  * Description: Universal ADMIN MCP administration bridge with plugin-agnostic WordPress contracts, live visual inspection, and screenshot fallback.
- * Version: 1.2.59
+ * Version: 1.2.60
  * Author: Chattanooga Music Scene
  * Requires at least: 7.1
  * Requires PHP: 8.0
@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CUA_VERSION', '1.2.59' );
+define( 'CUA_VERSION', '1.2.60' );
 define( 'CUA_DIR', plugin_dir_path( __FILE__ ) );
 
 require_once CUA_DIR . 'includes/class-cua-local-storage.php';
