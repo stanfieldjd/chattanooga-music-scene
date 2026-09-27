@@ -77,6 +77,63 @@
 	text-underline-offset: 6px;
 }
 
+/* The directly injected Scene card shares the existing story paper and tape. */
+.cms-scene-issue .cms-story-field--weekend {
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	margin-left: 0;
+}
+
+.cms-scene-issue .cms-story-field--weekend .cms-story {
+	min-width: 0;
+	padding: clamp(24px, 2.25vw, 36px);
+}
+
+.cms-scene-issue .cms-weekend-story {
+	margin-top: 58px;
+	transform: rotate(-2deg);
+}
+
+.cms-scene-issue .cms-story-field--weekend h3 {
+	font-size: clamp(27px, 2.1vw, 38px);
+	overflow-wrap: break-word;
+}
+
+.cms-scene-issue .cms-story-field--weekend h3 a {
+	text-decoration: none;
+}
+
+.cms-scene-issue .cms-stories--weekend {
+	min-height: 1080px;
+}
+
+@media (min-width: 821px) and (max-width: 1170px) {
+	.cms-scene-issue .cms-story-field--weekend {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.cms-scene-issue .cms-weekend-story {
+		margin-top: 0;
+	}
+
+	.cms-scene-issue .cms-stories--weekend {
+		min-height: 1250px;
+	}
+}
+
+@media (max-width: 820px) {
+	.cms-scene-issue .cms-story-field--weekend {
+		grid-template-columns: 1fr;
+	}
+
+	.cms-scene-issue .cms-weekend-story {
+		margin-top: 0;
+	}
+
+	.cms-scene-issue .cms-stories--weekend {
+		min-height: auto;
+	}
+}
+
 .cms-weekend-introduction {
 	font-size: 1.15rem;
 	line-height: 1.65;
