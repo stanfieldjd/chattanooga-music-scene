@@ -40,7 +40,7 @@ foreach ( $required_plugins as $plugin_file ) {
 
 cms_site_plugins_assert( defined( 'CUA_VERSION' ) && '1.2.60' === CUA_VERSION, 'ADMIN MCP 1.2.60 did not load.' );
 cms_site_plugins_assert( defined( 'CMS_MARKETPLACE_VERSION' ) && '0.1.1' === CMS_MARKETPLACE_VERSION, 'Marketplace 0.1.1 did not load.' );
-cms_site_plugins_assert( defined( 'CMS_CORE_VERSION' ) && '0.2.13' === CMS_CORE_VERSION, 'Weekend Feature 0.2.13 did not load.' );
+cms_site_plugins_assert( defined( 'CMS_CORE_VERSION' ) && '0.2.14' === CMS_CORE_VERSION, 'Weekend Feature 0.2.14 did not load.' );
 cms_site_plugins_assert( class_exists( 'WC_Product_Simple' ), 'WooCommerce product API is unavailable.' );
 cms_site_plugins_assert( class_exists( 'EM_Events' ), 'Events Manager API is unavailable.' );
 
@@ -75,6 +75,12 @@ cms_site_plugins_assert(
 cms_site_plugins_assert(
 	false !== strpos( $weekend_css, 'transform: rotate(-3deg)' ) && false !== strpos( $weekend_css, 'cms-weekend-scene-feature::before' ),
 	'Scene Weekend Feature editorial card treatment is missing.'
+);
+cms_site_plugins_assert(
+	false !== strpos( $weekend_css, 'grid-template-columns: repeat(2, minmax(0, 1fr))' )
+	&& false === strpos( $weekend_css, 'grid-template-columns: repeat(4, minmax(0, 1fr))' )
+	&& false !== strpos( $weekend_css, '.cms-stories--weekend + .cms-market' ),
+	'Scene Weekend Feature cards may narrow or overlap the Marketplace.'
 );
 
 $scene_page = wp_insert_post(
@@ -310,5 +316,5 @@ wp_set_current_user( 0 );
 cms_site_plugins_assert( false === $health->check_permissions( array() ), 'Anonymous ADMIN MCP access was not denied.' );
 wp_set_current_user( 1 );
 
-echo "cms-site-plugins-integration: PASS admin_mcp=1.2.60 marketplace=0.1.1 weekend_feature=0.2.13 wordpress_native_install=verified coexistence=verified marketplace_awp=verified marketplace_woocommerce=verified marketplace_search=verified marketplace_truncation=verified woocommerce_label=absent location_filter=preserved weekend_events_manager=verified weekend_schedule=verified direct_scene_injection=verified scene_editorial_style=verified admin_mcp_health=verified database=verified admin_boundary=verified\n";
+echo "cms-site-plugins-integration: PASS admin_mcp=1.2.60 marketplace=0.1.1 weekend_feature=0.2.14 wordpress_native_install=verified coexistence=verified marketplace_awp=verified marketplace_woocommerce=verified marketplace_search=verified marketplace_truncation=verified woocommerce_label=absent location_filter=preserved weekend_events_manager=verified weekend_schedule=verified direct_scene_injection=verified scene_editorial_style=verified admin_mcp_health=verified database=verified admin_boundary=verified\n";
 exit( 0 );
