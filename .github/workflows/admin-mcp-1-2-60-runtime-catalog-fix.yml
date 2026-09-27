@@ -1,0 +1,153 @@
+name: ADMIN MCP 1.2.60 Runtime Catalog Repair
+
+on:
+  push:
+    paths:
+      - '.github/workflows/admin-mcp-1-2-60-runtime-catalog-fix.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  repair-test-package:
+    runs-on: ubuntu-22.04
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mysqli, zip, gd, fileinfo
+
+      - name: Apply 1.2.60 source repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          main = Path('site-plugins/admin-mcp/admin-mcp.php')
+          s = main.read_text()
+          if "Version: 1.2.59" not in s or "define( 'CUA_VERSION', '1.2.59' );" not in s:
+              raise SystemExit('expected 1.2.59 source boundary not found')
+          s = s.replace('Version: 1.2.59', 'Version: 1.2.60', 1)
+          s = s.replace("define( 'CUA_VERSION', '1.2.59' );", "define( 'CUA_VERSION', '1.2.60' );", 1)
+          main.write_text(s)
+
+          bridge = Path('site-plugins/admin-mcp/includes/class-cua-ability-bridge.php')
+          b = bridge.read_text()
+          anchor = "\t\t\t'get-audit-log',\n\t\t\t'get-health',\n"
+          repl = "\t\t\t'get-audit-log',\n\t\t\t'get-browser-runtime',\n\t\t\t'get-health',\n"
+          if anchor not in b:
+              raise SystemExit('get allowlist anchor not found')
+          b = b.replace(anchor, repl, 1)
+          anchor = "\t\t\t'install-plugin',\n\t\t\t'install-plugin-package',\n"
+          repl = "\t\t\t'install-browser-runtime',\n\t\t\t'install-plugin',\n\t\t\t'install-plugin-package',\n"
+          if anchor not in b:
+              raise SystemExit('install allowlist anchor not found')
+          b = b.replace(anchor, repl, 1)
+          bridge.write_text(b)
+          PY
+
+          find site-plugins/admin-mcp -type f -name '*.php' -print0 | xargs -0 -n1 php -l >/dev/null
+          grep -q '^ \* Version: 1.2.60$' site-plugins/admin-mcp/admin-mcp.php
+          grep -Fq "'get-browser-runtime'" site-plugins/admin-mcp/includes/class-cua-ability-bridge.php
+          grep -Fq "'install-browser-runtime'" site-plugins/admin-mcp/includes/class-cua-ability-bridge.php
+
+      - name: Install disposable WordPress 7.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/wp-cli.phar https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+          php /tmp/wp-cli.phar core download --version=7.1 --path=/tmp/wordpress --force
+          php /tmp/wp-cli.phar config create --path=/tmp/wordpress --dbname=wordpress --dbuser=root --dbpass=root --dbhost=127.0.0.1:3306 --skip-check
+          php /tmp/wp-cli.phar config set WP_ENVIRONMENT_TYPE local --type=constant --path=/tmp/wordpress
+          password="$(php -r 'echo bin2hex(random_bytes(20));')"
+          php /tmp/wp-cli.phar core install --path=/tmp/wordpress --url=http://127.0.0.1:8090 --title='ADMIN MCP Catalog Repair' --admin_user=admin --admin_password="$password" --admin_email=test@example.invalid --skip-email
+          cp -R site-plugins/admin-mcp /tmp/wordpress/wp-content/plugins/admin-mcp
+          php /tmp/wp-cli.phar plugin activate admin-mcp --path=/tmp/wordpress
+          test "$(php /tmp/wp-cli.phar plugin get admin-mcp --field=version --path=/tmp/wordpress)" = '1.2.60'
+
+      - name: Verify runtime abilities enter stable gateway catalog
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat >/tmp/catalog-probe.php <<'PHP'
+          <?php
+          wp_set_current_user( 1 );
+          wp_get_abilities();
+          CUA_Ability_Bridge::register_external_bridges();
+          CUA_Ability_Bridge::prime_catalog_snapshot();
+          $targets = array( 'admin-mcp/get-browser-runtime', 'admin-mcp/install-browser-runtime' );
+          foreach ( $targets as $target ) {
+              $ability = wp_get_ability( $target );
+              if ( ! $ability instanceof WP_Ability ) {
+                  fwrite( STDERR, "missing target ability: {$target}\n" );
+                  exit( 1 );
+              }
+          }
+          $catalog = CUA_Ability_Bridge::catalog( array( 'cursor' => 0, 'limit' => 1000 ) );
+          if ( is_wp_error( $catalog ) ) {
+              fwrite( STDERR, $catalog->get_error_message() . "\n" );
+              exit( 1 );
+          }
+          $seen = array();
+          foreach ( (array) ( $catalog['items'] ?? array() ) as $item ) {
+              $seen[ (string) ( $item['target'] ?? '' ) ] = (string) ( $item['bridge'] ?? '' );
+          }
+          foreach ( $targets as $target ) {
+              if ( empty( $seen[ $target ] ) || ! preg_match( '#^admin-mcp/bridge-[a-f0-9]{24}$#', $seen[ $target ] ) ) {
+                  fwrite( STDERR, "missing gateway bridge: {$target}\n" );
+                  exit( 1 );
+              }
+          }
+          echo wp_json_encode( array( 'ok' => true, 'targets' => $targets, 'bridges' => array( $seen[$targets[0]], $seen[$targets[1]] ) ), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
+          PHP
+          php /tmp/wp-cli.phar eval-file /tmp/catalog-probe.php --path=/tmp/wordpress | tee /tmp/admin-mcp-1.2.60-catalog-probe.json
+
+      - name: Build verified plugin package
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f /tmp/admin-mcp-1.2.60.zip /tmp/admin-mcp-1.2.60.sha256
+          (cd site-plugins && zip -qr /tmp/admin-mcp-1.2.60.zip admin-mcp)
+          unzip -t /tmp/admin-mcp-1.2.60.zip >/dev/null
+          sha256sum /tmp/admin-mcp-1.2.60.zip | tee /tmp/admin-mcp-1.2.60.sha256
+
+      - name: Commit verified source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add site-plugins/admin-mcp/admin-mcp.php site-plugins/admin-mcp/includes/class-cua-ability-bridge.php
+          git diff --cached --check
+          git commit -m 'Expose ADMIN MCP managed browser runtime through gateway'
+          git push origin HEAD:main
+
+      - name: Upload verified package
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-mcp-1.2.60
+          path: |
+            /tmp/admin-mcp-1.2.60.zip
+            /tmp/admin-mcp-1.2.60.sha256
+            /tmp/admin-mcp-1.2.60-catalog-probe.json
+          if-no-files-found: error
+          retention-days: 30
