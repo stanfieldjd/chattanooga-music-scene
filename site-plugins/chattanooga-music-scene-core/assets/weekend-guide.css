@@ -16,6 +16,10 @@
 	border-bottom: 1px solid rgba(20, 47, 45, .35);
 }
 
+.cms-weekend-scene-feature + .cms-stories {
+	margin-top: 0;
+}
+
 .cms-weekend-feature-kicker {
 	grid-column: 1 / -1;
 	margin: 0 0 .5rem;
