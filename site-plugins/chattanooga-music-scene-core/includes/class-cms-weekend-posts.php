@@ -35,7 +35,6 @@ final class CMS_Weekend_Posts {
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_styles' ) );
 		add_action( 'update_option_' . self::OPTION_SETTINGS, array( $this, 'settings_updated' ), 10, 2 );
 		add_filter( 'the_content', array( $this, 'inject_scene_feature' ), 20 );
-		add_shortcode( 'cms_weekend_feature', array( $this, 'render_scene_feature' ) );
 	}
 
 	public function register_post_type() {
@@ -637,18 +636,13 @@ final class CMS_Weekend_Posts {
 			return $content;
 		}
 
-		if ( false !== strpos( $content, '[cms_weekend_feature]' ) || false !== strpos( $content, 'cms-weekend-scene-feature' ) ) {
+		if ( false !== strpos( $content, 'cms-weekend-scene-feature' ) ) {
 			return $content;
 		}
 
 		$feature = $this->render_scene_feature();
 		if ( '' === $feature ) {
 			return $content;
-		}
-
-		$current_pattern = '/<section\b[^>]*class="[^"]*\bcms-current\b[^"]*"[^>]*>.*?<\/section>/s';
-		if ( preg_match( $current_pattern, $content ) ) {
-			return preg_replace( $current_pattern, $feature, $content, 1 );
 		}
 
 		$hero_pattern = '/(<section\b[^>]*class="[^"]*\b(?:scene-art-hero|cms-hero)\b[^"]*"[^>]*>.*?<\/section>)/s';
@@ -774,4 +768,3 @@ final class CMS_Weekend_Posts {
 		<?php
 	}
 }
-
