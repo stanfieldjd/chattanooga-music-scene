@@ -40,7 +40,7 @@ foreach ( $required_plugins as $plugin_file ) {
 
 cms_site_plugins_assert( defined( 'CUA_VERSION' ) && '1.2.60' === CUA_VERSION, 'ADMIN MCP 1.2.60 did not load.' );
 cms_site_plugins_assert( defined( 'CMS_MARKETPLACE_VERSION' ) && '0.1.1' === CMS_MARKETPLACE_VERSION, 'Marketplace 0.1.1 did not load.' );
-cms_site_plugins_assert( defined( 'CMS_CORE_VERSION' ) && '0.2.11' === CMS_CORE_VERSION, 'Weekend Feature 0.2.11 did not load.' );
+cms_site_plugins_assert( defined( 'CMS_CORE_VERSION' ) && '0.2.12' === CMS_CORE_VERSION, 'Weekend Feature 0.2.12 did not load.' );
 cms_site_plugins_assert( class_exists( 'WC_Product_Simple' ), 'WooCommerce product API is unavailable.' );
 cms_site_plugins_assert( class_exists( 'EM_Events' ), 'Events Manager API is unavailable.' );
 
@@ -61,6 +61,21 @@ cms_site_plugins_assert( post_type_exists( CMS_Weekend_Posts::POST_TYPE ), 'Week
 $weekend_type = get_post_type_object( CMS_Weekend_Posts::POST_TYPE );
 cms_site_plugins_assert( $weekend_type && ! empty( $weekend_type->show_in_rest ), 'Weekend Feature post type is not REST-visible.' );
 cms_site_plugins_assert( shortcode_exists( 'cms_weekend_feature' ), 'Weekend Feature shortcode is unavailable.' );
+cms_site_plugins_assert(
+	false !== has_filter( 'the_content', array( CMS_Weekend_Posts::instance(), 'inject_scene_feature' ) ),
+	'Weekend Feature direct Scene injector is not registered.'
+);
+
+$weekend_css = file_get_contents( CMS_CORE_DIR . 'assets/weekend-guide.css' );
+cms_site_plugins_assert( false !== $weekend_css, 'Weekend Feature stylesheet could not be read.' );
+cms_site_plugins_assert(
+	false === strpos( $weekend_css, 'grid-template-columns: minmax(0, 1.15fr) minmax(18rem, .85fr)' ),
+	'Scene Weekend Feature still uses the retired standalone two-column grid treatment.'
+);
+cms_site_plugins_assert(
+	false !== strpos( $weekend_css, 'transform: rotate(-3deg)' ) && false !== strpos( $weekend_css, 'cms-weekend-scene-feature::before' ),
+	'Scene Weekend Feature editorial card treatment is missing.'
+);
 
 $scene_page = wp_insert_post(
 	array(
@@ -271,5 +286,5 @@ wp_set_current_user( 0 );
 cms_site_plugins_assert( false === $health->check_permissions( array() ), 'Anonymous ADMIN MCP access was not denied.' );
 wp_set_current_user( 1 );
 
-echo "cms-site-plugins-integration: PASS admin_mcp=1.2.60 marketplace=0.1.1 weekend_feature=0.2.11 wordpress_native_install=verified coexistence=verified marketplace_awp=verified marketplace_woocommerce=verified marketplace_search=verified marketplace_truncation=verified woocommerce_label=absent location_filter=preserved weekend_events_manager=verified weekend_schedule=verified admin_mcp_health=verified database=verified admin_boundary=verified\n";
+echo "cms-site-plugins-integration: PASS admin_mcp=1.2.60 marketplace=0.1.1 weekend_feature=0.2.12 wordpress_native_install=verified coexistence=verified marketplace_awp=verified marketplace_woocommerce=verified marketplace_search=verified marketplace_truncation=verified woocommerce_label=absent location_filter=preserved weekend_events_manager=verified weekend_schedule=verified direct_scene_injection=verified scene_editorial_style=verified admin_mcp_health=verified database=verified admin_boundary=verified\n";
 exit( 0 );

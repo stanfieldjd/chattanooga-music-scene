@@ -6,14 +6,35 @@
 	color: var(--cms-weekend-ink);
 }
 
+/*
+ * The Scene injects this block directly after its hero. Match the page's
+ * existing Featured Stories card language instead of introducing a separate
+ * grid treatment: paper card, tape, serif headline, compact editorial label,
+ * and the same rust underline used by story links.
+ */
 .cms-weekend-scene-feature {
-	display: grid;
-	grid-template-columns: minmax(0, 1.15fr) minmax(18rem, .85fr);
-	column-gap: clamp(2rem, 5vw, 5rem);
-	margin: clamp(2rem, 4vw, 3rem) 0;
-	padding: clamp(1.25rem, 3vw, 2rem) 0;
-	border-top: 3px solid #9f3320;
-	border-bottom: 1px solid rgba(20, 47, 45, .35);
+	position: relative;
+	display: block;
+	width: min(760px, calc(100% - clamp(56px, 14vw, 240px)));
+	margin: clamp(70px, 8vw, 110px) auto clamp(72px, 8vw, 115px);
+	padding: clamp(27px, 3vw, 48px);
+	background: rgba(247, 237, 216, .94);
+	border: 0;
+	box-shadow: 0 20px 38px rgba(76, 49, 20, .19);
+	color: #27251f;
+	transform: rotate(-3deg);
+}
+
+.cms-weekend-scene-feature::before {
+	content: "";
+	position: absolute;
+	z-index: 4;
+	top: -11px;
+	left: 39%;
+	width: 86px;
+	height: 23px;
+	background: rgba(190, 144, 61, .58);
+	transform: rotate(-5deg);
 }
 
 .cms-weekend-scene-feature + .cms-stories {
@@ -21,41 +42,39 @@
 }
 
 .cms-weekend-feature-kicker {
-	grid-column: 1 / -1;
-	margin: 0 0 .5rem;
-	color: #9f3320;
-	font-size: .82rem;
-	font-weight: 900;
-	letter-spacing: .14em;
+	display: block;
+	margin: 0 0 27px;
+	color: #98342b;
+	font: 800 12px/1.2 Arial, sans-serif;
+	letter-spacing: .18em;
 	text-transform: uppercase;
 }
 
 .cms-weekend-scene-feature h2 {
-	grid-row: span 2;
-	max-width: 21ch;
-	margin: 0;
-	font: 800 clamp(1.65rem, 3.4vw, 2.5rem)/1.08 Georgia, serif;
+	max-width: none;
+	margin: 0 0 20px;
+	font: 500 clamp(28px, 2.7vw, 47px)/1.03 Georgia, "Times New Roman", serif;
 }
 
 .cms-weekend-scene-feature h2 a {
-	color: #142f2d;
+	color: inherit;
 	text-decoration: none;
 }
 
 .cms-weekend-feature-deck {
-	max-width: 45ch;
-	margin: 0 0 .75rem;
-	font-size: 1.05rem;
-	line-height: 1.6;
+	max-width: 42em;
+	margin: 0 0 24px;
+	font-size: clamp(16px, 1.1vw, 19px);
+	line-height: 1.56;
 }
 
 .cms-weekend-feature-link {
-	align-self: start;
-	color: #9f3320;
-	font-size: 1rem;
-	font-weight: 800;
+	color: inherit;
+	font-size: clamp(16px, 1.1vw, 19px);
+	font-weight: 400;
+	text-decoration-color: #98342b;
 	text-decoration-thickness: 2px;
-	text-underline-offset: .2em;
+	text-underline-offset: 6px;
 }
 
 .cms-weekend-introduction {
@@ -83,11 +102,9 @@
 
 @media (max-width: 760px) {
 	.cms-weekend-scene-feature {
-		display: block;
-	}
-
-	.cms-weekend-scene-feature h2 {
-		margin-bottom: .65rem;
+		width: calc(100% - 52px);
+		margin: 58px auto 70px;
+		transform: rotate(-1.5deg);
 	}
 }
 
