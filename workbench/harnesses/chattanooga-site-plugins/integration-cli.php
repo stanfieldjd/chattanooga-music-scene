@@ -131,7 +131,9 @@ cms_site_plugins_assert( false === strpos( $scene_feature_html, 'cms-weekend-day
 $scene_page = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Scene', 'post_name' => 'scene', 'post_content' => '<section class="cms-stories"><div class="cms-story-field"><article class="cms-story">One</article><article class="cms-story">Two</article><article class="cms-story">Three</article></div></section>' ), true );
 cms_site_plugins_assert( ! is_wp_error( $scene_page ), 'Could not create disposable Scene collage fixture.' );
 $prior_wp_query = isset( $GLOBALS['wp_query'] ) ? $GLOBALS['wp_query'] : null;
+$prior_wp_the_query = isset( $GLOBALS['wp_the_query'] ) ? $GLOBALS['wp_the_query'] : null;
 $GLOBALS['wp_query'] = new WP_Query( array( 'page_id' => $scene_page, 'post_type' => 'page' ) );
+$GLOBALS['wp_the_query'] = $GLOBALS['wp_query'];
 $GLOBALS['wp_query']->in_the_loop = true;
 $scene_source = get_post_field( 'post_content', $scene_page );
 $scene_output = $weekend->inject_scene_feature( $scene_source );
@@ -143,6 +145,11 @@ if ( null !== $prior_wp_query ) {
 	$GLOBALS['wp_query'] = $prior_wp_query;
 } else {
 	unset( $GLOBALS['wp_query'] );
+}
+if ( null !== $prior_wp_the_query ) {
+	$GLOBALS['wp_the_query'] = $prior_wp_the_query;
+} else {
+	unset( $GLOBALS['wp_the_query'] );
 }
 wp_delete_post( $scene_page, true );
 wp_delete_post( $scene_feature_id, true );
