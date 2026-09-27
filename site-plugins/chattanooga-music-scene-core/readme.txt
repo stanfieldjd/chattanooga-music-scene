@@ -3,7 +3,7 @@ Contributors: chattanoogamusicscene
 Tags: events, weekend, publishing
 Requires at least: 6.4
 Requires PHP: 7.4
-Stable tag: 0.2.7
+Stable tag: 0.2.11
 License: GPLv2 or later
 
 Site-specific publishing tools for Chattanooga Music Scene.
@@ -12,7 +12,8 @@ Site-specific publishing tools for Chattanooga Music Scene.
 
 The Weekend Posts tool reads published Events Manager events occurring Friday
 through Sunday and generates a dedicated Weekend Feature. It stays out of the
-ordinary post feed and appears on The Scene through [cms_weekend_feature]. Each
+ordinary post feed and appears on The Scene through direct placement after the
+hero. The [cms_weekend_feature] shortcode remains available for manual use. Each
 event title, image, and details link points to the event's page on Chattanooga
 Music Scene.
 
@@ -42,4 +43,3 @@ Open Tools > Weekend Posts to:
 * A draft is updated in place when regenerated.
 * Empty weekends do not create empty posts.
 * Only published Events Manager events are included.
-

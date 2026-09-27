@@ -35,6 +35,7 @@ final class CMS_Weekend_Posts {
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_styles' ) );
 		add_action( 'update_option_' . self::OPTION_SETTINGS, array( $this, 'settings_updated' ), 10, 2 );
 		add_filter( 'the_content', array( $this, 'inject_scene_feature' ), 20 );
+		add_shortcode( 'cms_weekend_feature', array( $this, 'render_scene_feature' ) );
 	}
 
 	public function register_post_type() {
