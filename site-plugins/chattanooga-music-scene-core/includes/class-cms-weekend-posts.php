@@ -587,7 +587,7 @@ final class CMS_Weekend_Posts {
 		wp_enqueue_style( 'cms-weekend-guide', CMS_CORE_URL . 'assets/weekend-guide.css', array(), CMS_CORE_VERSION );
 	}
 
-	public function render_scene_feature() {
+	public function render_scene_feature( $scene_content = '' ) {
 		$window  = $this->weekend_window();
 		$post_id = $this->find_existing_post( $window['key'] );
 		$preview = current_user_can( 'publish_posts' ) && isset( $_GET['cms_weekend_preview'] ) && '1' === sanitize_text_field( wp_unslash( $_GET['cms_weekend_preview'] ) );
@@ -605,38 +605,21 @@ final class CMS_Weekend_Posts {
 			$excerpt = __( 'Find live music happening across Chattanooga this weekend.', 'chattanooga-music-scene-core' );
 		}
 
+		$image = get_the_post_thumbnail_url( $post_id, 'large' );
+		if ( ! $image && preg_match( '/<figure class="cms-art-piece cms-art-history"[^>]*>\s*<img[^>]+(?:data-src|src)="([^"]+)"/', $scene_content, $matches ) ) {
+			$image = $matches[1];
+		}
+
 		return sprintf(
-			'<section class="cms-weekend-scene-feature" aria-labelledby="cms-weekend-feature-title"><p class="cms-weekend-feature-kicker">%1$s</p><h2 id="cms-weekend-feature-title"><a href="%2$s">%3$s</a></h2><p class="cms-weekend-feature-deck">%4$s</p><a class="cms-weekend-feature-link" href="%2$s">%5$s <span aria-hidden="true">→</span></a></section>',
+			'<section class="cms-weekend-scene-feature" aria-labelledby="cms-weekend-feature-title"><div class="cms-weekend-heading"><p class="cms-weekend-feature-kicker">%1$s</p><h2 id="cms-weekend-feature-title">%2$s</h2><p>%3$s</p></div><div class="cms-weekend-feature-frame"><div class="cms-weekend-feature-art"%4$s></div><article class="cms-weekend-feature-paper"><p class="cms-weekend-feature-kicker">%1$s</p><h3><a href="%5$s">%6$s</a></h3><p class="cms-weekend-feature-deck">%7$s</p><a class="cms-weekend-feature-link" href="%5$s">%8$s <span aria-hidden="true">→</span></a></article></div></section>',
 			esc_html__( 'Weekend Feature', 'chattanooga-music-scene-core' ),
+			esc_html__( 'This weekend in Chattanooga', 'chattanooga-music-scene-core' ),
+			esc_html__( 'A guide to live music, rooms, and voices around the city.', 'chattanooga-music-scene-core' ),
+			$image ? ' style="background-image:url(' . esc_url( $image ) . ')"' : '',
 			esc_url( $url ),
 			esc_html( get_the_title( $post_id ) ),
 			esc_html( $excerpt ),
-			esc_html__( 'Read the full weekend guide', 'chattanooga-music-scene-core' )
-		);
-	}
-
-	private function render_scene_story_card() {
-		$window  = $this->weekend_window();
-		$post_id = $this->find_existing_post( $window['key'] );
-		$preview = current_user_can( 'publish_posts' ) && isset( $_GET['cms_weekend_preview'] ) && '1' === sanitize_text_field( wp_unslash( $_GET['cms_weekend_preview'] ) );
-
-		if ( ! $post_id || ( 'publish' !== get_post_status( $post_id ) && ! $preview ) ) {
-			return '';
-		}
-
-		wp_enqueue_style( 'cms-weekend-guide', CMS_CORE_URL . 'assets/weekend-guide.css', array(), CMS_CORE_VERSION );
-		$excerpt = get_the_excerpt( $post_id );
-		if ( '' === trim( $excerpt ) ) {
-			$excerpt = __( 'Find live music happening across Chattanooga this weekend.', 'chattanooga-music-scene-core' );
-		}
-
-		return sprintf(
-			'<article class="cms-story cms-weekend-story"><span class="number">%1$s</span><h3><a href="%2$s">%3$s</a></h3><p>%4$s</p><a href="%2$s">%5$s</a></article>',
-			esc_html__( 'Weekend Feature · 04', 'chattanooga-music-scene-core' ),
-			esc_url( get_permalink( $post_id ) ),
-			esc_html( get_the_title( $post_id ) ),
-			esc_html( $excerpt ),
-			esc_html__( 'Read the full weekend guide', 'chattanooga-music-scene-core' )
+			esc_html__( 'Read the weekend guide', 'chattanooga-music-scene-core' )
 		);
 	}
 
@@ -662,28 +645,17 @@ final class CMS_Weekend_Posts {
 			return $content;
 		}
 
-		if ( false !== strpos( $content, 'cms-weekend-story' ) || false !== strpos( $content, 'cms-weekend-scene-feature' ) ) {
+		if ( false !== strpos( $content, 'cms-weekend-scene-feature' ) ) {
 			return $content;
 		}
 
-		$feature = $this->render_scene_story_card();
+		$feature = $this->render_scene_feature( $content );
 		if ( '' === $feature ) {
 			return $content;
 		}
-
-		$field = '<div class="cms-story-field">';
-		$start = strpos( $content, $field );
-		if ( false === $start ) {
-			return $content;
-		}
-		$end = strpos( $content, '</div>', $start + strlen( $field ) );
-		if ( false === $end ) {
-			return $content;
-		}
-
-		$content = substr_replace( $content, $feature, $end, 0 );
-		$content = substr_replace( $content, '<div class="cms-story-field cms-story-field--weekend">', $start, strlen( $field ) );
-		return str_replace( '<section class="cms-stories"', '<section class="cms-stories cms-stories--weekend"', $content );
+		$stories = '<section class="cms-stories"';
+		$start = strpos( $content, $stories );
+		return false === $start ? $content : substr_replace( $content, $feature . "\n", $start, 0 );
 	}
 
 	public function render_admin_page() {
