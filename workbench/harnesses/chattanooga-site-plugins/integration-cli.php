@@ -69,8 +69,9 @@ $weekend_css = file_get_contents( CMS_CORE_DIR . 'assets/weekend-guide.css' );
 cms_site_plugins_assert( false !== $weekend_css, 'Weekend Feature stylesheet could not be read.' );
 cms_site_plugins_assert(
 	false !== strpos( $weekend_css, '.cms-weekend-scene-panel' )
-	&& false !== strpos( $weekend_css, 'grid-template-columns: repeat(2, minmax(0, 1fr));' ),
-	'Weekend event collage columns are missing.'
+	&& false !== strpos( $weekend_css, 'flex-direction: column;' )
+	&& false === strpos( $weekend_css, 'grid-template-columns: repeat(2, minmax(0, 1fr));' ),
+	'Weekend event collage layout is missing or still uses paired rows.'
 );
 cms_site_plugins_assert(
 	false !== strpos( $weekend_css, '.cms-weekend-scene-event:nth-child(3n)' )
