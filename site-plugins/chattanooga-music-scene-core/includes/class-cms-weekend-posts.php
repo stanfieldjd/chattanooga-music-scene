@@ -553,28 +553,50 @@ final class CMS_Weekend_Posts {
 		$title     = $has_guide ? get_the_title( $post_id ) : __( 'The next weekend guide is on its way', 'chattanooga-music-scene-core' );
 		$excerpt   = $has_guide ? get_the_excerpt( $post_id ) : __( 'Explore upcoming shows while the next weekend edition is being prepared.', 'chattanooga-music-scene-core' );
 		$link_text = $has_guide ? __( 'Read the weekend guide', 'chattanooga-music-scene-core' ) : __( 'Explore upcoming shows', 'chattanooga-music-scene-core' );
-		$image_url = $has_guide ? get_the_post_thumbnail_url( $post_id, 'large' ) : false;
 
 		if ( '' === trim( $excerpt ) ) {
 			$excerpt = __( 'Find live music happening across Chattanooga this weekend.', 'chattanooga-music-scene-core' );
 		}
 
-		if ( ! $image_url ) {
-			$uploads   = wp_upload_dir();
-			$image_url = trailingslashit( $uploads['baseurl'] ) . '2026/08/chattanooga-scene-editorial.jpg';
-		}
+		$events = $this->get_events( $window );
+		$events = is_wp_error( $events ) ? array() : $this->feature_events( $events, $window );
 
-		return sprintf(
-			'<section class="cms-weekend-scene-feature" aria-labelledby="cms-weekend-scene-heading"><header class="cms-weekend-scene-intro"><p class="cms-weekend-feature-kicker">%1$s</p><h2 id="cms-weekend-scene-heading">%2$s</h2><p class="cms-weekend-scene-deck">%3$s</p></header><div class="cms-weekend-scene-panel"><figure class="cms-weekend-scene-image"><img src="%4$s" alt="" loading="lazy"></figure><article class="cms-weekend-scene-card"><p class="cms-weekend-feature-kicker">%1$s</p><h3 id="cms-weekend-feature-title"><a href="%5$s">%6$s</a></h3><p class="cms-weekend-feature-deck">%7$s</p><a class="cms-weekend-feature-link" href="%5$s">%8$s <span aria-hidden="true">→</span></a></article></div></section>',
-			esc_html__( 'Weekend Feature', 'chattanooga-music-scene-core' ),
-			esc_html__( 'This weekend in Chattanooga', 'chattanooga-music-scene-core' ),
-			esc_html__( 'A guide to live music, rooms, and voices around the city.', 'chattanooga-music-scene-core' ),
-			esc_url( $image_url ),
-			esc_url( $url ),
-			esc_html( $title ),
-			esc_html( $excerpt ),
-			esc_html( $link_text )
-		);
+		ob_start();
+		?>
+		<section class="cms-weekend-scene-feature" aria-labelledby="cms-weekend-scene-heading">
+			<header class="cms-weekend-scene-intro">
+				<h2 id="cms-weekend-scene-heading"><?php esc_html_e( 'This weekend in Chattanooga', 'chattanooga-music-scene-core' ); ?></h2>
+			</header>
+			<div class="cms-weekend-scene-panel">
+				<article class="cms-weekend-scene-card">
+					<h3><a href="<?php echo esc_url( $url ); ?>"><?php echo esc_html( $title ); ?></a></h3>
+					<p class="cms-weekend-feature-deck"><?php echo esc_html( $excerpt ); ?></p>
+					<a class="cms-weekend-feature-link" href="<?php echo esc_url( $url ); ?>"><?php echo esc_html( $link_text ); ?> <span aria-hidden="true">→</span></a>
+				</article>
+				<?php foreach ( $events as $event ) : ?>
+					<?php
+					$start    = $this->event_start( $event );
+					$event_url = $this->event_url( $event );
+					if ( ! $start || ! $event_url ) {
+						continue;
+					}
+					$name     = ! empty( $event->event_name ) ? $event->event_name : $this->event_value( $event, '#_EVENTNAME', __( 'Live music', 'chattanooga-music-scene-core' ) );
+					$location = $this->event_value( $event, '#_LOCATIONNAME' );
+					$image    = ! empty( $event->post_id ) ? get_the_post_thumbnail_url( absint( $event->post_id ), 'medium_large' ) : false;
+					?>
+					<article class="cms-weekend-scene-event">
+						<?php if ( $image ) : ?><a class="cms-weekend-scene-event-image" href="<?php echo esc_url( $event_url ); ?>" tabindex="-1" aria-hidden="true"><img src="<?php echo esc_url( $image ); ?>" alt="" loading="lazy"></a><?php endif; ?>
+						<div class="cms-weekend-scene-event-copy">
+							<p class="cms-weekend-scene-event-time"><?php echo esc_html( wp_date( 'D, M j · g:i a', $start->getTimestamp(), wp_timezone() ) ); ?></p>
+							<h3><a href="<?php echo esc_url( $event_url ); ?>"><?php echo esc_html( $name ); ?></a></h3>
+							<?php if ( $location ) : ?><p class="cms-weekend-scene-event-location"><?php echo esc_html( $location ); ?></p><?php endif; ?>
+						</div>
+					</article>
+				<?php endforeach; ?>
+			</div>
+		</section>
+		<?php
+		return trim( ob_get_clean() );
 	}
 
 	public function render_admin_page() {
