@@ -40,7 +40,7 @@ foreach ( $required_plugins as $plugin_file ) {
 
 cms_site_plugins_assert( defined( 'CUA_VERSION' ) && '1.2.60' === CUA_VERSION, 'ADMIN MCP 1.2.60 did not load.' );
 cms_site_plugins_assert( defined( 'CMS_MARKETPLACE_VERSION' ) && '0.1.1' === CMS_MARKETPLACE_VERSION, 'Marketplace 0.1.1 did not load.' );
-cms_site_plugins_assert( defined( 'CMS_CORE_VERSION' ) && '0.2.16' === CMS_CORE_VERSION, 'Weekend Feature 0.2.16 did not load.' );
+cms_site_plugins_assert( defined( 'CMS_CORE_VERSION' ) && '0.2.17' === CMS_CORE_VERSION, 'Weekend Feature 0.2.17 did not load.' );
 cms_site_plugins_assert( class_exists( 'WC_Product_Simple' ), 'WooCommerce product API is unavailable.' );
 cms_site_plugins_assert( class_exists( 'EM_Events' ), 'Events Manager API is unavailable.' );
 
@@ -118,6 +118,11 @@ cms_site_plugins_assert( false !== strpos( $scene_feature_html, 'Read the weeken
 cms_site_plugins_assert( false === strpos( $scene_feature_html, 'cms-weekend-day' ) && false === strpos( $scene_feature_html, 'cms-weekend-event' ), 'Scene Weekend Feature rendered the full event schedule.' );
 cms_site_plugins_assert( false === strpos( $scene_feature_html, 'cms-weekend-story' ), 'Scene Weekend Feature rendered the retired fourth-card markup.' );
 wp_delete_post( $scene_feature_id, true );
+$between_editions_html = do_shortcode( '[cms_weekend_feature]' );
+cms_site_plugins_assert( false !== strpos( $between_editions_html, 'cms-weekend-scene-panel' ), 'Mockup B vanished between published weekend editions.' );
+cms_site_plugins_assert( false !== strpos( $between_editions_html, 'The next weekend guide is on its way' ), 'The unpublished guide state is missing.' );
+cms_site_plugins_assert( false !== strpos( $between_editions_html, 'Explore upcoming shows' ), 'The fallback action is missing.' );
+cms_site_plugins_assert( false === strpos( $between_editions_html, 'Scene Feature Regression Title' ), 'An expired guide remained visible.' );
 
 $weekend->register_settings();
 $registered_settings = get_registered_settings();
@@ -264,5 +269,5 @@ wp_set_current_user( 0 );
 cms_site_plugins_assert( false === $health->check_permissions( array() ), 'Anonymous ADMIN MCP access was not denied.' );
 wp_set_current_user( 1 );
 
-echo "cms-site-plugins-integration: PASS admin_mcp=1.2.60 marketplace=0.1.1 weekend_feature=0.2.16 wordpress_native_install=verified coexistence=verified marketplace_awp=verified marketplace_woocommerce=verified marketplace_search=verified marketplace_truncation=verified woocommerce_label=absent location_filter=preserved weekend_events_manager=verified weekend_schedule=verified direct_scene_injection=absent shortcode_scene_placement=verified mockup_b_editorial_style=verified admin_mcp_health=verified database=verified admin_boundary=verified\n";
+echo "cms-site-plugins-integration: PASS admin_mcp=1.2.60 marketplace=0.1.1 weekend_feature=0.2.17 wordpress_native_install=verified coexistence=verified marketplace_awp=verified marketplace_woocommerce=verified marketplace_search=verified marketplace_truncation=verified woocommerce_label=absent location_filter=preserved weekend_events_manager=verified weekend_schedule=verified direct_scene_injection=absent shortcode_scene_placement=verified mockup_b_editorial_style=verified admin_mcp_health=verified database=verified admin_boundary=verified\n";
 exit( 0 );

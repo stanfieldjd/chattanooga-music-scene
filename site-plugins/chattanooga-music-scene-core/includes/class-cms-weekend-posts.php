@@ -545,15 +545,15 @@ final class CMS_Weekend_Posts {
 		$post_id = $this->find_existing_post( $window['key'] );
 		$preview = current_user_can( 'publish_posts' ) && isset( $_GET['cms_weekend_preview'] ) && '1' === sanitize_text_field( wp_unslash( $_GET['cms_weekend_preview'] ) );
 
-		if ( ! $post_id || ( 'publish' !== get_post_status( $post_id ) && ! $preview ) ) {
-			return '';
-		}
+		$has_guide = $post_id && ( 'publish' === get_post_status( $post_id ) || $preview );
 
 		wp_enqueue_style( 'cms-weekend-guide', CMS_CORE_URL . 'assets/weekend-guide.css', array(), CMS_CORE_VERSION );
 
-		$url       = get_permalink( $post_id );
-		$excerpt   = get_the_excerpt( $post_id );
-		$image_url = get_the_post_thumbnail_url( $post_id, 'large' );
+		$url       = $has_guide ? get_permalink( $post_id ) : home_url( '/events/' );
+		$title     = $has_guide ? get_the_title( $post_id ) : __( 'The next weekend guide is on its way', 'chattanooga-music-scene-core' );
+		$excerpt   = $has_guide ? get_the_excerpt( $post_id ) : __( 'Explore upcoming shows while the next weekend edition is being prepared.', 'chattanooga-music-scene-core' );
+		$link_text = $has_guide ? __( 'Read the weekend guide', 'chattanooga-music-scene-core' ) : __( 'Explore upcoming shows', 'chattanooga-music-scene-core' );
+		$image_url = $has_guide ? get_the_post_thumbnail_url( $post_id, 'large' ) : false;
 
 		if ( '' === trim( $excerpt ) ) {
 			$excerpt = __( 'Find live music happening across Chattanooga this weekend.', 'chattanooga-music-scene-core' );
@@ -571,9 +571,9 @@ final class CMS_Weekend_Posts {
 			esc_html__( 'A guide to live music, rooms, and voices around the city.', 'chattanooga-music-scene-core' ),
 			esc_url( $image_url ),
 			esc_url( $url ),
-			esc_html( get_the_title( $post_id ) ),
+			esc_html( $title ),
 			esc_html( $excerpt ),
-			esc_html__( 'Read the weekend guide', 'chattanooga-music-scene-core' )
+			esc_html( $link_text )
 		);
 	}
 
