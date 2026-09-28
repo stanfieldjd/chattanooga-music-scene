@@ -3,7 +3,7 @@ Contributors: chattanoogamusicscene
 Tags: events, weekend, publishing
 Requires at least: 6.4
 Requires PHP: 7.4
-Stable tag: 0.2.16
+Stable tag: 0.2.17
 License: GPLv2 or later
 
 Site-specific publishing tools for Chattanooga Music Scene.
@@ -21,6 +21,9 @@ The plugin does not inject or rewrite page content through the_content. The
 Scene presentation uses an editorial image-and-paper-card treatment designed to
 match the page's collage language while remaining separate from Featured
 Stories.
+Between published editions, the same section remains visible with an upcoming
+guide message and a link to the Shows calendar. It never links to an expired
+guide as though that guide were current.
 
 Each event title, image, and details link in the full Weekend Feature points to
 the event's page on Chattanooga Music Scene.
