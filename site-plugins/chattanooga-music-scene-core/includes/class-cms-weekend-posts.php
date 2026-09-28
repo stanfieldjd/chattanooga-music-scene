@@ -549,31 +549,23 @@ final class CMS_Weekend_Posts {
 
 		wp_enqueue_style( 'cms-weekend-guide', CMS_CORE_URL . 'assets/weekend-guide.css', array(), CMS_CORE_VERSION );
 
-		$url       = $has_guide ? get_permalink( $post_id ) : home_url( '/events/' );
-		$title     = $has_guide ? get_the_title( $post_id ) : __( 'The next weekend guide is on its way', 'chattanooga-music-scene-core' );
-		$excerpt   = $has_guide ? get_the_excerpt( $post_id ) : __( 'Explore upcoming shows while the next weekend edition is being prepared.', 'chattanooga-music-scene-core' );
-		$link_text = $has_guide ? __( 'Read the weekend guide', 'chattanooga-music-scene-core' ) : __( 'Explore upcoming shows', 'chattanooga-music-scene-core' );
-
-		if ( '' === trim( $excerpt ) ) {
-			$excerpt = __( 'Find live music happening across Chattanooga this weekend.', 'chattanooga-music-scene-core' );
-		}
-
-		$events = $this->get_events( $window );
+		$events = $has_guide ? $this->get_events( $window ) : array();
 		$events = is_wp_error( $events ) ? array() : $this->feature_events( $events, $window );
 
 		ob_start();
 		?>
-		<section class="cms-weekend-scene-feature" aria-labelledby="cms-weekend-scene-heading">
-			<header class="cms-weekend-scene-intro">
-				<h2 id="cms-weekend-scene-heading"><?php esc_html_e( 'This weekend in Chattanooga', 'chattanooga-music-scene-core' ); ?></h2>
-			</header>
-			<div class="cms-weekend-scene-panel">
-				<article class="cms-weekend-scene-card">
-					<h3><a href="<?php echo esc_url( $url ); ?>"><?php echo esc_html( $title ); ?></a></h3>
-					<p class="cms-weekend-feature-deck"><?php echo esc_html( $excerpt ); ?></p>
-					<a class="cms-weekend-feature-link" href="<?php echo esc_url( $url ); ?>"><?php echo esc_html( $link_text ); ?> <span aria-hidden="true">→</span></a>
+		<section class="cms-weekend-scene-feature" aria-label="<?php esc_attr_e( 'Weekend Feature', 'chattanooga-music-scene-core' ); ?>">
+			<?php if ( ! $has_guide ) : ?>
+				<article class="cms-weekend-scene-teaser">
+					<h2><?php esc_html_e( 'The next weekend guide is on its way', 'chattanooga-music-scene-core' ); ?></h2>
+					<p><?php esc_html_e( 'Explore upcoming shows while the next weekend edition is being prepared.', 'chattanooga-music-scene-core' ); ?></p>
+					<a href="<?php echo esc_url( home_url( '/events/' ) ); ?>"><?php esc_html_e( 'Explore upcoming shows', 'chattanooga-music-scene-core' ); ?> <span aria-hidden="true">→</span></a>
 				</article>
-				<?php foreach ( $events as $event ) : ?>
+			<?php else : ?>
+				<a class="cms-weekend-scene-guide-link" href="<?php echo esc_url( get_permalink( $post_id ) ); ?>"><?php esc_html_e( 'Read the full weekend guide', 'chattanooga-music-scene-core' ); ?> <span aria-hidden="true">→</span></a>
+				<?php if ( $events ) : ?>
+					<div class="cms-weekend-scene-panel">
+					<?php foreach ( $events as $event ) : ?>
 					<?php
 					$start    = $this->event_start( $event );
 					$event_url = $this->event_url( $event );
@@ -592,8 +584,10 @@ final class CMS_Weekend_Posts {
 							<?php if ( $location ) : ?><p class="cms-weekend-scene-event-location"><?php echo esc_html( $location ); ?></p><?php endif; ?>
 						</div>
 					</article>
-				<?php endforeach; ?>
-			</div>
+					<?php endforeach; ?>
+					</div>
+				<?php endif; ?>
+			<?php endif; ?>
 		</section>
 		<?php
 		return trim( ob_get_clean() );
