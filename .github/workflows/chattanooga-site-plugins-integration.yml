@@ -62,7 +62,7 @@ jobs:
           grep -Fq 'Plugin Name: ADMIN MCP' site-plugins/admin-mcp/admin-mcp.php
           grep -Fq 'Version: 1.2.60' site-plugins/admin-mcp/admin-mcp.php
           grep -Fq 'Version: 0.1.1' site-plugins/chattanooga-music-marketplace/chattanooga-music-marketplace.php
-          grep -Fq 'Version: 0.2.15' site-plugins/chattanooga-music-scene-core/chattanooga-music-scene-core.php
+          grep -Fq 'Version: 0.2.16' site-plugins/chattanooga-music-scene-core/chattanooga-music-scene-core.php
 
       - name: Run Marketplace source regression test
         run: php site-plugins/chattanooga-music-marketplace/tests/test-marketplace.php
@@ -79,7 +79,7 @@ jobs:
           rm -rf /tmp/cms-plugin-build/chattanooga-music-marketplace/tests
           (cd /tmp/cms-plugin-build && zip -qr /tmp/cms-plugin-packages/admin-mcp-1.2.60.zip admin-mcp)
           (cd /tmp/cms-plugin-build && zip -qr /tmp/cms-plugin-packages/chattanooga-music-marketplace-0.1.1.zip chattanooga-music-marketplace)
-          (cd /tmp/cms-plugin-build && zip -qr /tmp/cms-plugin-packages/chattanooga-music-scene-core-0.2.15.zip chattanooga-music-scene-core)
+          (cd /tmp/cms-plugin-build && zip -qr /tmp/cms-plugin-packages/chattanooga-music-scene-core-0.2.16.zip chattanooga-music-scene-core)
 
           cat > /tmp/cms-old-build/admin-mcp/admin-mcp.php <<'PHP'
           <?php
@@ -100,7 +100,7 @@ jobs:
 
           unzip -l /tmp/cms-plugin-packages/admin-mcp-1.2.60.zip | grep -Fq 'admin-mcp/admin-mcp.php'
           unzip -l /tmp/cms-plugin-packages/chattanooga-music-marketplace-0.1.1.zip | grep -Fq 'chattanooga-music-marketplace/chattanooga-music-marketplace.php'
-          unzip -l /tmp/cms-plugin-packages/chattanooga-music-scene-core-0.2.15.zip | grep -Fq 'chattanooga-music-scene-core/chattanooga-music-scene-core.php'
+          unzip -l /tmp/cms-plugin-packages/chattanooga-music-scene-core-0.2.16.zip | grep -Fq 'chattanooga-music-scene-core/chattanooga-music-scene-core.php'
           if unzip -l /tmp/cms-plugin-packages/chattanooga-music-marketplace-0.1.1.zip | grep -Fq 'chattanooga-music-marketplace/tests/'; then
             echo 'Marketplace installable package must not contain engineering tests.' >&2
             exit 1
@@ -141,11 +141,11 @@ jobs:
         run: |
           set -euo pipefail
           php /tmp/wp-cli.phar plugin install /tmp/cms-plugin-packages/admin-mcp-1.2.60.zip --force --path=/tmp/wordpress
-          php /tmp/wp-cli.phar plugin install /tmp/cms-plugin-packages/chattanooga-music-scene-core-0.2.15.zip --force --path=/tmp/wordpress
+          php /tmp/wp-cli.phar plugin install /tmp/cms-plugin-packages/chattanooga-music-scene-core-0.2.16.zip --force --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin install /tmp/cms-plugin-packages/chattanooga-music-marketplace-0.1.1.zip --activate --path=/tmp/wordpress
 
           test "$(php /tmp/wp-cli.phar plugin get admin-mcp --field=version --path=/tmp/wordpress)" = "1.2.60"
-          test "$(php /tmp/wp-cli.phar plugin get chattanooga-music-scene-core --field=version --path=/tmp/wordpress)" = "0.2.15"
+          test "$(php /tmp/wp-cli.phar plugin get chattanooga-music-scene-core --field=version --path=/tmp/wordpress)" = "0.2.16"
           test "$(php /tmp/wp-cli.phar plugin get chattanooga-music-marketplace --field=version --path=/tmp/wordpress)" = "0.1.1"
           php /tmp/wp-cli.phar plugin is-active admin-mcp --path=/tmp/wordpress
           php /tmp/wp-cli.phar plugin is-active chattanooga-music-scene-core --path=/tmp/wordpress
@@ -173,8 +173,7 @@ jobs:
       - name: Upload installable Weekend Feature package
         uses: actions/upload-artifact@v4
         with:
-          name: chattanooga-music-scene-core-0.2.15
-          path: /tmp/cms-plugin-packages/chattanooga-music-scene-core-0.2.15.zip
+          name: chattanooga-music-scene-core-0.2.16
+          path: /tmp/cms-plugin-packages/chattanooga-music-scene-core-0.2.16.zip
           if-no-files-found: error
           retention-days: 30
-
