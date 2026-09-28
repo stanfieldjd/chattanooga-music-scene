@@ -34,7 +34,6 @@ final class CMS_Weekend_Posts {
 		add_action( 'admin_post_cms_weekend_action', array( $this, 'handle_admin_action' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_styles' ) );
 		add_action( 'update_option_' . self::OPTION_SETTINGS, array( $this, 'settings_updated' ), 10, 2 );
-		add_filter( 'the_content', array( $this, 'inject_scene_feature' ), 20 );
 		add_shortcode( 'cms_weekend_feature', array( $this, 'render_scene_feature' ) );
 	}
 
@@ -355,34 +354,6 @@ final class CMS_Weekend_Posts {
 		return trim( ob_get_clean() );
 	}
 
-	private function live_weekend_content( array $window ) {
-		$events = $this->get_events( $window );
-		if ( is_wp_error( $events ) ) {
-			return $events;
-		}
-
-		return $this->build_post_content( $events, $window );
-	}
-
-	private function scene_glimpse_events( array $events, array $window ) {
-		$days = array();
-
-		foreach ( $events as $event ) {
-			$start = $this->event_start( $event );
-			if ( ! $start || $start < $window['start'] || $start > $window['end'] ) {
-				continue;
-			}
-
-			$day = $start->format( 'Y-m-d' );
-			if ( ! isset( $days[ $day ] ) ) {
-				$days[ $day ] = $event;
-			}
-		}
-
-		ksort( $days, SORT_STRING );
-		return array_slice( array_values( $days ), 0, 3 );
-	}
-
 	private function feature_events( array $events, array $window ) {
 		$anchors   = array();
 		$remaining = array();
@@ -426,34 +397,6 @@ final class CMS_Weekend_Posts {
 		return array_slice( $selected, 0, 5 );
 	}
 
-	private function feature_content( array $window ) {
-		$events = $this->get_events( $window );
-		if ( is_wp_error( $events ) ) {
-			return $events;
-		}
-
-		$selected = $this->feature_events( $events, $window );
-		if ( empty( $selected ) ) {
-			return '';
-		}
-
-		return $this->build_post_content( $selected, $window );
-	}
-
-	private function scene_glimpse_content( array $window ) {
-		$events = $this->get_events( $window );
-		if ( is_wp_error( $events ) ) {
-			return $events;
-		}
-
-		$glimpse = $this->scene_glimpse_events( $events, $window );
-		if ( empty( $glimpse ) ) {
-			return '';
-		}
-
-		return $this->build_post_content( $glimpse, $window );
-	}
-
 	private function post_title( array $window ) {
 		$start = $window['start'];
 		$end   = $window['end'];
@@ -495,6 +438,11 @@ final class CMS_Weekend_Posts {
 			return new WP_Error( 'cms_weekend_no_events', __( 'No published events were found for the coming weekend. Nothing was created.', 'chattanooga-music-scene-core' ) );
 		}
 
+		$selected = $this->feature_events( $events, $window );
+		if ( empty( $selected ) ) {
+			return new WP_Error( 'cms_weekend_no_feature_events', __( 'No eligible weekend highlights were found. Nothing was created.', 'chattanooga-music-scene-core' ) );
+		}
+
 		$post_id = $this->find_existing_post( $window['key'] );
 		if ( $post_id && 'publish' === get_post_status( $post_id ) ) {
 			return new WP_Error( 'cms_weekend_already_published', __( 'This weekend’s guide is already published and was not overwritten.', 'chattanooga-music-scene-core' ) );
@@ -507,7 +455,7 @@ final class CMS_Weekend_Posts {
 			'post_status'  => $status,
 			'post_title'   => $this->post_title( $window ),
 			'post_name'    => 'chattanooga-music-this-weekend-' . $window['key'],
-			'post_content' => $this->build_post_content( $events, $window ),
+			'post_content' => $this->build_post_content( $selected, $window ),
 			'post_excerpt' => sprintf(
 				/* translators: 1: weekend start date, 2: weekend end date. */
 				__( 'Live music happening across Chattanooga from %1$s through %2$s. Open the weekend guide and choose your stage.', 'chattanooga-music-scene-core' ),
@@ -531,7 +479,7 @@ final class CMS_Weekend_Posts {
 
 		return array(
 			'post_id'     => $result,
-			'event_count' => count( $events ),
+			'event_count' => count( $selected ),
 			'status'      => $status,
 			'week_key'    => $window['key'],
 		);
@@ -580,11 +528,16 @@ final class CMS_Weekend_Posts {
 	}
 
 	public function enqueue_styles() {
-		if ( ! is_singular( self::POST_TYPE ) || ! get_post_meta( get_queried_object_id(), self::META_WEEK_KEY, true ) ) {
-			return;
+		$should_enqueue = is_singular( self::POST_TYPE ) && get_post_meta( get_queried_object_id(), self::META_WEEK_KEY, true );
+
+		if ( ! $should_enqueue && is_page( 'scene' ) ) {
+			$page = get_queried_object();
+			$should_enqueue = $page instanceof WP_Post && has_shortcode( $page->post_content, 'cms_weekend_feature' );
 		}
 
-		wp_enqueue_style( 'cms-weekend-guide', CMS_CORE_URL . 'assets/weekend-guide.css', array(), CMS_CORE_VERSION );
+		if ( $should_enqueue ) {
+			wp_enqueue_style( 'cms-weekend-guide', CMS_CORE_URL . 'assets/weekend-guide.css', array(), CMS_CORE_VERSION );
+		}
 	}
 
 	public function render_scene_feature() {
@@ -598,92 +551,30 @@ final class CMS_Weekend_Posts {
 
 		wp_enqueue_style( 'cms-weekend-guide', CMS_CORE_URL . 'assets/weekend-guide.css', array(), CMS_CORE_VERSION );
 
-		$url     = get_permalink( $post_id );
-		$excerpt = get_the_excerpt( $post_id );
+		$url       = get_permalink( $post_id );
+		$excerpt   = get_the_excerpt( $post_id );
+		$image_url = get_the_post_thumbnail_url( $post_id, 'large' );
 
 		if ( '' === trim( $excerpt ) ) {
 			$excerpt = __( 'Find live music happening across Chattanooga this weekend.', 'chattanooga-music-scene-core' );
 		}
 
+		if ( ! $image_url ) {
+			$uploads   = wp_upload_dir();
+			$image_url = trailingslashit( $uploads['baseurl'] ) . '2026/08/chattanooga-scene-editorial.jpg';
+		}
+
 		return sprintf(
-			'<section class="cms-weekend-scene-feature" aria-labelledby="cms-weekend-feature-title"><p class="cms-weekend-feature-kicker">%1$s</p><h2 id="cms-weekend-feature-title"><a href="%2$s">%3$s</a></h2><p class="cms-weekend-feature-deck">%4$s</p><a class="cms-weekend-feature-link" href="%2$s">%5$s <span aria-hidden="true">→</span></a></section>',
+			'<section class="cms-weekend-scene-feature" aria-labelledby="cms-weekend-scene-heading"><header class="cms-weekend-scene-intro"><p class="cms-weekend-feature-kicker">%1$s</p><h2 id="cms-weekend-scene-heading">%2$s</h2><p class="cms-weekend-scene-deck">%3$s</p></header><div class="cms-weekend-scene-panel"><figure class="cms-weekend-scene-image"><img src="%4$s" alt="" loading="lazy"></figure><article class="cms-weekend-scene-card"><p class="cms-weekend-feature-kicker">%1$s</p><h3 id="cms-weekend-feature-title"><a href="%5$s">%6$s</a></h3><p class="cms-weekend-feature-deck">%7$s</p><a class="cms-weekend-feature-link" href="%5$s">%8$s <span aria-hidden="true">→</span></a></article></div></section>',
 			esc_html__( 'Weekend Feature', 'chattanooga-music-scene-core' ),
+			esc_html__( 'This weekend in Chattanooga', 'chattanooga-music-scene-core' ),
+			esc_html__( 'A guide to live music, rooms, and voices around the city.', 'chattanooga-music-scene-core' ),
+			esc_url( $image_url ),
 			esc_url( $url ),
 			esc_html( get_the_title( $post_id ) ),
 			esc_html( $excerpt ),
-			esc_html__( 'Read the full weekend guide', 'chattanooga-music-scene-core' )
+			esc_html__( 'Read the weekend guide', 'chattanooga-music-scene-core' )
 		);
-	}
-
-	private function render_scene_story_card() {
-		$window  = $this->weekend_window();
-		$post_id = $this->find_existing_post( $window['key'] );
-		$preview = current_user_can( 'publish_posts' ) && isset( $_GET['cms_weekend_preview'] ) && '1' === sanitize_text_field( wp_unslash( $_GET['cms_weekend_preview'] ) );
-
-		if ( ! $post_id || ( 'publish' !== get_post_status( $post_id ) && ! $preview ) ) {
-			return '';
-		}
-
-		wp_enqueue_style( 'cms-weekend-guide', CMS_CORE_URL . 'assets/weekend-guide.css', array(), CMS_CORE_VERSION );
-		$excerpt = get_the_excerpt( $post_id );
-		if ( '' === trim( $excerpt ) ) {
-			$excerpt = __( 'Find live music happening across Chattanooga this weekend.', 'chattanooga-music-scene-core' );
-		}
-
-		return sprintf(
-			'<article class="cms-story cms-weekend-story"><span class="number">%1$s</span><h3><a href="%2$s">%3$s</a></h3><p>%4$s</p><a href="%2$s">%5$s</a></article>',
-			esc_html__( 'Weekend Feature · 04', 'chattanooga-music-scene-core' ),
-			esc_url( get_permalink( $post_id ) ),
-			esc_html( get_the_title( $post_id ) ),
-			esc_html( $excerpt ),
-			esc_html__( 'Read the full weekend guide', 'chattanooga-music-scene-core' )
-		);
-	}
-
-	public function inject_scene_feature( $content ) {
-		if ( is_admin() || ! in_the_loop() || ! is_main_query() ) {
-			return $content;
-		}
-
-		if ( is_singular( self::POST_TYPE ) ) {
-			$post_id  = get_queried_object_id();
-			$week_key = get_post_meta( $post_id, self::META_WEEK_KEY, true );
-			$window   = $this->weekend_window();
-
-			if ( $week_key !== $window['key'] ) {
-				return $content;
-			}
-
-			$feature_content = $this->feature_content( $window );
-			return is_wp_error( $feature_content ) || '' === $feature_content ? $content : $feature_content;
-		}
-
-		if ( ! is_page( 'scene' ) ) {
-			return $content;
-		}
-
-		if ( false !== strpos( $content, 'cms-weekend-story' ) || false !== strpos( $content, 'cms-weekend-scene-feature' ) ) {
-			return $content;
-		}
-
-		$feature = $this->render_scene_story_card();
-		if ( '' === $feature ) {
-			return $content;
-		}
-
-		$field = '<div class="cms-story-field">';
-		$start = strpos( $content, $field );
-		if ( false === $start ) {
-			return $content;
-		}
-		$end = strpos( $content, '</div>', $start + strlen( $field ) );
-		if ( false === $end ) {
-			return $content;
-		}
-
-		$content = substr_replace( $content, $feature, $end, 0 );
-		$content = substr_replace( $content, '<div class="cms-story-field cms-story-field--weekend">', $start, strlen( $field ) );
-		return str_replace( '<section class="cms-stories"', '<section class="cms-stories cms-stories--weekend"', $content );
 	}
 
 	public function render_admin_page() {
@@ -763,17 +654,16 @@ final class CMS_Weekend_Posts {
 							<?php
 							wp_dropdown_users(
 								array(
-									'id'                 => 'cms-weekend-author',
-									'name'               => self::OPTION_SETTINGS . '[post_author]',
-									'selected'           => absint( $settings['post_author'] ),
-									'show_option_none'   => __( 'Select an author', 'chattanooga-music-scene-core' ),
-									'option_none_value'  => 0,
-									'who'                => 'authors',
+									'id'                => 'cms-weekend-author',
+									'name'              => self::OPTION_SETTINGS . '[post_author]',
+									'selected'          => absint( $settings['post_author'] ),
+									'show_option_none'  => __( 'Select an author', 'chattanooga-music-scene-core' ),
+									'option_none_value' => 0,
+									'who'               => 'authors',
 								)
 							);
 							?>
-							<p class="description"><?php esc_html_e( 'Choose the WordPress author whose Jetpack Social connection should publish the scheduled post.', 'chattanooga-music-scene-core' ); ?></p>
-						</td>
+							<p class="description"><?php esc_html_e( 'Choose the WordPress author whose Jetpack Social connection should publish the scheduled post.', 'chattanooga-music-scene-core' ); ?></p></td>
 					</tr>
 					<tr>
 						<th scope="row"><label for="cms-weekend-introduction"><?php esc_html_e( 'Introduction', 'chattanooga-music-scene-core' ); ?></label></th>
