@@ -40,7 +40,7 @@ foreach ( $required_plugins as $plugin_file ) {
 
 cms_site_plugins_assert( defined( 'CUA_VERSION' ) && '1.2.60' === CUA_VERSION, 'ADMIN MCP 1.2.60 did not load.' );
 cms_site_plugins_assert( defined( 'CMS_MARKETPLACE_VERSION' ) && '0.1.1' === CMS_MARKETPLACE_VERSION, 'Marketplace 0.1.1 did not load.' );
-cms_site_plugins_assert( defined( 'CMS_CORE_VERSION' ) && '0.2.15' === CMS_CORE_VERSION, 'Weekend Feature 0.2.15 did not load.' );
+cms_site_plugins_assert( defined( 'CMS_CORE_VERSION' ) && '0.2.16' === CMS_CORE_VERSION, 'Weekend Feature 0.2.16 did not load.' );
 cms_site_plugins_assert( class_exists( 'WC_Product_Simple' ), 'WooCommerce product API is unavailable.' );
 cms_site_plugins_assert( class_exists( 'EM_Events' ), 'Events Manager API is unavailable.' );
 
@@ -56,57 +56,35 @@ cms_site_plugins_assert( array_key_exists( 'plugin_dir_writable', $health_result
 global $wpdb;
 cms_site_plugins_assert( '1' === (string) $wpdb->get_var( 'SELECT 1' ), 'WordPress database verification failed.' );
 
-// Weekend Feature must register its public WordPress contracts and remain connected to Events Manager.
+// Weekend Feature must register its public contracts and remain shortcode-only on the Scene.
 cms_site_plugins_assert( post_type_exists( CMS_Weekend_Posts::POST_TYPE ), 'Weekend Feature post type is not registered.' );
 $weekend_type = get_post_type_object( CMS_Weekend_Posts::POST_TYPE );
 cms_site_plugins_assert( $weekend_type && ! empty( $weekend_type->show_in_rest ), 'Weekend Feature post type is not REST-visible.' );
 cms_site_plugins_assert( shortcode_exists( 'cms_weekend_feature' ), 'Weekend Feature shortcode is unavailable.' );
-cms_site_plugins_assert(
-	false !== has_filter( 'the_content', array( CMS_Weekend_Posts::instance(), 'inject_scene_feature' ) ),
-	'Weekend Feature direct Scene injector is not registered.'
-);
+$weekend = CMS_Weekend_Posts::instance();
+cms_site_plugins_assert( false === method_exists( $weekend, 'inject_scene_feature' ), 'Retired direct Scene injector still exists.' );
+cms_site_plugins_assert( false === has_filter( 'the_content', array( $weekend, 'inject_scene_feature' ) ), 'Weekend Feature is still registered on the_content.' );
 
 $weekend_css = file_get_contents( CMS_CORE_DIR . 'assets/weekend-guide.css' );
 cms_site_plugins_assert( false !== $weekend_css, 'Weekend Feature stylesheet could not be read.' );
 cms_site_plugins_assert(
-	false === strpos( $weekend_css, 'grid-template-columns: minmax(0, 1.15fr) minmax(18rem, .85fr)' ),
-	'Scene Weekend Feature still uses the retired standalone two-column grid treatment.'
+	false !== strpos( $weekend_css, '.cms-weekend-scene-panel' )
+	&& false !== strpos( $weekend_css, 'grid-template-columns: minmax(0, 1.02fr) minmax(360px, .98fr);' ),
+	'Mockup B two-column Weekend Feature panel is missing.'
 );
 cms_site_plugins_assert(
-	false !== strpos( $weekend_css, 'transform: rotate(-3deg)' ) && false !== strpos( $weekend_css, 'cms-weekend-scene-feature::before' ),
-	'Scene Weekend Feature editorial card treatment is missing.'
+	false !== strpos( $weekend_css, '.cms-weekend-scene-image::before' )
+	&& false !== strpos( $weekend_css, '.cms-weekend-scene-card::before' )
+	&& false !== strpos( $weekend_css, 'transform: rotate(-2deg);' ),
+	'Mockup B editorial image/card/tape treatment is missing.'
 );
 cms_site_plugins_assert(
-	false !== strpos( $weekend_css, 'grid-template-columns: repeat(2, minmax(0, 1fr))' )
-	&& false === strpos( $weekend_css, 'grid-template-columns: repeat(4, minmax(0, 1fr))' )
-	&& false !== strpos( $weekend_css, "cms-stories--weekend {\n\tmargin-top: 20px;" )
-	&& false !== strpos( $weekend_css, '.cms-stories--weekend + .cms-market' ),
-	'Scene Weekend Feature heading or cards may overlap adjacent sections.'
+	false !== strpos( $weekend_css, '.cms-weekend-scene-feature + .cms-stories' )
+	&& false === strpos( $weekend_css, 'cms-story-field--weekend' )
+	&& false === strpos( $weekend_css, 'cms-weekend-story' )
+	&& false === strpos( $weekend_css, 'cms-stories--weekend' ),
+	'Retired fourth-card Scene treatment is still present or section separation is missing.'
 );
-
-$scene_page = wp_insert_post(
-	array(
-		'post_type'    => 'page',
-		'post_status'  => 'publish',
-		'post_title'   => 'Scene',
-		'post_name'    => 'scene',
-		'post_content' => '<section class="cms-hero">Scene hero</section><section class="cms-stories">Stories</section>',
-	),
-	true
-);
-cms_site_plugins_assert( ! is_wp_error( $scene_page ) && $scene_page > 0, 'Could not create disposable Scene page for duplicate-injection regression.' );
-$prior_wp_query = isset( $GLOBALS['wp_query'] ) ? $GLOBALS['wp_query'] : null;
-$GLOBALS['wp_query'] = new WP_Query( array( 'page_id' => $scene_page, 'post_type' => 'page' ) );
-$GLOBALS['wp_query']->in_the_loop = true;
-$already_rendered = '<section class="cms-weekend-scene-feature">Existing rendered Weekend Feature</section>';
-$deduped = CMS_Weekend_Posts::instance()->inject_scene_feature( $already_rendered );
-cms_site_plugins_assert( $already_rendered === $deduped, 'Scene Weekend Feature injector duplicated an already-rendered feature.' );
-if ( null !== $prior_wp_query ) {
-	$GLOBALS['wp_query'] = $prior_wp_query;
-} else {
-	unset( $GLOBALS['wp_query'] );
-}
-wp_delete_post( $scene_page, true );
 
 $schedules = apply_filters( 'cron_schedules', array() );
 cms_site_plugins_assert( isset( $schedules['cms_weekly'] ), 'Weekend Feature weekly cron interval is missing.' );
@@ -115,7 +93,6 @@ cms_site_plugins_assert( WEEK_IN_SECONDS === (int) $schedules['cms_weekly']['int
 $publicize_types = apply_filters( 'publicize_post_types', array( 'post' ) );
 cms_site_plugins_assert( in_array( CMS_Weekend_Posts::POST_TYPE, $publicize_types, true ), 'Weekend Feature is not exposed to Jetpack Social filter contract.' );
 
-$weekend = CMS_Weekend_Posts::instance();
 $scene_feature_window = cms_site_plugins_private( $weekend, 'weekend_window' );
 $scene_feature_id = wp_insert_post(
 	array(
@@ -131,35 +108,17 @@ $scene_feature_id = wp_insert_post(
 cms_site_plugins_assert( ! is_wp_error( $scene_feature_id ), 'Could not create disposable current Weekend Feature for Scene rendering regression.' );
 $scene_feature_html = $weekend->render_scene_feature();
 cms_site_plugins_assert( $scene_feature_html === do_shortcode( '[cms_weekend_feature]' ), 'Weekend Feature shortcode does not render the feature.' );
+cms_site_plugins_assert( false !== strpos( $scene_feature_html, 'This weekend in Chattanooga' ), 'Mockup B Scene heading is missing.' );
+cms_site_plugins_assert( false !== strpos( $scene_feature_html, 'cms-weekend-scene-panel' ), 'Mockup B panel wrapper is missing.' );
+cms_site_plugins_assert( false !== strpos( $scene_feature_html, 'cms-weekend-scene-image' ), 'Mockup B image area is missing.' );
+cms_site_plugins_assert( false !== strpos( $scene_feature_html, 'cms-weekend-scene-card' ), 'Mockup B paper card is missing.' );
 cms_site_plugins_assert( false !== strpos( $scene_feature_html, 'Scene Feature Regression Title' ), 'Scene Weekend Feature title is missing.' );
 cms_site_plugins_assert( false !== strpos( $scene_feature_html, 'A concise editorial deck for the full weekend guide.' ), 'Scene Weekend Feature excerpt is missing.' );
-cms_site_plugins_assert( false !== strpos( $scene_feature_html, 'Read the full weekend guide' ), 'Scene Weekend Feature guide link is missing.' );
+cms_site_plugins_assert( false !== strpos( $scene_feature_html, 'Read the weekend guide' ), 'Scene Weekend Feature guide link is missing.' );
 cms_site_plugins_assert( false === strpos( $scene_feature_html, 'cms-weekend-day' ) && false === strpos( $scene_feature_html, 'cms-weekend-event' ), 'Scene Weekend Feature rendered the full event schedule.' );
-$scene_page = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Scene', 'post_name' => 'scene', 'post_content' => '<section class="cms-stories"><div class="cms-story-field"><article class="cms-story">One</article><article class="cms-story">Two</article><article class="cms-story">Three</article></div></section>' ), true );
-cms_site_plugins_assert( ! is_wp_error( $scene_page ), 'Could not create disposable Scene collage fixture.' );
-$prior_wp_query = isset( $GLOBALS['wp_query'] ) ? $GLOBALS['wp_query'] : null;
-$prior_wp_the_query = isset( $GLOBALS['wp_the_query'] ) ? $GLOBALS['wp_the_query'] : null;
-$GLOBALS['wp_query'] = new WP_Query( array( 'page_id' => $scene_page, 'post_type' => 'page' ) );
-$GLOBALS['wp_the_query'] = $GLOBALS['wp_query'];
-$GLOBALS['wp_query']->in_the_loop = true;
-$scene_source = get_post_field( 'post_content', $scene_page );
-$scene_output = $weekend->inject_scene_feature( $scene_source );
-cms_site_plugins_assert( 4 === substr_count( $scene_output, '<article class="cms-story' ), 'Weekend Feature did not join the three Featured Stories cards.' );
-cms_site_plugins_assert( false !== strpos( $scene_output, 'cms-story-field--weekend' ) && false !== strpos( $scene_output, 'cms-weekend-story' ), 'Fourth-card styling hooks are missing.' );
-cms_site_plugins_assert( false === strpos( $scene_output, 'cms-weekend-scene-feature' ), 'Standalone Weekend Feature strip appeared on the Scene.' );
-cms_site_plugins_assert( $scene_output === $weekend->inject_scene_feature( $scene_output ), 'Weekend Feature card was injected twice.' );
-if ( null !== $prior_wp_query ) {
-	$GLOBALS['wp_query'] = $prior_wp_query;
-} else {
-	unset( $GLOBALS['wp_query'] );
-}
-if ( null !== $prior_wp_the_query ) {
-	$GLOBALS['wp_the_query'] = $prior_wp_the_query;
-} else {
-	unset( $GLOBALS['wp_the_query'] );
-}
-wp_delete_post( $scene_page, true );
+cms_site_plugins_assert( false === strpos( $scene_feature_html, 'cms-weekend-story' ), 'Scene Weekend Feature rendered the retired fourth-card markup.' );
 wp_delete_post( $scene_feature_id, true );
+
 $weekend->register_settings();
 $registered_settings = get_registered_settings();
 cms_site_plugins_assert( isset( $registered_settings[ CMS_Weekend_Posts::OPTION_SETTINGS ] ), 'Weekend Feature Settings API registration is missing.' );
@@ -171,18 +130,6 @@ cms_site_plugins_assert( '2026-09-11' === $window['start']->format( 'Y-m-d' ), '
 cms_site_plugins_assert( '2026-09-13' === $window['end']->format( 'Y-m-d' ), 'Weekend Feature window does not end Sunday.' );
 $events = cms_site_plugins_private( $weekend, 'get_events', array( $window ) );
 cms_site_plugins_assert( ! is_wp_error( $events ) && is_array( $events ), 'Weekend Feature could not query Events Manager.' );
-
-$glimpse_fixture = array(
-	(object) array( 'event_start_date' => '2026-09-11', 'event_start_time' => '18:00:00', 'event_name' => 'Friday Early' ),
-	(object) array( 'event_start_date' => '2026-09-11', 'event_start_time' => '20:00:00', 'event_name' => 'Friday Late' ),
-	(object) array( 'event_start_date' => '2026-09-12', 'event_start_time' => '19:00:00', 'event_name' => 'Saturday Pick' ),
-	(object) array( 'event_start_date' => '2026-09-13', 'event_start_time' => '17:00:00', 'event_name' => 'Sunday Pick' ),
-);
-$glimpse = cms_site_plugins_private( $weekend, 'scene_glimpse_events', array( $glimpse_fixture, $window ) );
-cms_site_plugins_assert( 3 === count( $glimpse ), 'Scene Weekend Feature glimpse must be limited to three representative events.' );
-cms_site_plugins_assert( 'Friday Early' === ( $glimpse[0]->event_name ?? '' ), 'Scene Weekend Feature did not keep the first Friday event.' );
-cms_site_plugins_assert( 'Saturday Pick' === ( $glimpse[1]->event_name ?? '' ), 'Scene Weekend Feature did not include a Saturday event.' );
-cms_site_plugins_assert( 'Sunday Pick' === ( $glimpse[2]->event_name ?? '' ), 'Scene Weekend Feature did not include a Sunday event.' );
 
 $feature_fixture = array(
 	(object) array( 'event_start_date' => '2026-09-11', 'event_start_time' => '18:00:00', 'event_name' => 'Friday Anchor' ),
@@ -317,5 +264,5 @@ wp_set_current_user( 0 );
 cms_site_plugins_assert( false === $health->check_permissions( array() ), 'Anonymous ADMIN MCP access was not denied.' );
 wp_set_current_user( 1 );
 
-echo "cms-site-plugins-integration: PASS admin_mcp=1.2.60 marketplace=0.1.1 weekend_feature=0.2.15 wordpress_native_install=verified coexistence=verified marketplace_awp=verified marketplace_woocommerce=verified marketplace_search=verified marketplace_truncation=verified woocommerce_label=absent location_filter=preserved weekend_events_manager=verified weekend_schedule=verified direct_scene_injection=verified scene_editorial_style=verified admin_mcp_health=verified database=verified admin_boundary=verified\n";
+echo "cms-site-plugins-integration: PASS admin_mcp=1.2.60 marketplace=0.1.1 weekend_feature=0.2.16 wordpress_native_install=verified coexistence=verified marketplace_awp=verified marketplace_woocommerce=verified marketplace_search=verified marketplace_truncation=verified woocommerce_label=absent location_filter=preserved weekend_events_manager=verified weekend_schedule=verified direct_scene_injection=absent shortcode_scene_placement=verified mockup_b_editorial_style=verified admin_mcp_health=verified database=verified admin_boundary=verified\n";
 exit( 0 );
