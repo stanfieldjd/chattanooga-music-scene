@@ -558,7 +558,6 @@ final class CMS_Weekend_Posts {
 			<?php if ( ! $has_guide ) : ?>
 				<article class="cms-weekend-scene-teaser">
 					<h2><?php esc_html_e( 'The next weekend guide is on its way', 'chattanooga-music-scene-core' ); ?></h2>
-					<p><?php esc_html_e( 'Explore upcoming shows while the next weekend edition is being prepared.', 'chattanooga-music-scene-core' ); ?></p>
 					<a href="<?php echo esc_url( home_url( '/events/' ) ); ?>"><?php esc_html_e( 'Explore upcoming shows', 'chattanooga-music-scene-core' ); ?> <span aria-hidden="true">→</span></a>
 				</article>
 			<?php else : ?>
